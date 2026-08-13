@@ -1,9 +1,6 @@
-// Native-harness tests for ProjectsView — mirrors app/tests/layout/leftSidebar.test.tsx's
-// render/flush/container pattern (this repo has no @testing-library/preact dependency).
-//
-// Focus: the inline-load-progress cutover (#77 Task 9) — while SCAN_PROGRESS is
-// non-null the view shows progress + a working Cancel and the form/recents (the
-// "second load" surface) are unmounted, not just visually disabled.
+// Native-harness tests for ProjectsView (no @testing-library/preact here).
+// Focus: while SCAN_PROGRESS is non-null the view shows progress + Cancel and
+// unmounts the form/recents entirely, rather than disabling them.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
@@ -162,9 +159,8 @@ describe('ProjectsView', () => {
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={onClose} />, container);
     await flush();
 
-    // The Escape listener rebinds via a useEffect keyed on `loading`; that
-    // commit needs an rAF-scale tick in jsdom (see _helpers/preact.ts), not
-    // just a microtask flush, so drainAsync rather than flush() here.
+    // The Escape listener rebinds in a `loading`-keyed effect, whose commit
+    // needs an rAF-scale tick in jsdom — hence drainAsync, not flush().
     SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await drainAsync();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -240,10 +236,8 @@ describe('ProjectsView', () => {
     });
 
     it('marks the same repo Active in both lists, branch or no branch', async () => {
-      // Regression: source identity includes the branch. Recents stores @main,
-      // a Discover row names the repo alone, and ACTIVE_SOURCE can only carry
-      // one shape. Comparing both the same way marked one list and missed the
-      // other, in whichever direction the shape happened to lean.
+      // Regression: recents stores @main while Discover names the repo
+      // alone, so one comparison shape always missed a list.
       const src = 'https://github.com/preactjs/preact';
       CURRENT_SOURCE.value = { src, branch: 'main' };
       RECENTS.value = [{ src, branch: 'main', label: 'preactjs/preact', lastOpenedAt: 1 }];
@@ -265,9 +259,8 @@ describe('ProjectsView', () => {
     });
 
     it('marks the featured repo Active in recents, which stores a branch', async () => {
-      // The featured city is not an opened project, so it has no CURRENT_SOURCE.
-      // Its identity still has to carry the branch it loaded, or it fails to
-      // match its own row in recents.
+      // The featured city has no CURRENT_SOURCE, but its identity must still
+      // carry a branch or it won't match its own recents row.
       const src = 'https://github.com/thalida/codecity';
       RECENTS.value = [{ src, branch: 'main', label: 'thalida/codecity', lastOpenedAt: 1 }];
       DISCOVER.value = [{ url: src, label: 'codecity', featured: true }];
@@ -280,9 +273,8 @@ describe('ProjectsView', () => {
     });
 
     it('forgets a picked tab when the switcher closes', async () => {
-      // Regression: the view returns null while hidden but stays mounted, so a
-      // tab picked once became the tab you got on every later open, Discover
-      // included, however many recents you had.
+      // Regression: the view stays mounted while hidden, so a tab picked
+      // once became the tab every later open landed on.
       RECENTS.value = [RECENT];
       DISCOVER.value = CURATED;
       await open();
@@ -382,9 +374,8 @@ describe('ProjectsView', () => {
     expect(PROJECTS_VIEW.value.visible).toBe(false);
   });
 
-  // The landing is fixed over the whole viewport, so it covers the app header
-  // and footer: without these, a cold boot shows no version, repo link or
-  // credit until a repo is loaded.
+  // The landing covers the app header and footer, so without these a cold
+  // boot shows no version, repo link, or credit at all.
   describe('identity line', () => {
     const renderLanding = async (opts: { dismissible: boolean }) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
@@ -403,14 +394,16 @@ describe('ProjectsView', () => {
       expect(hero.textContent).toContain('v1.4.0');
     });
 
-    it('links about to the repo and the credit to thalida.com', async () => {
+    it('links the brand home, about to the repo, and the credit to thalida.com', async () => {
       const hero = await renderLanding({ dismissible: false });
       const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
       expect(links.map((a) => a.getAttribute('href'))).toEqual([
+        '/',
         'https://github.com/thalida/codecity',
         'https://thalida.com',
       ]);
-      for (const a of links) {
+      // The brand is an in-app home link; the external pair opens new tabs.
+      for (const a of links.slice(1)) {
         expect(a.getAttribute('target')).toBe('_blank');
         expect(a.getAttribute('rel')).toBe('noopener noreferrer');
       }
@@ -424,7 +417,7 @@ describe('ProjectsView', () => {
     it('shows on the dismissible switcher too, which also covers the chrome', async () => {
       const hero = await renderLanding({ dismissible: true });
       expect(hero.textContent).toContain('v1.4.0');
-      expect(hero.querySelectorAll('a')).toHaveLength(2);
+      expect(hero.querySelectorAll('a')).toHaveLength(3);
     });
   });
 });

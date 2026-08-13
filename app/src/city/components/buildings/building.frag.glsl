@@ -247,13 +247,10 @@ float aaband(float a, float b, float x, float w) {
   return smoothstep(a - ww, a + ww, x) * (1.0 - smoothstep(b - ww, b + ww, x));
 }
 
-// Standard sin-fract pseudo-random — deterministic per (col, row, seed)
+// hash21 comes from the shared chunk — deterministic per (col, row, seed)
 // so a given building's window pattern is stable across frames and
-// across the dual-mesh detail / silhouette swap. Sufficient for visual
-// randomness; not for anything that needs statistical quality.
-float hash21(vec2 p) {
-  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
+// across the dual-mesh detail / silhouette swap.
+#include <hash_glsl_inline>
 
 // ---------------------------------------------------------------------------
 // Face renderers

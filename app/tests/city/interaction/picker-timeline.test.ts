@@ -1,8 +1,6 @@
-// picker-timeline.test.ts — Timeline mode fades buildings/trees/streets by
-// writing opacity/scale onto their still-in-scene meshes (each component's
-// applyScrub, treeRenderer.setScrubCommit), so a raycast still hits them. Guards that
-// interpretHit rejects a scrub-hidden hit while TIMELINE_MODE is on, and
-// leaves live-mode resolution untouched.
+// picker-timeline.test.ts — scrubbed-away meshes stay in the scene, so a
+// raycast still hits them. Guards that interpretHit rejects those hits in
+// Timeline mode and leaves live-mode resolution untouched.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -12,10 +10,11 @@ import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
+import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Building, CommitEntry, PickerWorld, Street } from '@/types';
+import type { Building, PickerWorld, Street } from '@/types';
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
@@ -158,13 +157,12 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 });
 
 describe('picker: Timeline scrub-hidden guard — trees', () => {
-  function makeCanopy(): THREE.InstancedMesh {
-    const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
-    m.userData.meshKind = 'tree-canopy';
-    return m;
-  }
-
-  function makeWorld(canopy: THREE.InstancedMesh, commits: CommitEntry[]) {
+  // Real renderer: its own setScrubCommit decides what is hidden, and its own
+  // commitForFace/isScrubHidden answer the picker. A stub would restate both.
+  function setup(count = 2) {
+    const commits = commitSeries(count);
+    const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
+    const trees = renderTrees(placements, commits, { avg: 1, busy: 1 });
     const cityState = makeCityState();
     const api: PickerWorld = {
       getStreetPickables: () => [],
@@ -174,70 +172,60 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       getStreetByDir: () => null,
       getBuildingIndex: () => null,
       getCells: () => new Map(),
-      getTrees: () => ({
-        group: new THREE.Group(),
-        commitForInstance: (mesh, instanceId) =>
-          mesh === canopy ? (commits[instanceId] ?? null) : null,
-        findTreeBySha: () => null,
-        getInstanceTransform: () => false,
-        colorForSha: () => null,
-      }),
+      getTrees: () => trees,
     };
-    return Object.assign(api, { cityState });
+    const picker = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world: api,
+      cityState,
+    });
+    return { trees, commits, picker };
   }
 
-  it('a zero-scaled (future-commit) tree instance is not pickable', () => {
-    const canopy = makeCanopy();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
-    const world = makeWorld(canopy, commits);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-    TIMELINE_MODE.value = true;
-
-    const hit = {
-      object: canopy,
-      instanceId: 1,
+  function hitTree(trees: ReturnType<typeof renderTrees>, placement: number) {
+    return {
+      object: treeSlot(trees, placement).mesh,
+      faceIndex: treeFaceIndex(trees, placement),
       distance: 1,
       point: new THREE.Vector3(),
     } as unknown as THREE.Intersection<THREE.Object3D>;
-    expect(picker.interpretHit(hit)).toBeNull();
-    picker.dispose();
-  });
+  }
 
-  it('a full-scale tree instance resolves normally in Timeline mode', () => {
-    const canopy = makeCanopy();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    const world = makeWorld(canopy, commits);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+  it('a tree the scrub has hidden is not pickable', () => {
+    const { trees, picker } = setup();
     TIMELINE_MODE.value = true;
+    trees.setScrubCommit(0); // hides commitIndex 1
 
-    const hit = {
-      object: canopy,
-      instanceId: 1,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const t = picker.interpretHit(hit);
-    expect(t?.kind).toBe(NodeKind.Commit);
+    expect(picker.interpretHit(hitTree(trees, 1))).toBeNull();
+    expect(picker.interpretHit(hitTree(trees, 0))?.kind).toBe(NodeKind.Commit);
+    trees.dispose();
     picker.dispose();
   });
 
-  it('live mode still picks a zero-scaled tree instance — guard is a no-op', () => {
-    const canopy = makeCanopy();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
-    const world = makeWorld(canopy, commits);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+  it('pruneScrubHiddenSelection drops a selection the scrub removes', () => {
+    const { trees, picker } = setup();
+    TIMELINE_MODE.value = true;
+    picker.setSelection(picker.interpretHit(hitTree(trees, 1)));
+    expect(picker.selection.value?.kind).toBe(NodeKind.Commit);
+
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).not.toBeNull();
+
+    trees.setScrubCommit(0);
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).toBeNull();
+    trees.dispose();
+    picker.dispose();
+  });
+
+  it('live mode (no scrub threshold) picks every tree', () => {
+    const { trees, picker } = setup();
     TIMELINE_MODE.value = false;
+    trees.setScrubCommit(null);
 
-    const hit = {
-      object: canopy,
-      instanceId: 1,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const t = picker.interpretHit(hit);
-    expect(t?.kind).toBe(NodeKind.Commit);
+    expect(picker.interpretHit(hitTree(trees, 1))?.kind).toBe(NodeKind.Commit);
+    trees.dispose();
     picker.dispose();
   });
 });

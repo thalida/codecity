@@ -18,11 +18,8 @@ interface TestStreet {
   dir: { path: string };
 }
 
-// Synthetic streets for chain tests. Layout:
-//   root (x-orientation, centerline at z=0, extends 0..L)
-//     ├─ src   (y-orientation, branches at x=200, extends 0..-100)
-//     │    └─ scene (x-orientation, branches at z=-50, extends 200..280)
-//     └─ tests (y-orientation, branches at x=400, extends 0..+100)
+// Synthetic streets: an x-oriented root at z=0, with src (branching at
+// x=200) → scene (at z=-50), and tests (at x=400).
 const ROOT: TestStreet = {
   x: 250,
   y: 0,
@@ -164,9 +161,8 @@ describe('computePathPoints', () => {
   });
 
   it('file selection: gem → bends → walk along → perpendicular to building edge', () => {
-    // File in src/scene at building (x=250, y=-30, w=10, d=10).
-    // SCENE is x-orientation at z=-50. Building y=-30 > street.y=-50,
-    // so road-side edge is b.y - b.d/2 = -35.
+    // Building at y=-30 sits above SCENE's z=-50 centerline, so its
+    // road-side edge is b.y - b.d/2 = -35.
     const sel = {
       kind: NodeKind.File,
       file: { path: 'src/scene/colors.js' },
@@ -204,6 +200,33 @@ describe('computePathPoints', () => {
     const pts = computePathPoints(sel, GEM, STREETS);
     // 5 points → 4 segments. If chain stops short anywhere, we'd see < 5.
     expect(pts.length).toBe(5);
+  });
+
+  it('drops a bend that lands on the gem (no zero-length segment)', () => {
+    // Gem exactly at the root/src intersection: the first bend duplicates it
+    // and would render as a zero-length segment (NaN in the fat-lines shader).
+    const sel = { kind: NodeKind.Directory, dir: { path: 'src' } };
+    const pts = computePathPoints(sel, { x: 200, z: 0 }, STREETS);
+    expect(pts).toEqual([
+      { x: 200, z: 0 }, // gem == bend, emitted once
+      { x: 200, z: -85 }, // src far end
+    ]);
+  });
+
+  it('drops a walk-along point that lands on the previous bend (file at the intersection)', () => {
+    // Building at the src street's centerline z (y=0): the walk-along point
+    // duplicates the root/src bend.
+    const sel = {
+      kind: NodeKind.File,
+      file: { path: 'src/at-corner.js' },
+      data: { x: 220, y: 0, w: 10, d: 10 },
+    };
+    const pts = computePathPoints(sel, GEM, STREETS);
+    expect(pts).toEqual([
+      { x: 25, z: 0 }, // gem
+      { x: 200, z: 0 }, // bend at root/src == walk-along point, emitted once
+      { x: 215, z: 0 }, // perpendicular to building edge
+    ]);
   });
 
   it('directory selection three-deep produces 4 segments (chain walks through all parents)', () => {

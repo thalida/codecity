@@ -28,9 +28,8 @@ const BUSY = { avg: 1, busy: 1 };
 
 const _origTrees = TREES.value;
 
-// A SceneContext whose picker exposes controllable selection + hover signals,
-// and a fake renderer.domElement canvas (with resizable client dims) so the
-// outline LineMaterial can read clientWidth/Height during arming.
+// SceneContext with controllable picker signals + a fake canvas with client
+// dims, which the outline LineMaterial reads during arming.
 
 // Pre-picker ctx: picker null (the construction-time window).
 function makePrePickerCtx(): SceneContext {
@@ -82,10 +81,8 @@ describe('createTrees() component door', () => {
     const cs = ctx.cityState;
     trees = createTrees(ctx);
     const before = cs.decorationRevision.value;
-    // Drive the reactive deferred pass the way applyManifest does. bbox stays
-    // null → sceneBbox null → run takes the clear+Idle early return (no rAF / no
-    // worker), exercising the synchronous prefix that must NOT subscribe the
-    // effect to the signals it writes (regression: "Cycle detected").
+    // bbox stays null so run takes the clear+Idle early return, exercising
+    // the synchronous prefix that must not self-subscribe ("Cycle detected").
     cs.manifest.value = { tree: { name: 'x' }, commits: [] } as never;
     cs.layout.value = { buildings: [], streets: [] } as never;
     await Promise.resolve();
@@ -101,8 +98,8 @@ describe('createTrees() component door', () => {
     const handle = trees.getRenderer();
     expect(handle).not.toBeNull();
     expect(handle!.group.parent).toBe(trees.group);
-    // The inner renderer carries the trunk + canopy InstancedMeshes.
-    const meshes = handle!.group.children.filter((c) => c instanceof THREE.InstancedMesh);
+    // The inner renderer carries the merged tree chunk meshes.
+    const meshes = handle!.group.children.filter((c) => c.userData?.meshKind === 'trees');
     expect(meshes.length).toBeGreaterThan(0);
     expect(handle!.findTreeBySha(SHA_A)).not.toBeNull();
   });

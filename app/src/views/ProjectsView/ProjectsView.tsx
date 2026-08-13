@@ -1,9 +1,7 @@
 // The landing and the project switcher, one page. Renders null when closed so
-// the form and list state reset on the next open.
-//
-// It is also the loading surface for every switch it starts, which is why
-// LoadingOverlay suppresses itself while this is visible: the two must never
-// stack. That leaves the overlay owning deep-link cold boot alone.
+// form/list state resets on the next open. It is also the loading surface for
+// every switch it starts, so LoadingOverlay suppresses itself while visible —
+// leaving the overlay to own deep-link cold boot alone.
 
 import './ProjectsView.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -107,12 +105,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       <div class="landing-inner">
         <section class="landing-hero">
           <div class="landing-identity">
-            <div class="landing-brand">
+            {/* Plain anchor: a full navigation home, clearing ?src. */}
+            <a class="landing-brand" href="/" aria-label="codecity home">
               <span class="landing-gem">
                 <GemIcon />
               </span>
               <h1 class="landing-wordmark">codecity</h1>
-            </div>
+            </a>
             {/* The landing covers the chrome, so this is the only place the
                 version and credit appear before a repo loads. */}
             <MetaLine linkClass="link" />

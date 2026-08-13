@@ -1,27 +1,17 @@
-// city/components/trees/outline.ts — owns:
-//   • the shared tree hover outline mesh (white LineSegments2 silhouette
-//     around the hovered tree's canopy)
-//   • the shared tree selected outline mesh (rainbow-chasing silhouette)
-//
-// Mirrors buildings/outline.ts but for tree canopies.
-// Exactly two LineSegments2 meshes exist regardless of tree count;
-// transforms are snapped per frame to the 0-2 currently-active outlines.
-//
-// Subscribes to picker.hover and picker.selection. Hover deduplicates
-// against selection by sha so a tree that is both hovered and selected
-// shows only the selected outline.
-//
-// refreshMaterials() is called by the trees component's theme effect to
-// push TREE_OUTLINE config changes into the two outline materials.
+// city/components/trees/outline.ts — the hover (white) + selected
+// (rainbow-chasing) canopy silhouettes, mirroring buildings/outline.ts.
+// Exactly two meshes exist regardless of tree count, snapped per frame to
+// the 0-2 active trees; hover dedups against selection by sha.
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
+import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/types/picker';
@@ -50,16 +40,15 @@ interface CreateArgs {
 export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
   const _cfg = TREES.value;
 
-  // Single canopy silhouette geometry shared by both outline meshes — every
-  // tree uses one facet count, so there's no per-tier swap. Wrapped in
-  // LineSegmentsGeometry (line2 addon's flat-array format).
+  // One shared silhouette: every tree uses the same facet count, so there's
+  // no per-tier geometry swap.
   const _edges = buildCanopyEdges();
-  const _edgesGeom = new LineSegmentsGeometry();
+  const _edgesGeom = new SafeLineSegmentsGeometry();
   _edgesGeom.setPositions(_edges.getAttribute('position').array as Float32Array);
   _edges.dispose();
 
   // ── Hover outline ─────────────────────────────────────────────────────
-  const hoverLineMat = new LineMaterial({
+  const hoverLineMat = createSafeLineMaterial({
     color: new THREE.Color(_cfg.OUTLINE_HOVER_COLOR),
     linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,
@@ -75,7 +64,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   scene.add(hoverOutline);
 
   // ── Selected outline (rainbow vertex colors) ──────────────────────────
-  const selectedLineMat = new LineMaterial({
+  const selectedLineMat = createSafeLineMaterial({
     vertexColors: true,
     linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,
@@ -92,9 +81,8 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   const _tmpMatrix = new THREE.Matrix4();
 
-  /** Snap the outline onto the tree with the given sha. The silhouette
-   *  geometry is shared (one facet count for all trees), so this only writes
-   *  the instance transform — no per-tier geometry swap. */
+  /** Snap the outline onto the tree with the given sha — transform only,
+   *  since the silhouette geometry is shared. */
   function _syncOutline(outline: LineSegments2, sha: string): boolean {
     const trees = getTrees();
     if (!trees) return false;
@@ -138,14 +126,14 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   let _selColorBuf: Float32Array | null = null;
   let _selSegCount = 0;
 
-  function _ensureColorBuffer(geom: LineSegmentsGeometry): void {
+  function _ensureColorBuffer(geom: SafeLineSegmentsGeometry): void {
     // Each segment has start RGB + end RGB = 6 floats.
     const startAttr = geom.attributes.instanceStart;
     if (!startAttr) return;
     const segCount = startAttr.count;
     if (segCount === _selSegCount && _selColorBuf) return;
     _selSegCount = segCount;
-    _selColorBuf = new Float32Array(segCount * 6);
+    _selColorBuf = new Float32Array(segCount * FLOATS_PER_SEGMENT);
     for (let i = 0; i < _selColorBuf.length; i++) _selColorBuf[i] = 1;
     geom.setColors(_selColorBuf);
   }
@@ -155,7 +143,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
       const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount);
-      const k = i * 6;
+      const k = i * FLOATS_PER_SEGMENT;
       _selColorBuf[k] = r;
       _selColorBuf[k + 1] = g;
       _selColorBuf[k + 2] = b;
@@ -163,10 +151,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
       _selColorBuf[k + 4] = g;
       _selColorBuf[k + 5] = b;
     }
-    const geom = selectedOutline.geometry as LineSegmentsGeometry;
-    const colorAttr = geom.attributes.instanceColorStart as THREE.InterleavedBufferAttribute;
-    colorAttr.data.array.set(_selColorBuf);
-    colorAttr.data.needsUpdate = true;
+    (selectedOutline.geometry as SafeLineSegmentsGeometry).setColors(_selColorBuf);
   }
 
   function update(_dtMs: number): void {
@@ -175,7 +160,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.Commit) {
       _syncOutline(selectedOutline, sel.commit.sha);
-      _ensureColorBuffer(selectedOutline.geometry as LineSegmentsGeometry);
+      _ensureColorBuffer(selectedOutline.geometry as SafeLineSegmentsGeometry);
       _writeRainbow(performance.now());
     }
 

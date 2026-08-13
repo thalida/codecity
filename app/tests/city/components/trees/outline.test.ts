@@ -201,8 +201,9 @@ describe('treeOutlineRenderer', () => {
     // First frame: paint colors from the current time stamp.
     r.update(0);
     const geom = r.selectedOutline.geometry as LineSegmentsGeometry;
-    const colorAttr = geom.attributes.instanceColorStart as THREE.InterleavedBufferAttribute;
-    const before = Float32Array.from(colorAttr.data.array as Float32Array);
+    // SafeLineSegmentsGeometry stores colors as a flat per-segment attribute.
+    const colorAttr = geom.attributes.instanceColorStart as THREE.InstancedBufferAttribute;
+    const before = Float32Array.from(colorAttr.array as Float32Array);
 
     // Advance time by enough to clear floating-point noise (~200ms) and re-paint.
     const tStart = performance.now();
@@ -210,7 +211,7 @@ describe('treeOutlineRenderer', () => {
       // busy wait — vitest's fake timers wouldn't move performance.now()
     }
     r.update(0);
-    const after = colorAttr.data.array as Float32Array;
+    const after = colorAttr.array as Float32Array;
 
     let diffs = 0;
     for (let i = 0; i < before.length; i++) {

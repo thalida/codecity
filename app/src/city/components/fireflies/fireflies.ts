@@ -10,9 +10,8 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
-/** Public handle returned by createFireflyAssembly. Extends the renderer with
- *  sha-based hover/select methods so callers don't need to manage the
- *  sha→index map externally. */
+/** createFireflyAssembly's handle: the renderer plus sha-based hover/select
+ *  so callers never manage the sha→index map. */
 export interface Fireflies {
   group: FireflyRenderer['group'];
   setTime: FireflyRenderer['setTime'];
@@ -32,7 +31,10 @@ export function createFireflyAssembly(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
-  scannedAt?: string | null
+  scannedAt?: string | null,
+  /** Drawing-buffer canvas — the orbs' point sizes scale to its device-pixel
+   *  height. Optional for tests. */
+  canvas?: HTMLCanvasElement
 ): Fireflies {
   const parent = new THREE.Group();
   parent.name = 'fireflies-system';
@@ -54,7 +56,7 @@ export function createFireflyAssembly(
   }
   const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
   const rings = createOrbitRings(orbs);
-  const renderer = createFireflyRenderer(orbs);
+  const renderer = createFireflyRenderer(orbs, canvas);
 
   // Rings render first so orbs (additive) composite on top.
   parent.add(rings.group);
@@ -68,10 +70,8 @@ export function createFireflyAssembly(
     group: parent,
     setTime(seconds: number) {
       renderer.setTime(seconds);
-      // Piggyback on the per-frame setTime tick to advance the orbit-ring
-      // rainbow chase on selected commits. rings.update wants milliseconds
-      // (matches treeOutlineRenderer's `performance.now() * RAINBOW.SPEED`
-      // convention); convert from the seconds the renderer was passed.
+      // Piggyback the ring rainbow chase on setTime; rings.update wants
+      // milliseconds (the treeOutlineRenderer convention).
       rings.update(seconds * 1000);
     },
     setHoveredCommit(sha: string | null) {

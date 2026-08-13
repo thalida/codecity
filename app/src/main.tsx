@@ -4,9 +4,8 @@
 
 import { render } from 'preact';
 import './styles/index.css';
-// Applies the persisted accent/surface theme to <html> before the first
-// render (no flash). persistedSignal hydrates synchronously, so the module's
-// effect sets data-cc-* before Preact mounts.
+// Sets data-cc-* from the persisted theme before Preact mounts, so there's
+// no flash (persistedSignal hydrates synchronously).
 import '@/state/stores/settings/theme';
 import { openBootPickerIfNeeded } from '@/state/bootView';
 import { App } from '@/layout/App/App';

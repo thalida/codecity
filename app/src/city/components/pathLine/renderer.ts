@@ -1,20 +1,14 @@
-// city/components/pathLine/renderer.ts — owns the neon selection path line
-// (gem → selected node, rainbow chasing) and the faded hover-preview
-// path line (gem → hovered node).
-//
-// Subscribes to picker.selection / picker.hover and rebuilds the
-// geometry whenever either changes. update(dtMs) ticks the rainbow
-// color cycle on the selection line each frame. refreshMaterials() is
-// called by the pathLine component's theme effect to push PATH_LINE /
-// HOVER_PATH_LINE config changes into the materials.
+// city/components/pathLine/renderer.ts — the gem→selection path line
+// (rainbow chasing) and the gem→hover preview line. Rebuilds geometry on
+// every picker change; update() ticks the rainbow each frame.
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
+import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind } from '@/types';
@@ -24,13 +18,8 @@ import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CityState } from '@/city/state';
 
-/**
- * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
- * by multiplying the smallest street tier width by pct/100.
- *
- * LineMaterial with worldUnits:false interprets linewidth in screen pixels,
- * so this keeps lines proportional to the narrowest street at any zoom.
- */
+/** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
+ *  stays proportional to the streets at any zoom (worldUnits: false). */
 export function computePathLinewidthPixels(pct: number): number {
   const tiers = STREET_TIERS.value.TIERS;
   if (!tiers.length) return pct / 100; // degenerate fallback
@@ -52,16 +41,15 @@ export function createPathLineRenderer({
   cityState,
 }: {
   canvas: HTMLCanvasElement;
-  /** Parent for the two line meshes (the pathLine component's group). Draw
-   *  order is governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph
-   *  position. */
+  /** Parent for the two line meshes; draw order comes from
+   *  RENDER_ORDERS.PATH_LINE, not graph position. */
   scene: THREE.Object3D;
   picker: PickerSignals;
   cityState: CityState;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = STREETS.value;
-  const pathLineMat = new LineMaterial({
+  const pathLineMat = createSafeLineMaterial({
     vertexColors: true,
     linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT),
     transparent: true,
@@ -71,7 +59,7 @@ export function createPathLineRenderer({
     worldUnits: false,
   });
   pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  let pathLineGeo = new LineSegmentsGeometry();
+  let pathLineGeo = new SafeLineSegmentsGeometry();
   pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
   const pathLine = new LineSegments2(pathLineGeo, pathLineMat);
   pathLine.visible = false;
@@ -83,7 +71,7 @@ export function createPathLineRenderer({
 
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
-  const hoverPathLineMat = new LineMaterial({
+  const hoverPathLineMat = createSafeLineMaterial({
     color: STREETS.value.HOVER_PATH_COLOR,
     linewidth: computePathLinewidthPixels(STREETS.value.PATH_LINEWIDTH_PCT),
     transparent: true,
@@ -93,7 +81,7 @@ export function createPathLineRenderer({
     worldUnits: false,
   });
   hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  let hoverPathLineGeo = new LineSegmentsGeometry();
+  let hoverPathLineGeo = new SafeLineSegmentsGeometry();
   hoverPathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
   const hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
   hoverPathLine.visible = false;
@@ -139,11 +127,10 @@ export function createPathLineRenderer({
         b = pts[i + 1];
       flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
-    // Recreate the geometry on every update — LineSegmentsGeometry's
-    // setPositions can leave stale instance state when segment count
-    // changes (segments silently dropped otherwise).
+    // Recreate rather than reuse: setPositions can leave stale instance
+    // state when the segment count changes (segments silently dropped).
     if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();
-    pathLineGeo = new LineSegmentsGeometry();
+    pathLineGeo = new SafeLineSegmentsGeometry();
     pathLineGeo.setPositions(flat);
     pathLine.geometry = pathLineGeo;
 
@@ -180,23 +167,15 @@ export function createPathLineRenderer({
       flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
     if (hoverPathLineGeo && hoverPathLineGeo.dispose) hoverPathLineGeo.dispose();
-    hoverPathLineGeo = new LineSegmentsGeometry();
+    hoverPathLineGeo = new SafeLineSegmentsGeometry();
     hoverPathLineGeo.setPositions(flat);
     hoverPathLine.geometry = hoverPathLineGeo;
     hoverPathLineMat.opacity = cfg.HOVER_PATH_OPACITY;
     hoverPathLine.visible = true;
   }
 
-  // Reactive: rebuild geometry on selection / hover / city rebuild + gem move.
-  //
-  // Two effects, each tracking only the signal it should re-run on.
-  // _updateHoverPathLine reads picker.hover.value + HOVER_PATH_LINE.value
-  // internally — if we called it directly inside the selection effect, the
-  // selection effect would also track hover/HOVER_PATH_LINE and fire on
-  // their changes. untracked() lets the selection effect refresh the
-  // hover line on selection change (the hover line's "hide when hover ==
-  // selection" rule needs re-evaluation) WITHOUT becoming a hover/settings
-  // subscriber.
+  // The selection effect must still refresh the hover line (its "hide when
+  // hover == selection" rule) without subscribing to hover — hence untracked.
   const _disposeSelectionEffect = effect(() => {
     void picker.selection.value;
     _updatePathLine();
@@ -206,14 +185,8 @@ export function createPathLineRenderer({
     void picker.hover.value;
     _updateHoverPathLine();
   });
-  // Rebuild reaction: recompute both lines when the gem moves (gemWorldPos) or
-  // the city rebuilds (cityRevision — cityState.streetsByDirMap is fresh by the
-  // time it bumps, inside the apply batch). Only these two signals are tracked:
-  // they're read with .value here, and the update calls run untracked() so the
-  // picker.selection/hover + STREETS + gemWorldPos/streetsByDirMap (peek'd
-  // internally) reads inside _updatePathLine/_updateHoverPathLine don't also
-  // subscribe this effect (selection/hover have their own effects above; STREETS
-  // has the theme effect).
+  // Recompute both lines when the gem moves or the city rebuilds;
+  // untracked() keeps the subscription to exactly those two signals.
   const _disposeRebuildEffect = effect(() => {
     void cityState.gemWorldPos.value;
     void cityState.cityRevision.value;

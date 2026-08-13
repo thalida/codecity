@@ -10,15 +10,11 @@
   overflow-y: auto;
 }
 
-/* No background in either mode. Modal reveals the loaded city; cold boot
-   reveals the featured one (useFeaturedCity). Both are rendered by the city
-   canvas behind this page, and an opaque landing would hide the thing it is
-   staging. The canvas paints its own surface, so nothing shows through to
-   nothing while the scene is still empty. */
+/* No background in either mode: the city canvas renders behind this page,
+   and an opaque landing would hide the thing it is staging. */
 
-/* Holds the swirl over whichever city is behind. A stage rather than a fixed
-   canvas of its own, so the page's layers are plain numbers: 0 (stage), 0 (the
-   scrim, painted after it as a pseudo-element) and 1 (.landing-inner). */
+/* Swirl stage (not a canvas of its own), keeping the page's layers plain:
+   0 stage, 0 scrim pseudo-element, 1 .landing-inner. */
 .landing-stage {
   position: fixed;
   inset: 0;
@@ -31,18 +27,16 @@
   inset: 0;
 }
 
-/* Both modes have a city behind the hero. Scrim only the hero side, letting its
-   text keep AA contrast over it; the action cards frost what shows through them
-   and the center/right stays clear. */
+/* Scrim only the hero side for AA text contrast; the action cards frost
+   their own backdrop and the center/right stays clear. */
 .landing::after {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  /* The scrim holds near-full strength across the whole hero column and only
-     falls off past it, so building edges never cut through the tagline or the
-     feature cues. */
+  /* Near-full strength across the hero column, so building edges never cut
+     through the tagline or the feature cues. */
   background: linear-gradient(
     100deg,
     color-mix(in oklch, var(--cc-bg-app) 96%, transparent) 0%,
@@ -52,11 +46,8 @@
   );
 }
 
-/* Stacked layout: the hero sits above the cards rather than beside them, so the
-   scrim runs down the page instead of across it. Near-solid through the band the
-   hero occupies, thinning toward the bottom where the city reads as a deliberate
-   horizon. The cards frost the city behind them, so they stay legible over the
-   thin end. */
+/* Stacked: the scrim runs down the page, near-solid through the hero band,
+   thinning where the city reads as a deliberate horizon. */
 @media (max-width: 900px) {
   .landing::after {
     background: linear-gradient(
@@ -69,9 +60,8 @@
   }
 }
 
-/* Above .landing-inner, not level with it: the inner is a later sibling at the
-   same z-index, and once it spans the full width (below its 1040px cap) it
-   paints over this button and swallows the click. */
+/* Above .landing-inner: below its 1040px cap the inner spans full width and
+   would paint over this button and swallow the click. */
 .landing-close {
   position: absolute;
   top: var(--cc-space-5);
@@ -88,10 +78,8 @@
   margin: 0 auto;
   padding: var(--cc-space-9) var(--cc-space-7);
   display: grid;
-  /* minmax(0, 1fr) — a true 50/50 cap. Plain 1fr is minmax(auto, 1fr), which
-     lets a wide child (a long recents URL) push the action column past half and
-     squeeze the hero. min-width: 0 on the column below lets that content
-     truncate instead. */
+  /* minmax(0, 1fr): plain 1fr lets a long recents URL push the column past
+     half; min-width: 0 below makes the content truncate instead. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--cc-space-9);
@@ -109,13 +97,13 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-7);
+  /* It's a home link now: keep the wordmark looking like a wordmark. */
+  text-decoration: none;
+  color: inherit;
 }
 
-/* Brand row and the meta line as one block, tighter than the hero's own gap so
-   the line reads as attached to the wordmark rather than floating between it
-   and the tagline. Full-width, so it keeps the hero's left edge: nested beside
-   the gem the line inherited that indent, and two offset lines read as a
-   mistake where the wordmark alone reads as the gem's partner. */
+/* Brand + meta line as one tight block so the line reads as attached to the
+   wordmark; full-width so it keeps the hero's left edge. */
 .landing-identity {
   display: flex;
   flex-direction: column;
@@ -125,9 +113,8 @@
 
 .landing-identity > .meta-line {
   font-family: var(--cc-font-mono);
-  /* Two steps up from the footer's size: the same 10px that suits a 24px status
-     bar is out of scale under a 28px wordmark. Still well below the tagline, so
-     it stays secondary to the pitch. */
+  /* Two steps above footer size (10px is out of scale under a 28px
+     wordmark), still secondary to the tagline. */
   font-size: var(--cc-font-sm);
   color: var(--cc-text-secondary);
 }
@@ -229,17 +216,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
-  /* Beside the hero, cap the column at the viewport (minus the inner's own
-     vertical padding) so a long recents list scrolls inside its card instead of
-     scrolling the page. The column still shrink-wraps and stays centered while
-     it fits. Stacked, the breakpoint at the end of this file lifts the cap. */
+  /* Cap at the viewport so a long recents list scrolls inside its card, not
+     the page; the stacked breakpoint at the end of the file lifts this. */
   min-height: 0;
   max-height: calc(100dvh - 2 * var(--cc-space-9));
 }
 
-/* A card holding an open menu has to outrank its siblings: they are stacked in
-   DOM order with no z-index, so the next card down paints over anything this
-   one overflows. */
+/* A card holding an open menu must outrank its siblings, or the next card
+   down paints over the overflowing menu. */
 .landing-card:has([role='menu']) {
   position: relative;
   z-index: 1;
@@ -280,9 +264,8 @@
   padding-top: 0;
 }
 
-/* Tighter than the other cards: a tab strip already rules itself off from the
-   panel below, so the card's usual heading gap doubles the separation. Set on
-   the card rather than pulled back with a negative margin on the strip. */
+/* Tighter than the other cards: a tab strip already rules itself off, so
+   the usual heading gap would double the separation. */
 .landing-card--sources {
   gap: var(--cc-space-2);
 }
@@ -296,10 +279,8 @@
   min-height: 0;
 }
 
-/* Inline load progress, replacing the form + sources while SCAN_PROGRESS is
-   non-null. Spinner + pending-label reuse LoadingOverlay's classes (its CSS is
-   loaded globally via App), so the switch flow and the deep-link-boot flow read
-   as one system. */
+/* Inline load progress while SCAN_PROGRESS is non-null; reuses
+   LoadingOverlay's classes so both load flows read as one system. */
 .landing-progress {
   display: flex;
   flex-direction: column;
@@ -308,9 +289,8 @@
   padding: var(--cc-space-7) 0;
 }
 
-/* ── Stacked layout ──────────────────────────────────────────────────────────
-   Last in the file on purpose: a media query carries no extra specificity, so
-   these have to follow the rules they override. */
+/* Stacked layout. Last in the file on purpose: a media query carries no
+   extra specificity, so these must follow the rules they override. */
 
 @media (max-width: 900px) {
   .landing-close {
@@ -321,9 +301,8 @@
   .landing-inner {
     grid-template-columns: 1fr;
     align-items: start;
-    /* Centered while the content fits. `safe` degrades to start-alignment
-       instead of clipping if a future change lets the rows overflow; the
-       unprefixed declaration first keeps engines without it on plain center. */
+    /* `safe` degrades to start-alignment instead of clipping on overflow;
+       the unprefixed declaration first covers engines without it. */
     align-content: center;
     align-content: safe center;
     /* Wider than the side-by-side gap: stacked, this is the break between the
@@ -340,11 +319,8 @@
     padding-inline: var(--cc-space-7);
   }
 
-  /* The cards follow the hero down the page rather than sharing its row, so the
-     viewport cap and the centering that serve the side-by-side column would
-     strand them below a screen of empty space. The page scroller takes over and
-     each card shrink-wraps: recents is capped at MAX_RECENT_SOURCES, which
-     bounds the page without a scroller nested inside the card. */
+  /* Stacked, the side-by-side viewport cap would strand the cards below
+     empty space; the page scroller takes over and each card shrink-wraps. */
   .landing-actions {
     align-self: stretch;
     max-height: none;
@@ -354,9 +330,8 @@
   }
 }
 
-/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
-   The 900px stack assumes tablet room; at 390px the card padding and the hero's
-   own indent eat a third of the line length. */
+/* Phone: the 900px stack assumes tablet room; at 390px the paddings eat a
+   third of the line length. */
 @media (max-width: 640px) {
   .landing-inner {
     padding: calc(var(--cc-space-9) * 2) var(--cc-space-6) var(--cc-space-8);

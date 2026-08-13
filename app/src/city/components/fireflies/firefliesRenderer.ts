@@ -1,14 +1,11 @@
-// city/components/fireflies/firefliesRenderer.ts — one InstancedMesh of
-// additive-blended smooth icospheres. Per-instance color + phase. The bob
-// animation lives in the vertex shader so the CPU never re-writes matrices.
-//
-//   setTime(seconds): drive the uTime uniform from the render loop.
-//   refresh():        hot-reload animation uniforms from current config
-//                     (radius + orb count require a full rebuild).
-//   dispose():        clean up geometry + material + attribute buffers.
+// city/components/fireflies/firefliesRenderer.ts — one THREE.Points draw:
+// one VERTEX per orb, orbit/bob in the vertex shader, round glow in the
+// fragment. Deliberately NOT instanced icospheres — those glitched a mobile
+// driver (Samsung Xclipse) under both browsers' GL stacks; ~50 bytes/orb.
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
@@ -25,10 +22,13 @@ export interface FireflyRenderer {
   dispose(): void;
 }
 
-/** Name of the instanced orb mesh, so consumers can find it on the graph. */
+/** Name of the orbs points object, so consumers can find it on the graph. */
 export const FIREFLY_ORBS_MESH = 'fireflies-orbs';
 
-export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer {
+export function createFireflyRenderer(
+  orbs: FireflyPlacement[],
+  canvas?: HTMLCanvasElement
+): FireflyRenderer {
   const group = new THREE.Group();
   group.name = 'fireflies';
 
@@ -45,38 +45,6 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   }
 
   const cfg = FIREFLIES.value;
-  const geometry = new THREE.IcosahedronGeometry(1.0, 2);
-
-  // Per-instance bob phase + pulse phase + orbit params.
-  const phaseArray = new Float32Array(orbs.length);
-  const pulsePhaseArray = new Float32Array(orbs.length);
-  const orbitRadiusArray = new Float32Array(orbs.length);
-  const orbitStartAngleArray = new Float32Array(orbs.length);
-  const orbitTiltArray = new Float32Array(orbs.length);
-  const commitIndexArray = new Float32Array(orbs.length);
-  for (let i = 0; i < orbs.length; i++) {
-    phaseArray[i] = orbs[i].phase;
-    pulsePhaseArray[i] = orbs[i].pulsePhase;
-    // orbitRadius is the world-space target radius. The instance matrix
-    // has scale = o.scale (sizing the icosphere), and that same scale
-    // multiplies the orbital offset in the vertex shader. Pre-divide here
-    // so the result cancels out: instanceScale × (orbitRadius / instanceScale)
-    // = orbitRadius in world space, regardless of per-author scale.
-    const safeScale = orbs[i].scale > 0 ? orbs[i].scale : 1.0;
-    orbitRadiusArray[i] = orbs[i].orbitRadius / safeScale;
-    orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
-    orbitTiltArray[i] = orbs[i].orbitTilt;
-    commitIndexArray[i] = orbs[i].commitIndex;
-  }
-  geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
-  geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
-  geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
-  geometry.setAttribute(
-    'aOrbitStartAngle',
-    new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1)
-  );
-  geometry.setAttribute('aOrbitTilt', new THREE.InstancedBufferAttribute(orbitTiltArray, 1));
-  geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
 
   const uTime = { value: 0 };
   const uBobAmp = { value: cfg.BOB_AMPLITUDE };
@@ -88,6 +56,64 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const uFlicker = { value: cfg.FLICKER_AMOUNT };
   const uHoveredCommit = { value: -1.0 };
   const uSelectedCommit = { value: -1.0 };
+  const uScrubCommit = { value: -1.0 };
+  // canvas.height = drawing-buffer device pixels, gl_PointSize's unit,
+  // refreshed per frame in setTime. The fallback only applies without a canvas.
+  const HEADLESS_VIEWPORT_PX = 2048;
+  const uHalfViewportHeight = { value: (canvas?.height ?? HEADLESS_VIEWPORT_PX) / 2 };
+
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(orbs.length * VEC3_COMPONENTS);
+  const colors = new Float32Array(orbs.length * VEC3_COMPONENTS);
+  const phaseArray = new Float32Array(orbs.length);
+  const pulsePhaseArray = new Float32Array(orbs.length);
+  const orbitRadiusArray = new Float32Array(orbs.length);
+  const orbitStartAngleArray = new Float32Array(orbs.length);
+  const orbitTiltArray = new Float32Array(orbs.length);
+  const commitIndexArray = new Float32Array(orbs.length);
+  const scaleArray = new Float32Array(orbs.length);
+  let maxWorldOrbit = 0;
+  let maxScale = 0;
+  for (let i = 0; i < orbs.length; i++) {
+    const o = orbs[i];
+    const v = i * VEC3_COMPONENTS;
+    positions[v] = o.treeX;
+    positions[v + 1] = o.height;
+    positions[v + 2] = o.treeZ;
+    // rgb values from FireflyPlacement are already linear-RGB (0..1) — the
+    // shader consumes them raw, no color-space conversion.
+    colors[v] = o.rgb[0];
+    colors[v + 1] = o.rgb[1];
+    colors[v + 2] = o.rgb[2];
+    phaseArray[i] = o.phase;
+    pulsePhaseArray[i] = o.pulsePhase;
+    orbitRadiusArray[i] = o.orbitRadius;
+    orbitStartAngleArray[i] = o.orbitStartAngle;
+    orbitTiltArray[i] = o.orbitTilt;
+    commitIndexArray[i] = o.commitIndex;
+    scaleArray[i] = o.scale;
+    if (o.orbitRadius > maxWorldOrbit) maxWorldOrbit = o.orbitRadius;
+    if (o.scale > maxScale) maxScale = o.scale;
+  }
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, VEC3_COMPONENTS));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, VEC3_COMPONENTS));
+  geometry.setAttribute('aPhase', new THREE.BufferAttribute(phaseArray, 1));
+  geometry.setAttribute('aPulsePhase', new THREE.BufferAttribute(pulsePhaseArray, 1));
+  geometry.setAttribute('aOrbitRadius', new THREE.BufferAttribute(orbitRadiusArray, 1));
+  geometry.setAttribute('aOrbitStartAngle', new THREE.BufferAttribute(orbitStartAngleArray, 1));
+  geometry.setAttribute('aOrbitTilt', new THREE.BufferAttribute(orbitTiltArray, 1));
+  geometry.setAttribute('aCommitIndex', new THREE.BufferAttribute(commitIndexArray, 1));
+  geometry.setAttribute('aScale', new THREE.BufferAttribute(scaleArray, 1));
+
+  // Culling sphere: orb centers plus the shader-side displacement the
+  // positions don't know about (orbit radius, bob, the point's own radius).
+  function inflateBoundingSphere(bobAmp: number): void {
+    geometry.computeBoundingSphere();
+    if (geometry.boundingSphere) {
+      geometry.boundingSphere.radius += maxWorldOrbit + bobAmp + maxScale;
+    }
+  }
+  inflateBoundingSphere(cfg.BOB_AMPLITUDE);
 
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -103,6 +129,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uFlicker,
       uHoveredCommit,
       uSelectedCommit,
+      uScrubCommit,
+      uHalfViewportHeight,
     },
     transparent: true,
     blending: THREE.AdditiveBlending,
@@ -111,48 +139,16 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     vertexColors: true,
   });
 
-  const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
-  mesh.name = FIREFLY_ORBS_MESH;
-  // Culling is disabled because the shader-side y-bob shifts vertices
-  // outside the mesh's bounding sphere, which would otherwise cause
-  // three.js to cull instances mid-bob.
-  mesh.frustumCulled = false;
-  mesh.renderOrder = RENDER_ORDERS.FIREFLIES;
-
-  const dummy = new THREE.Object3D();
-  const color = new THREE.Color();
-  // Full-scale matrix per instance, kept so setScrubCommit can restore a gated-out orb without recomputing it.
-  const fullMatrix = new Array<THREE.Matrix4>(orbs.length);
-  for (let i = 0; i < orbs.length; i++) {
-    const o = orbs[i];
-    dummy.position.set(o.treeX, o.height, o.treeZ);
-    dummy.scale.setScalar(o.scale);
-    dummy.updateMatrix();
-    mesh.setMatrixAt(i, dummy.matrix);
-    fullMatrix[i] = dummy.matrix.clone();
-    // rgb values from FireflyPlacement are already linear-RGB (0..1).
-    // Pass LinearSRGBColorSpace explicitly so three.js skips any
-    // working-color-space conversion that would double-apply gamma.
-    color.setRGB(o.rgb[0], o.rgb[1], o.rgb[2], THREE.LinearSRGBColorSpace);
-    mesh.setColorAt(i, color);
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-
-  group.add(mesh);
-
-  const ZERO_SCALE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
-  // Threshold applied by the last setScrubCommit call. Starts at null (every orb full-scale, matching the build above).
-  let _scrubCommit: number | null = null;
-
-  function scrubVisible(commitIndex: number, threshold: number | null): boolean {
-    return threshold === null || commitIndex <= threshold;
-  }
+  const points = new THREE.Points(geometry, material);
+  points.name = FIREFLY_ORBS_MESH;
+  points.renderOrder = RENDER_ORDERS.FIREFLIES;
+  group.add(points);
 
   return {
     group,
     setTime(seconds: number) {
       uTime.value = seconds;
+      if (canvas) uHalfViewportHeight.value = canvas.height / 2;
     },
     setHoveredCommit(commitIndex: number | null) {
       uHoveredCommit.value = commitIndex ?? -1;
@@ -161,17 +157,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uSelectedCommit.value = commitIndex ?? -1;
     },
     setScrubCommit(maxCommitIndex: number | null) {
-      if (maxCommitIndex === _scrubCommit) return;
-      let changed = false;
-      for (let i = 0; i < orbs.length; i++) {
-        const wasVisible = scrubVisible(orbs[i].commitIndex, _scrubCommit);
-        const nowVisible = scrubVisible(orbs[i].commitIndex, maxCommitIndex);
-        if (wasVisible === nowVisible) continue;
-        mesh.setMatrixAt(i, nowVisible ? fullMatrix[i] : ZERO_SCALE_MATRIX);
-        changed = true;
-      }
-      if (changed) mesh.instanceMatrix.needsUpdate = true;
-      _scrubCommit = maxCommitIndex;
+      uScrubCommit.value = maxCommitIndex ?? -1;
     },
     refresh() {
       const next = FIREFLIES.value;
@@ -182,12 +168,12 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uOrbitSpeed.value = next.ORBIT_SPEED;
       uEmission.value = next.EMISSION_STRENGTH;
       uFlicker.value = next.FLICKER_AMOUNT;
+      inflateBoundingSphere(next.BOB_AMPLITUDE);
     },
     dispose() {
-      geometry.dispose();
       material.dispose();
-      group.remove(mesh);
-      mesh.dispose();
+      geometry.dispose();
+      group.remove(points);
     },
   };
 }

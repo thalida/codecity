@@ -1,13 +1,7 @@
-// city/layout/streetPath.ts — Pure helpers that traverse the street graph to
-// build the "path from gem to selection" line. Extracted from utils/path.ts so
-// the layout solver owns street-graph traversal. No DOM, no Three.js scene
-// access — just data → data.
-//
-// Types are deliberately STRUCTURAL (only the fields these helpers
-// actually read) so unit tests can pass minimal mock objects without
-// having to construct a full Street / PickTarget. Real callers in the
-// scene module pass full Street / PickTarget instances; structural
-// compatibility makes that work without casts.
+// city/layout/streetPath.ts — pure street-graph traversal for the gem →
+// selection path line (data → data, no DOM or three). Types are STRUCTURAL
+// on purpose: tests pass minimal mocks, real Streets/PickTargets satisfy
+// them without casts.
 
 import { NodeKind, StreetAxis } from '@/types';
 import { parentDirPath } from '../utils/path';
@@ -29,12 +23,8 @@ interface SelLike {
   data?: { x: number; y: number; w: number; d: number };
 }
 
-// streetChainForDirPath(dirPath, streetsByDirPath) -> street[]
-//
-// Walk the parent chain from `dirPath` up to root, returning the chain in
-// ROOT-FIRST order. `streetsByDirPath` is a map from directory path to its
-// street object (each street has at minimum {x, y, length, width,
-// orientation, dir}). Streets not present in the map are skipped silently.
+// Walk the parent chain up to root, ROOT-FIRST. Paths missing from the map
+// are skipped silently.
 export function streetChainForDirPath<S extends StreetLike>(
   dirPath: string | null,
   streetsByDirPath: Record<string, S>
@@ -49,11 +39,8 @@ export function streetChainForDirPath<S extends StreetLike>(
   return chain;
 }
 
-// streetEndOpposite(street, awayFromX, awayFromZ) -> { x, z }
-//
-// The far end of `street`'s centerline — the cap-center coordinate
-// FARTHER from (awayFromX, awayFromZ). Used to extend the path line
-// across the selected street's full remaining length.
+// The cap-center FARTHER from the given point — extends the path line
+// across the selected street's remaining length.
 export function streetEndOpposite(
   street: StreetLike,
   awayFromX: number,
@@ -74,18 +61,8 @@ export function streetEndOpposite(
   }
 }
 
-// computePathPoints(sel, gem, streetsByDirPath) -> [{x, z}]
-//
-// Returns the polyline points that trace from the gem along road
-// centerlines to the selection. Adjacent points form individual segments
-// that bend at street intersections.
-//
-// `sel` shape:
-//   { kind: NodeKind.Directory, dir: { path } }
-//   { kind: NodeKind.File,      file: { path }, data: { x, y, w, d } }
-// `gem` shape: { x, z }
-//
-// Returns []if sel/gem missing or chain is empty.
+// Polyline from the gem along road centerlines to the selection, bending at
+// intersections. Empty when sel/gem are missing or the chain is empty.
 export function computePathPoints(
   sel: SelLike | null | undefined,
   gem: { x: number; z: number } | null | undefined,
@@ -106,7 +83,14 @@ export function computePathPoints(
   if (chain.length === 0) return [];
 
   const pts: Array<{ x: number; z: number }> = [];
-  pts.push({ x: gem.x, z: gem.z });
+  // Coincident consecutive bends would feed the fat-lines shader a
+  // zero-length segment (NaN on mobile; see city/utils/safeLineMaterial.ts).
+  function push(x: number, z: number): void {
+    const prev = pts[pts.length - 1];
+    if (prev && prev.x === x && prev.z === z) return;
+    pts.push({ x, z });
+  }
+  push(gem.x, gem.z);
 
   for (let i = 0; i < chain.length; i++) {
     const street = chain[i];
@@ -114,27 +98,27 @@ export function computePathPoints(
       // Bend at intersection with next street in chain.
       const next = chain[i + 1];
       if (street.orientation === StreetAxis.X) {
-        pts.push({ x: next.x, z: street.y });
+        push(next.x, street.y);
       } else {
-        pts.push({ x: street.x, z: next.y });
+        push(street.x, next.y);
       }
     } else if (sel.kind === NodeKind.Directory) {
       // Last leg: extend across the selected street's full remaining length.
       const prev = pts[pts.length - 1];
-      pts.push(streetEndOpposite(street, prev.x, prev.z));
+      const end = streetEndOpposite(street, prev.x, prev.z);
+      push(end.x, end.z);
     } else if (sel.kind === NodeKind.File && sel.data) {
-      // File selection: walk along the street to building's coordinate
-      // along the road's long axis, THEN turn 90° to building's road-side
-      // edge (NOT centroid — that would tunnel into the building).
+      // Walk the street to the building's long-axis coordinate, then turn
+      // 90° to its road-side EDGE (a centroid would tunnel inside).
       const b = sel.data;
       if (street.orientation === StreetAxis.X) {
-        pts.push({ x: b.x, z: street.y });
+        push(b.x, street.y);
         const edgeZ = b.y > street.y ? b.y - b.d / 2 : b.y + b.d / 2;
-        pts.push({ x: b.x, z: edgeZ });
+        push(b.x, edgeZ);
       } else {
-        pts.push({ x: street.x, z: b.y });
+        push(street.x, b.y);
         const edgeX = b.x > street.x ? b.x - b.w / 2 : b.x + b.w / 2;
-        pts.push({ x: edgeX, z: b.y });
+        push(edgeX, b.y);
       }
     }
   }

@@ -5,6 +5,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../../_helpers/commits';
 import { renderTrees } from '../../../_helpers/renderTrees';
 
@@ -35,8 +36,8 @@ function resetStores() {
   BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
-    FULL_HEIGHT_LINES: 2000,
     FLOOR_HEIGHT: 16,
+    FULL_HEIGHT_LINES: 2000,
     EMPTY_SLAB_FLOORS: 0.05,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
@@ -54,51 +55,50 @@ function placement(x: number, y: number, seed: number, commitIndex: number): Tre
 // the manifest; the renderer no longer derives them).
 const BUSY = { avg: 1, busy: 1 };
 
-function trunkMesh(group: THREE.Group): THREE.InstancedMesh {
-  const m = group.children.find((c) => c.name === 'tree-trunk');
-  if (!m) throw new Error("expected 'tree-trunk' on trees group");
-  return m as THREE.InstancedMesh;
+function chunkMeshes(group: THREE.Group): THREE.Mesh[] {
+  return group.children.filter((c) => c.name === 'trees-chunk').map((c) => c as THREE.Mesh);
 }
 
-function canopyMeshes(group: THREE.Group): THREE.InstancedMesh[] {
-  return group.children
-    .filter((c) => c.name.startsWith('tree-canopy'))
-    .map((c) => c as THREE.InstancedMesh);
-}
-
-/** Locate the canopy mesh + instance index that renders a given
- *  placement. Returns null if not found (e.g. all shapes disabled). */
-function findCanopyInstance(
+/** Locate the chunk mesh + slot rendering a given placement index. */
+function findTreeSlot(
   group: THREE.Group,
   placementIdx: number
-): { mesh: THREE.InstancedMesh; instanceIdx: number } | null {
-  for (const m of canopyMeshes(group)) {
-    const order = m.userData.placementOrder as number[] | undefined;
-    if (!order) continue;
-    const k = order.indexOf(placementIdx);
-    if (k !== -1) return { mesh: m, instanceIdx: k };
+): { mesh: THREE.Mesh; slot: number } {
+  for (const m of chunkMeshes(group)) {
+    const order = m.userData.placementOrder as number[];
+    const slot = order.indexOf(placementIdx);
+    if (slot !== -1) return { mesh: m, slot };
   }
-  return null;
+  throw new Error(`placement ${placementIdx} not found in any chunk`);
 }
 
-function instanceScale(mesh: THREE.InstancedMesh, i: number): THREE.Vector3 {
-  const mat = new THREE.Matrix4();
-  const pos = new THREE.Vector3();
-  const quat = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  mesh.getMatrixAt(i, mat);
-  mat.decompose(pos, quat, scale);
-  return scale;
+/** First face index of a tree's vertex range — for commitForFace round-trips. */
+function firstFaceOf(mesh: THREE.Mesh, slot: number): number {
+  const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
+  return (slot * perTree) / VERTS_PER_TRIANGLE;
 }
 
-function instancePosition(mesh: THREE.InstancedMesh, i: number): THREE.Vector3 {
-  const mat = new THREE.Matrix4();
-  const pos = new THREE.Vector3();
-  const quat = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
-  mesh.getMatrixAt(i, mat);
-  mat.decompose(pos, quat, scale);
-  return pos;
+/** Min/max of one merged tree's vertex positions on an axis, split by part. */
+function treeExtent(
+  mesh: THREE.Mesh,
+  slot: number,
+  part: 'canopy' | 'trunk',
+  axis: 0 | 1 | 2
+): { min: number; max: number } {
+  const canopyVerts = mesh.userData.canopyVerts as number;
+  const trunkVerts = mesh.userData.trunkVerts as number;
+  const perTree = canopyVerts + trunkVerts;
+  const start = slot * perTree + (part === 'trunk' ? canopyVerts : 0);
+  const count = part === 'trunk' ? trunkVerts : canopyVerts;
+  const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+  let min = Infinity;
+  let max = -Infinity;
+  for (let v = start; v < start + count; v++) {
+    const value = axis === 0 ? pos.getX(v) : axis === 1 ? pos.getY(v) : pos.getZ(v);
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  return { min, max };
 }
 
 describe('createTreeRenderer()', () => {
@@ -112,68 +112,68 @@ describe('createTreeRenderer()', () => {
     trees?.dispose();
   });
 
-  it('builds one shared canopy mesh plus a trunk mesh', () => {
+  it('builds one merged chunk mesh holding every tree', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = renderTrees(placements, commitSeries(3), BUSY);
-    const names = trees.group.children.map((c) => c.name).sort();
-    expect(names).toContain('tree-trunk');
-    expect(names.filter((n) => n.startsWith('tree-canopy'))).toEqual(['tree-canopy']);
+    const chunks = chunkMeshes(trees.group);
+    expect(chunks.length).toBe(1);
+    expect(trees.group.children.length).toBe(1);
+    const perTree =
+      (chunks[0].userData.canopyVerts as number) + (chunks[0].userData.trunkVerts as number);
+    expect(chunks[0].geometry.getAttribute('position').count).toBe(placements.length * perTree);
   });
 
-  it('canopy instance counts sum to placements.length', () => {
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
-      placement(20, 20, 4, 0),
-    ];
-    trees = renderTrees(placements, commitSeries(3), BUSY);
-    const totalCanopy = canopyMeshes(trees.group).reduce((acc, m) => acc + m.count, 0);
-    expect(totalCanopy).toBe(placements.length);
-    expect(trunkMesh(trees.group).count).toBe(placements.length);
-  });
-
-  it('handles an empty placement list', () => {
+  it('handles an empty placement list (no chunk meshes)', () => {
     trees = renderTrees([], commitSeries(0), BUSY);
-    const canopies = canopyMeshes(trees.group);
-    expect(canopies.length).toBe(1);
-    expect(canopies[0].count).toBe(0);
-    expect(trunkMesh(trees.group).count).toBe(0);
+    expect(trees.group.children.length).toBe(0);
   });
 
-  it('puts foliage meshes at PARK_FOLIAGE render order', () => {
+  it('splits big forests into chunks and resolves lookups across the boundary', () => {
+    const many = Array.from({ length: 600 }, (_, i) => placement(i, 0, i + 1, i));
+    const commits = commitSeries(600);
+    trees = renderTrees(many, commits, BUSY);
+    // 600 trees at 512 per chunk → two chunk meshes.
+    const chunks = chunkMeshes(trees.group);
+    expect(chunks.length).toBe(2);
+    const trees0 = (chunks[0].userData.placementOrder as number[]).length;
+    const trees1 = (chunks[1].userData.placementOrder as number[]).length;
+    expect(trees0 + trees1).toBe(600);
+    // A tree past the boundary resolves by sha and round-trips via its face.
+    const hit = trees.findTreeBySha(commits[599].sha);
+    expect(hit).not.toBeNull();
+    const { mesh, slot } = findTreeSlot(trees.group, hit!.instanceId);
+    const back = trees.commitForFace(mesh, firstFaceOf(mesh, slot));
+    expect(back?.commit.sha).toBe(commits[599].sha);
+    expect(back?.placementIndex).toBe(hit!.instanceId);
+  });
+
+  it('puts chunk meshes at PARK_FOLIAGE render order with the trees meshKind', () => {
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
+    for (const m of chunkMeshes(trees.group)) {
       expect(m.renderOrder).toBe(RENDER_ORDERS.PARK_FOLIAGE);
+      expect(m.userData.meshKind).toBe('trees');
     }
   });
 
   it('honors ENABLED visibility toggle on build', () => {
     TREES.value = { ...TREES.value, ENABLED: false };
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
-      expect(m.visible).toBe(false);
-    }
+    for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(false);
   });
 
   it('refresh() flips visibility on ENABLED change', () => {
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
     TREES.value = { ...TREES.value, ENABLED: false };
     trees.refresh();
-    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
-      expect(m.visible).toBe(false);
-    }
+    for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(false);
     TREES.value = { ...TREES.value, ENABLED: true };
     trees.refresh();
-    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
-      expect(m.visible).toBe(true);
-    }
+    for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(true);
   });
 
-  // treeEncoding owns the height/radius curves. What these pin is that the
-  // renderer feeds them into the instance matrices at all, so the expected
-  // values are literal rather than the curve restated.
-  it('writes commit-age-driven height into the trunk scale (older = taller)', () => {
+  // treeEncoding owns the curves; these pin that the renderer bakes them
+  // into vertices at all, so the expectations are literal.
+  it('writes commit-age-driven height into the trunk vertices (older = taller)', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 },
       { date: '2026-01-11', files: 5 },
@@ -182,12 +182,15 @@ describe('createTreeRenderer()', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = renderTrees(placements, commits, BUSY);
 
-    const trunk = trunkMesh(trees.group);
+    const trunkTop = (i: number) => {
+      const { mesh, slot } = findTreeSlot(trees.group, i);
+      return treeExtent(mesh, slot, 'trunk', 1).max;
+    };
     // Older is taller; TRUNK_HEIGHT_FRAC 0.25 of each. treeEncoding owns the
     // curve, so what is pinned here is the ordering and the fraction.
-    expect(instanceScale(trunk, 0).y).toBeCloseTo(14.4, 3);
-    expect(instanceScale(trunk, 1).y).toBeGreaterThan(instanceScale(trunk, 2).y);
-    expect(instanceScale(trunk, 2).y).toBeCloseTo(12, 3);
+    expect(trunkTop(0)).toBeCloseTo(14.4, 3);
+    expect(trunkTop(1)).toBeGreaterThan(trunkTop(2));
+    expect(trunkTop(2)).toBeCloseTo(12, 3);
   });
 
   it('scales the trunk footprint off the canopy radius', () => {
@@ -199,14 +202,18 @@ describe('createTreeRenderer()', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = renderTrees(placements, commits, BUSY);
 
-    const trunk = trunkMesh(trees.group);
+    const trunkRadius = (i: number) => {
+      const { mesh, slot } = findTreeSlot(trees.group, i);
+      const ext = treeExtent(mesh, slot, 'trunk', 0);
+      return (ext.max - ext.min) / 2;
+    };
     // Radii 16 / 40 / 64 at TRUNK_RADIUS_FRAC 0.15.
-    expect(instanceScale(trunk, 0).x).toBeCloseTo(2.4, 3);
-    expect(instanceScale(trunk, 1).x).toBeCloseTo(6, 3);
-    expect(instanceScale(trunk, 2).x).toBeCloseTo(9.6, 3);
+    expect(trunkRadius(0)).toBeCloseTo(2.4, 3);
+    expect(trunkRadius(1)).toBeCloseTo(6, 3);
+    expect(trunkRadius(2)).toBeCloseTo(9.6, 3);
   });
 
-  it('writes file-count-driven radius into the canopy scale, via placementOrder', () => {
+  it('writes file-count-driven radius into the canopy vertices', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 1 },
       { date: '2026-01-21', files: 9 }
@@ -214,20 +221,22 @@ describe('createTreeRenderer()', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
     trees = renderTrees(placements, commits, BUSY);
 
-    const a = findCanopyInstance(trees.group, 0);
-    const b = findCanopyInstance(trees.group, 1);
-    expect(a).not.toBeNull();
-    expect(b).not.toBeNull();
-    expect(instanceScale(a!.mesh, a!.instanceIdx).x).toBeCloseTo(16, 3);
-    expect(instanceScale(b!.mesh, b!.instanceIdx).x).toBeCloseTo(64, 3);
+    // Measured on Z: the 6-segment lathe places vertices at sin(phi) on X
+    // (no vertex at ±1) but cos(phi) on Z spans the full diameter.
+    const canopyRadius = (i: number) => {
+      const { mesh, slot } = findTreeSlot(trees.group, i);
+      const ext = treeExtent(mesh, slot, 'canopy', 2);
+      return (ext.max - ext.min) / 2;
+    };
+    expect(canopyRadius(0)).toBeCloseTo(16, 3);
+    expect(canopyRadius(1)).toBeCloseTo(64, 3);
   });
 
   it('canopy overlaps the top of the trunk by CANOPY_TRUNK_OVERLAP_FRAC', () => {
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    const canopy = canopyMeshes(trees.group)[0];
-    const trunk = trunkMesh(trees.group);
-    const canopyBaseY = instancePosition(canopy, 0).y;
-    const trunkHeight = instanceScale(trunk, 0).y;
+    const { mesh, slot } = findTreeSlot(trees.group, 0);
+    const canopyBaseY = treeExtent(mesh, slot, 'canopy', 1).min;
+    const trunkHeight = treeExtent(mesh, slot, 'trunk', 1).max;
     // Default overlap=0.7 → canopy base sits at trunkH * (1 - 0.7) = 0.3 * trunkH.
     expect(canopyBaseY).toBeCloseTo(trunkHeight * 0.3, 4);
   });
@@ -235,17 +244,18 @@ describe('createTreeRenderer()', () => {
   it('CANOPY_TRUNK_OVERLAP_FRAC=0 puts canopy base exactly on trunk top', () => {
     TREES.value = { ...TREES.value, CANOPY_TRUNK_OVERLAP_FRAC: 0 };
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    const canopy = canopyMeshes(trees.group)[0];
-    const trunk = trunkMesh(trees.group);
-    expect(instancePosition(canopy, 0).y).toBeCloseTo(instanceScale(trunk, 0).y, 4);
+    const { mesh, slot } = findTreeSlot(trees.group, 0);
+    expect(treeExtent(mesh, slot, 'canopy', 1).min).toBeCloseTo(
+      treeExtent(mesh, slot, 'trunk', 1).max,
+      4
+    );
   });
 
-  it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
+  it('bakes commit-day color into canopy vertices: SOLO vs BUSY endpoints, same day = same color', () => {
+    // Shading off so canopy vertex colors ARE the tree color (byte-quantized).
+    TREES.value = { ...TREES.value, SHADING_STRENGTH: 0 };
     // Three days with 1, 2, and 4 commits. With thresholds {avg:2, busy:4}
-    // the gradient anchors:
-    //   - solo day (count=1)      → t=0   → COLOR_SOLO_DAY
-    //   - mid day  (count=2 = avg) → t=0.5
-    //   - busy day (count=4 = busy)→ t=1   → COLOR_BUSY_DAY
+    // the gradient anchors: solo day → COLOR_SOLO_DAY, busy day → COLOR_BUSY_DAY.
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // solo day
       { date: '2026-01-10', files: 5 }, // mid day, commit A
@@ -255,110 +265,97 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-20', files: 5 }, // busy day, commit C
       { date: '2026-01-20', files: 5 } // busy day, commit D
     );
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(40, 0, 3, 2),
-      placement(0, 20, 4, 3),
-      placement(20, 20, 5, 4),
-      placement(40, 20, 6, 5),
-      placement(60, 20, 7, 6),
-    ];
+    const placements = commits.map((_, i) => placement(i * 20, 0, i + 1, i));
     trees = renderTrees(placements, commits, { avg: 2, busy: 4 });
 
-    const oldColor = new THREE.Color();
-    const newColor = new THREE.Color();
-    oldColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
-    newColor.setStyle('#a8d68a', THREE.LinearSRGBColorSpace);
+    const vertexColor = (i: number): THREE.Color => {
+      const { mesh, slot } = findTreeSlot(trees.group, i);
+      const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
+      const color = mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const v = slot * perTree; // first canopy vertex
+      return new THREE.Color(color.getX(v), color.getY(v), color.getZ(v));
+    };
 
-    const got = new THREE.Color();
-    // Solo day commit → t=0 → NEW (light).
-    const solo = findCanopyInstance(trees.group, 0)!;
-    solo.mesh.getColorAt(solo.instanceIdx, got);
-    expect(got.r).toBeCloseTo(newColor.r, 3);
-    expect(got.g).toBeCloseTo(newColor.g, 3);
-    expect(got.b).toBeCloseTo(newColor.b, 3);
+    const soloColor = new THREE.Color();
+    const busyColor = new THREE.Color();
+    soloColor.setStyle('#a8d68a', THREE.LinearSRGBColorSpace);
+    busyColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
 
-    // Busy day commit → t=1 → OLD (dark).
-    const busy = findCanopyInstance(trees.group, 3)!;
-    busy.mesh.getColorAt(busy.instanceIdx, got);
-    expect(got.r).toBeCloseTo(oldColor.r, 3);
-    expect(got.g).toBeCloseTo(oldColor.g, 3);
-    expect(got.b).toBeCloseTo(oldColor.b, 3);
+    // Solo day commit → COLOR_SOLO_DAY; busy day → COLOR_BUSY_DAY (bytes → 2dp).
+    expect(vertexColor(0).r).toBeCloseTo(soloColor.r, 2);
+    expect(vertexColor(0).g).toBeCloseTo(soloColor.g, 2);
+    expect(vertexColor(0).b).toBeCloseTo(soloColor.b, 2);
+    expect(vertexColor(3).r).toBeCloseTo(busyColor.r, 2);
+    expect(vertexColor(3).g).toBeCloseTo(busyColor.g, 2);
+    expect(vertexColor(3).b).toBeCloseTo(busyColor.b, 2);
 
     // All commits on the same date render the same color.
-    const busyA = findCanopyInstance(trees.group, 3)!;
-    const busyB = findCanopyInstance(trees.group, 4)!;
-    const colorA = new THREE.Color();
-    const colorB = new THREE.Color();
-    busyA.mesh.getColorAt(busyA.instanceIdx, colorA);
-    busyB.mesh.getColorAt(busyB.instanceIdx, colorB);
-    expect(colorA.r).toBeCloseTo(colorB.r, 5);
-    expect(colorA.g).toBeCloseTo(colorB.g, 5);
-    expect(colorA.b).toBeCloseTo(colorB.b, 5);
+    expect(vertexColor(4).getHexString()).toBe(vertexColor(3).getHexString());
   });
 
   it('all trees render at midpoint values when commits is null', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
     trees = renderTrees(placements, null, BUSY);
-
-    const trunk = trunkMesh(trees.group);
     const midH = (48 + 144) / 2;
     for (let i = 0; i < placements.length; i++) {
-      expect(instanceScale(trunk, i).y).toBeCloseTo(midH * 0.25, 3);
-    }
-    // One shared canopy mesh holds every tree.
-    const canopies = canopyMeshes(trees.group);
-    expect(canopies.length).toBe(1);
-    expect(canopies[0].name).toBe('tree-canopy');
-  });
-
-  it('canopy geometry carries a baked color attribute (vertex shading)', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    for (const m of canopyMeshes(trees.group)) {
-      const colorAttr = m.geometry.getAttribute('color');
-      expect(colorAttr).toBeDefined();
-      expect(colorAttr.itemSize).toBe(3);
-      expect(colorAttr.count).toBeGreaterThan(0);
+      const { mesh, slot } = findTreeSlot(trees.group, i);
+      expect(treeExtent(mesh, slot, 'trunk', 1).max).toBeCloseTo(midH * 0.25, 3);
     }
   });
 
-  it('vertex shading strength=0 yields uniform white vertex colors', () => {
+  it('vertex shading strength=0 yields uniform canopy color per tree', () => {
     TREES.value = { ...TREES.value, SHADING_STRENGTH: 0 };
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    for (const m of canopyMeshes(trees.group)) {
-      const colorAttr = m.geometry.getAttribute('color');
-      for (let i = 0; i < colorAttr.count; i++) {
-        expect(colorAttr.getX(i)).toBeCloseTo(1, 5);
-        expect(colorAttr.getY(i)).toBeCloseTo(1, 5);
-        expect(colorAttr.getZ(i)).toBeCloseTo(1, 5);
-      }
+    const { mesh, slot } = findTreeSlot(trees.group, 0);
+    const canopyVerts = mesh.userData.canopyVerts as number;
+    const perTree = canopyVerts + (mesh.userData.trunkVerts as number);
+    const color = mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const base = slot * perTree;
+    for (let v = base + 1; v < base + canopyVerts; v++) {
+      expect(color.getX(v)).toBeCloseTo(color.getX(base), 5);
+      expect(color.getY(v)).toBeCloseTo(color.getY(base), 5);
+      expect(color.getZ(v)).toBeCloseTo(color.getZ(base), 5);
     }
   });
 
-  it('refresh() updates color endpoints without rebuilding meshes', () => {
+  it('default shading strength bakes a real brightness spread across facets', () => {
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
-    const geomsBefore = meshesBefore.map((m) => m.geometry);
+    const { mesh, slot } = findTreeSlot(trees.group, 0);
+    const canopyVerts = mesh.userData.canopyVerts as number;
+    const perTree = canopyVerts + (mesh.userData.trunkVerts as number);
+    const color = mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const base = slot * perTree;
+    let min = Infinity;
+    let max = -Infinity;
+    for (let v = base; v < base + canopyVerts; v++) {
+      min = Math.min(min, color.getX(v));
+      max = Math.max(max, color.getX(v));
+    }
+    expect(max - min).toBeGreaterThan(0.001);
+  });
 
-    TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#000000' };
-    TREES.value = { ...TREES.value, COLOR_SOLO_DAY: '#ffffff' };
-    TREES.value = { ...TREES.value, TRUNK_COLOR: '#ff0000' };
+  it('refresh() updates colors in place without rebuilding meshes', () => {
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    const meshesBefore = chunkMeshes(trees.group);
+    const geomsBefore = meshesBefore.map((m) => m.geometry);
+    const colorBefore = trees.colorForSha(commitSeries(1)[0].sha);
+
+    TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#000000', COLOR_SOLO_DAY: '#ffffff' };
     trees.refresh();
 
-    const meshesAfter = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
+    const meshesAfter = chunkMeshes(trees.group);
     for (let i = 0; i < meshesAfter.length; i++) {
       expect(meshesAfter[i]).toBe(meshesBefore[i]);
       expect(meshesAfter[i].geometry).toBe(geomsBefore[i]);
     }
+    expect(trees.colorForSha(commitSeries(1)[0].sha)).not.toBe(colorBefore);
   });
 
-  it('dispose() releases geometry and materials', () => {
+  it('dispose() releases every chunk geometry', () => {
     trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    const tracked: Array<{ name: string; disposed: boolean }> = [];
-    for (const child of trees.group.children) {
-      const mesh = child as THREE.InstancedMesh;
-      const entry = { name: mesh.name, disposed: false };
+    const tracked: Array<{ disposed: boolean }> = [];
+    for (const mesh of chunkMeshes(trees.group)) {
+      const entry = { disposed: false };
       tracked.push(entry);
       const origDispose = mesh.geometry.dispose.bind(mesh.geometry);
       mesh.geometry.dispose = () => {
@@ -370,23 +367,8 @@ describe('createTreeRenderer()', () => {
     for (const t of tracked) expect(t.disposed).toBe(true);
   });
 
-  // Trees never rotate, so the diagonal elements ARE the scale directly.
-  // decompose() can't be used here: three.js special-cases a zero-determinant
-  // (fully zero-scaled) matrix by returning scale (1,1,1), which would mask
-  // exactly the zero-scale state these tests assert on.
-  function rawScaleX(mesh: THREE.InstancedMesh, i: number): number {
-    const m = new THREE.Matrix4();
-    mesh.getMatrixAt(i, m);
-    return m.elements[0];
-  }
-  function rawScaleY(mesh: THREE.InstancedMesh, i: number): number {
-    const m = new THREE.Matrix4();
-    mesh.getMatrixAt(i, m);
-    return m.elements[5];
-  }
-
   describe('setScrubCommit()', () => {
-    it('zero-scales trees past the threshold on both canopy and trunk, keeps <= threshold full', () => {
+    it('gates rendering via the shader uniform and picking via isScrubHidden', () => {
       const commits = commitSeries(4);
       const placements = [
         placement(0, 0, 1, 0),
@@ -395,177 +377,107 @@ describe('createTreeRenderer()', () => {
         placement(20, 20, 4, 3),
       ];
       trees = renderTrees(placements, commits, BUSY);
-      const trunk = trunkMesh(trees.group);
+      const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
 
-      const fullTrunkScale = [0, 1, 2, 3].map((i) => rawScaleY(trunk, i));
-      const fullCanopyScale = [0, 1, 2, 3].map((i) => {
-        const hit = findCanopyInstance(trees.group, i)!;
-        return rawScaleX(hit.mesh, hit.instanceIdx);
-      });
-      expect(fullTrunkScale.every((s) => s > 0)).toBe(true);
-      expect(fullCanopyScale.every((s) => s > 0)).toBe(true);
+      expect(material.uniforms.uScrubCommit.value).toBe(-1);
+      for (let i = 0; i < 4; i++) expect(trees.isScrubHidden(i)).toBe(false);
 
       trees.setScrubCommit(1);
-
-      // commitIndex 0, 1 stay full; 2, 3 collapse to scale 0.
-      expect(rawScaleY(trunk, 0)).toBeCloseTo(fullTrunkScale[0], 5);
-      expect(rawScaleY(trunk, 1)).toBeCloseTo(fullTrunkScale[1], 5);
-      expect(rawScaleY(trunk, 2)).toBe(0);
-      expect(rawScaleY(trunk, 3)).toBe(0);
-
-      const c0 = findCanopyInstance(trees.group, 0)!;
-      const c1 = findCanopyInstance(trees.group, 1)!;
-      const c2 = findCanopyInstance(trees.group, 2)!;
-      const c3 = findCanopyInstance(trees.group, 3)!;
-      expect(rawScaleX(c0.mesh, c0.instanceIdx)).toBeCloseTo(fullCanopyScale[0], 5);
-      expect(rawScaleX(c1.mesh, c1.instanceIdx)).toBeCloseTo(fullCanopyScale[1], 5);
-      expect(rawScaleX(c2.mesh, c2.instanceIdx)).toBe(0);
-      expect(rawScaleX(c3.mesh, c3.instanceIdx)).toBe(0);
+      expect(material.uniforms.uScrubCommit.value).toBe(1);
+      expect(trees.isScrubHidden(0)).toBe(false);
+      expect(trees.isScrubHidden(1)).toBe(false);
+      expect(trees.isScrubHidden(2)).toBe(true);
+      expect(trees.isScrubHidden(3)).toBe(true);
     });
 
-    it('setScrubCommit(null) restores every tree to its full matrix', () => {
-      const commits = commitSeries(3);
-      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-      trees = renderTrees(placements, commits, BUSY);
-      const trunk = trunkMesh(trees.group);
-      const fullScale = [0, 1, 2].map((i) => rawScaleY(trunk, i));
-
+    it('a scrub-hidden tree stops resolving through commitForFace', () => {
+      const commits = commitSeries(2);
+      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], commits, BUSY);
+      const { mesh, slot } = findTreeSlot(trees.group, 1);
+      expect(trees.commitForFace(mesh, firstFaceOf(mesh, slot))?.commit).toEqual(commits[1]);
       trees.setScrubCommit(0);
-      expect(rawScaleY(trunk, 1)).toBe(0);
-      expect(rawScaleY(trunk, 2)).toBe(0);
-
-      trees.setScrubCommit(null);
-      for (let i = 0; i < 3; i++) {
-        expect(rawScaleY(trunk, i)).toBeCloseTo(fullScale[i], 5);
-      }
+      expect(trees.commitForFace(mesh, firstFaceOf(mesh, slot))).toBeNull();
     });
 
-    it('only rewrites instances whose visibility actually flips between calls', () => {
+    it('setScrubCommit(null) restores every tree', () => {
       const commits = commitSeries(3);
-      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-      trees = renderTrees(placements, commits, BUSY);
-      const trunk = trunkMesh(trees.group);
-
-      let updates = 0;
-      const origSetMatrixAt = trunk.setMatrixAt.bind(trunk);
-      trunk.setMatrixAt = (slot: number, m: THREE.Matrix4) => {
-        updates++;
-        return origSetMatrixAt(slot, m);
-      };
-
-      // Threshold 2 hides nothing (max commitIndex is 2); dropping to 1 flips only placement 2.
-      trees.setScrubCommit(2);
-      updates = 0;
-      trees.setScrubCommit(1);
-      expect(updates).toBe(1);
-
-      // Same threshold again: nothing should flip.
-      updates = 0;
-      trees.setScrubCommit(1);
-      expect(updates).toBe(0);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)],
+        commits,
+        BUSY
+      );
+      trees.setScrubCommit(0);
+      expect(trees.isScrubHidden(2)).toBe(true);
+      trees.setScrubCommit(null);
+      for (let i = 0; i < 3; i++) expect(trees.isScrubHidden(i)).toBe(false);
+      const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
+      expect(material.uniforms.uScrubCommit.value).toBe(-1);
     });
   });
 
-  describe('tree shading sun direction', () => {
-    it('bakes directional facet shading (canopy vertex colors are non-uniform)', () => {
-      // The sun position is now a fixed constant (constants/lighting), so we
-      // verify the bake actually applies directional shading: facets pointing
-      // toward vs away from the sun get different brightness. (The sun-angle →
-      // direction math itself is covered by sunDir.test.)
-      resetStores();
-      const placements = [placement(0, 0, 1, 0)];
-      const commits = buildCommits({ date: '2026-01-01', files: 1 });
-      trees = renderTrees(placements, commits, BUSY);
-      const canopyInst = findCanopyInstance(trees.group, 0);
-      expect(canopyInst).not.toBeNull();
-      const colorAttr = canopyInst!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
-      const xs: number[] = [];
-      for (let i = 0; i < colorAttr.count; i++) {
-        const x = colorAttr.getX(i);
-        if (!Number.isNaN(x)) xs.push(x);
-      }
-      trees.dispose();
-
-      expect(xs.length).toBeGreaterThan(0);
-      // Directional sun shading + vertical gradient → a real brightness spread.
-      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.001);
-    });
-  });
-
-  // The picker's half of the handle: instance → commit, and sha → instance.
+  // The picker's half of the handle: face → commit, and sha → tree.
   describe('commit lookups', () => {
     const seeded = (seed: number, commitIndex: number) =>
       placement(seed * 10, seed * 10, seed, commitIndex);
 
-    it('commitForInstance resolves a canopy instance through placementOrder', () => {
+    it('commitForFace resolves every tree through its vertex range', () => {
       const commits = commitSeries(3);
       const placements = [seeded(0, 0), seeded(1, 1), seeded(2, 2)];
       trees = renderTrees(placements, commits, BUSY);
-
-      const canopy = canopyMeshes(trees.group)[0];
-      const order = canopy.userData.placementOrder as number[];
-      for (let k = 0; k < order.length; k++) {
-        expect(trees.commitForInstance(canopy, k)).toEqual(
-          commits[placements[order[k]].commitIndex]
-        );
+      for (let i = 0; i < placements.length; i++) {
+        const { mesh, slot } = findTreeSlot(trees.group, i);
+        const hit = trees.commitForFace(mesh, firstFaceOf(mesh, slot));
+        expect(hit?.commit).toEqual(commits[placements[i].commitIndex]);
+        expect(hit?.placementIndex).toBe(i);
       }
     });
 
-    it('commitForInstance resolves a trunk instance in placement order', () => {
-      const commits = commitSeries(2);
-      trees = renderTrees([seeded(0, 0), seeded(1, 1)], commits, BUSY);
-      const trunk = trunkMesh(trees.group);
-      expect(trees.commitForInstance(trunk, 0)).toEqual(commits[0]);
-      expect(trees.commitForInstance(trunk, 1)).toEqual(commits[1]);
-    });
-
-    it('commitForInstance returns null off the end, below zero, and for a foreign mesh', () => {
+    it('commitForFace returns null off the end, for null faces, and for a foreign mesh', () => {
       trees = renderTrees([seeded(0, 0)], commitSeries(1), BUSY);
-      const trunk = trunkMesh(trees.group);
-      const stranger = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(),
-        new THREE.MeshBasicMaterial(),
-        1
-      );
-      expect(trees.commitForInstance(trunk, 42)).toBeNull();
-      expect(trees.commitForInstance(trunk, -1)).toBeNull();
-      expect(trees.commitForInstance(stranger, 0)).toBeNull();
+      const mesh = chunkMeshes(trees.group)[0];
+      const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
+      const stranger = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+      expect(trees.commitForFace(mesh, perTree)).toBeNull(); // past the last tree
+      expect(trees.commitForFace(mesh, null)).toBeNull();
+      expect(trees.commitForFace(stranger, 0)).toBeNull();
     });
 
-    it('findTreeBySha round-trips back through commitForInstance', () => {
+    it('findTreeBySha round-trips back through commitForFace', () => {
       const commits = commitSeries(3);
       trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY);
 
       const got = trees.findTreeBySha(commits[1].sha);
       expect(got).not.toBeNull();
       expect(got!.commit).toEqual(commits[1]);
-      expect(got!.mesh.name).toBe('tree-canopy');
-      expect(trees.commitForInstance(got!.mesh, got!.instanceId)).toEqual(commits[1]);
+      expect(got!.mesh.name).toBe('trees-chunk');
+      const { mesh, slot } = findTreeSlot(trees.group, got!.instanceId);
+      expect(trees.commitForFace(mesh, firstFaceOf(mesh, slot))?.commit).toEqual(commits[1]);
     });
 
-    it('stamps meshKind on canopy and trunk for the picker', () => {
-      trees = renderTrees([seeded(0, 0), seeded(1, 1)], commitSeries(2), BUSY);
-      for (const c of canopyMeshes(trees.group)) expect(c.userData.meshKind).toBe('tree-canopy');
-      expect(trunkMesh(trees.group).userData.meshKind).toBe('tree-trunk');
-    });
-
-    it('colorForSha returns the canopy instance colour as hex', () => {
+    it('colorForSha returns the tree base colour as hex', () => {
       const commits = commitSeries(3);
       trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY);
       expect(trees.colorForSha(commits[1].sha)).toMatch(/^#[0-9a-f]{6}$/);
     });
 
-    it('getInstanceTransform writes the canopy matrix into the out param', () => {
+    it('getInstanceTransform composes the canopy transform from placement data', () => {
       const commits = commitSeries(2);
       trees = renderTrees([seeded(0, 0), seeded(3, 1)], commits, BUSY);
 
-      const hit = trees.findTreeBySha(commits[1].sha)!;
-      const expected = new THREE.Matrix4();
-      hit.mesh.getMatrixAt(hit.instanceId, expected);
-
       const out = new THREE.Matrix4();
       expect(trees.getInstanceTransform(commits[1].sha, out)).toBe(true);
-      for (let i = 0; i < 16; i++) expect(out.elements[i]).toBeCloseTo(expected.elements[i], 5);
+      const pos = new THREE.Vector3();
+      const quat = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+      out.decompose(pos, quat, scale);
+      const bounds = trees.getTreeBoundsBySha(commits[1].sha)!;
+      expect(pos.x).toBeCloseTo(bounds.x, 4);
+      expect(pos.z).toBeCloseTo(bounds.z, 4);
+      expect(scale.x).toBeCloseTo(bounds.radius, 4);
+      expect(scale.y).toBeCloseTo(bounds.height, 4);
+      // Canopy base = trunkH × (1 − overlap) with TRUNK_HEIGHT_FRAC 0.25,
+      // overlap 0.7.
+      expect(pos.y).toBeCloseTo(bounds.height * 0.25 * 0.3, 4);
     });
 
     it('getTreeBoundsBySha reports the placement position and non-zero dims', () => {
@@ -593,15 +505,15 @@ describe('createTreeRenderer()', () => {
       expect(trees.getInstanceTransform(sha, new THREE.Matrix4())).toBe(false);
     });
 
-    it('a degenerate height range leaves no NaN in the canopy matrices', () => {
+    it('a degenerate height range leaves no NaN in the baked vertices', () => {
       TREES.value = { ...TREES.value, MIN_HEIGHT: 32, MAX_HEIGHT: 32, WIDTH_AGE_FLOOR: 0.5 };
       trees = renderTrees([seeded(0, 0), seeded(1, 1)], commitSeries(2), BUSY);
-
-      const m = new THREE.Matrix4();
-      for (const canopy of canopyMeshes(trees.group)) {
-        for (let k = 0; k < canopy.count; k++) {
-          canopy.getMatrixAt(k, m);
-          for (let i = 0; i < 16; i++) expect(Number.isFinite(m.elements[i])).toBe(true);
+      for (const mesh of chunkMeshes(trees.group)) {
+        const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+        for (let v = 0; v < pos.count; v++) {
+          expect(Number.isFinite(pos.getX(v))).toBe(true);
+          expect(Number.isFinite(pos.getY(v))).toBe(true);
+          expect(Number.isFinite(pos.getZ(v))).toBe(true);
         }
       }
     });

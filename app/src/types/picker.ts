@@ -39,10 +39,11 @@ export interface GemTarget {
   mesh: THREE.Object3D;
 }
 
-/** Hovered/selected tree (a canopy or trunk InstancedMesh instance). */
+/** Hovered/selected tree: `mesh` is its merged chunk, `instanceId` the
+ *  placement index. */
 export interface CommitTarget {
   kind: NodeKind.Commit;
-  mesh: THREE.InstancedMesh;
+  mesh: THREE.Mesh;
   instanceId: number;
   commit: CommitEntry;
 }
@@ -50,20 +51,14 @@ export interface CommitTarget {
 /** Tagged union of every pick-able thing. */
 export type PickTarget = FileTarget | DirTarget | GemTarget | CommitTarget;
 
-/**
- * Stable identity used to re-resolve a selection across world
- * rebuilds. Persisted via attachPersistence.
- */
+/** Stable identity for re-resolving a selection across world rebuilds. */
 export type PickerSelectionKey =
   | { kind: NodeKind.File; path: string }
   | { kind: NodeKind.Directory; path: string }
   | { kind: NodeKind.Commit; sha: string };
 
-/**
- * Subset of the world API that the picker depends on. Real
- * world structurally satisfies this; tests can mock just these
- * methods.
- */
+/** The world surface the picker depends on; the real world satisfies it
+ *  structurally, so tests can mock these methods alone. */
 export interface PickerWorld {
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
@@ -80,13 +75,17 @@ export interface PickerWorld {
    *  or when ENABLED is off). */
   getTrees(): {
     group: THREE.Group;
-    commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;
+    commitForFace(
+      mesh: THREE.Object3D,
+      faceIndex: number | null | undefined
+    ): { commit: CommitEntry; placementIndex: number } | null;
     findTreeBySha(sha: string): {
-      mesh: THREE.InstancedMesh;
+      mesh: THREE.Mesh;
       instanceId: number;
       commit: CommitEntry;
     } | null;
     getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
     colorForSha(sha: string): string | null;
+    isScrubHidden(placementIndex: number): boolean;
   } | null;
 }

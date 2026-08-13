@@ -15,29 +15,26 @@ const PLACEMENTS = [treePlacement(0)];
 const ringMeshes = (f: { group: THREE.Object3D }) => meshesInChildGroup(f.group, ORBIT_RINGS_GROUP);
 
 describe('createFireflyAssembly', () => {
-  it('returns a group containing one InstancedMesh (orbs) and an empty ring group when commits is non-empty', () => {
+  it('returns a group containing one Points draw (orbs) and an empty ring group when commits is non-empty', () => {
     const stats = commitStats(COMMITS);
     const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
     expect(f.group).toBeInstanceOf(THREE.Group);
-    // The parent group has two child Groups (rings + renderer).
-    // The ring group is lazy: it starts empty and only spawns meshes on
-    // hover/select. The renderer group contains one InstancedMesh.
+    // Two child Groups: the lazy ring group (empty until hover/select) and
+    // the renderer's, holding one Points object.
     const allDescendants = f.group.children.flatMap((c) => c.children);
-    const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
-    const tubeMeshes = allDescendants.filter(
-      (c) => c instanceof THREE.Mesh && !(c instanceof THREE.InstancedMesh)
-    );
-    expect(instancedMeshes.length).toBe(1);
+    const orbPoints = allDescendants.filter((c) => c instanceof THREE.Points);
+    const tubeMeshes = allDescendants.filter((c) => c instanceof THREE.Mesh);
+    expect(orbPoints.length).toBe(1);
     expect(tubeMeshes.length).toBe(0);
     f.dispose();
   });
 
-  it('returns a group with no descendant InstancedMeshes when commits is null', () => {
+  it('returns a group with no descendant orb draws when commits is null', () => {
     const f = createFireflyAssembly(PLACEMENTS, null, null);
-    const meshes = f.group.children
+    const orbs = f.group.children
       .flatMap((c) => c.children)
-      .filter((c) => c instanceof THREE.InstancedMesh);
-    expect(meshes.length).toBe(0);
+      .filter((c) => c instanceof THREE.Points);
+    expect(orbs.length).toBe(0);
     f.dispose();
   });
 
