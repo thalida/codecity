@@ -237,6 +237,23 @@ export function cancelLoad(): void {
   loadController?.abort();
 }
 
+/**
+ * Re-read the source already open, in whichever mode it is being viewed. In
+ * Timeline that means its history bundle, refetched in place and holding the
+ * scrub, since dropping to live HEAD would answer a refresh by leaving the mode.
+ * `skipCache` is the live scan's own axis (the header's Fresh scan): there is no
+ * no-cache history read, so asking for one re-reads the repo from live.
+ */
+export function refreshCurrentSource(skipCache = false): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return;
+  if (TIMELINE_MODE.peek() && !skipCache && timelineRefresh) {
+    void timelineRefresh();
+    return;
+  }
+  void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
+}
+
 // ── Live-update poll loop ────────────────────────────────────────────
 
 // Hard bounds for the user-set poll interval. 1s floor — the server does a real
@@ -399,16 +416,20 @@ export function setupLiveUpdates(): () => void {
  * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
  * coordinate ProjectsView. A user-initiated cancel (`cancelLoad`) aborts the
  * in-flight stream but is NOT surfaced as a load failure — no SOURCE_ERROR write.
- * RETURNS the submit handler and a cancel handler so App can pass
- * them down to <ProjectsView>/the loading overlay as props (no global
+ * RETURNS the submit, refresh and cancel handlers so App can pass them down to
+ * <ProjectsView>/the header/the loading overlay as props (no global
  * register/invoke channel).
  */
 export function useManifestSource(): {
   submitSource: (payload: SourcePayload) => void;
+  refreshSource: (skipCache: boolean) => void;
   cancelLoad: () => void;
 } {
   const submitSource = useCallback((payload: SourcePayload) => {
     void loadSource(payload);
+  }, []);
+  const refreshSource = useCallback((skipCache: boolean) => {
+    refreshCurrentSource(skipCache);
   }, []);
 
   useEffect(() => {
@@ -445,5 +466,5 @@ export function useManifestSource(): {
     };
   }, []);
 
-  return { submitSource, cancelLoad };
+  return { submitSource, refreshSource, cancelLoad };
 }

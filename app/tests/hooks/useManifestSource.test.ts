@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadSource, cancelLoad, setupLiveUpdates } from '@/hooks/useManifestSource';
+import {
+  loadSource,
+  cancelLoad,
+  setupLiveUpdates,
+  refreshCurrentSource,
+  setTimelineRefreshHandler,
+} from '@/hooks/useManifestSource';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -163,6 +169,76 @@ describe('loadSource exits Timeline mode', () => {
 
     cancelLoad();
     await p;
+  });
+});
+
+// The header's Refresh re-reads whatever you are looking at. In Timeline that
+// is the history bundle: a live re-scan would answer it by leaving the mode.
+describe('refreshCurrentSource', () => {
+  let restoreEventSource: () => void;
+  let timelineRefreshes: number;
+
+  beforeEach(() => {
+    restoreEventSource = installEventSource();
+    timelineRefreshes = 0;
+    setTimelineRefreshHandler(() => {
+      timelineRefreshes++;
+      return Promise.resolve();
+    });
+    CURRENT_SOURCE.value = { src: 'https://github.com/o/r' };
+    SOURCE_ERROR.value = null;
+  });
+
+  afterEach(() => {
+    restoreEventSource();
+    setTimelineRefreshHandler(null);
+    TIMELINE_MODE.value = false;
+    CURRENT_SOURCE.value = null;
+  });
+
+  it('re-reads the history bundle in place, staying in Timeline', () => {
+    TIMELINE_MODE.value = true;
+
+    refreshCurrentSource(false);
+
+    expect(timelineRefreshes).toBe(1);
+    expect(TIMELINE_MODE.value).toBe(true);
+    expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
+  });
+
+  it('re-scans live when that is the mode', async () => {
+    TIMELINE_MODE.value = false;
+
+    refreshCurrentSource(false);
+    await flush();
+
+    expect(timelineRefreshes).toBe(0);
+    expect(StubEventSource.instances.length).toBe(1);
+
+    cancelLoad();
+  });
+
+  // Fresh scan is the live scan's own no-cache axis; there is no cacheless
+  // history read to serve it, so it re-reads the repo from live.
+  it('falls back to a live no-cache scan for a fresh scan', async () => {
+    TIMELINE_MODE.value = true;
+
+    refreshCurrentSource(true);
+    await flush();
+
+    expect(timelineRefreshes).toBe(0);
+    expect(StubEventSource.instances[0]!.url).toContain('no_cache=true');
+
+    cancelLoad();
+  });
+
+  it('does nothing with no source open', () => {
+    CURRENT_SOURCE.value = null;
+
+    refreshCurrentSource(false);
+
+    expect(timelineRefreshes).toBe(0);
+    expect(StubEventSource.instances.length).toBe(0);
   });
 });
 

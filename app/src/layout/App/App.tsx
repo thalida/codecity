@@ -42,7 +42,7 @@ export function App() {
   useSwitcherShowcase();
   useFeaturedCity();
   useShortcutsKey();
-  const { submitSource, cancelLoad } = useManifestSource();
+  const { submitSource, refreshSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
 
@@ -90,12 +90,9 @@ export function App() {
       </a>
       <AppHeader
         onSwitchSource={() => openProjectsView({ dismissible: true })}
-        // Re-open the source already loaded. The header owns the control; the
-        // reload itself is the same one path every other open goes through.
-        onRefresh={(skipCache) => {
-          const cur = CURRENT_SOURCE.peek();
-          if (cur) submitSource({ ...cur, skipCache: skipCache || undefined });
-        }}
+        // The header owns the control; which read a refresh means in the mode
+        // you are in is the fetch layer's call.
+        onRefresh={refreshSource}
       />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
