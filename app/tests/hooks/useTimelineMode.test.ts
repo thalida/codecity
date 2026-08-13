@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { signal } from '@preact/signals';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -11,7 +12,7 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import type { TimelineBundle, TimelineProgress } from '@/types';
+import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
@@ -40,6 +41,9 @@ function fakeHandle() {
   const setFootprintsTransparent = vi.fn();
   const handle = {
     applyManifest,
+    // SELECTION_KEY reads through the handle's picker, so a handle without one
+    // isn't a SceneHandle any consumer can hold.
+    picker: { selection: signal<PickTarget | null>(null) },
     timeline: {
       installScrubController,
       uninstallScrubController,

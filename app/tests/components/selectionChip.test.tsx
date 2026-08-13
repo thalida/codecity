@@ -6,8 +6,8 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { SelectionChip } from '@/components/SelectionChip/SelectionChip';
-import { SCENE_HANDLE, SELECTION_KEY } from '@/state/stores/scene';
-import { DISMISSED_SELECTION } from '@/state/stores/ui';
+import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
@@ -53,14 +53,14 @@ describe('SelectionChip', () => {
     await flush();
   };
   const dismiss = async () => {
-    DISMISSED_SELECTION.value = SELECTION_KEY.peek();
+    dismissSelectionPane();
     await flush();
   };
 
   beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    DISMISSED_SELECTION.value = null;
+    SELECTION_PANE_DISMISSED.value = false;
     SCENE_HANDLE.value = makeHandle() as never;
     render(<SelectionChip />, container);
     await flush();
@@ -70,7 +70,7 @@ describe('SelectionChip', () => {
     render(null, container);
     container.remove();
     SCENE_HANDLE.value = null;
-    DISMISSED_SELECTION.value = null;
+    SELECTION_PANE_DISMISSED.value = false;
   });
 
   it('stays out of the way with nothing selected', () => {
@@ -108,7 +108,7 @@ describe('SelectionChip', () => {
     act(() => container.querySelector<HTMLButtonElement>('.selection-chip-label')!.click());
     await flush();
 
-    expect(DISMISSED_SELECTION.value).toBeNull();
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
     expect(chip()).toBeNull();
   });
 });

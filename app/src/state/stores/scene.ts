@@ -3,10 +3,10 @@
 // that need world / picker / rig read SCENE_HANDLE.value?.world etc.
 // Null until CenterPane's useEffect resolves.
 
-import { computed, signal } from '@preact/signals';
+import { computed, effect, signal } from '@preact/signals';
 import type { createCity } from '../../city';
 import { NodeKind } from '@/types';
-import { DISMISSED_SELECTION, SIDEBAR_COLLAPSED } from './ui';
+import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './ui';
 import { IS_PHONE } from './viewport';
 
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
@@ -23,11 +23,21 @@ export const SELECTION_KEY = computed<string | null>(() => {
   return null;
 });
 
+// A dismissal belongs to the selection that was standing when you closed the
+// pane, so any change of selection ends it — including landing back on the same
+// node later, which the key alone can't tell apart from never having left it.
+// Rebuilds hand back a fresh target for the same node, but the key is unchanged
+// there, so the computed doesn't notify and the dismissal survives.
+effect(() => {
+  void SELECTION_KEY.value;
+  openSelectionPane();
+});
+
 /** Phone: both drawers cover the city, so a camera move behind them is one you
  *  can't see. Every focus command clears the way, so they all behave alike. */
 function revealCity(): void {
   if (!IS_PHONE.peek()) return;
-  DISMISSED_SELECTION.value = SELECTION_KEY.peek();
+  dismissSelectionPane();
   SIDEBAR_COLLAPSED.value = true;
 }
 

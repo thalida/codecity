@@ -116,13 +116,19 @@ export function openSidebarTab(tab: SidebarTab): void {
 
 // ── Selection pane (right sidebar) ───────────────────────────────────────────
 
-/** Identity of the selection whose pane was closed. Held as the key rather than
- *  a flag, so picking anything else opens without a reaction to reset it. */
-export const DISMISSED_SELECTION = signal<string | null>(null);
+/** Whether you've put the current selection's details away. Scoped to the
+ *  selection standing when you closed it: stores/scene clears this whenever the
+ *  selection changes, so coming back to a node always shows its details again. */
+export const SELECTION_PANE_DISMISSED = signal(false);
+
+/** Put the details away, leaving the node selected (and outlined in the city). */
+export function dismissSelectionPane(): void {
+  SELECTION_PANE_DISMISSED.value = true;
+}
 
 /** Bring the details back for a node that is already selected. */
 export function openSelectionPane(): void {
-  DISMISSED_SELECTION.value = null;
+  SELECTION_PANE_DISMISSED.value = false;
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────

@@ -6,8 +6,8 @@ import './SelectionChip.css';
 import { X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { SCENE_HANDLE, SELECTION_KEY, clearSelection } from '@/state/stores/scene';
-import { DISMISSED_SELECTION, openSelectionPane } from '@/state/stores/ui';
+import { SCENE_HANDLE, clearSelection } from '@/state/stores/scene';
+import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/ui';
 
 /** Name of the selected node, or null when nothing is selected. */
 function useSelectionLabel() {
@@ -24,9 +24,7 @@ export function SelectionChip() {
   const label = useSelectionLabel();
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
-  const dismissed = useComputed(
-    () => label.value !== null && SELECTION_KEY.value === DISMISSED_SELECTION.value
-  );
+  const dismissed = useComputed(() => label.value !== null && SELECTION_PANE_DISMISSED.value);
   if (!dismissed.value) return null;
 
   return (

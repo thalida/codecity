@@ -23,7 +23,6 @@ import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import {
   SCENE_HANDLE,
-  SELECTION_KEY,
   type SceneHandle,
   clearSelection,
   focusPath,
@@ -50,7 +49,7 @@ import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import { StreetPane } from '@/views/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
-import { DISMISSED_SELECTION } from '@/state/stores/ui';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/ui';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -168,17 +167,12 @@ export function RightSidebar() {
     void loadManifestAt(srcValue, branchValue, scrubShaValue);
   }, [needsScrubbedManifest, scrubShaValue, srcValue, branchValue]);
 
-  // Something to show, and you haven't put THIS one away. Two facts, not one:
-  // closing used to deselect, which threw away the outline just because you
-  // wanted the details out of the way. Picking anything else opens on its own,
-  // since the key no longer matches.
-  const isOpen = useComputed(
-    () => activeKind.value !== null && SELECTION_KEY.value !== DISMISSED_SELECTION.value
-  );
+  // Something to show, and you haven't put it away. Two facts, not one: closing
+  // used to deselect, which threw away the outline just because you wanted the
+  // details out of the way.
+  const isOpen = useComputed(() => activeKind.value !== null && !SELECTION_PANE_DISMISSED.value);
 
-  const dismiss = () => {
-    DISMISSED_SELECTION.value = SELECTION_KEY.peek();
-  };
+  const dismiss = dismissSelectionPane;
 
   // Clearing the drawers out of the way on a phone is the focus command's job
   // (stores/scene), so every focus button in the app behaves the same.
