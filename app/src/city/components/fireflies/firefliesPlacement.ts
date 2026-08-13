@@ -80,32 +80,21 @@ function seededRng(seed: string): () => number {
  *  bites pathological co-authorship on already-capped forests. */
 const MAX_FIREFLY_ORBS = 200_000;
 
-/** Rank authors by commit count into [SCALE_MIN..SCALE_MAX].
+/** An orb's size, from its author's commits against the busiest author's total.
  *
- *  Shared with the timeline, which re-ranks on the commits made so far, so an
- *  orb's size always says the same thing: how much of the work on screen is
- *  this author's. Every author tied (most commonly: a lone author) is no
- *  ranking at all, so everyone takes SCALE_MAX — the top of a distribution
- *  of one. */
-export function scaleByAuthor(
-  counts: Iterable<readonly [string, number]>,
+ *  Absolute, not a ranking among whoever is present: the timeline re-reads this
+ *  with the commits made SO FAR, and a ranking normalised to the authors on
+ *  screen is the same at every scrub position (with two authors, one is always
+ *  the smallest and the other always the largest, however little either has
+ *  done yet). Against a fixed maximum, an orb starts small and grows with the
+ *  work, and HEAD comes out where Live already had it. */
+export function scaleForCommits(
+  commits: number,
+  maxCommits: number,
   cfg: { SCALE_MIN: number; SCALE_MAX: number }
-): Map<string, number> {
-  const entries = [...counts];
-  const out = new Map<string, number>();
-  if (entries.length === 0) return out;
-  let min = Infinity;
-  let max = -Infinity;
-  for (const [, n] of entries) {
-    if (n < min) min = n;
-    if (n > max) max = n;
-  }
-  const range = max - min;
-  for (const [name, n] of entries) {
-    const t = range === 0 ? 1 : (n - min) / range;
-    out.set(name, cfg.SCALE_MIN + t * (cfg.SCALE_MAX - cfg.SCALE_MIN));
-  }
-  return out;
+): number {
+  const t = maxCommits > 0 ? Math.min(1, Math.max(0, commits / maxCommits)) : 1;
+  return cfg.SCALE_MIN + t * (cfg.SCALE_MAX - cfg.SCALE_MIN);
 }
 
 export function placeFireflies(
@@ -120,12 +109,11 @@ export function placeFireflies(
 
   // Per-author commit counts come from the backend-precomputed stats.authors
   // (a co-authored commit credits each distinct author once — same tally the
-  // scanner does). The list is sorted by count desc, so [0] is the max and the
-  // last entry the min.
+  // scanner does). The list is sorted by count desc, so [0] is the busiest.
   const authors = stats?.authors ?? [];
-  const authorScale = scaleByAuthor(
-    authors.map((a) => [a.name, a.commits] as const),
-    fireflyConfig
+  const maxCommits = authors.length ? authors[0].commits : 0;
+  const authorScale = new Map(
+    authors.map((a) => [a.name, scaleForCommits(a.commits, maxCommits, fireflyConfig)] as const)
   );
   // Hue is backend-resolved (AuthorStat.hue) so the orb and the commit pane's
   // dot can't drift apart.

@@ -17,8 +17,8 @@ import {
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 // Settings-default-sensitive: TREES defaults legitimately move the hash, so
-// it gets recaptured (last: clearance from the city as a share of the island).
-const EXPECTED = '12k:trees43000:orbs51600:7797e578';
+// it gets recaptured (last: orb size read against the busiest author's total).
+const EXPECTED = '12k:trees43000:orbs51600:905c8b08';
 
 describe('decoration golden (bit-identical guard)', () => {
   // Explicit timeout: compute-bound like the layout golden, and CI's coverage

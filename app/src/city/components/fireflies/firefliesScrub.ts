@@ -18,13 +18,13 @@ import {
   type AgeRange,
 } from '@/city/components/trees/treeEncoding';
 import { epochDayAt } from '@/utils/dates';
-import { scaleByAuthor, type FireflyPlacement } from './firefliesPlacement';
+import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
 
 export interface FirefliesScrub {
   /** The last commit in effect, and the date the scrub sits on. Either null
    *  (Live) restores the sizes the placements were built with. Returns whether
    *  anything moved, so the renderer only re-uploads when it did. */
-  apply(maxCommitIndex: number | null, nowMs: number | null): boolean;
+  resize(maxCommitIndex: number | null, nowMs: number | null): boolean;
 }
 
 export function createFirefliesScrub(
@@ -34,6 +34,9 @@ export function createFirefliesScrub(
   scannedAt?: string | null
 ): FirefliesScrub {
   const history = commits ?? [];
+  // The busiest author's all-time total, the fixed maximum sizes are read
+  // against, so an orb grows through the scrub instead of holding its rank.
+  const maxCommits = stats?.authors?.[0]?.commits ?? 0;
   const ageRange = computeAgeRange(stats, scannedAt);
   const sizeRange = computeSizeRange(stats);
   // The sizes the placements were built with, to restore on the way back to
@@ -72,7 +75,7 @@ export function createFirefliesScrub(
   }
 
   return {
-    apply(maxCommitIndex: number | null, nowMs: number | null): boolean {
+    resize(maxCommitIndex: number | null, nowMs: number | null): boolean {
       if (maxCommitIndex === null || nowMs === null) return restore();
 
       const day = epochDayAt(nowMs);
@@ -81,11 +84,14 @@ export function createFirefliesScrub(
       _appliedDay = day;
 
       countTo(Math.min(maxCommitIndex, history.length - 1));
-      // Authors who haven't committed yet are not in the ranking: an orb of
-      // theirs isn't drawn at this position either.
-      const working: [string, number][] = [];
-      for (const [author, n] of counts) if (n > 0) working.push([author, n]);
-      const scales = scaleByAuthor(working, FIREFLIES.value);
+      const cfgFireflies = FIREFLIES.value;
+      const scales = new Map<string, number>();
+      for (const [author, n] of counts) {
+        scales.set(author, scaleForCommits(n, maxCommits, cfgFireflies));
+      }
+      // Nobody has committed until they have: an author still ahead of their
+      // first commit sits at the floor, not at the size they end up.
+      const unstarted = scaleForCommits(0, maxCommits, cfgFireflies);
 
       // Tree sizes at this date, from the same formulas the forest grows by, so
       // an orb keeps its place just outside the canopy.
@@ -103,7 +109,7 @@ export function createFirefliesScrub(
           heightAt.set(orb.commitIndex, height);
           radiusAt.set(orb.commitIndex, treeRadius(commit, scrubbed, sizeRange, cfg));
         }
-        orb.scale = scales.get(orb.author) ?? live[i].scale;
+        orb.scale = scales.get(orb.author) ?? unstarted;
         orb.height = orb.heightFrac * height;
         orb.orbitRadius = orb.orbitRadiusFrac * (radiusAt.get(orb.commitIndex) ?? 0);
       }

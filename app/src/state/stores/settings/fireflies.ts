@@ -30,7 +30,7 @@ const FIREFLIES_FIELDS = {
     max: 5.0,
     step: 0.05,
     label: 'Scale min',
-    tip: 'Size multiplier for the author with the fewest commits.',
+    tip: 'Size multiplier for an author with no commits yet: the size every orb grows from.',
   },
   SCALE_MAX: {
     route: ChangeRoute.Rebuild,

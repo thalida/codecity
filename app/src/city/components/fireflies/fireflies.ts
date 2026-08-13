@@ -68,7 +68,7 @@ export function createFireflyAssembly(
   let _scrubNow: number | null = null;
 
   function resize(): void {
-    if (scrub.apply(_scrubCommit, _scrubNow)) renderer.uploadSizes();
+    if (scrub.resize(_scrubCommit, _scrubNow)) renderer.uploadSizes();
   }
 
   // Rings render first so orbs (additive) composite on top.
