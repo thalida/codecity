@@ -10,6 +10,7 @@ import {
   TIMELINE_MODE,
   SCRUB_POS,
   SCRUB_MAX,
+  SCRUB_TODAY_MS,
   TIMELINE_BUNDLE,
   SCRUB_DRAGGING,
   setScrubPos,
@@ -33,14 +34,16 @@ export function TimeTravelBar() {
   const commits = bundle?.commits ?? [];
 
   const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
+  const todayMs = SCRUB_TODAY_MS.value;
   const scale = useMemo(
     () =>
       buildScrubberScale(
         commits.map((c) => c.date),
-        indexWeight
+        indexWeight,
+        todayMs
       ),
     // Rebuild only when the commit set or the axis shape changes, not per scrub.
-    [commits, indexWeight]
+    [commits, indexWeight, todayMs]
   );
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -88,10 +91,10 @@ export function TimeTravelBar() {
       ctx.globalAlpha = 0.3; // played region wash
       ctx.fillRect(0, 0, Math.round(indexToFraction(scale, pos) * w), h);
       ctx.globalAlpha = 0.95; // past ticks
-      for (let i = 0; i <= cut && i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
+      for (let i = 0; i <= cut && i < scale.commitCount; i++) ctx.fillRect(at(i), 0, 1, h);
       ctx.globalAlpha = 1;
       ctx.fillStyle = tick; // future ticks
-      for (let i = cut + 1; i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
+      for (let i = cut + 1; i < scale.commitCount; i++) ctx.fillRect(at(i), 0, 1, h);
     };
     draw();
     const ro = new ResizeObserver(draw);
@@ -105,8 +108,10 @@ export function TimeTravelBar() {
 
   // floor, not round: the scene gates trees and fireflies at floor(pos)
   // (scrubController), so rounding up names a commit whose tree hasn't been
-  // drawn. Selecting one of those left an outline around nothing.
-  const commit = commits[Math.min(Math.floor(pos), maxIndex)];
+  // drawn. Selecting one of those left an outline around nothing. Capped at the
+  // last commit, since the track runs one stop past it to today.
+  const lastCommit = commits.length - 1;
+  const commit = commits[Math.min(Math.floor(pos), lastCommit)];
   const pct = indexToFraction(scale, pos) * 100;
 
   // The calendar day the handle sits on, interpolated between the commits it
@@ -120,7 +125,10 @@ export function TimeTravelBar() {
   // row says so rather than carrying the last commit's message along, which
   // made the message snap from one to the next as you crossed each commit
   // while the date underneath moved smoothly.
-  const onCommitDay = localDay(scale.ms[Math.min(Math.floor(pos), maxIndex)]) === handleDay;
+  const onCommitDay = localDay(scale.ms[Math.min(Math.floor(pos), lastCommit)]) === handleDay;
+  // The right end of the axis, and whether the handle is standing on it.
+  const endDay = todayMs == null ? commits[lastCommit].date : localDay(todayMs);
+  const onToday = todayMs != null && handleDay === localDay(todayMs);
 
   const setFromClientX = (clientX: number) => {
     const el = trackRef.current;
@@ -209,14 +217,22 @@ export function TimeTravelBar() {
         {/* The day the handle is on, always: showing the commit's own date
             instead held it still until the handle was days clear of a commit,
             then jumped. The commit in effect on that day reads below. */}
-        <span class="time-travel-date">{formatShortDate(handleDay)}</span>
+        <span class="time-travel-date" title={formatFullDate(handleDay)}>
+          {onToday ? 'Today' : formatShortDate(handleDay)}
+        </span>
+        {/* The end of the track: today when the repo has aged since its last
+            commit, so the city reads as it stands rather than as it was left. */}
         <button
           type="button"
           class="time-travel-edge"
-          title={`Jump to the latest commit: ${formatFullDate(commits[maxIndex].date)}`}
+          title={
+            todayMs == null
+              ? `Jump to the latest commit: ${formatFullDate(commits[lastCommit].date)}`
+              : `Jump to today: ${formatFullDate(endDay)}`
+          }
           onClick={() => setScrubPos(maxIndex)}
         >
-          {formatShortDate(commits[maxIndex].date)}
+          {formatShortDate(endDay)}
         </button>
       </div>
       <div class="time-travel-info">

@@ -1,7 +1,7 @@
 // Timeline mode's per-frame driver: read the frame, run the pass, hand each
 // component its slice. It writes nobody else's buffers.
 
-import { TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_BUNDLE, SCRUB_TODAY_MS } from '@/state/stores/timeline';
 import type { RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
@@ -50,6 +50,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
   const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
+  // The same last stop the bar ends on, so the two agree about the far end.
+  const trackEndMs = SCRUB_TODAY_MS.peek() ?? scannedAtMs;
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -63,7 +65,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       commitLineRanges: deps.commitLineRanges,
       commitDateRanges,
       commitMs,
-      scannedAtMs,
+      trackEndMs,
       byteStats: deps.heightCtx.byteStats,
       streetsByDir: deps.streetsByDir,
       picker: deps.picker,

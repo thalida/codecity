@@ -7,20 +7,31 @@
 import { parseDateMs } from '@/utils/dates';
 
 export interface ScrubberScale {
-  /** Commit date ms, index-aligned, clamped non-decreasing. */
+  /** Commit date ms, index-aligned, clamped non-decreasing. A trailing entry
+   *  for today sits past the last commit when one was passed. */
   ms: number[];
-  /** Track fraction per commit, index-aligned and strictly increasing. */
+  /** Track fraction per stop, index-aligned and strictly increasing. */
   frac: number[];
+  /** How many leading entries are commits, so ticks aren't drawn for today. */
+  commitCount: number;
 }
 
-/** `indexWeight` 0 = place commits purely by time, 1 = purely by ordinal. */
-export function buildScrubberScale(dates: string[], indexWeight = 0): ScrubberScale {
+/** `indexWeight` 0 = place commits purely by time, 1 = purely by ordinal.
+ *  `todayMs` extends the axis one stop past the last commit: a repo goes on
+ *  aging after its last commit, so the track's end is today, not that commit. */
+export function buildScrubberScale(
+  dates: string[],
+  indexWeight = 0,
+  todayMs?: number | null
+): ScrubberScale {
   const ms = dates.map((d) => parseDateMs(d) || 0);
+  const commitCount = ms.length;
+  if (todayMs != null && commitCount > 0 && todayMs > ms[commitCount - 1]) ms.push(todayMs);
   for (let i = 1; i < ms.length; i++) if (ms[i] < ms[i - 1]) ms[i] = ms[i - 1];
 
   const n = ms.length;
-  if (n === 0) return { ms, frac: [] };
-  if (n === 1) return { ms, frac: [1] };
+  if (n === 0) return { ms, frac: [], commitCount };
+  if (n === 1) return { ms, frac: [1], commitCount };
 
   // A single-instant history has no time axis to blend, so it falls back to
   // pure ordinal rather than collapsing every commit onto the left edge.
@@ -30,7 +41,7 @@ export function buildScrubberScale(dates: string[], indexWeight = 0): ScrubberSc
     const byTime = span > 0 ? (t - ms[0]) / span : 0;
     return (1 - w) * byTime + w * (i / (n - 1));
   });
-  return { ms, frac };
+  return { ms, frac, commitCount };
 }
 
 /** Track fraction [0,1] for a commit's own position (used to place its tick). */

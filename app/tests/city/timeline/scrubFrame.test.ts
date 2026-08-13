@@ -15,11 +15,16 @@ import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/
 
 const _ruins = RUINS.peek();
 
+const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
+const SCANNED_AT = Date.UTC(2024, 5, 1);
+
 // SCRUB_POS clamps against the loaded bundle, so a position past 0 is only
-// reachable with one loaded.
+// reachable with one loaded. Dates and a scan date because the clamp runs one
+// stop past the last commit when the repo has aged since it.
 beforeEach(() => {
   TIMELINE_BUNDLE.value = {
-    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+    commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
+    unionManifest: { scanned_at: new Date(SCANNED_AT).toISOString() },
   } as unknown as TimelineBundle;
 });
 afterEach(() => {
@@ -33,8 +38,6 @@ const RANGES: RangeStat[] = [
   { min: 1, max: 20 },
   { min: 1, max: 30 },
 ];
-const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
-const SCANNED_AT = Date.UTC(2024, 5, 1);
 const DATE_RANGES = [
   { minCreated: 0, maxCreated: 10, minModified: 0, maxModified: 10 },
   { minCreated: 5, maxCreated: 25, minModified: 5, maxModified: 45 },
@@ -49,7 +52,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     commitLineRanges: RANGES,
     commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
-    scannedAtMs: SCANNED_AT,
+    trackEndMs: SCANNED_AT,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
     picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
@@ -110,8 +113,19 @@ describe('the created span, which still ranks (it drives grime, not colour)', ()
 });
 
 describe('what now means mid-scrub', () => {
-  it('is the scan date at HEAD, where the city is the working tree just as Live is', () => {
-    expect(at(2).nowMs).toBe(SCANNED_AT);
+  it('is the scan date at the today stop, where the city is what Live shows', () => {
+    // One past the last commit. Nothing was committed in between, but the city
+    // has gone on aging, and that stop is where the track ends.
+    expect(at(3).nowMs).toBe(SCANNED_AT);
+  });
+
+  it('ages on past the last commit rather than jumping to the scan date', () => {
+    const last = COMMIT_MS[2];
+    expect(at(2).nowMs).toBe(last);
+    const part = at(2.5).nowMs;
+    expect(part).toBeGreaterThan(last);
+    expect(part).toBeLessThan(SCANNED_AT);
+    expect(part).toBe(last + (SCANNED_AT - last) * 0.5);
   });
 
   it('is the commit under the scrubber when parked on one', () => {

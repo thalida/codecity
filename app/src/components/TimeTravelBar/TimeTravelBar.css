@@ -29,10 +29,9 @@
    can't crowd the dates. */
 .time-travel-axis {
   display: grid;
-  /* The bookends take what they need and the middle takes the rest, rather than
-     the middle sizing to a commit subject and running over them. Both ends are
-     the same ten mono characters, so the middle still lands on the centre. */
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Equal side columns, so the middle is centred on the bar itself rather than
+     on whatever the two bookends happen to measure. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--cc-space-4);
 }

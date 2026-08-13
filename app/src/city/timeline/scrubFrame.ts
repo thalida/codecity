@@ -29,7 +29,7 @@ export interface ScrubFrame {
   ruinHeight: number;
   ruinGrayMix: number;
   /** What "now" means at this position: the commit under the scrubber, or the
-   *  scan date at HEAD, where the city is the working tree just as Live is. */
+   *  end of the track once past the last one. */
   nowMs: number;
   minCreated: number;
   createdSpread: number;
@@ -45,16 +45,17 @@ export interface ScrubFrameDeps {
   commitDateRanges: readonly CommitDateRange[];
   /** Commit dates as ms, for resolving what "now" is mid-scrub. */
   commitMs: readonly number[];
-  /** The scan date, which is "now" at HEAD. */
-  scannedAtMs: number;
+  /** What the far end of the track means: today when the repo has aged since
+   *  its last commit, the scan date otherwise. The bar's last stop is the same
+   *  moment, so the city and the readout end on the same date. */
+  trackEndMs: number;
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
 }
 
-/** At HEAD the city IS the working tree, so "now" is the scan date and colour
- *  matches Live. Earlier, it is the date the handle sits on: the commit you're
- *  standing on, plus however far you've dragged toward the next one.
+/** The date the handle sits on: the commit you're standing on, plus however far
+ *  you've dragged toward the next one.
  *
  *  Interpolated rather than snapped to the commit, so a long quiet stretch
  *  actually reads as time passing. Held at the commit, nothing aged until the
@@ -63,13 +64,15 @@ export interface ScrubFrameDeps {
  *
  *  Not measured past the commit you're standing on: a repo scrubbed to its
  *  first commit would paint brand-new files as ancient against a date that
- *  hasn't happened there yet. */
+ *  hasn't happened there yet.
+ *
+ *  Past the last commit it runs on to the stop the track ends at: nothing has
+ *  been committed since, but the city has gone on aging, and that is the whole
+ *  point of the last stop being today. */
 function scrubNow(pos: number, deps: ScrubFrameDeps): number {
-  const last = deps.commitMs.length - 1;
   const i = Math.floor(pos);
-  if (i >= last) return deps.scannedAtMs;
-  const from = deps.commitMs[i] ?? deps.scannedAtMs;
-  const to = deps.commitMs[i + 1] ?? deps.scannedAtMs;
+  const from = deps.commitMs[i] ?? deps.trackEndMs;
+  const to = deps.commitMs[i + 1] ?? deps.trackEndMs;
   return from + (to - from) * (pos - i);
 }
 

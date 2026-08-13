@@ -131,6 +131,43 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 2)).toBe(2);
   });
 
+  describe('today', () => {
+    // A repo goes on aging after its last commit, so the track's right end is
+    // today: stopping at the last commit would say nothing has changed since.
+    const dates = ['2020-01-01', '2020-01-02'];
+    const today = new Date(2020, 2, 1).getTime();
+
+    it('adds a stop past the last commit, and no tick for it', () => {
+      const s = buildScrubberScale(dates, 0, today);
+      expect(s.commitCount).toBe(2);
+      expect(s.ms).toHaveLength(3);
+      expect(s.ms[2]).toBe(today);
+      expect(indexToFraction(s, 2)).toBe(1);
+      // The last commit is no longer the end of the track.
+      expect(indexToFraction(s, 1)).toBeLessThan(1);
+    });
+
+    it('scrubs into the quiet stretch between the last commit and today', () => {
+      const s = buildScrubberScale(dates, 0, today);
+      const mid = indexToMs(s, 1.5);
+      expect(mid).toBeGreaterThan(s.ms[1]);
+      expect(mid).toBeLessThan(today);
+    });
+
+    it('adds nothing when the scan is no later than the last commit', () => {
+      const s = buildScrubberScale(dates, 0, new Date(2019, 0, 1).getTime());
+      expect(s.commitCount).toBe(2);
+      expect(s.ms).toHaveLength(2);
+      expect(indexToFraction(s, 1)).toBe(1);
+    });
+
+    it('is absent when no date is passed at all', () => {
+      const s = buildScrubberScale(dates);
+      expect(s.ms).toHaveLength(2);
+      expect(s.commitCount).toBe(2);
+    });
+  });
+
   it('handles an empty commit set without throwing', () => {
     const empty = buildScrubberScale([]);
     expect(commitFraction(empty, 0)).toBe(0);
