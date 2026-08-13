@@ -11,6 +11,22 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { BLOOM } from '@/state/stores/settings/effects';
 
+// Bloom's mip chain is sized as a fraction of the DRAWING BUFFER, not of the
+// CSS box. UnrealBloomPass halves whatever it is given before its first mip,
+// so 0.5 here means mip 0 is a quarter of the drawing buffer on every display.
+//
+// Why it is pinned to the drawing buffer: EffectComposer.setSize already
+// scales every pass by the renderer's pixel ratio, so passing CSS pixels made
+// bloom's cost depend on DPR. A DPR-2 display got a chain at a quarter of its
+// scene resolution; a DPR-1 display got one at full scene resolution, i.e. 4x
+// the bloom per scene pixel — on the low-DPR integrated-GPU machines least
+// able to pay it. 0.5 reproduces the DPR-2 sizing exactly and gives DPR-1 the
+// same discount.
+//
+// The blur kernel radii are fixed in UnrealBloomPass, so lowering this widens
+// the glow as well as cheapening it.
+const BLOOM_RESOLUTION_SCALE = 0.5;
+
 export interface PostFx {
   render(): void;
   setSize(width: number, height: number): void;
@@ -23,6 +39,8 @@ export function createPostFx(
   camera: THREE.PerspectiveCamera
 ): PostFx {
   const bloomCfg = BLOOM.value;
+  // Reused by setSize so the per-resize drawing-buffer read costs no alloc.
+  const _drawingBuffer = new THREE.Vector2();
   // ACES squashes >1.0 back into display range: walls (already [0,1]) are
   // untouched, and only the emissive windows read as blown out.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -59,8 +77,16 @@ export function createPostFx(
   return {
     render: () => composer.render(),
     setSize: (w, h) => {
+      // composer.setSize takes CSS pixels and scales them by the pixel ratio
+      // internally — including for the bloom pass, whose size we then override
+      // with our own fraction of the resulting drawing buffer. Order matters:
+      // this must come second or the composer's DPR-scaled value wins.
       composer.setSize(w, h);
-      bloom.setSize(w, h);
+      renderer.getDrawingBufferSize(_drawingBuffer);
+      bloom.setSize(
+        Math.max(1, Math.round(_drawingBuffer.x * BLOOM_RESOLUTION_SCALE)),
+        Math.max(1, Math.round(_drawingBuffer.y * BLOOM_RESOLUTION_SCALE))
+      );
     },
     dispose: () => {
       stopBloom();
