@@ -43,9 +43,9 @@ const CASES: Array<[string, number]> = [
 // Format: `${nBuildings}/${nStreets}/${hash}`. Recaptured for #98 (absolute
 // height/width ceiling): counts unchanged, dimensions shifted.
 const EXPECTED: Record<string, string> = {
-  't-2k': '2000/644/1a3845ab',
-  't-10k': '10000/3190/46986f99',
-  't-30k': '30000/8129/857d1160',
+  't-2k': '2000/644/4ba55bb7',
+  't-10k': '10000/3190/9d9b7024',
+  't-30k': '30000/8129/5a64ee5b',
 };
 
 describe('layoutCity golden (bit-identical guard)', () => {

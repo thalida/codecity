@@ -31,7 +31,7 @@ const TREES_FIELDS = {
   CITY_CLEARANCE: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 64,
+    default: 96,
     min: 0,
     max: 200,
     step: 2,
@@ -94,7 +94,7 @@ const TREES_FIELDS = {
   MIN_HEIGHT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 8,
+    default: 32,
     min: 4,
     max: 400,
     step: 4,
@@ -104,7 +104,7 @@ const TREES_FIELDS = {
   MAX_HEIGHT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 96,
+    default: 128,
     min: 16,
     max: 800,
     step: 4,
@@ -145,7 +145,7 @@ const TREES_FIELDS = {
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 64,
+    default: 80,
     min: 2,
     max: 400,
     step: 2,
@@ -155,7 +155,7 @@ const TREES_FIELDS = {
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 128,
+    default: 160,
     min: 4,
     max: 600,
     step: 2,

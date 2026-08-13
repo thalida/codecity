@@ -42,7 +42,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   MIN_FLOORS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 2,
+    default: 1,
     min: 1,
     max: 200,
     step: 1,

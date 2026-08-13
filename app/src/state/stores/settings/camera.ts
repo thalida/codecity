@@ -17,7 +17,7 @@ const CAMERA_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 5,
+    default: 32,
     min: 0,
     max: 90,
     step: 1,
