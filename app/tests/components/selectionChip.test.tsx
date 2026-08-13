@@ -89,6 +89,50 @@ describe('SelectionChip', () => {
     expect(chip()!.textContent).toContain('index.ts');
   });
 
+  // The chip stands in for a closed pane, so it carries the same file/dir badge
+  // that pane's header would have.
+  it('carries the extension badge for a file', async () => {
+    await select();
+    await dismiss();
+
+    const badge = chip()!.querySelector('.path-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toBe('ts');
+    expect(badge!.classList.contains('is-dir')).toBe(false);
+  });
+
+  it('carries the dir badge for a directory', async () => {
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    handle.picker.selection.value = {
+      kind: NodeKind.Directory,
+      dir: { name: 'styles', type: NodeKind.Directory, path: 'src/styles' } as never,
+      sidewalk: {} as never,
+      street: {} as never,
+    };
+    await flush();
+    await dismiss();
+
+    const badge = chip()!.querySelector('.path-badge');
+    expect(badge!.textContent).toBe('dir');
+    expect(badge!.classList.contains('is-dir')).toBe(true);
+    expect(chip()!.textContent).toContain('styles');
+  });
+
+  it('leaves a commit unbadged, like its pane', async () => {
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    handle.picker.selection.value = {
+      kind: NodeKind.Commit,
+      commit: { sha: 'abc1234def5678' } as never,
+      mesh: {} as never,
+      instanceId: 0,
+    };
+    await flush();
+    await dismiss();
+
+    expect(chip()!.querySelector('.path-badge')).toBeNull();
+    expect(chip()!.textContent).toContain('abc1234');
+  });
+
   it('clears the selection from its ✕', async () => {
     await select();
     await dismiss();

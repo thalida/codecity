@@ -15,18 +15,26 @@
 }
 
 .selection-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
   min-width: 0;
   min-height: var(--cc-tap-min);
-  padding: 0 var(--cc-space-3) 0 var(--cc-space-6);
+  padding: 0 var(--cc-space-3) 0 var(--cc-space-4);
   background: none;
   border: 0;
   color: var(--cc-text-strong);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
+  cursor: pointer;
+}
+
+/* The badge keeps its size; only the name gives way when the pill is capped. */
+.selection-chip-name {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
 
 .selection-chip-label:hover {
