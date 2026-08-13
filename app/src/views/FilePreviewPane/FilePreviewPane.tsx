@@ -592,10 +592,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
         <div class="empty-state empty-state--lg file-absent-state">
           <FileX class="icon" aria-hidden="true" />
           <p class="text-card-title">File not available</p>
-          <p class="text-card-sub">
-            The repo has no contents for it at this commit: it may have been deleted by now, or not
-            created yet. Scrub to a commit where it exists to preview it.
-          </p>
+          <p class="text-card-sub">Deleted by now, or not created yet.</p>
         </div>
       ) : (
         _previewBody(file)

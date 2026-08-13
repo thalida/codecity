@@ -27,6 +27,12 @@
 .pane-header--tabs .pane-tabs {
   flex: 1 1 auto;
   border-bottom: 0;
+  /* The strip's own top inset would be a dead band above the tabs, where the
+     row looks pressable and isn't. In here the row's height IS the target. */
+  padding-top: 0;
+}
+.pane-header--tabs .pane-tab {
+  padding-block: 0;
 }
 .pane-header--tabs > .btn-icon {
   align-self: center;
