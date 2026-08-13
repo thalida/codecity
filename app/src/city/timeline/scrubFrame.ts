@@ -1,7 +1,6 @@
 // The only per-frame reader of SCRUB_POS, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-
 import { SCRUB_POS } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
