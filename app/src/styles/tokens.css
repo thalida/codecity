@@ -215,6 +215,7 @@
   /* ── SCALES — Transition durations ───────────────────────────────────── */
   --cc-t-fast: 0.1s; /* row hover */
   --cc-t-base: 0.15s; /* button/input hover (default) */
+  --cc-t-collapse: 0.22s; /* selection pane collapsing into its chip */
 
   /* ── SCALES — Shadows ────────────────────────────────────────────────── */
   --cc-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.4); /* slider thumb */
