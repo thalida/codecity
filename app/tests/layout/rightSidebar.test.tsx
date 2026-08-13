@@ -44,9 +44,8 @@ const DIR_NODE: DirNode = {
   descendants_ext_breakdown: [{ ext: '.ts', count: 3, size: 300 }],
 };
 
-// Build a full Manifest whose tree has exactly one child (a file or a
-// directory) at the given path — enough for findNodeByPath's DFS, which
-// matches on `path` regardless of nesting depth.
+// A manifest with one child at the given path: findNodeByPath matches on path
+// whatever the depth, so nothing deeper is needed.
 function manifestWithFile(file: FileNode): Manifest {
   return {
     ...EMPTY_MANIFEST,
@@ -60,9 +59,8 @@ function manifestWithDir(dir: DirNode): Manifest {
   };
 }
 
-// Stub scene handle. The right-sidebar bridge subscribes to
-// picker.selection and world.onChange — both need to be live signals
-// in the stub so the component picks up selection changes.
+// The bridge subscribes to selection and world changes, so both have to be
+// live signals here for the component to see anything.
 function makeSceneHandle() {
   const selection = signal<PickTarget | null>(null);
   const hover = signal<PickTarget | null>(null);
@@ -206,9 +204,8 @@ describe('RightSidebar', () => {
     expect(handle).not.toBeNull();
   });
 
-  // #74: fileState/streetState re-derive from MANIFEST on every read, so a
-  // live-update publish refreshes the pane even though the picker's
-  // selection snapshot (captured at pick time) is now stale.
+  // The pane states re-derive from MANIFEST on every read, so a live update
+  // refreshes them even though the selection snapshot is stale.
   describe('live MANIFEST re-derive', () => {
     const originalManifest = MANIFEST.peek();
 

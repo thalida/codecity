@@ -8,10 +8,8 @@ interface TreeLike {
   children?: TreeLike[];
 }
 
-/** Non-zero file line/byte ranges over a fixture tree, mirroring
- *  api/scan/stats.py — for bench/layout fixtures that feed layoutCity,
- *  which reads stats.lineCountRange/byteSizeRange to size buildings. Without this the
- *  layout falls back to the {1,1} safe range (every building min-width). */
+/** The line and byte ranges layoutCity sizes buildings against, mirroring the
+ *  backend: without them every building comes out min-width. */
 export function fileStats(tree: TreeLike): Pick<RepoStats, 'lineCountRange' | 'byteSizeRange'> {
   let lMin = Infinity;
   let lMax = -Infinity;
@@ -49,10 +47,8 @@ export function fileLeader(
   return { path, lines, bytes, created, modified };
 }
 
-// Not a mirror of _author_hue that has to track the backend: no test here reads
-// a hue it did not get from the stats object below. These values are frozen
-// because decorationGolden digests the orb colours they produce, so changing
-// them means regenerating a golden for no gain.
+// Not a mirror of the backend's hue function: nothing here reads a hue it
+// didn't get from below. Frozen, because a golden digests the orb colours.
 function authorHue(name: string): number {
   let h = 0x811c9dc5 >>> 0;
   for (const byte of new TextEncoder().encode(name)) {
@@ -62,10 +58,8 @@ function authorHue(name: string): number {
   return h % 360;
 }
 
-/** The commit-derived RepoStats fields the tree renderer and firefly field read.
- *  Lets a test declare a handful of commits instead of a whole RepoStats.
- *  Extraction correctness is the backend's (api/tests/services/test_stats.py);
- *  this only has to produce the shape the components consume. */
+/** The commit-derived stats the trees and fireflies read, so a test can declare
+ *  a few commits instead of a whole RepoStats. */
 export function commitStats(commits: CommitEntry[]): RepoStats {
   if (commits.length === 0) return EMPTY_REPO_STATS;
   let oldest = commits[0].date;

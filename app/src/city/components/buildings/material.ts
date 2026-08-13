@@ -1,11 +1,6 @@
-// city/components/buildings/material.ts — The one building ShaderMaterial.
-//
-// Owns the single ShaderMaterial every cell's detail mesh renders with (a
-// lazy singleton — getBuildingMaterial()), its uniforms bag, the icon atlas,
-// and refreshBuildingMaterial() which re-applies Save-committed uniforms on
-// config-store changes. cellMesh.ts attaches this material to each cell and
-// reads the atlas (getIconAtlas()) for per-instance roof UVs; mutating a
-// uniform value object here updates every cell, since they all share it.
+// city/components/buildings/material.ts — the one building ShaderMaterial, its
+// uniforms, and the icon atlas. Every cell's detail mesh shares it, so mutating
+// a uniform here updates the whole city at once.
 
 import * as THREE from 'three';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -22,34 +17,18 @@ import {
   LIGHTING_SUN_CONTRAST,
 } from '@/constants/lighting';
 
-// ---------------------------------------------------------------------------
-// Per-instance facade attributes (window column count + door width) are
-// sourced from the BUILDINGS store. The shader-side keys
-// (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are pushed through uniforms — see
-// refreshBuildingMaterial(); the JS-side keys read below feed into baked
-// per-instance attributes, so changes to them trigger a full rebuild via
-// state/settingsReactions.ts.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Shared material singleton
-// ---------------------------------------------------------------------------
+// Shader-side facade keys ride uniforms; the JS-side ones bake into per-instance
+// attributes, which is why changing them routes to a full rebuild.
 
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
 
-// Lazy singleton material — created once and reused across all cells.
-// applyManifest can be called multiple times (e.g. on Save-triggered rebuild); the singleton
-// pattern ensures we don't accumulate materials on each rebuild.
+// One material for every cell: applyManifest runs repeatedly, and a per-rebuild
+// material would accumulate.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
-// The icon atlas the buildings sample for roof glyphs. cityState.applyManifest
-// builds it (gated on structure_signature) and pushes it in via setIconAtlas before
-// the cell pass, so the buildings have it as they're constructed. Stays null
-// while it's still loading or if the atlas build failed — the shader treats
-// iconUV.x < 0 as "no icon" and just paints the base roof color. Two consumers:
-// the uIconAtlas/uIconSlotSize uniforms (sampled by the shader) and cellMesh's
-// per-instance iIconUV write (via getIconAtlas()) — both off this one ref.
+// Pushed in before the cell pass, so buildings have it as they're built. Null
+// while it loads or if it failed: the shader paints the bare roof colour.
 let _atlas: IconAtlas | null = null;
 
 export function setIconAtlas(atlas: IconAtlas | null): void {
@@ -74,13 +53,8 @@ function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
   return out.set(lo, hi);
 }
 
-/**
- * The one rendered building ShaderMaterial — a lazy singleton shared by every
- * cell's detail mesh (see cellMesh.attachBuildingMeshToCell). Reusing one
- * material across all cells avoids the per-cell program-compile cost that hung
- * the tab on large repos. Mutating its uniform value objects (via
- * refreshBuildingMaterial / setIconAtlas) updates every cell at once.
- */
+/** Shared by every cell's detail mesh: a material per cell meant a program
+ *  compile per cell, which hung the tab on large repos. */
 export function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
@@ -95,46 +69,29 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
       // refreshBuildingMaterial() on Save.
       uOutlineWidth: { value: BUILDINGS.value.OUTLINE_WIDTH },
-      // Atlas of file-type icons; sampled per-instance via iIconUV for
-      // the roof face. Null until the atlas builds — the shader gates
-      // sampling behind iIconUV.x >= 0.
+      // Null until the atlas builds; the shader gates sampling on iIconUV.x.
       uIconAtlas: { value: _atlas ? _atlas.texture : null },
       uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
-      // Ground-haze uniforms — height-based volumetric fog applied
-      // in the building shader. Independent of camera distance.
-      // Fog color is mixed into the post-tonemap sRGB framebuffer, so the
-      // hex bytes pass through unchanged (see setColorFromHex).
-      // uFogEnabled drives the boolean branch in the shared fog chunk;
-      // uFogIntensity is still set to 0 when disabled (belt-and-suspenders).
+      // Height-based haze, mixed into the post-tonemap sRGB framebuffer, so the
+      // hex bytes pass through unconverted.
       uFogEnabled: { value: SCENE.value.FOG_ENABLED },
       uFogColor: { value: setColorFromHex(new THREE.Color(), SCENE.value.FOG_COLOR) },
       uFogIntensity: { value: SCENE.value.FOG_INTENSITY },
       // Raw fraction — the shader scales it by each building's own height.
       uFogHeightFrac: { value: SCENE.value.FOG_HEIGHT_FRAC },
-      // Extra HDR emission applied to the freshest building's lit
-      // windows on top of a baseline 1.0. 0 = no bloom contribution
-      // from windows; higher = brighter glow on new buildings.
+      // Extra emission on the freshest building's windows, over a baseline 1.
       uWindowEmissionBoost: { value: BUILDINGS.value.WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
       // modifiedAge). See BUILDINGS (aging) config.
       uGrimeIntensity: { value: _grimeIntensityVec(new THREE.Vector2()) },
       uGrimeCoverage: { value: new THREE.Vector2(...BUILDINGS.value.GRIME_COVERAGE) },
-      // Scene directional lighting (fixed LIGHTING_* constants). uSunDirWorld is
-      // re-initialised below from those constants so the
-      // first frame already has the configured sun direction; the
-      // ambient and contrast scalars are seeded inline. The (0,1,0)
-      // placeholder gives an overhead sun if _writeSunDir somehow
-      // doesn't run, rather than the all-faces-shadow look a zero
-      // vector would produce.
+      // The placeholder is an overhead sun rather than a zero vector, which
+      // would shadow every face if _writeSunDir somehow didn't run.
       uSunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
       uAmbient: { value: LIGHTING_AMBIENT },
       uSunContrast: { value: LIGHTING_SUN_CONTRAST },
-      // Procedural facade geometry (BUILDINGS store). Seeded from
-      // the current store snapshot so the first frame renders with the
-      // configured values; refreshBuildingMaterial() pushes updates on
-      // Save. Only the shader-side keys appear here — the JS-side
-      // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
-      // bake into per-instance attributes in cellMesh.ts (writeBuildingToSlot).
+      // Seeded from the store so the first frame is already configured; only
+      // the shader-side keys, since the rest bake into attributes.
       uSlabHeightFrac: { value: BUILDINGS.value.SLAB_HEIGHT_FRAC },
       uWindowWidthFrac: { value: BUILDINGS.value.WINDOW_WIDTH_FRAC },
       uWindowHeightFrac: { value: BUILDINGS.value.WINDOW_HEIGHT_FRAC },
@@ -155,9 +112,7 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowUnlitLightnessDelta: { value: BUILDINGS.value.UNLIT_LIGHTNESS_DELTA },
       uWindowGapBaseThreshold: { value: BUILDINGS.value.GAP_BASE_THRESHOLD },
       uWindowGapAgeBonus: { value: BUILDINGS.value.GAP_AGE_BONUS },
-      // The shader consumes uDimGlowColor in sRGB space (the prior hardcoded
-      // vec3(0.5, 0.4, 0.15) was sRGB), so the hex bytes pass through
-      // unchanged (see setColorFromHex).
+      // Consumed in sRGB, so the hex bytes pass through unconverted.
       uDimGlowColor: { value: setColorFromHex(new THREE.Color(), BUILDINGS.value.DIM_GLOW_COLOR) },
       uLitFreshnessExponent: { value: BUILDINGS.value.LIT_FRESHNESS_EXPONENT },
     },
@@ -170,27 +125,20 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
   return _sharedMaterial;
 }
 
-/**
- * Re-apply the Save-committed config to the shared material's uniforms. Called
- * from the buildings component's settings effect (reacts to BUILDINGS /
- * SCENE / BLOOM / BUILDING_DIMENSIONS) so live config edits — e.g. the Hidden-
- * tier wireframe thickness from BUILDINGS.OUTLINE_WIDTH — take effect at once.
- */
+/** Re-apply the committed config to the shared uniforms, so a Save reaches the
+ *  whole city without rebuilding any of it. */
 export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
   const sceneCfg = SCENE.value;
   const bloomCfg = BLOOM.value;
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDINGS.value.OUTLINE_WIDTH;
-  // Height fog: uFogEnabled drives the GLSL branch; uFogIntensity is also
-  // zeroed when disabled so the mix() is a no-op even if the bool branch
-  // ever short-circuits differently on a given driver.
+  // Intensity is zeroed as well as the flag, so the mix is inert even where a
+  // driver takes the branch differently.
   _sharedMaterial.uniforms.uFogEnabled.value = sceneCfg.FOG_ENABLED;
   setColorFromHex(_sharedMaterial.uniforms.uFogColor.value as THREE.Color, sceneCfg.FOG_COLOR);
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
   _sharedMaterial.uniforms.uFogHeightFrac.value = sceneCfg.FOG_HEIGHT_FRAC;
-  // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
-  // produce nothing the bloom pass (also bypassed via postFx.refresh)
-  // could pick up.
+  // Without bloom the windows stay LDR, with nothing for the pass to catch.
   _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED
     ? BUILDINGS.value.WINDOW_EMISSION
     : 0;
@@ -202,11 +150,8 @@ export function refreshBuildingMaterial(): void {
   );
   _sharedMaterial.uniforms.uAmbient.value = LIGHTING_AMBIENT;
   _sharedMaterial.uniforms.uSunContrast.value = LIGHTING_SUN_CONTRAST;
-  // Procedural facade geometry (BUILDINGS store) — shader-side keys.
-  // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC) require a full
-  // rebuild because they bake into per-instance attributes; state/settingsReactions.ts
-  // routes the whole store through scheduleRebuild so the uniforms here
-  // are kept fresh on the next rebuild without separate plumbing.
+  // Shader-side keys only: the rest bake into attributes, so the whole store
+  // routes through a rebuild and these come along with it.
   const facade = BUILDINGS.value;
   // Age weathering (grime) — [newest, oldest] ranges the shader lerps
   // per-building by createdAge.

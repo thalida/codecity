@@ -1,13 +1,7 @@
-// city/capture/shots.ts — camera poses for the README screenshot set, keyed by
-// the ?shot= name the capture harness reads. Whole-city shots use the rig's
-// reset framing at a chosen angle; close-ups use rig.captureView aimed at a
-// landmark from rig.captureAnchors. Distances are relative to the city's own
-// scale so they hold as the demo repo grows. Debug-only: nothing here runs
-// outside the capture harness.
-//
-// Tuning: every pose reads optional ?elev=&az=&dist= overrides, so you can dial
-// a shot in live in the browser (e.g. ?shot=gem&debug&elev=22&az=10&dist=48)
-// before baking the numbers in below.
+// city/capture/shots.ts — camera poses for the README shots, keyed by ?shot=.
+// Distances are relative to the city's own scale, so they hold as the demo repo
+// grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
+// in live before the numbers are baked in. Debug-only.
 
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
@@ -28,19 +22,16 @@ export interface ShotOverrides {
   dist?: number;
 }
 
-/** Pose the camera for one named shot. Return `false` when the shot's target
- *  isn't ready yet (e.g. trees still placing) so the harness retries; any other
- *  return (void/true) means posed. */
+/** Pose the camera for one shot. false when its target isn't ready yet, which
+ *  is the harness's cue to retry. */
 export type ShotPose = (
   handle: SceneHandle,
   manifest: Manifest,
   o: ShotOverrides
 ) => boolean | void;
 
-/** An actually-placed tree's bounds, or null if none are placed yet.
- *  treeAnchor(sha) is null for commits the layout didn't place a tree for, so a
- *  specific stat sha (e.g. the busiest commit) often misses. Walk commits
- *  most-authors-first so the tree we land on also has the most firefly orbs. */
+/** A placed tree's bounds. A named commit often has no tree, so this walks
+ *  commits most-authors-first: the one it lands on carries the most orbs. */
 function placedTree(handle: SceneHandle, manifest: Manifest) {
   const byAuthors = [...manifest.commits].sort((x, y) => y.authors.length - x.authors.length);
   for (const c of byAuthors) {
@@ -106,10 +97,8 @@ export const SHOTS: Record<string, ShotPose> = {
     handle.rig.reset();
   },
 
-  // The whole city part-built at an older commit: enter Timeline mode, scrub to
-  // mid-history, and frame the union city. No settings overrides — the shot
-  // reflects the defaults (deleted stubs on). loadTimelineScene
-  // is async, so return false until the mode + bundle are live — the harness retries.
+  // The city part-built, at the defaults. The load is async, so this returns
+  // false until the mode and bundle are live and the harness retries.
   timeline: (handle, _m, o) => {
     if (!TIMELINE_MODE.peek()) {
       if (!_timelineKickedOff) {
@@ -178,11 +167,8 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
 
-  // Demo video: self-drive one smooth turn of the whole city, marking
-  // <html data-cc-orbit-start> / <html data-cc-orbit-done> so demo-video.mjs
-  // knows which slice of its recording to keep. Time-based, so the duration
-  // holds regardless of frame rate, and a full 360deg loops seamlessly.
-  // Tuning: ?elev = view angle, ?dist = distance, ?az = seconds per turn.
+  // One turn, marked on <html> so demo-video knows which slice to keep.
+  // Time-based, so the duration holds whatever the frame rate.
   orbit: (handle, _m, o) => {
     const anchors = handle.rig.captureAnchors();
     const target = anchors.gem ?? anchors.center;
@@ -213,10 +199,8 @@ export const SHOTS: Record<string, ShotPose> = {
     requestAnimationFrame(step);
   },
 
-  // trees + fireflies are captured against a bigger, multi-author repo (see
-  // app/scripts/screenshots.mjs); codecity itself is too sparse to show either.
-  // trees: wide forest immersion (dense trees fill the foreground, city behind);
-  // fireflies: tighter on a busy tree so the author orbs read.
+  // Both shot against a bigger, multi-author repo: codecity itself is too
+  // sparse to show either a forest or a busy tree's orbs.
   trees: (handle, manifest, o) => {
     const anchors = handle.rig.captureAnchors();
     const tree = placedTree(handle, manifest);

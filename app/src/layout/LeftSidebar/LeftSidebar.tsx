@@ -1,19 +1,6 @@
-// layout/LeftSidebar.tsx — VSCode-style left sidebar.
-//
-// Owns:
-//   - active-tab state (which pane is mounted)
-//   - collapsed/expanded state (clicking the active icon collapses; the
-//     × in the panel header also collapses)
-//   - drag-to-resize handle on the sidebar's right edge
-//   - SCENE_HANDLE subscription: forwards picker selection/hover into
-//     the tree pane's signals, plus translates tree clicks into
-//     picker.selectByPath + rig.focusX
-//
-// Full Preact: <aside id="left-sidebar"> is rendered directly. The
-// four panes are signal-driven Preact components mounted as JSX
-// children — no imperative buildXPane factories on the active path.
-// The factories survive (#10) for external consumers / tests until
-// they too are ported.
+// layout/LeftSidebar.tsx — the left sidebar: which pane is mounted, whether it
+// is collapsed, its resize handle, and the bridge between the tree pane and the
+// picker.
 
 import './LeftSidebar.css';
 import { useRef, useLayoutEffect } from 'preact/hooks';
@@ -43,9 +30,8 @@ function _pathOf(target: PickTarget | null): string | null {
   return null;
 }
 
-// "Settings differ from default" dot. Replays its ring on every `count` change:
-// a keyed remount doesn't restart a CSS animation (Preact reuses the DOM node),
-// so we force it with the animation-reset + reflow trick.
+// A keyed remount won't restart the ring animation, since Preact reuses the
+// node, so this resets and reflows to force it.
 function SettingsChangeDot({ count }: { count: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
@@ -70,9 +56,8 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
   const topTabs = tabs.filter((t) => t.placement !== TabPlacement.Bottom);
   const bottomTabs = tabs.filter((t) => t.placement === TabPlacement.Bottom);
-  // Total settings + excludes that differ from default. The Settings icon shows
-  // a single dirty dot (the per-tab counts live on the subtabs); a customized
-  // render stays discoverable from anywhere.
+  // One dot on the icon, since the per-tab counts live on the subtabs: a
+  // customised render stays discoverable from anywhere.
   const changedCount = CHANGED_SETTINGS_COUNT.value;
 
   const renderTab = (tab: (typeof tabs)[number]) => {
@@ -114,9 +99,7 @@ export function LeftSidebar() {
   // Tree selection + hover paths, derived from picker signals.
   const selectedPath = useSignal<string | null>(null);
   const hoveredPath = useSignal<string | null>(null);
-  // Stable expansion-state signal for the tree pane. The TreePane
-  // component itself drives this via its selection→ancestor-chain
-  // effect, so we just need a long-lived signal to pass in.
+  // TreePane drives this itself; it just needs somewhere long-lived to live.
   const treeExpanded = useSignal<Set<string>>(new Set());
 
   // Mirror picker.selection.value → selectedPath. Re-runs on every
@@ -139,11 +122,8 @@ export function LeftSidebar() {
     hoveredPath.value = _pathOf(handle.picker.hover.value);
   });
 
-  // Force the sidebar closed and reset to Info on every world commit, so a new
-  // world always opens with the city unobscured (the open state is never
-  // remembered across worlds). Cold-boot ?src= and a user source switch both
-  // write CURRENT_SOURCE; live-reloads don't, so this fires once per real load
-  // and won't fight a manual tab/collapse change between loads.
+  // Closed on every world commit, so a new city opens unobscured. Live reloads
+  // don't write CURRENT_SOURCE, so this can't fight a manual change.
   useSignalEffect(() => {
     if (CURRENT_SOURCE.value) {
       activeTab.value = DEFAULT_SIDEBAR_TAB;
@@ -168,10 +148,8 @@ export function LeftSidebar() {
     collapsed.value = true;
   };
 
-  // Tree event handlers — bound to the current SCENE_HANDLE at call
-  // time so they always operate on the live scene.
-  // Tree rows hand back a TreeNode → adapt to a path. Path/nullary handlers
-  // (search, hover-end) use the scene commands directly in the JSX below.
+  // Bound at call time, so they always reach the live scene. Rows hand back a
+  // node; the path-shaped handlers use the scene commands directly below.
   const onTreeSelect = (node: TreeNode) => {
     if (node?.path) goToPath(node.path);
   };

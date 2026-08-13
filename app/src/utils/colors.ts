@@ -1,12 +1,8 @@
-// utils/colors.ts — Generic color helpers: hex / HSL parsing and WCAG
-// luminance. Used by anything that needs to compute readable text colors
-// against a dynamic background (e.g. the path badge in the floating
-// header). The HSL→RGB and luminance formulas are CSS/WCAG standard
-// math; they don't belong inside any single component.
+// utils/colors.ts — hex and HSL parsing plus WCAG luminance, for picking
+// readable text against a background nobody chose in advance.
 
-/** The extension "file tag" color: the same hue → HSL the KindBadge paints
- *  (Badge.css: hsl(var(--badge-hue), 60%, 35%)), so hue previews match the badge
- *  users actually see. Saturation/lightness are percentages. */
+/** The same hue-to-HSL the KindBadge paints, so a hue preview matches the
+ *  badge it is previewing. */
 export const FILE_TAG_SATURATION = 60;
 export const FILE_TAG_LIGHTNESS = 35;
 export function fileTagHsl(hue: number): string {
@@ -26,12 +22,8 @@ export function parseHex(hex: string): [number, number, number] | null {
   return null;
 }
 
-/**
- * Normalize a hex color to canonical lowercase `#rrggbb` form. Expands the
- * short `#rgb` form. Returns `#000000` for anything unparseable. Pure (no
- * DOM) — the app's colors are always hex, so no CSS-color round-trip probe
- * is needed.
- */
+/** A hex colour in canonical lowercase #rrggbb, black for anything that won't
+ *  parse. No DOM round-trip: these are always hex already. */
 export function normalizeHex(input: unknown): string {
   if (typeof input !== 'string') return '#000000';
   const rgb = parseHex(input);
@@ -66,14 +58,8 @@ export function relativeLuminance(r: number, g: number, b: number): number {
   return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
 }
 
-/**
- * Pick a readable text color (dark or light) for the given background.
- * Returns one of the two text colors based on the background's WCAG
- * relative luminance — dark text on bright backgrounds, light text on
- * dark backgrounds. `null` rgb falls through to the light text (safe
- * default against unknown/parse-failure backgrounds, which tend to be
- * the app's dark theme).
- */
+/** Dark text on a bright background and light on a dark one, by WCAG relative
+ *  luminance. An unreadable background falls to light, which this app is. */
 export function pickContrastingText(
   rgb: [number, number, number] | null,
   textDark: string,

@@ -102,9 +102,8 @@ describe('StreetPane', () => {
     await setDirectory(d);
     const extRows = Array.from(container.querySelectorAll('.street-ext-row')) as HTMLElement[];
     expect(extRows.length).toBeGreaterThanOrEqual(3);
-    // First row is the most common extension (.ts: 3 of 5 files → 60% share).
-    // The bar's title names the type in full (the badge truncates); the count
-    // and share show on the right.
+    // The most common extension leads. Its title names the type in full, which
+    // the badge truncates, with the count and share at the right.
     expect(extRows[0].querySelector('.street-ext-track')!.getAttribute('title')).toBe(
       'TypeScript (.ts)'
     );
@@ -170,9 +169,8 @@ describe('StreetPane', () => {
       expect(onExclude).toHaveBeenCalledWith(d);
     });
 
-    // Excluding the root would empty the city. The button stays anyway, inert
-    // and carrying the reason: a rule you can read beats a button that silently
-    // isn't there.
+    // Excluding the root would empty the city, so the button stays inert and
+    // carries the reason: a readable rule beats a missing button.
     it('shows the exclude button inert on the repo root, with the reason', () => {
       const root = dir('repo');
       (root as { path: string }).path = ROOT_PATH;

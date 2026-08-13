@@ -1,8 +1,6 @@
-// Pure date<->index mapping for the scrubber. Track position blends each commit's
-// point in time with its ordinal; SCRUB_POS stays a float commit index.
-//
-// Dates parse through utils/dates, the same rule the labels print by, so the day
-// under the handle is the day the axis names on either side of it.
+// The scrubber's date/index mapping. Track position blends a commit's moment
+// with its ordinal, and dates parse through utils/dates, the same rule the
+// labels print by, so the handle's day is the day the axis names.
 
 import { parseDateMs } from '@/utils/dates';
 
@@ -16,9 +14,8 @@ export interface ScrubberScale {
   commitCount: number;
 }
 
-/** `indexWeight` 0 = place commits purely by time, 1 = purely by ordinal.
- *  `todayMs` extends the axis one stop past the last commit: a repo goes on
- *  aging after its last commit, so the track's end is today, not that commit. */
+/** indexWeight 0 places commits by time, 1 by ordinal. todayMs adds a stop past
+ *  the last commit, since a repo goes on aging after it. */
 export function buildScrubberScale(
   dates: string[],
   indexWeight = 0,
@@ -72,8 +69,7 @@ export function indexToMs(scale: ScrubberScale, pos: number): number {
   return ms[lo] + (ms[hi] - ms[lo]) * (clamped - lo);
 }
 
-/** Wall-clock ms -> float commit index. Inverse of indexToMs, so a date can be
- *  turned back into a scrub position: its floor is the last commit at or before
+/** A moment as a scrub position. Its floor is the last commit at or before
  *  that moment, which is the state the scene draws. */
 export function msToIndex(scale: ScrubberScale, ms: number): number {
   const t = scale.ms;
@@ -95,15 +91,8 @@ export function msToIndex(scale: ScrubberScale, ms: number): number {
 
 const DAY_MS = 86_400_000;
 
-/** Snap a moment to the nearest place worth stopping, and return its scrub
- *  position. A drag otherwise slides continuously through a history where one
- *  day can be a fraction of a pixel, and stopping on the date you want is luck.
- *
- *  A day with commits stops at those commits, so each is reachable however many
- *  a day holds, and the handle always parks on a tick. A day without them stops
- *  at its end, so a quiet stretch can be stopped anywhere in it, and the end so
- *  that the day's floor is the last commit before it: the city on a given day
- *  is the city that day left behind. */
+/** The nearest place worth stopping: a day's commits, or its end. Otherwise a
+ *  drag slides through a history where a day can be a fraction of a pixel. */
 export function snapToStop(scale: ScrubberScale, ms: number): number {
   const t = scale.ms;
   if (t.length === 0) return 0;
@@ -112,9 +101,8 @@ export function snapToStop(scale: ScrubberScale, ms: number): number {
   const before = t[i];
   const after = t[Math.min(t.length - 1, i + 1)];
 
-  // A day that has commits is represented by them, and offers no day stop of
-  // its own: one would sit a few hours from a commit's tick and read as the
-  // snap having missed it.
+  // A day with commits offers no stop of its own: it would sit hours from a
+  // tick and read as the snap having missed it.
   const candidates: number[] = [];
   if (before != null && Math.floor(before / DAY_MS) === day) candidates.push(before);
   if (after != null && Math.floor(after / DAY_MS) === day) candidates.push(after);

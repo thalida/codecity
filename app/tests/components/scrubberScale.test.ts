@@ -17,9 +17,8 @@ describe('scrubberScale', () => {
     // index 2 (Jan 3) sits before its predecessor (Jan 5) → clamped up to Jan 5.
     expect(s.ms[2]).toBe(s.ms[1]);
     expect(s.ms.every((m, i) => i === 0 || m >= s.ms[i - 1])).toBe(true);
-    // Day-precision dates land on LOCAL midnight, the same instant the labels
-    // print them from: Date.parse would read them as UTC and put the handle's
-    // day a day off the axis labels in half the world's timezones.
+    // Day-precision dates land on local midnight, the instant the labels print
+    // from: read as UTC, the handle's day sits a day off the axis.
     expect(s.ms[0]).toBe(new Date(2020, 0, 1).getTime());
     expect(s.ms[3]).toBe(new Date(2020, 0, 10).getTime());
   });
@@ -116,9 +115,8 @@ describe('scrubberScale', () => {
   });
 
   it('fractionToIndex lands on the commit nearest a clicked date, not the nearest index', () => {
-    // Days 0,1,2 then a lone commit at day 100. Clicking the middle of the axis
-    // (day ~50) should resolve BETWEEN index 2 (day 2) and 3 (day 100), i.e. ~2.5,
-    // NOT index 1.5 (which an index-linear scrubber would give).
+    // Three days then a lone commit at day 100: the middle of the axis is a
+    // date, so it lands between the last two, not at the middle index.
     const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-03', '2020-04-10']);
     const idx = fractionToIndex(s, 0.5);
     expect(idx).toBeGreaterThan(2);

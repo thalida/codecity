@@ -1,10 +1,6 @@
-// streetOpacity.test.ts — per-street opacity plumbing for Timeline-mode fades.
-//
-// Streets carry a per-vertex `aOpacity` float (default 1) on BOTH the merged
-// sidewalk and merged asphalt geometries; setStreetOpacity writes it over that
-// street's vertex span. Materials stay `transparent: false` by default (the
-// alpha is written but never blended → live mode renders byte-identical);
-// setStreetsTransparent(true) flips both into the transparent pass.
+// streetOpacity.test.ts — the per-street alpha Timeline fades with. It is
+// written on both merged meshes but never blended until the materials are
+// flipped transparent, so live mode renders byte-identically.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';

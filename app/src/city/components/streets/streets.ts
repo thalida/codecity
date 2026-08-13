@@ -13,20 +13,16 @@ import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 
-// Street segments may carry a transient `joinSide` (stamped by
-// layout._markJoinSides) telling us which end of the child street
-// merges into its parent at a T-intersection. Used to pick the cap
-// style so the joining end is flat.
+// `joinSide` says which end of a child street merges into its parent, so that
+// end can be capped flat.
 type StreetWithJoin = Street & { joinSide?: JoinSide };
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
 
-// Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is
-// byte-identical. When `tintUniforms` is passed the shader also tints per-vertex
-// (aRuin: 1 = deleted folder → ruin color),
-// for Timeline mode — aRuin stays 0 in live mode, so the result is unchanged there.
+// Per-vertex alpha, and per-vertex ruin tint when Timeline passes the uniforms.
+// Both are inert in live mode, which renders byte-identically without them.
 function injectStreetOpacity(
   mat: THREE.MeshBasicMaterial,
   tintUniforms?: { ruin: { value: THREE.Color } }
@@ -68,14 +64,8 @@ function seedOpacityAttribute(geo: THREE.BufferGeometry): void {
   geo.setAttribute('aOpacity', new THREE.BufferAttribute(opacity, 1));
 }
 
-// Ground-plane materials — all the flat pieces (sidewalk, asphalt,
-// paths) sit at the same world Y. `polygonOffset` alone isn't enough
-// to kill z-fighting between coplanar meshes at typical camera
-// distances, so we also disable depth-write and control their stacking
-// via `renderOrder`: the lowest renderOrder draws first, higher orders
-// draw on top cleanly regardless of their actual Y coordinate.
-//
-// Ground planes still `depthTest` so buildings occlude them correctly.
+// Every flat piece sits at one Y, and polygonOffset alone doesn't settle
+// coplanar z-fighting, so they stack by renderOrder with depth-write off.
 function flatGroundMaterial(
   color: string | number,
   renderOrderLayer: number
@@ -91,13 +81,8 @@ function flatGroundMaterial(
   return mat;
 }
 
-// Concentric-cap asphalt geometry for a street. The asphalt is narrower than
-// the sidewalk by ASPHALT_WIDTH_FRAC and shorter by exactly the per-side
-// sidewalk strip width on each end — that keeps the two cap circles sharing a
-// center so the annular sidewalk strip stays uniform thickness around the
-// curve at any street length. Lengths floor at 0 so degenerate streets don't
-// render a negative-length stadium. Shared by createStreetMesh (geometry) and
-// streetLabels (usable-road-length fit).
+// Shortened by exactly the sidewalk strip at each end, so both cap circles share
+// a centre and the sidewalk stays an even thickness around the curve.
 export function asphaltDims(street: { width: number; length: number }): {
   asphaltWidth: number;
   sidewalkStrip: number;
@@ -109,23 +94,8 @@ export function asphaltDims(street: { width: number; length: number }): {
   return { asphaltWidth, sidewalkStrip, asphaltLength };
 }
 
-// _buildStadiumGeometry(length, width, orientation, capStyle) -> ShapeGeometry
-//
-// A pill / stadium / rectangle-with-rounded-ends shape, lying in the XY
-// plane (intended to be rotated -π/2 around X to lie flat on world XZ).
-// `orientation` picks which 2D axis the long direction runs along.
-//
-// `capStyle` controls which ends are rounded:
-//   'both' — semicircular caps at both ends (the classic pill; used for
-//            the root street, which has no parent intersection)
-//   'high' — rounded only at the +length end; flat at the −length end
-//            (used by non-root children whose joining endpoint is at
-//            local low — they merge cleanly into the parent there)
-//   'low'  — rounded only at the −length end; flat at the +length end
-//
-// In all three cases the shape's extent along the long axis is exactly
-// `length`, centered at 0, so the caller's positioning math doesn't
-// change with cap style.
+// A pill in the XY plane, laid flat on XZ. Whichever ends `capStyle` rounds, the
+// extent stays exactly `length` centred at 0, so the caller's maths holds.
 function _buildStadiumGeometry(
   length: number,
   width: number,
@@ -133,12 +103,8 @@ function _buildStadiumGeometry(
   capStyle: CapStyle
 ): THREE.ShapeGeometry {
   capStyle = capStyle || CapStyle.Both;
-  // capStyle is specified in WORLD-axis terms (Low = round the world-low
-  // end, High = the world-high end). The mesh is rotated -π/2 around X
-  // to lie flat: local x maps directly to world X (no flip), but local y
-  // maps to world -z (flipped). So for y-orient streets, "world low" is
-  // at LOCAL HIGH and vice versa — invert capStyle here so the geometry
-  // construction below stays in plain local-axis terms.
+  // capStyle is world-axis, and laying the mesh flat flips local y to world -z,
+  // so a y-oriented street inverts it and the rest can stay local.
   if (orientation === StreetAxis.Y) {
     if (capStyle === CapStyle.Low) capStyle = CapStyle.High;
     else if (capStyle === CapStyle.High) capStyle = CapStyle.Low;
@@ -146,18 +112,14 @@ function _buildStadiumGeometry(
   const r = width / 2;
   const roundLow = capStyle === CapStyle.Both || capStyle === CapStyle.Low;
   const roundHigh = capStyle === CapStyle.Both || capStyle === CapStyle.High;
-  // The straight section's long-axis range. When a side is rounded, the
-  // straight section ends r before the world edge; when flat, it extends
-  // all the way out to the world edge.
+  // A rounded end stops r short of the edge; a flat one runs to it.
   let lo = roundLow ? -length / 2 + r : -length / 2;
   let hi = roundHigh ? length / 2 - r : length / 2;
   if (lo > hi) lo = hi = 0; // degenerate: width > length, collapse to 0
 
   const shape = new THREE.Shape();
   if (orientation === StreetAxis.X) {
-    // Trace counter-clockwise: start at low-bottom corner, run along the
-    // bottom edge, round (or flat) the high end, run back along the top,
-    // and round (or flat) the low end. Auto-closes back to start.
+    // Traced counter-clockwise from the low-bottom corner; auto-closes.
     shape.moveTo(lo, -r);
     shape.lineTo(hi, -r);
     if (roundHigh) shape.absarc(hi, 0, r, -Math.PI / 2, Math.PI / 2, false);
@@ -176,21 +138,16 @@ function _buildStadiumGeometry(
   return new THREE.ShapeGeometry(shape, STADIUM_SEGMENTS);
 }
 
-// Cap style: the root has rounded caps both sides; non-root streets are FLAT at
-// their joining end (so they merge cleanly into the parent at the T-intersection)
-// and rounded only at the open end. Layout stamps each non-root street with
-// `joinSide`. The SAME cap style feeds both sidewalk + asphalt so their flat ends
-// line up and the visible sidewalk strip stays uniform around the cap.
+// Flat where a street joins its parent, rounded at the open end. Sidewalk and
+// asphalt take the same style, or their flat ends wouldn't line up.
 function capStyleFor(street: StreetWithJoin): CapStyle {
   if (street.isRoot) return CapStyle.Both;
   if (street.joinSide === JoinSide.High) return CapStyle.Low; // round the low/open end
   return CapStyle.High; // round the high/open end
 }
 
-// Per-street span within the merged sidewalk mesh — for hover/select tinting
-// (vertex-color range) and picking (faceIndex → street). faceStart is cumulative
-// in the merged index; streets are stored in build order so faceStarts sorts
-// ascending, which the picker binary-searches.
+// A street's span in the merged mesh, for tinting and for picking. Stored in
+// build order, so faceStarts ascends and the picker can binary-search it.
 export interface SidewalkRange {
   street: StreetWithJoin;
   path: string | null;
@@ -206,12 +163,8 @@ export interface AsphaltRange {
   vCount: number;
 }
 
-// createMergedSidewalkMesh(streets) -> ONE mesh holding every sidewalk slab,
-// collapsing ~8k draw calls to 1. Sidewalks are still individually pickable +
-// tintable, so unlike asphalt this carries a per-vertex color attribute (hover/
-// select recolor a street's vertex span) and a faceIndex→street map on userData
-// (the picker resolves a raycast hit to its directory). Returns null for an
-// empty layout. yBase is baked into every vertex; the mesh sits at origin.
+// Every sidewalk slab in one mesh, ~8k draw calls collapsed to 1. Unlike asphalt
+// it keeps per-vertex colour and a face→street map, so it stays pickable.
 export function createMergedSidewalkMesh(
   streets: StreetWithJoin[],
   yBase: number
@@ -235,9 +188,8 @@ export function createMergedSidewalkMesh(
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
 
-  // Per-vertex color, seeded to the default sidewalk color. Tinting rewrites a
-  // street's span; the material's base color stays white so vertex colors show
-  // as-is (vertexColors multiplies vertexColor × material.color).
+  // The material's base colour stays white: vertex colours multiply into it, so
+  // anything else would tint the whole run.
   const def = new THREE.Color(STREETS.value.SIDEWALK_DEFAULT);
   const colors = new Float32Array(vAcc * 3);
   for (let i = 0; i < vAcc; i++) {
@@ -247,9 +199,8 @@ export function createMergedSidewalkMesh(
   }
   merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   seedOpacityAttribute(merged);
-  // Per-vertex Timeline tint (0 none, 1 deleted), written per-street by the
-  // scrub controller so the sidewalk border reads in the deleted color.
-  // All 0 in live mode, where the vertex color (hover/select) shows unchanged.
+  // Written per-street by the scrub controller, and all 0 in live mode, where
+  // the hover and select colours show through unchanged.
   merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
 
   const mat = new THREE.MeshBasicMaterial({
@@ -274,9 +225,8 @@ export function createMergedSidewalkMesh(
   return { mesh, ranges };
 }
 
-// Resolve a raycast faceIndex on the merged sidewalk to its street, via the
-// pickFaceStarts/pickStreets stored on userData. Binary-searches for the largest
-// faceStart <= faceIndex (streets occupy contiguous ascending face ranges).
+// A raycast faceIndex back to its street: the largest faceStart at or below it,
+// binary-searched, since the ranges are contiguous and ascending.
 export function sidewalkStreetForFace(
   mesh: THREE.Object3D,
   faceIndex: number
@@ -299,11 +249,8 @@ export function sidewalkStreetForFace(
   return idx >= 0 ? (streets[idx] ?? null) : null;
 }
 
-// buildAsphaltGeometry(street) -> the asphalt pill geometry, BAKED into world
-// space (rotated flat + translated to the street position). Asphalt is one solid
-// color and not pickable, so every street's asphalt merges into a single mesh —
-// see the streets component. Concentric with the sidewalk cap (asphaltDims) so
-// the sidewalk strip stays a uniform width around the perimeter.
+// Baked into world space. Concentric with the sidewalk cap, so the strip around
+// it keeps a uniform width.
 function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.BufferGeometry {
   const { asphaltWidth, asphaltLength } = asphaltDims(street);
   const geo = _buildStadiumGeometry(
@@ -317,11 +264,8 @@ function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.Buff
   return geo;
 }
 
-// createMergedAsphaltMesh(streets) -> ONE mesh holding every street's asphalt.
-// Baking all asphalt pills into a single geometry collapses ~8k draw calls (two
-// per street) to one — the biggest render-load win at Linux scale, since asphalt
-// is a single solid color and never picked. Returns per-street vertex ranges so
-// Timeline mode can fade a street's asphalt (aOpacity). Null for an empty layout.
+// Every street's asphalt in one mesh: one colour and never picked, so ~8k draw
+// calls collapse to one. The per-street ranges are what Timeline fades.
 export function createMergedAsphaltMesh(
   streets: StreetWithJoin[],
   yBase: number
@@ -340,9 +284,7 @@ export function createMergedAsphaltMesh(
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
   seedOpacityAttribute(merged);
-  // Per-vertex Timeline tint (0 none, 1 deleted folder → ruin color), written
-  // per-street by the scrub controller. All 0 in
-  // live mode.
+  // Written per-street by the scrub controller; all 0 in live mode.
   merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
   const mat = flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
   // Shared with the shader (onBeforeCompile) AND the component's tint-color

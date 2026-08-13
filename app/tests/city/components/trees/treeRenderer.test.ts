@@ -417,9 +417,8 @@ describe('createTreeRenderer()', () => {
   });
 
   describe('setScrubNow()', () => {
-    // A tree's size follows the age of its commit, so a scrub into the past has
-    // to find it smaller: the vertices are baked once, at the scan date, and the
-    // shader rescales them from this uniform.
+    // A tree's size follows its commit's age, and the vertices are baked once,
+    // so the shader rescales them from this uniform.
     const scrubbed = (trees: Trees) => {
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
       return material.uniforms.uNowDay.value as number;

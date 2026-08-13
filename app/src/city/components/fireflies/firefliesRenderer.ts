@@ -84,10 +84,8 @@ export function createFireflyRenderer(
     positions[v] = o.treeX;
     positions[v + 1] = o.height;
     positions[v + 2] = o.treeZ;
-    // Orbit height/radius and scale are re-read by uploadSizes; everything
-    // else here is fixed for the life of the field.
-    // rgb values from FireflyPlacement are already linear-RGB (0..1) — the
-    // shader consumes them raw, no color-space conversion.
+    // uploadSizes re-reads height, radius and scale; the rest is fixed for the
+    // life of the field. The colours are already linear, so they pass raw.
     colors[v] = o.rgb[0];
     colors[v + 1] = o.rgb[1];
     colors[v + 2] = o.rgb[2];

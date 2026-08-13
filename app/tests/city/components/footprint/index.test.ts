@@ -255,9 +255,8 @@ describe('createFootprint()', () => {
 
   // dispose()
 
-  // Not a check that the effect stopped: dispose() nulls `material` and the
-  // effect body sits behind `if (material)`, so a leak would be absorbed and
-  // look identical from here. What this pins is the guard.
+  // Not a check that the effect stopped: dispose nulls the material and the
+  // body is guarded on it, so a leak would look identical. This pins the guard.
   it('a FOOTPRINT mutation after dispose() is absorbed by the material guard', () => {
     fp.rebuild(singleBuildingLayout());
     fp.dispose();

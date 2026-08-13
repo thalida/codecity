@@ -1,10 +1,7 @@
 // city/components/buildings/seed.ts — per-building deterministic seed.
 
-/**
- * Per-instance random seed derived from a file path. Deterministic across
- * rebuilds, so a building's facade pattern doesn't shuffle on every
- * live-update poll. Output is normalized to [0, 1).
- */
+/** A seed from a file's path, so a building's facade doesn't reshuffle itself
+ *  on every live-update poll. */
 export function seedFromPath(path: string): number {
   let h = 2166136261; // FNV offset basis
   for (let i = 0; i < path.length; i++) {

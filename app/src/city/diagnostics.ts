@@ -1,9 +1,6 @@
-// city/diagnostics.ts — the city's two console diagnostics (collision check +
-// stem-placement trace), plus the pure formatters they route through. The
-// runCollisionCheck / runStemPlacementDiagnostic entry points read the city's
-// layout/manifest off cityState and print to the console; the City.world debug
-// API delegates straight to them. The _format* helpers below read nothing but
-// their arguments, so they unit-test in isolation.
+// city/diagnostics.ts — the console diagnostics and the formatters they print
+// through. The entry points read cityState; the formatters read nothing but
+// their arguments, so they test in isolation.
 
 import * as THREE from 'three';
 import { layoutCityWithTrace } from './layout/algorithm';
@@ -13,9 +10,7 @@ import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolve
 import type { WorldRect } from './layout/occupancyIndex';
 import type { CityState } from './state';
 
-// Run the layout-overlap check against the current layout and print the report.
-// Unexpected overlaps warn (with per-overlap detail lines); a clean result logs
-// an info summary. No-ops with a warning when no layout has been applied yet.
+// Unexpected overlaps warn with a line each; a clean run logs a summary.
 export function runCollisionCheck(cityState: CityState): void {
   const layout = cityState.layout.value;
   if (!layout) {
@@ -71,13 +66,8 @@ export interface TreeGroundingReport {
 // anything past a hair is a real gap rather than float drift.
 const GROUNDING_EPSILON = 1e-3;
 
-/** Measure every tree's lowest trunk vertex against the ground plane.
- *
- *  Reads the merged chunks' baked position buffers rather than recomputing the
- *  placement maths, so it audits what the GPU is actually drawing: if the bake
- *  and the encoding ever disagree, this reports the bake. Each chunk carries its
- *  own vertex layout (canopyVerts / trunkVerts / placementOrder), so the slice
- *  needs no constants from the renderer. */
+/** Every tree's lowest trunk vertex against the ground, read from the baked
+ *  buffers: recomputing the maths would only ever confirm itself. */
 export function auditTreeGrounding(
   group: THREE.Object3D | null,
   groundY: number
@@ -137,10 +127,8 @@ export function runTreeGroundingDiagnostic(group: THREE.Object3D | null, groundY
   for (const line of lines) log(line);
 }
 
-// _formatTreeGroundingReport(report) -> string[]
-//
-// Pure helper. One summary line, then one line per offender (worst first),
-// capped so a systemic break doesn't print a line per tree in the forest.
+// A summary, then the offenders worst-first, capped so a systemic break
+// doesn't print a line per tree in the forest.
 export function _formatTreeGroundingReport(report: TreeGroundingReport): string[] {
   const { checked, groundY, offenders } = report;
   if (offenders.length === 0) {
@@ -164,12 +152,8 @@ export function _formatTreeGroundingReport(report: TreeGroundingReport): string[
   return out;
 }
 
-// _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
-//
-// Pure helper. Partitions overlaps into unexpected vs. t-junction, returns the
-// summary line and (for the dirty case) one detail string per unexpected
-// overlap. Caller decides what to do with it — runCollisionCheck() routes to
-// console.info / console.warn.
+// Splits unexpected overlaps from t-junctions and returns lines; the caller
+// decides which console channel they go to.
 export function _formatCollisionReport(
   overlaps: LayoutOverlap[],
   totalRects: number
@@ -194,10 +178,7 @@ export function _formatCollisionReport(
   return { level: 'warn', summary, details };
 }
 
-// _formatStemDiagnostic(trace) -> string[]
-//
-// Pure helper. Walks a StemPlacementTrace, groups placements by parent road,
-// returns one or more lines per parent. Caller routes lines to console.log.
+// Groups placements by parent road, one or more lines each.
 export function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
   if (trace.placements.length === 0) {
     return ['[stem-diag] no placements recorded'];

@@ -1,8 +1,6 @@
-// components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline
-// bundle's commit history. The track is a TIME axis (start/end date labels +
-// one tick per commit positioned by date, so busy periods bunch up and quiet
-// stretches spread), yet it drives SCRUB_POS as a float commit index so the
-// scrub controller stays index-based. See scrubberScale for the date<->index map.
+// components/TimeTravelBar.tsx — the scrub track. A time axis, so busy periods
+// bunch and quiet stretches spread, driving SCRUB_POS as a float commit index so
+// the scrub controller stays index-based. See scrubberScale for the mapping.
 
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
@@ -78,9 +76,8 @@ export function TimeTravelBar() {
       ctx.clearRect(0, 0, w, h);
 
       const cs = getComputedStyle(track);
-      // Played fill + past ticks track the theme accent (matches the handle). The
-      // resolved --cc-accent is passed straight to canvas; empty in headless
-      // jsdom (no stylesheet) → the fallback, which node-canvas can parse.
+      // Resolved from CSS and handed to canvas, with a literal fallback for
+      // headless jsdom, where there is no stylesheet to resolve.
       const accent = cs.getPropertyValue('--cc-accent').trim() || 'rgb(140, 110, 245)';
       const tick = cs.getPropertyValue('--tt-tick').trim() || 'rgba(148,151,168,0.5)';
 
@@ -106,25 +103,18 @@ export function TimeTravelBar() {
   // deps while it rendered nothing.
   if (!mounted) return null;
 
-  // floor, not round: the scene gates trees and fireflies at floor(pos)
-  // (scrubController), so rounding up names a commit whose tree hasn't been
-  // drawn. Selecting one of those left an outline around nothing. Capped at the
-  // last commit, since the track runs one stop past it to today.
+  // floor, not round: the scene gates at floor(pos), so rounding up names a
+  // commit with no tree drawn. Capped, since the track runs one stop past.
   const lastCommit = commits.length - 1;
   const commit = commits[Math.min(Math.floor(pos), lastCommit)];
   const pct = indexToFraction(scale, pos) * 100;
 
-  // The calendar day the handle sits on, interpolated between the commits it
-  // falls between. This is the readout: scrubbing is moving through days. Local,
-  // like the edge labels: a commit late in the evening is stored as the next
-  // UTC day, and reading one end of the track on a different calendar than the
-  // other had this row a day ahead of the dates on either side of it.
+  // The day the handle sits on, read local like the edge labels: on two
+  // calendars, this row sat a day ahead of the dates on either side of it.
   const handleMs = indexToMs(scale, pos);
   const handleDay = localDay(handleMs);
-  // A commit belongs to the day it happened, and to no other. Anywhere else the
-  // row says so rather than carrying the last commit's message along, which
-  // made the message snap from one to the next as you crossed each commit
-  // while the date underneath moved smoothly.
+  // A commit belongs to its own day and no other: carrying its message along
+  // made it snap from one to the next while the date moved smoothly.
   const onCommitDay = localDay(scale.ms[Math.min(Math.floor(pos), lastCommit)]) === handleDay;
   // The right end of the axis, and whether the handle is standing on it.
   const endDay = todayMs == null ? commits[lastCommit].date : localDay(todayMs);
@@ -153,16 +143,13 @@ export function TimeTravelBar() {
     SCRUB_DRAGGING.value = false;
     const el = e.currentTarget as HTMLElement;
     el.releasePointerCapture?.(e.pointerId);
-    // Hand focus back to the scene so a pointer user's next R/F hits the camera
-    // shortcuts (a focused slider would otherwise keep them here). Keyboard-only
-    // users still Tab in and get the arrow/Home/End controls below.
+    // Focus back to the scene, so the next R or F reaches the camera. Keyboard
+    // users still Tab in for the controls below.
     el.blur();
   };
 
-  // Keyboard: arrows step one commit, Page keys ten, Home/End jump to the ends.
-  // stopPropagation on the keys we own so Home/End don't ALSO fire the global
-  // scene shortcuts (Home is bound to reset-view); unhandled keys (R, F) fall
-  // through to the document handler.
+  // Arrows step one commit, Page ten, Home/End the ends. The keys this owns
+  // stop propagating, or Home would also reset the view.
   const onKeyDown = (e: KeyboardEvent) => {
     const cur = Math.round(pos);
     let next: number;
@@ -214,9 +201,8 @@ export function TimeTravelBar() {
         >
           {formatShortDate(commits[0].date)}
         </button>
-        {/* The day the handle is on, always: showing the commit's own date
-            instead held it still until the handle was days clear of a commit,
-            then jumped. The commit in effect on that day reads below. */}
+        {/* The day the handle is on, always: the commit's own date held still
+            until the handle was days clear of it, then jumped. */}
         <span class="time-travel-date" title={formatFullDate(handleDay)}>
           {onToday ? 'Today' : formatShortDate(handleDay)}
         </span>

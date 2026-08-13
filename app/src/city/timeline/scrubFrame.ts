@@ -45,30 +45,16 @@ export interface ScrubFrameDeps {
   commitDateRanges: readonly CommitDateRange[];
   /** Commit dates as ms, for resolving what "now" is mid-scrub. */
   commitMs: readonly number[];
-  /** What the far end of the track means: today when the repo has aged since
-   *  its last commit, the scan date otherwise. The bar's last stop is the same
-   *  moment, so the city and the readout end on the same date. */
+  /** What the far end of the track means. The bar's last stop is the same
+   *  moment, so the city and the readout end on one date. */
   trackEndMs: number;
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
 }
 
-/** The date the handle sits on: the commit you're standing on, plus however far
- *  you've dragged toward the next one.
- *
- *  Interpolated rather than snapped to the commit, so a long quiet stretch
- *  actually reads as time passing. Held at the commit, nothing aged until the
- *  next one arrived and then everything aged at once. The handle's date is what
- *  the timeline bar prints, so the city and the readout agree.
- *
- *  Not measured past the commit you're standing on: a repo scrubbed to its
- *  first commit would paint brand-new files as ancient against a date that
- *  hasn't happened there yet.
- *
- *  Past the last commit it runs on to the stop the track ends at: nothing has
- *  been committed since, but the city has gone on aging, and that is the whole
- *  point of the last stop being today. */
+/** The date the handle sits on, interpolated toward the next commit so a quiet
+ *  stretch reads as time passing, and on past the last one to today. */
 function scrubNow(pos: number, deps: ScrubFrameDeps): number {
   const i = Math.floor(pos);
   const from = deps.commitMs[i] ?? deps.trackEndMs;

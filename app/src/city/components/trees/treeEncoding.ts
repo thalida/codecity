@@ -1,20 +1,7 @@
-// city/components/trees/treeEncoding.ts — pure helpers turning commit metadata
-// into [0,1] normalized signals (age / size / commits-per-day). The
-// renderer uses these to pick per-tree heights, widths, and colors.
-//
-// The project-wide age + size RANGES are read from manifest.stats (computed
-// once on the backend) rather than re-scanned here — the trees and the
-// firefly orbits both consume them, so a client-side walk would duplicate
-// the backend's work twice per rebuild. The per-commit signals (ageT/sizeT)
-// still take a single commit + the precomputed range.
-//
-// Robust to:
-//   - absent stats / null commits (non-git roots)
-//   - empty commit history (git roots with no commits in window)
-//   - degenerate ranges (all-same-date / -files / -counts → collapse to t=0.5)
-//   - out-of-range inputs (clamp to [0,1])
-//
-// Date math is day-precision because the scanner emits YYYY-MM-DD.
+// city/components/trees/treeEncoding.ts — commit metadata as [0,1] signals: age,
+// size, commits per day. The ranges come from manifest.stats rather than a walk
+// here, since the trees and the firefly orbits would each redo it. Every
+// degenerate case (no stats, no commits, no spread) collapses to the midpoint.
 
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import type { TreesConfig } from '@/state/stores/settings/trees';
@@ -28,10 +15,8 @@ export interface AgeRange {
   newest: number;
   /** newest - oldest. 0 when there is no meaningful range. */
   span: number;
-  /** Epoch day the repo was scanned, i.e. what "now" means to every commit
-   *  here. Falls back to `newest` when scanned_at wasn't supplied, so an
-   *  unknown scan date can't age the forest. Deliberately not Date.now(): a
-   *  live clock would drift tree height and break the goldens. */
+  /** What "now" means to every commit. Not Date.now(): a live clock would
+   *  drift tree heights and break the goldens. */
   scanned: number;
 }
 
@@ -44,9 +29,8 @@ export interface SizeRange {
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-// Memoized by date string. Parsing is the hot cost in the decoration pass —
-// ageT/treeHeight/treeRadius re-parse a commit's date several times per tree
-// (and again per firefly orb), but only ~one distinct date per day exists.
+// Memoized: parsing is the hot cost of the decoration pass, and a date is
+// re-read several times per tree and again per orb.
 const _daysCache = new Map<string, number>();
 // Bound the memo so many-repo sessions can't grow it without limit (a date is
 // one entry; the cap spans centuries of daily commits). Clearing is safe.
@@ -69,14 +53,8 @@ function clamp01(t: number): number {
   return t;
 }
 
-/** Oldest/newest commit dates as epoch days, from the backend-computed
- *  stats.commitDates, plus the scan date every commit is measured against.
- *  All zeroes when stats are absent or the repo has no commits (commitDates
- *  null) — collapses ageT to the 0.5 midpoint.
- *
- *  `scannedAt` is the manifest's `scanned_at` (any parseable date string; day
- *  precision). Omitting it treats the newest commit as now, so a missing scan
- *  date can't make the forest look abandoned. */
+/** The commit-date range and the scan date measured against it. Omitting the
+ *  scan date treats the newest commit as now, so it can't look abandoned. */
 export function computeAgeRange(
   stats: RepoStats | null | undefined,
   scannedAt?: string | null
@@ -91,9 +69,8 @@ export function computeAgeRange(
   return { oldest, newest, span: newest - oldest, scanned };
 }
 
-/** Min/max files-changed across commits, from the backend-computed
- *  sparsest/grandest commit leaders. {0,0,0} when stats are absent or the
- *  repo has no commits (leaders null) — collapses sizeT to the 0.5 midpoint. */
+/** The files-changed range, from the backend's leaders. Zeroes with no stats,
+ *  which collapses sizeT to the midpoint. */
 export function computeSizeRange(stats: RepoStats | null | undefined): SizeRange {
   const min = stats?.minFilesPerCommit?.files ?? 0;
   const max = stats?.maxFilesPerCommit?.files ?? 0;
@@ -111,15 +88,8 @@ export function sizeT(commit: CommitEntry, range: SizeRange): number {
   return clamp01((commit.files - range.min) / range.span);
 }
 
-/**
- * Map a per-day commit count to the tree-color ramp t in [0, 1], anchored on
- * the repo's busyness thresholds so the gradient agrees with the commit
- * pane's Quiet / Average / Busy label at the band boundaries:
- *   count <= 1 (solo-commit day) → 0   (solo-day color)
- *   count === avg (median)       → 0.5 (gradient midpoint)
- *   count >= busy (75th pct)     → 1   (busy-day color)
- * Piecewise-linear between the anchors — a smooth gradient, not flat tiers.
- */
+/** A day's commit count on the colour ramp, anchored on the repo's own busyness
+ *  thresholds so the gradient agrees with the pane's Quiet/Average/Busy. */
 export function dailyCountT(count: number, thresholds: BusynessThresholds): number {
   const { avg, busy } = thresholds;
   if (count <= 1) return 0;
@@ -132,9 +102,7 @@ export function dailyCountT(count: number, thresholds: BusynessThresholds): numb
   return busy <= avg ? 1 : clamp01(0.5 + (0.5 * (count - avg)) / (busy - avg));
 }
 
-/** Convenience: daily-count-T for the commit at `idx`, reading the
- *  backend-baked same_day_total and anchoring on the repo's busyness
- *  thresholds. Out-of-range indices (or null commits) return 0.5 (neutral). */
+/** The same, for a commit by index, off its baked same_day_total. */
 export function dailyCountTByIndex(
   commits: CommitEntry[] | null,
   idx: number,
@@ -144,16 +112,8 @@ export function dailyCountTByIndex(
   return dailyCountT(commits[idx].same_day_total, thresholds);
 }
 
-/** Canopy height for a tree.
- *
- *  Older commits grow taller, from real age via city/utils/recency, the same
- *  scale building colour uses: maturity = 1 − recency. A repo abandoned years
- *  ago is a tall forest throughout, with no separate staleness rule. A
- *  null/missing commit has no date and collapses to the midpoint.
- *
- *  Single source of truth for the tree renderer's canopy/trunk height
- *  AND the firefly orbit height — both must derive from the identical
- *  formula so fireflies never drift off their trees. */
+/** A tree's height, from its commit's age on the recency scale building colour
+ *  uses. Shared with the firefly orbits, which would otherwise drift. */
 export function treeHeight(
   commit: CommitEntry | null | undefined,
   ageRange: AgeRange,
@@ -176,15 +136,8 @@ function commitRecency(commit: CommitEntry, ageRange: AgeRange, cfg: TreesConfig
   );
 }
 
-/** Canopy XZ radius for a tree.
- *
- *  WIDTH is driven by FILES (sizeT): more files = wider. Attenuated by
- *  AGE via WIDTH_AGE_FLOOR so short young trees don't render adult-wide
- *  (floor=1.0 disables the attenuation, byte-identical to pre-feature
- *  rendering). A null/missing commit uses the midpoint base radius.
- *
- *  Single source of truth shared by the tree renderer (canopy/trunk
- *  width) and the firefly orbit radius. */
+/** A tree's radius, from its commit's file count, attenuated by age so a young
+ *  tree isn't adult-wide. Shared with the firefly orbit radius. */
 export function treeRadius(
   commit: CommitEntry | null | undefined,
   ageRange: AgeRange,

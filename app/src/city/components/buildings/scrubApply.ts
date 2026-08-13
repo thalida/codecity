@@ -26,9 +26,8 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
   const _color = new THREE.Color();
   const _toward = new THREE.Color();
 
-  // Touched this frame, so a mesh shared by many buildings flags each buffer
-  // for re-upload exactly once. Cleared per frame: a rebuild's disposed cells
-  // must not linger here.
+  // Flags each shared buffer for re-upload once a frame, and clears, or a
+  // rebuild's disposed cells linger in it.
   const _meshes = new Set<THREE.InstancedMesh>();
   const _colors = new Set<THREE.InstancedMesh>();
   const _attrs = new Set<THREE.BufferAttribute>();

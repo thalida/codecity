@@ -37,9 +37,8 @@ describe('createIslandMaterial', () => {
     mat.dispose();
   });
 
-  // World position is now the surface texture's sample coordinate, so the
-  // pattern belongs to the ground instead of swimming with the camera. It used
-  // to exist only for fog, which is why the test above used to police it.
+  // World position is the texture's sample coordinate, so the pattern belongs
+  // to the ground rather than swimming with the camera.
   it('samples its texture on world position, per surface', () => {
     const mat = createIslandMaterial();
     expect(mat.vertexShader).toMatch(/vWorldPos/);

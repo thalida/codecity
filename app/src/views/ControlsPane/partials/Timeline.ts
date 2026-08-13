@@ -1,8 +1,5 @@
-// views/ControlsPane/partials/Timeline.ts — Timeline section. How the scene
-// represents a file that doesn't exist at the scrubbed commit: a deleted one
-// leaves a faint gray stub, and one that hasn't been written yet simply isn't
-// there. Draft-backed like the rest of the World tab (applies on Save); only
-// meaningful in Timeline mode.
+// views/ControlsPane/partials/Timeline.ts — how the scene shows a file deleted
+// before the scrubbed commit. Draft-backed like the rest of the World tab.
 import { field, type SectionNode } from '.';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';

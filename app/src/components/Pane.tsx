@@ -1,13 +1,6 @@
-// components/Pane.tsx — Generic pane chrome shared by every
-// sidebar pane (Tree, Search, Info, Controls on the left; File, Commit,
-// Street on the right). Owns the outer `.pane` wrapper, the header (via
-// <PaneHeader>), and — when given a `bodyClass`/`bodyRef` — the scrolling
-// `.pane-body` container. Panes with non-standard body layout (e.g. the
-// search input row above the results) omit `bodyClass` and supply their
-// own body markup as children.
-//
-// <PaneEmpty> is the shared centered icon + headline + subtitle block used
-// for every "nothing selected / nothing to show" empty state.
+// components/Pane.tsx — the chrome every sidebar pane wears: the wrapper, the
+// header, and the scrolling body when one is asked for. PaneEmpty is the shared
+// "nothing to show" block.
 
 import type { ComponentChildren, JSX, Ref } from 'preact';
 import type { LucideIcon } from 'lucide-preact';
@@ -16,9 +9,8 @@ import { PaneHeader } from './PaneHeader/PaneHeader';
 export interface PaneProps {
   /** Extra class on the outer `.pane` (e.g. 'commit-pane', 'explore-pane'). */
   paneClass?: string;
-  /** Replaces the entire default <PaneHeader> — for panes whose header isn't a
-   *  title bar (e.g. a tabbed pane whose tab strip IS the header). When set,
-   *  the title/focus/close header props are ignored. */
+  /** Replaces the header outright, for a pane whose tab strip is its header.
+   *  The title and action props are ignored when it's set. */
   headerSlot?: ComponentChildren;
   /** Plain-text header title. */
   title?: string;

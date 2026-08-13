@@ -145,9 +145,8 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    // A rebuild that moved the tree re-snaps to it; one that dropped it keeps
-    // the commit, which outlives any mesh. Only a sha this repo doesn't have
-    // collapses, the same rule as the path branches.
+    // A rebuild that moved the tree re-snaps; one that dropped it keeps the
+    // commit, which outlives any mesh. Only an unknown sha collapses.
     if (key.kind === NodeKind.Commit) {
       const target = _commitTarget(key.sha);
       _suspendKeyDerive = true;
@@ -280,9 +279,8 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Scrubbed away means invisible, and invisible means unpickable. Ruins and
-  // data buildings stay selectable: they're drawn. Presence is iFade.x (shader
-  // opacity).
+  // Scrubbed away is invisible, and invisible is unpickable. Ruins and data
+  // buildings stay selectable, because they are drawn.
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
     return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;

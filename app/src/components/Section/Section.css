@@ -15,14 +15,11 @@
   padding-left: var(--cc-ctrl-inset);
 }
 
-/* Every controls section is a button-driven disclosure (see Section.tsx). The
- * header row is styled to match the file tree's accordion row: Lucide chevron +
- * label, with the same hover background, border radius, and padding as the tree
- * rows so the two activity-bar tabs feel like the same UI. */
+/* Styled to match the file tree's accordion row exactly, so the two tabs read
+ * as the same UI rather than two takes on one. */
 .controls-section > .controls-section-summary {
-  /* Sticky header: pinned at the scroll-body top while its section is in view;
-   * nested subgroup headers stack just below (Subgroup.css). Opaque bg so
-   * scrolled rows don't show through. */
+  /* Pinned while its section is in view, with subgroups stacking below it.
+   * Opaque, or scrolled rows show through. */
   position: sticky;
   top: 0;
   z-index: 3;
@@ -34,9 +31,8 @@
   display: none;
 }
 
-/* Top-level section headers read as the emphasis tier (white); nested subgroup
-   headers step one shade down to the secondary tier (Subgroup.tsx), so the two
-   accordion levels are visually distinct. */
+/* Sections take the emphasis tier and subgroups step one down, so the two
+   accordion levels stay distinguishable. */
 .controls-section-summary .text-label {
   color: var(--cc-text-strong);
 }

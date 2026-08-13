@@ -8,10 +8,8 @@
 /* Section accents (--sec-accent per data-section) are shared with the Legend
  * subtab, so they live in InfoPane.css scoped to .info-body. */
 
-/* Hairline divider above every section — including the first, so the intro
- * descriptor is separated from the data sections the same way they're separated
- * from each other. Flex column so the fact rows (flex items) stretch to full
- * width and their values truncate, with no hardcoded widths. */
+/* Flex column, so the fact rows stretch to full width and their values
+ * truncate without a hardcoded width anywhere. */
 .almanac-section {
   display: flex;
   flex-direction: column;
@@ -19,9 +17,8 @@
   padding-top: var(--cc-space-6);
 }
 
-/* The rules separate one section from the next, so the first has nothing above
-   it to be separated from: with the intro line gone it drew a bar under the tab
-   strip. */
+/* The rules separate section from section, so the first has nothing above it:
+   it drew a bar under the tab strip. */
 .almanac-section:first-child {
   border-top: 0;
   padding-top: 0;
@@ -47,9 +44,8 @@
   font-size: var(--cc-font-sm);
 }
 
-/* A min↔max duo: two endpoints under a shared dimension label so the
- * relationship (not eight loose rows) is the unit you read. Flex column so its
- * fact rows stretch to full width (same reason as .almanac-section). */
+/* Two endpoints under one dimension label, so the relationship is the unit you
+ * read rather than eight loose rows. */
 .almanac-duo {
   display: flex;
   flex-direction: column;
@@ -60,27 +56,22 @@
   display: block;
   margin: 0 0 var(--cc-space-px) 0;
 }
-/* Accented to the section's own layer color (like the section title icon)
-   instead of .text-label's default primary — overrides via a compound
-   selector so it wins regardless of stylesheet order. */
+/* The section's layer colour rather than the label default, through a compound
+   selector so it wins whatever the stylesheet order. */
 .almanac-duo-dim.text-label {
   color: var(--sec-accent);
 }
 
-/* One fact row — [label column] · value · right-aligned metric · focus glyph,
- * all centered on one line. A landmark row is a reset <button> spanning the
- * row; summary facts are plain divs. */
+/* One fact row on one line. A landmark row is a button spanning it; a summary
+ * fact is a plain div. */
 .almanac-fact {
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
   /* The whole row is the button, so the row carries the tap floor. */
   min-height: var(--cc-tap-min);
-  /* The row is a flex item, so it stretches to the section/duo width on its own
-   * (definite width → the value truncates instead of overflowing — no calc()
-   * hack needed). The negative margins then do one job: bleed the hover highlight
-   * into the gutter so the text stays flush with the header while the highlight
-   * keeps its own inner padding. */
+  /* A definite width, so the value truncates rather than overflowing. The
+   * negative margins bleed the hover highlight into the gutter. */
   margin: 0 calc(-1 * var(--cc-space-4));
   padding: var(--cc-space-2) var(--cc-space-4);
   border-radius: var(--cc-radius-md);
@@ -150,10 +141,8 @@
   white-space: nowrap;
 }
 
-/* Focus affordance: always visible (a hidden affordance is no affordance), and
- * one consistent interactive color across every section — matching the app's
- * .btn-icon convention (faint at rest, brightens with the row). Section accent
- * is identity; interaction is a separate, uniform signal. */
+/* Always visible, and one colour across every section: the accent is identity,
+ * and interaction is a separate signal that shouldn't vary with it. */
 .almanac-fact-focus {
   flex: 0 0 auto;
   width: 14px;

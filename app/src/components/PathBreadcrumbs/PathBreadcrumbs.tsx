@@ -1,9 +1,6 @@
-// components/PathBreadcrumbs.tsx — Display-only header title slot for a selected
-// file/dir: an extension badge + a middle-ellipsized path breadcrumb (leaf
-// emphasized). The header's focus/copy/close buttons live in the pane header's
-// right-hand action group, not here. The breadcrumb owns a ResizeObserver
-// (useMiddleEllipsis) that middle-truncates the path to fit the header width.
-// Segments are buttons only when onSegmentClick is given (else plain labels).
+// components/PathBreadcrumbs.tsx — the title slot for a selected node: a badge
+// and a path truncated in the middle to fit the header, with the leaf
+// emphasised. Segments are buttons only when there's something to do with one.
 
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
@@ -33,10 +30,8 @@ export function PathBreadcrumbs({
   rootPath,
   onSegmentClick,
 }: PathBreadcrumbsProps) {
-  // Measure against the header's lead group, not the title: the title hugs its
-  // content, so once truncation shrinks it, it stops resizing with the pane and
-  // the crumbs can never come back. Null outside a pane header, where the hook's
-  // own parent-element default is right.
+  // Measured against the header's lead group: the title hugs its content, so
+  // once truncation shrinks it the crumbs could never come back.
   const budgetRef = useContext(PaneTitleBudgetContext);
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {

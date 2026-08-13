@@ -1,20 +1,6 @@
-// layout/RightSidebar.tsx — Right-side panel chrome + pane router.
-//
-// Owns:
-//   - the .open class that gives the panel its width
-//   - the drag-to-resize handle on the inside (left) edge
-//   - choosing which of three panes to mount based on picker selection:
-//       file → FilePreviewPane
-//       commit → CommitPane
-//       directory → StreetPane
-//   - feeding live manifest data into the panes (remoteUrl, same-day
-//     commit counts, busyness thresholds, tree color)
-//
-// Full Preact: <aside id="right-sidebar"> is rendered directly. The
-// three panes are real Preact components driven by signal state. The
-// pane view-state is computed from the picker selection + the MANIFEST
-// signal (the fetch layer's source of truth), so the panes re-derive
-// automatically when a live-update poll publishes a fresh manifest.
+// layout/RightSidebar.tsx — the right panel: its width, its resize handle, and
+// which of the three panes the selection calls for. Their view-state is computed
+// from the picker and MANIFEST, so a live-update poll re-derives them.
 
 import './RightSidebar.css';
 import { useComputed } from '@preact/signals';
@@ -58,17 +44,12 @@ enum SidebarPaneKind {
   Street = 'street',
 }
 
-// ── Pane view-state derivation ───────────────────────────────────────
-// The commit/street panes need bits that aren't plain manifest fields (tree
-// color, busyness thresholds, remote URL, the live street lookup), so they're
-// computed from the scene handle. Pure helpers — the component's effect calls
-// them and writes the result into component-local signals.
+// The commit and street panes need things no manifest field holds, so these
+// derive them from the scene handle.
 
 function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneState {
-  // Repo-level fields off the canonical MANIFEST signal. peek() since the
-  // calling computed already re-derives via its explicit `void MANIFEST.value`;
-  // a reactive read here would just double it. getTrees() stays on the handle —
-  // it's genuine scene state (the live tree renderer's per-sha color).
+  // peek: the calling computed already re-derives on MANIFEST, so a tracked
+  // read here would only double it.
   const m = MANIFEST.peek() as Manifest;
   return {
     commit,
@@ -83,17 +64,12 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
 // ── Main component ───────────────────────────────────────────────────
 
 export function RightSidebar() {
-  // Pane view-state, derived from the picker selection + manifest. Computeds
-  // (read during render) so it's pure render-time reactivity — no effect
-  // writing signals, no module-level bridge, no manual world.onChange — they
-  // read the MANIFEST signal (the fetch layer's source of truth), so a
-  // live-update poll re-derives the enriched panes.
+  // Computeds read during render: no effect writing signals, no bridge, and a
+  // live-update poll re-derives every pane on its own.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    // Every selection opens the panel, in Live and Timeline alike — the sidebar is
-    // now the only place a selection is shown. In Timeline the panes handle the
-    // union-city caveat themselves (file preview reads HEAD with a note; the
-    // street pane shows the union folder).
+    // Every selection opens the panel: the sidebar is the only place one is
+    // shown. The panes handle the union-city caveat themselves.
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
     if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
     if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
@@ -167,9 +143,8 @@ export function RightSidebar() {
     void loadManifestAt(srcValue, branchValue, scrubShaValue);
   }, [needsScrubbedManifest, scrubShaValue, srcValue, branchValue]);
 
-  // Something to show, and you haven't put it away. Two facts, not one: closing
-  // used to deselect, which threw away the outline just because you wanted the
-  // details out of the way.
+  // Two facts, not one: closing used to deselect, throwing away the outline
+  // because you wanted the details out of the way.
   const isOpen = useComputed(() => activeKind.value !== null && !SELECTION_PANE_DISMISSED.value);
 
   const dismiss = dismissSelectionPane;

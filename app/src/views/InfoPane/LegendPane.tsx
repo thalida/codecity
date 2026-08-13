@@ -1,8 +1,6 @@
-// views/InfoPane/LegendPane.tsx — the "Legend" subtab: a static map-key for how
-// a repo's structure and history become the 3D city. Each world layer renders
-// as an accented header + a list of cue → meaning rows, read from LAYER_LEGEND
-// (single-sourced with the Overview section tooltips). No manifest: the
-// encodings are identical for every project. Body-only; InfoPane owns chrome.
+// views/InfoPane/LegendPane.tsx — the map key: each layer's cues and what they
+// mean, off LAYER_LEGEND. No manifest, since the encodings are the same for
+// every project.
 
 import './LegendPane.css';
 import { LAYER_LEGEND } from './almanac';

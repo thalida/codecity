@@ -181,9 +181,8 @@ describe('loadTimelineScene', () => {
   });
 
   it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
-    // A throw after the fetch resolves (applyManifest) lands in catch; if a
-    // cleanup call there ALSO throws, markError + hideLoadingOverlay must still
-    // run (the finally) — otherwise the overlay is stranded, no error shown.
+    // A throw inside the catch must not strand the overlay: the finally still
+    // has to mark the error and take it down.
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
     const f = fakeHandle();
     f.applyManifest.mockRejectedValue(new Error('pack failed'));
@@ -215,9 +214,8 @@ describe('exitTimelineMode', () => {
     SCENE_HANDLE.value = null;
   });
 
-  // The scene-side teardown (uninstall controller, un-transparent streets/footprints,
-  // restore trees) is owned by the city-layer effect in city/index.ts, which reacts
-  // to TIMELINE_MODE — see tests/city/index.test.ts. This test covers the hook's contract.
+  // The scene-side teardown belongs to the city layer's own effect; this covers
+  // the hook's half of the contract.
   it('flips TIMELINE_MODE, clears the scrub store, and reloads live HEAD', async () => {
     exitTimelineMode();
 

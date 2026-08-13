@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 
-// KindBadge reads the live theme (hue palette + asphalt color) from the
-// settings stores itself; mock them so each test can vary the asphalt color and
-// exercise the auto-contrast logic.
+// KindBadge reads the theme from the stores itself, so these mock them to vary
+// a colour and exercise the contrast choice.
 const settings = vi.hoisted(() => ({
   hueMap: {} as Record<string, number>,
   asphalt: '#1a1d28',

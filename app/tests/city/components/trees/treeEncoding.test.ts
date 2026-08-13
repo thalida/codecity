@@ -214,9 +214,8 @@ describe('dailyCountTByIndex()', () => {
   });
 });
 
-// Tree height/radius: the single source of truth shared by the tree
-// renderer (canopy/trunk size) and the firefly orbit field. These tests
-// pin the exact arithmetic the two former hand-copies produced.
+// Height and radius are shared by the renderer and the firefly orbits, so these
+// pin the arithmetic the two once hand-copied between them.
 describe('treeHeight() / treeRadius()', () => {
   // Only the sizing fields matter; cast a partial config to TreesConfig.
   const cfg = {

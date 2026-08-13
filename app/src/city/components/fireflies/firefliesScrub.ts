@@ -1,11 +1,7 @@
-// city/components/fireflies/firefliesScrub.ts — resize the orb field to a scrub
-// position. An orb says two things, and the timeline moves both: how much of
-// the repo's work is this author's (their share of the commits made SO FAR, not
-// of the whole history), and where the orbit sits (on a tree that is itself
-// younger and smaller at this date).
-//
-// Placements are mutated in place rather than rebuilt: the orbit rings read
-// them when a hover builds a ring, so both halves stay on one set of numbers.
+// city/components/fireflies/firefliesScrub.ts — the orb field at a scrub
+// position: how much of the work is this author's SO FAR, and an orbit on a tree
+// that is itself younger here. Placements are resized in place, so the hover
+// rings read the same numbers when one is built.
 
 import type { CommitEntry, RepoStats } from '@/types';
 import { TREES } from '@/state/stores/settings/trees';
@@ -21,9 +17,8 @@ import { epochDayAt } from '@/utils/dates';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
 
 export interface FirefliesScrub {
-  /** The last commit in effect, and the date the scrub sits on. Either null
-   *  (Live) restores the sizes the placements were built with. Returns whether
-   *  anything moved, so the renderer only re-uploads when it did. */
+  /** The commit in effect and the date. Either null restores the live sizes;
+   *  the return says whether anything moved, so uploads stay rare. */
   resize(maxCommitIndex: number | null, nowMs: number | null): boolean;
 }
 

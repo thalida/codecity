@@ -1,15 +1,6 @@
-// components/Badge.tsx — Shared builder for the small pill that shows
-// "what kind of thing am I looking at": a file extension (color-coded
-// from the same hue palette the city uses) or a generic "dir" badge
-// (painted with the asphalt color). Used by both the floating header
-// and the status-bar footer so the two stay visually in sync with
-// the city's current theme — when a user changes the asphalt color
-// or a hue in Controls, badges repaint to match.
-//
-// Text color is auto-contrasted against the badge background using the
-// WCAG relative-luminance formula: dark text on bright backgrounds,
-// light text on dark backgrounds. That keeps the label readable no
-// matter what colors the user picks in Controls.
+// components/Badge.tsx — the pill saying what kind of thing you're looking at,
+// painted from that thing's own colour in the city so a Controls change repaints
+// it too. Its text colour is chosen by luminance against that fill.
 
 import './Badge.css';
 import { getHue } from '@/city/components/buildings/color';
@@ -24,9 +15,8 @@ import { NodeKind } from '@/types';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { STREETS } from '@/state/stores/settings/streets';
 
-// Badge color defaults. The file badge's CSS paints hsl(var(--badge-hue), …)
-// with the shared file-tag saturation/lightness; the JS-side luminance check
-// uses the same values (as 0-1 fractions) so it matches what the user sees.
+// The luminance check reads the same saturation and lightness the CSS paints,
+// so it judges the colour actually on screen.
 const DEFAULT_TEXT_DARK = '#0a0b10';
 const DEFAULT_TEXT_LIGHT = '#f4f6ff';
 const DEFAULT_FILE_BADGE_SATURATION = FILE_TAG_SATURATION / 100;
@@ -67,9 +57,8 @@ export function KindBadge({
     pickContrastingText(rgb, textDark, textLight);
 
   if (kind === NodeKind.Commit) {
-    // No scene color: a commit's tree interpolates between two near-black
-    // foliage tones, which paint a label chip as a black rectangle. The other
-    // two badges borrow their object's color because that color is legible.
+    // A commit's tree is two near-black tones, which paints a chip as a black
+    // rectangle; the other kinds borrow a colour that can carry a label.
     return <span class="path-badge is-commit">commit</span>;
   }
   if (kind === NodeKind.Directory) {

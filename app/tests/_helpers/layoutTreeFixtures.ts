@@ -1,9 +1,5 @@
-// Shared deterministic generators for the layout/decoration bench + golden
-// suites. These build manifest-shaped trees and commit lists with an
-// `(name, path, rng)` signature (distinct from cityFixtures.ts's simpler
-// `(name)` fixtures), and a rolling-hash digester. The golden digests depend on
-// these byte-for-byte, so change them only intentionally (and recapture the
-// EXPECTED constants).
+// The deterministic generators behind the bench and golden suites. The digests
+// depend on them byte for byte, so a change here means recapturing a golden.
 
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout, CommitEntry, RepoStats } from '@/types';
@@ -171,12 +167,8 @@ export function genNestedTree(
   return mkDir(name, children, path);
 }
 
-// Reconstruct the two building-size normalization ranges the layout reads from
-// RepoStats: min/max of non-zero file lines/bytes across the tree. The server
-// computes these for real repos; without them layoutCity falls back to
-// SAFE_RANGE and every building gets the same (degenerate) size — so the bench
-// must supply them to exercise real dimensions. Only lineCountRange /
-// byteSizeRange are read by the layout; the rest of RepoStats is Info-tab data.
+// The two size ranges the layout normalises against, which the server computes
+// for real repos: without them every building comes out the same width.
 export function statsFromTree(root: any): RepoStats {
   let minL = Infinity;
   let maxL = -Infinity;
@@ -237,8 +229,7 @@ export function genCommits(n: number, rng: () => number): CommitEntry[] {
   for (let i = 0; i < n; i++) {
     const day = Math.floor((i / n) * 2000) + Math.floor(rng() * 4);
     // Full timestamps, like the scanner emits: a day-precision string parses
-    // against the reader's timezone, which would make this golden machine-
-    // dependent for anyone east of UTC.
+    // against the reader's timezone, which would make this golden local.
     const date = new Date(base + day * 86400000).toISOString();
     const a = AUTHORS[i % AUTHORS.length];
     const authors = i % 5 === 0 ? [a, AUTHORS[(i + 2) % AUTHORS.length]] : [a];

@@ -100,10 +100,8 @@ describe('linesAt', () => {
 
 describe('presenceAt', () => {
   test('a file is fully present at its creation commit (no genesis grow-in ramp)', () => {
-    // A file exists in the snapshot at the commit it was created, so landing on
-    // that commit must show it fully — not fade it in from 0. This holds at the
-    // first commit (start 0), mid-history, and at HEAD (a rename records the moved
-    // file as freshly created there).
+    // A file is in the snapshot at the commit that created it, so landing there
+    // must show it whole. True at the first commit, mid-history and at HEAD.
     const first = buildPathTimelines(bundle).get('f.txt')!; // created at commit 0
     expect(first.intervals[0].start).toBe(0);
     expect(presenceAt(first, 0, 0)).toBe(1);

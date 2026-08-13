@@ -16,9 +16,8 @@
   padding-top: var(--cc-space-6);
 }
 
-/* The rules separate one section from the next, so the first has nothing above
-   it to be separated from: with the intro line gone it drew a bar under the tab
-   strip. */
+/* The rules separate section from section, so the first has nothing above it:
+   it drew a bar under the tab strip. */
 .legend-layer:first-child {
   border-top: 0;
   padding-top: 0;

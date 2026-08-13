@@ -66,9 +66,8 @@ describe('the street rollup', () => {
   });
 
   it('keeps a road lit when one child is deleted and another survives', () => {
-    // The deleted child lands in the ruin set, where it cannot pull the road
-    // down. Graded opacities are the streets' own decision test: every present
-    // building sits at exactly 1, so the pass cannot vary them.
+    // The deleted child lands in the ruin set, where it can't pull the road
+    // down. Every present building sits at 1, so the pass can't vary them.
     const halfDead = makeBundle({
       commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
       deltas: [

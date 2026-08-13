@@ -18,9 +18,8 @@ const _ruins = RUINS.peek();
 const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
 const SCANNED_AT = Date.UTC(2024, 5, 1);
 
-// SCRUB_POS clamps against the loaded bundle, so a position past 0 is only
-// reachable with one loaded. Dates and a scan date because the clamp runs one
-// stop past the last commit when the repo has aged since it.
+// SCRUB_POS clamps against the bundle, so a position past 0 needs one loaded,
+// with dates: the clamp runs a stop past the last commit.
 beforeEach(() => {
   TIMELINE_BUNDLE.value = {
     commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
@@ -135,9 +134,8 @@ describe('what now means mid-scrub', () => {
     expect(at(1).nowMs).toBe(COMMIT_MS[1]);
   });
 
-  // Held at the commit, a quiet stretch aged nothing until the next commit
-  // arrived and then aged everything at once. This is the date the timeline bar
-  // prints, so the city and the readout agree.
+  // Held at the commit, a quiet stretch aged nothing and then aged everything
+  // at once. This is the date the bar prints, so the two agree.
   it('follows the handle between commits, so the city ages as you drag', () => {
     const half = at(0.5).nowMs;
     expect(half).toBeGreaterThan(COMMIT_MS[0]);

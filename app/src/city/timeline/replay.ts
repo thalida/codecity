@@ -40,17 +40,8 @@ function isPresent(pt: PathTimeline, pos: number): boolean {
   return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
 }
 
-/**
- * Line count in effect at `pos`: what the file measured after its last change
- * at or before it, and 0 where the path isn't present.
- *
- * A step, not a curve. This used to interpolate toward the next change so a
- * building tweened across a drag, which meant scrubbing between two commits
- * showed the file growing or shrinking toward an edit that hadn't been made
- * yet: changes appeared to happen on days nothing was committed. Age and
- * weathering follow the scrubbed date because a file really does get older as
- * days pass; its size only moves when a commit moves it.
- */
+/** The line count in effect at `pos`. A step, not a curve: interpolating toward
+ *  the next change showed files growing on days nothing was committed. */
 export function linesAt(pt: PathTimeline, pos: number): number {
   return entryAt(pt, pos)?.lines ?? 0;
 }
@@ -116,10 +107,8 @@ export function ruinStateAt(pt: PathTimeline, pos: number): PathState {
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
   if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 
-  // A file is fully present at every commit inside a live interval — including the
-  // commit it was created at (a snapshot at that commit contains it). No genesis
-  // grow-in ramp: landing on a file's creation commit (or on HEAD after a rename
-  // records the moved file as freshly created) must show it, not fade it from 0.
+  // Fully present at every commit in a live interval, its creation commit
+  // included: a snapshot there contains it, so it must not fade in.
   for (const iv of pt.intervals) {
     if (pos >= iv.start && (iv.end === null || pos < iv.end)) return 1;
   }
@@ -127,11 +116,8 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
   return ruinFloor;
 }
 
-/**
- * The change entry actually in effect at `pos`. Everything reads through here
- * now, linesAt included, so a number, the bytes behind it and the height drawn
- * from it all describe the same blob.
- */
+/** The change entry in effect at `pos`. Everything reads through this, so a
+ *  line count, its bytes and the height drawn from them agree. */
 export function entryAt(pt: PathTimeline, pos: number): PathTimeline['changes'][number] | null {
   if (!isPresent(pt, pos)) return null;
   let found: PathTimeline['changes'][number] | null = null;

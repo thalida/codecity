@@ -1,12 +1,6 @@
-// city/interaction/inputHandlers.test.ts — the scene's document-level keydown
-// handler must not fire scene keybindings (Esc-deselect, R, F) while a modal
-// (Shortcuts/Debug/ProjectsView) is open. The handler bails out early when the
-// OVERLAY_OPEN signal is set — see the "modal owns keyboard input" guard in
-// inputHandlers.ts, right after the text-input early-return.
-//
-// Exercises the guard through the real createCity → createInputHandlers path
-// (same jsdom mocking setup as city/index.test.ts) rather than reimplementing
-// a fake picker/rig, so the assertion covers the actual DOM listener wiring.
+// inputHandlers.test.ts — the scene's keybindings must not fire while a modal
+// owns the keyboard. Driven through the real createCity path, so it covers the
+// actual listener wiring rather than a stand-in for it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';

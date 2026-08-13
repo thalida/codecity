@@ -1,8 +1,5 @@
-// views/InfoPane/OverviewPane.tsx — the "Overview" subtab: a travel-guide of
-// repo superlatives derived by computeAlmanac. The pane leads with a one-line
-// descriptor, then a section per world layer (icon + accent); min↔max facts
-// render as bound duos, and a landmark row is itself the button that flies the
-// camera there. Body-only — InfoPane owns the chrome.
+// views/InfoPane/OverviewPane.tsx — a travel guide of the repo's superlatives,
+// a section per layer. A landmark row is itself the button that flies there.
 
 import './OverviewPane.css';
 import { useMemo } from 'preact/hooks';
@@ -17,9 +14,8 @@ import { computeAlmanac } from './almanac';
 import type { AlmanacFact, LandmarkRef } from './almanac';
 import { SECTION_ICON } from './sectionIcons';
 
-// The row carries a focus icon, so the whole row is that button: it takes the
-// camera there and clears the panel out of the way, unlike the tree and search
-// rows, whose whole point is the details they open.
+// The row carries a focus icon, so the whole row is that button: unlike a tree
+// or search row, whose point is the details it opens.
 function visit(landmark: LandmarkRef): void {
   if (landmark.kind === NodeKind.Commit) focusCommit(landmark.id);
   else focusPath(landmark.id);
@@ -37,9 +33,8 @@ function groupFacts(facts: AlmanacFact[]): { dimension?: string; facts: AlmanacF
   return out;
 }
 
-/** Landmark facts have a code-identifier primary (path or sha) → render
- *  monospace; a path additionally keeps its filename visible and truncates the
- *  directory from the left. Plain summary facts (no landmark) render as-is. */
+/** A landmark's primary is a path or sha, so it renders monospace, and a path
+ *  keeps its filename visible by truncating from the left. */
 function PrimaryValue({ fact }: { fact: AlmanacFact }) {
   if (!fact.landmark) return <span class="almanac-fact-primary">{fact.primary}</span>;
   const slash = fact.primary.lastIndexOf('/');
@@ -54,9 +49,8 @@ function PrimaryValue({ fact }: { fact: AlmanacFact }) {
   );
 }
 
-/** One fact row: label · value · right-aligned metric. A landmark fact is the
- *  whole row — a button that flies the camera (focus glyph revealed on hover);
- *  a summary fact is a plain, non-interactive row. */
+/** One fact row. A landmark is the whole row as a button; a summary fact is a
+ *  plain row with nothing to press. */
 function FactRow({ fact }: { fact: AlmanacFact }) {
   const landmark = fact.landmark;
   const inner = (

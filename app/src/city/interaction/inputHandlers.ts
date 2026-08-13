@@ -1,13 +1,5 @@
-// city/interaction/inputHandlers.ts — pointer / keydown / resize wiring.
-// Translates DOM events into picker and cameraRig calls.
-//
-// Public contract:
-//   const handlers = createInputHandlers({
-//     canvas, picker, rig, renderer,
-//     onResize: function () { /* renderer-specific onResize work */ },
-//     showTooltip, hideTooltip,            // tooltip api (from components/tooltip.js)
-//   });
-//   handlers.dispose();
+// city/interaction/inputHandlers.ts — pointer, keydown and resize wiring:
+// translates DOM events into picker and cameraRig calls, and nothing else.
 
 import type * as THREE from 'three';
 // Pointer input timing — fixed, not user-tunable.
@@ -58,12 +50,8 @@ export function createInputHandlers({
     downY = 0,
     downTime = 0;
 
-  // Hover pipeline: pointermove fires faster than render frames, so
-  // coalesce events into one raycast per rAF tick. Result sits in a
-  // short commit-delay buffer so brief brushes don't engage the heavy
-  // cascade fade (the buildingFader's tier change). Tooltip + cursor
-  // update on every coalesced raycast for responsiveness — only the
-  // hover commit is debounced.
+  // One raycast per frame, then a short delay before committing, so brushing
+  // past a building doesn't engage the cascade fade. Only the commit waits.
   let _hoverRafId = 0;
   let _hoverLastEvt = null;
   let _hoverPending = null;
@@ -77,10 +65,8 @@ export function createInputHandlers({
     if (a.kind !== b.kind) return false;
     // a.kind === b.kind is established; narrow b alongside a for member access.
     if (a.kind === NodeKind.File) {
-      // All buildings in a block share one InstancedMesh, so mesh-equality
-      // is too coarse — moving cursor between two buildings in the same
-      // block would never re-fire hover. Compare by file path (the
-      // canonical building identity).
+      // A block's buildings share one mesh, so mesh equality would never
+      // re-fire hover between two of them. Path is the identity.
       return a.file?.path === (b as typeof a).file?.path;
     }
     // All directories share one merged sidewalk mesh, so compare by dir path.
@@ -94,24 +80,18 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
-    // Suppress hover while camera is moving — orbit drag (start/end events).
-    // The outline/fader cascade is visually noisy while the camera rotates,
-    // so we just skip the raycast until the drag ends.
+    // The cascade is noisy under rotation, so the raycast waits for the drag.
     if (_cameraMoving) return;
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
     let newHover = picker.interpretHit(hit);
-    // Filter: directory-shaped targets that came from a stray "directory
-    // building" (engine.js typically skips these) don't have a sidewalk
-    // — treat as no hover.
+    // A stray directory-shaped building has no sidewalk: not a hover target.
     if (newHover && newHover.kind === NodeKind.Directory && !newHover.sidewalk) {
       newHover = null;
     }
 
-    // .peek(): a non-reactive read from inside a DOM hover handler — we want
-    // the current root name each hover, never a subscription. Stays in sync
-    // across manifest reloads because it's read lazily at call time.
+    // peek: a hover handler wants the current name, never a subscription.
     const rootName = cityState.manifest.peek()?.tree?.name ?? null;
     const scrubLines =
       newHover?.kind === NodeKind.File && newHover.file?.path != null
@@ -157,9 +137,8 @@ export function createInputHandlers({
       onResetView();
       return;
     }
-    // Clicking the current selection doesn't toggle it off (Blender / Maya /
-    // Finder); it asks for its details again, which is the way back to a pane
-    // you closed.
+    // Clicking the selection again asks for its details rather than clearing
+    // it: that is the way back to a pane you closed.
     const next = picker.interpretHit(hit);
     if (_sameHover(next, picker.selection.value)) {
       openSelectionPane();
@@ -170,9 +149,8 @@ export function createInputHandlers({
 
   // ── Bindings ───────────────────────────────────────────────────────
   let _disposers: Array<() => void> = [];
-  // The native EventTarget.addEventListener overloads are tightly typed
-  // by event name; this helper is generic across canvas/document/window
-  // and several event kinds, so the parameter types intentionally widen.
+  // addEventListener is typed per event name; this is generic across three
+  // targets and several kinds, so the parameters widen deliberately.
   function _on(target: EventTarget, event: string, fn: (e: Event) => void): void {
     target.addEventListener(event, fn);
     _disposers.push(() => {
@@ -238,22 +216,14 @@ export function createInputHandlers({
       // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
-      // The same command the panes' Focus buttons call: it dispatches on the
-      // selected kind and clears the panel out of the way. Gem isn't selectable,
-      // so there's no Gem case — clicking it resets the view.
+      // The command the panes' Focus buttons call. The gem isn't selectable:
+      // clicking it resets the view instead.
       focusSelection();
     }
   });
 
-  // Suppress hover while the user is orbiting/panning/zooming the camera.
-  // Listens to OrbitControls' start/end (NOT change) so hover resumes
-  // instantly on release, even while damping inertia continues. The
-  // tradeoff: hover is not suppressed during programmatic camera tweens
-  // (focusBuilding, reset) since those don't fire start/end — acceptable
-  // because tweens are short and self-triggered.
-  //
-  // OrbitControls extends EventDispatcher (not EventTarget) so we can't
-  // use the _on helper here — register and dispose manually.
+  // start/end rather than change, so hover resumes on release while damping
+  // continues. OrbitControls is an EventDispatcher, so it registers manually.
   const _cameraStartHandler = () => {
     if (_cameraMoving) return;
     _cameraMoving = true;
@@ -279,15 +249,8 @@ export function createInputHandlers({
     rig.controls.removeEventListener('end', _cameraEndHandler);
   });
 
-  // _resize is wrapped in rAF so the ResizeObserver callback yields before
-  // calling renderer.setSize (which writes to canvas width/height, which
-  // can re-fire ResizeObserver). Without the rAF, opening the right
-  // sidebar's CSS-transitioned width change can produce a sustained chain
-  // of resize callbacks tall enough to starve subsequent canvas pointer
-  // events — the symptom is hover/click going dead after the FIRST road
-  // click, since the directory pane's heavier setDirectory work raises
-  // the cost of each callback enough to push the chain into pathological
-  // territory.
+  // rAF, so the observer yields before setSize writes the canvas size and
+  // re-fires it: that chain starved pointer events and killed hover outright.
   let _resizeRafId = 0;
   function _resize() {
     if (_resizeRafId) return;
@@ -305,9 +268,7 @@ export function createInputHandlers({
   }
   _on(window, 'resize', _resize);
 
-  // Sidebars share horizontal space via flexbox — opening / closing
-  // them changes canvas size without firing window resize, so observe
-  // the canvas itself.
+  // A sidebar resizes the canvas without a window resize, so observe it.
   let _resizeObs = null;
   if (typeof ResizeObserver !== 'undefined') {
     _resizeObs = new ResizeObserver(_resize);

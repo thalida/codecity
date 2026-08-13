@@ -1,19 +1,10 @@
 /* ── Pane header ───────────────────────────────────────────────────────────── */
 
-/* Pane headers — title on the left, the buttons that act on the pane on the
- * right. Flexbox keeps the two vertically centered against each other regardless
- * of the title's font metrics or the button's size; no manual top/left
- * positioning math needed.
- * Shared header row built by layout/paneHeader.ts. Every pane —
- * left sidebar's Tree/Search/Info/Controls and the right sidebar's
- * file-preview — mounts this same DOM so they look identical and
- * adding a pane is a single buildPaneHeader() call. */
+/* Pane headers: title left, the pane's own actions right. Every pane mounts this
+ * same row, so they can't drift apart. */
 .pane-header {
-  /* The action group's glyphs are centred in their tap targets, so they already
-     clear the row's own inset by that bearing on three sides: the button drives
-     the row's height, so its glyph sits the same distance from the top and the
-     bottom as it does from the trailing edge. Only the title lacked it, so it
-     adds one and the four insets read alike. */
+  /* The action glyphs are centred in their targets, so they already clear three
+     sides by that bearing; the title adds one and the four insets read alike. */
   padding: var(--cc-space-4);
   padding-inline-start: calc(var(--cc-space-4) + var(--cc-icon-bearing));
   border-bottom: 1px solid var(--cc-border-subtle);
@@ -26,11 +17,8 @@
   gap: var(--cc-space-8);
 }
 
-/* Tabbed pane header — the tab strip IS the header row (no title bar), with the
- * close button pinned right. The row's own border-bottom is the single divider;
- * the inner strip draws none and stretches full-height so its tabs sit on that
- * line (their active underline overlaps it). Folding the title bar + separate
- * strip into one row is the vertical-space win. */
+/* The tab strip IS the header row here. One divider, the row's own, with the
+ * strip full-height so its tabs sit on that line. */
 .pane-header--tabs {
   padding: 0 var(--cc-space-4) 0 0; /* first tab sits flush with the pane edge */
   align-items: stretch;
@@ -43,18 +31,16 @@
   align-self: center;
 }
 
-/* The row's actions split by what they act on. Copy and open act on the thing
-   the title names, so they travel with it and read as part of the identity;
-   focus / exclude / close act on the pane itself and stay at the far edge. */
+/* Split by what they act on: copy and open travel with the title they name,
+   while focus, exclude and close act on the pane and stay at the edge. */
 .pane-header-lead {
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
   min-width: 0;
   flex: 1 1 auto;
-  /* The title hugs its content, so a title too long for the row would push the
-     pane's actions off the edge. Clip instead: the breadcrumb truncates itself
-     against this box, and this is the guarantee if it ever measures wrong. */
+  /* The title hugs its content, so an over-long one would push the actions off
+     the edge. The breadcrumb truncates itself; this is the guarantee. */
   overflow: hidden;
 }
 
@@ -72,9 +58,8 @@
   flex-shrink: 0;
 }
 
-/* Typography in .text-pane-title (text.css); this rule adds layout (flex-fill,
- * truncation, sub-segment gap). The .is-mono modifier flips to monospace for
- * filename-style titles (right-sidebar file-preview). */
+/* Typography lives in text.css; this adds the layout. .is-mono is for titles
+ * that are filenames rather than labels. */
 .text-pane-title {
   /* Shrinks under pressure but doesn't grow: growing would push the identity
      actions to the far side of the lead group instead of against the name. */
@@ -92,9 +77,8 @@
   font-family: var(--cc-font-mono);
 }
 
-/* A title that leads with a kind badge needs more air after it than the 2px
-   segment gap. Here rather than on what follows, so a breadcrumb and a short
-   sha are spaced off it alike without either restating the value. */
+/* A leading badge needs more air than the segment gap. Set here, so a
+   breadcrumb and a bare sha space off it alike. */
 .text-pane-title > .path-badge {
   margin-inline-end: var(--cc-space-4);
 }

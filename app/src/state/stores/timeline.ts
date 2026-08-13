@@ -14,9 +14,7 @@ const COMMIT_COUNT = computed(() => TIMELINE_BUNDLE.value?.commits.length ?? 0);
 const _todayMs = signal(Date.now());
 
 /** Today, when it is later than the last commit: the city goes on aging after
- *  the last thing anyone committed, so the track runs to now rather than
- *  stopping at a commit and pretending nothing has happened since. Null when
- *  the newest commit is today (or later, on a skewed clock). */
+ *  the last thing anyone committed. Null when the newest commit is today. */
 export const SCRUB_TODAY_MS = computed(() => {
   const bundle = TIMELINE_BUNDLE.value;
   if (!bundle || bundle.commits.length === 0) return null;
@@ -24,9 +22,8 @@ export const SCRUB_TODAY_MS = computed(() => {
   const newest = parseDateMs(bundle.commits[bundle.commits.length - 1].date);
   const today = _todayMs.value;
   if (!Number.isFinite(newest)) return null;
-  // Whole days: a commit from this morning is not a stop away from this
-  // afternoon, and a track that ends a few hours past its last tick reads as
-  // a rounding error rather than as today.
+  // Whole days: a commit from this morning is not a stop away from now, and a
+  // track ending hours past its last tick reads as a rounding error.
   return Math.floor(epochDayAt(today)) > Math.floor(epochDayAt(newest)) ? today : null;
 });
 
@@ -54,18 +51,14 @@ export function setScrubPos(pos: number): void {
   _scrubPos.value = pos;
 }
 
-// The whole commit index SCRUB_POS lands on. Per-path presence only changes at
-// integer commits, so the sidebar's present-path filter (keyed on this) recomputes
-// once per commit crossing, not on every sub-commit interpolation frame. Capped
-// at the last commit: past it the city is still that commit's, only older.
+// The whole commit SCRUB_POS lands on, so anything keyed on presence recomputes
+// once a crossing. Capped: past the last one the city is still its, only older.
 export const SCRUB_COMMIT = computed(() =>
   Math.min(Math.floor(SCRUB_POS.value), Math.max(0, COMMIT_COUNT.value - 1))
 );
 
-// True while the user is actively dragging the scrubber handle. Consumers that
-// would reflow the layout mid-scrub (e.g. auto-closing the right sidebar when a
-// selection is scrubbed away) defer until the drag ends, so the track can't
-// resize under the pointer and jump the position.
+// Anything that would reflow the layout waits for this to clear, or the track
+// resizes under the pointer mid-drag and the position jumps.
 export const SCRUB_DRAGGING = signal(false);
 
 // The commit content fetches key on: follows the scrub but holds still mid-drag,

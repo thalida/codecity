@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { formatRelativeAge, humanSpan } from '@/utils/dates';
 
-// Local, like the dates it is compared against: a day-precision string is that
-// day where the reader is, so measuring it from a UTC instant would make these
-// answers depend on the runner's timezone.
+// Local, like the dates it is measured against: from a UTC instant, these
+// answers would depend on the runner's timezone.
 const NOW = new Date(2026, 4, 24, 12, 0, 0);
 
 /** A local moment as the ISO string a timestamped date arrives as. */

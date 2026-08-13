@@ -1,16 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Rows
-   ═══════════════════════════════════════════════════════════════════════════
-   .row — clickable flex row with subtle hover. Used for tree rows and the
-   two collapsible-section summary rows. Padding aligns to the pane's
-   horizontal padding so depth-0 entries line up under pane titles.
-
-   Variants:
-     .row--tight     — collapses the chevron/icon/label gap (tree rows).
-     .row--bleed     — negative inline margins so the hover background
-                       extends to the pane edge.
-     .row--selected  — accent-tinted "selected" background (used by tree).
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* A clickable row. Its padding matches the pane's, so a depth-0 entry lines up
+   under the pane title. Variants: --tight, --bleed, --selected. */
 
 .row {
   display: flex;

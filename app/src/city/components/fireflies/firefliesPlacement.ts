@@ -1,12 +1,7 @@
-// city/components/fireflies/firefliesPlacement.ts — given a TreePlacement[]
-// and the manifest commit list, emit one firefly orb per distinct
-// author of each commit (primary + Co-authored-by trailers).
-// Position is deterministic (seeded by commit SHA + author name) so
-// world rebuilds don't re-randomize the orb field.
-//
-// TreePlacement has { x, y, seed, commitIndex } — no height or radius.
-// We derive canopy height and radius from commits using the same
-// encoding functions as treeRenderer, and read config defaults from TREES.
+// city/components/fireflies/firefliesPlacement.ts — one orb per distinct author
+// of each commit, seeded by sha and name so a rebuild doesn't re-randomise the
+// field. A placement carries no size, so the canopy it orbits is derived through
+// treeEncoding, the same functions the renderer builds the tree from.
 
 import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
@@ -40,9 +35,8 @@ export interface FireflyPlacement {
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. Same
    *  (shared, read-only) array across all orbs of a given author. */
   rgb: readonly [number, number, number];
-  /** Pastel variant of `rgb` — same hue, higher lightness. Used by the
-   *  hover orbit-ring highlight so a hovered multi-author tree shows
-   *  one tinted ring per author. */
+  /** The same hue, lighter: the hover ring, so a co-authored tree shows one
+   *  tinted ring per author. */
   lightRgb: readonly [number, number, number];
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
@@ -75,19 +69,12 @@ function seededRng(seed: string): () => number {
   };
 }
 
-/** Hard cap on total firefly orbs — the analogue of the trees' TREE_MAX_CELLS.
- *  Orbs are lighter than trees, so this sits above the 100k tree cap; it only
- *  bites pathological co-authorship on already-capped forests. */
+/** Above the tree cap, since orbs are lighter: it only bites pathological
+ *  co-authorship on a forest that is already capped. */
 const MAX_FIREFLY_ORBS = 200_000;
 
-/** An orb's size, from its author's commits against the busiest author's total.
- *
- *  Absolute, not a ranking among whoever is present: the timeline re-reads this
- *  with the commits made SO FAR, and a ranking normalised to the authors on
- *  screen is the same at every scrub position (with two authors, one is always
- *  the smallest and the other always the largest, however little either has
- *  done yet). Against a fixed maximum, an orb starts small and grows with the
- *  work, and HEAD comes out where Live already had it. */
+/** An orb's size, against the busiest author's total. Absolute, not a rank: a
+ *  rank over two authors never changes, so nothing would grow as time ran. */
 export function scaleForCommits(
   commits: number,
   maxCommits: number,
@@ -107,9 +94,8 @@ export function placeFireflies(
 
   const fireflyConfig = FIREFLIES.value;
 
-  // Per-author commit counts come from the backend-precomputed stats.authors
-  // (a co-authored commit credits each distinct author once — same tally the
-  // scanner does). The list is sorted by count desc, so [0] is the busiest.
+  // Backend-precomputed, crediting each distinct author of a commit once. The
+  // list is sorted by count, so [0] is the busiest.
   const authors = stats?.authors ?? [];
   const maxCommits = authors.length ? authors[0].commits : 0;
   const authorScale = new Map(
@@ -121,9 +107,8 @@ export function placeFireflies(
 
   const cfg = TREES.value;
 
-  // Age + size ranges also come from stats (commitDates + sparsest/grandest),
-  // shared with the tree renderer so orbs stay pinned to their trees. scannedAt
-  // must match what the tree renderer passes so the staleness height lift agrees.
+  // Shared with the tree renderer, scan date included, or the orbs sit at a
+  // height the trees they belong to never reach.
   const ageRange = computeAgeRange(stats, scannedAt);
   const sizeRange = computeSizeRange(stats);
 
@@ -139,10 +124,8 @@ export function placeFireflies(
     const height = treeHeight(commit, ageRange, cfg);
 
     for (const author of commit.authors ?? []) {
-      // Trees are capped at TREE_MAX_CELLS (100k), but orbs = trees × authors,
-      // so heavy co-authorship can still balloon past that — each orb is an
-      // allocation here + an instance in the renderer. Cap it so a Linux-scale
-      // repo can't lock the decoration pass building millions of orbs.
+      // Orbs are trees times authors, so a capped forest can still balloon past
+      // the tree cap and lock the decoration pass.
       if (out.length >= MAX_FIREFLY_ORBS) break placements;
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);

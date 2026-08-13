@@ -1,34 +1,7 @@
-// city/components/buildings/tween.ts — tween queue for entering / staying
-// building transitions when a new manifest swaps in (the dissolved
-// system/animator.ts). Fed by the buildings component's own rebuild(), which
-// computes the enter/stay diff internally and calls onDiff(); driven per-frame
-// by buildings.tick().
-//
-// For every entering building, starts a "grow in" tween (scaleY from ~0 →
-// final height). For staying buildings whose layout shifted, tweens position
-// and/or scale from old → new. Exit animations aren't supported in this V1 —
-// disposed buildings just vanish — because the rebuild drops the old
-// instances before the diff is fed in.
-//
-// With InstancedMesh, the tween queue writes the instance matrix directly
-// via setMatrixAt(i, matrix) instead of mutating per-mesh transform
-// properties. needsUpdate is set once per dirty mesh per frame
-// (deduplicated across all tweens) so we don't trigger multiple buffer
-// re-uploads on the same mesh.
-//
-// The tween stores a Building reference and resolves the target mesh via
-// deps.getMeshForBuilding() at each frame. This routes correctly to
-// cell.detailMesh without duplicating the routing logic here.
-//
-// Public:
-//   const tweens = createBuildingTweens({ getMeshForBuilding });
-//   tweens.onDiff(diff);    // start tweens from a building diff
-//   tweens.update(dtMs);    // called from buildings.tick() each frame
-//   tweens.clear();
-//
-// Field ownership: the tween queue owns the instance matrix (scale +
-// position). buildingFader owns iFade. They write to disjoint fields so
-// they cannot conflict by construction.
+// city/components/buildings/tween.ts — the queue that grows a new building in
+// and slides a moved one across. Nothing animates out: the rebuild drops the old
+// instances before the diff arrives. It writes instance matrices and nothing
+// else, and the fader writes iFade, so the two can't conflict by construction.
 
 import * as THREE from 'three';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -61,10 +34,8 @@ interface Tween {
   startedAt: number;
 }
 
-// Enter + stay tweens share a single duration (the BUILDINGS settings
-// store's BUILDING_TRANSITION_MS) — they are always tuned together, so they
-// live on one knob. Read fresh per-diff (per file-save burst)
-// so Settings tweaks apply to subsequent rebuilds without restart.
+// One duration for both, read fresh per diff so a Settings tweak applies to
+// the next rebuild without a restart.
 
 function easeOutCubic(t: number): number {
   const u = 1 - t;
@@ -72,11 +43,8 @@ function easeOutCubic(t: number): number {
 }
 
 export function createBuildingTweens(deps: TweenDeps) {
-  // Tween queue. Each tween targets one building instance and animates
-  // both scale and position together (a single matrix write per frame).
-  //
-  // Dedup key: Building object identity. A fresh tween supersedes any
-  // in-flight one on the same building without stacking.
+  // Keyed by Building identity, so a fresh tween supersedes an in-flight one
+  // on the same building rather than stacking with it.
   const tweens: Tween[] = [];
 
   function _findTween(t: Tween): number {
@@ -109,16 +77,14 @@ export function createBuildingTweens(deps: TweenDeps) {
     }
   }
 
-  // Typed inline as a structural slice rather than importing BuildingDiff
-  // from index.ts: it keeps tween.ts independent of the component door
-  // (index.ts) while accepting whatever enter/stay diff rebuild() computes.
+  // Structural, not the imported type: this stays independent of the door it
+  // is called from.
   function onDiff(diff: {
     entering: { buildings: EnteringBuilding[] };
     staying: { buildings: StayingBuilding[] };
   }): void {
-    // Snapshot the current building-transition duration once per diff —
-    // every tween started by this onDiff shares the same MS, but a
-    // later diff (after a Settings tweak) will pick up the new value.
+    // Once per diff, so a burst shares one duration and the next picks up a
+    // Settings change.
     const transitionMs = BUILDINGS.value.BUILDING_TRANSITION_MS;
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
@@ -196,9 +162,8 @@ export function createBuildingTweens(deps: TweenDeps) {
   function update(_dtMs: number): void {
     if (tweens.length === 0) return;
     const now = performance.now();
-    // Track which InstancedMeshes received a matrix write this frame.
-    // needsUpdate is set once per mesh after all tweens for that mesh
-    // have been applied (avoids multiple buffer re-uploads per frame).
+    // Flagged once per mesh after all its tweens, not once per tween, or the
+    // same buffer re-uploads several times a frame.
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
 
     // Iterate backwards so we can splice completed tweens cheaply.

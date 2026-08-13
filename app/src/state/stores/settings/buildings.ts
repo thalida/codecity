@@ -1,14 +1,6 @@
-// state/stores/settings/buildings.ts — Everything about a building's settings,
-// in two stores:
-//   BUILDING_DIMENSIONS — floors + width + road gap. Its OWN store because the
-//     layout + tree-placement workers reconstruct it off-thread; all rebuild.
-//   BUILDINGS — every main-thread visual knob, one flat store: palette, outline,
-//     transition timing, facade geometry + contrast + window lighting + ad
-//     panels, createdAge weathering (grime + tilt), and the selection-fade tier
-//     matrix. Each field states its own route (Rebuild | Refresh | Live).
-//
-// Schema-driven (see state/schema). The big per-extension hue default lives in
-// constants/buildings.ts.
+// state/stores/settings/buildings.ts — two stores: BUILDING_DIMENSIONS, which
+// the workers reconstruct off-thread and so stands alone, and BUILDINGS, every
+// main-thread visual knob. Each field states its own route.
 
 import {
   settingSignal,
@@ -26,18 +18,8 @@ const FADE_DETAIL_OPTIONS = [
   { value: FadeDetail.Hidden, label: 'Hidden' },
 ];
 
-// ─── Dimensions ────────────────────────────────────────────────────────────
-// Floors and width are BOTH normalized against the project's own range:
-// smallest file → MIN, largest → MAX. Floors uses sqrt-interpolation across
-// line counts, width uses log-interpolation across byte sizes (file sizes
-// span many orders of magnitude). Both auto-adapt per project — no absolute
-// "size ceiling" anchor that punishes small repos with thin buildings or
-// crushes large repos to all-the-same width.
-//
-// MIN/MAX are kept as separate scalar keys (not one RangePair array) because
-// the layout/placement math reads each independently — same as TREES width.
-// Worker-threaded (layout + tree-placement workers reconstruct it), so it
-// stays its own object store. All rebuild-required.
+// Normalised against the project's own range, so no absolute ceiling leaves a
+// small repo thin. Width is logarithmic: file sizes span orders of magnitude.
 const BUILDING_DIMENSIONS_FIELDS = {
   MIN_FLOORS: {
     route: ChangeRoute.Rebuild,
@@ -144,32 +126,8 @@ const BUILDING_DIMENSIONS_FIELDS = {
 export const BUILDING_DIMENSIONS = settingSignal('BUILDING_DIMENSIONS', BUILDING_DIMENSIONS_FIELDS);
 export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELDS>;
 
-// ─── Buildings visual store (all main-thread building knobs) ─────────────────
-// One flat store for everything that paints on top of the (separate,
-// worker-threaded) dimensions. Sub-features are key-prefixed:
-//   SATURATION_/LIGHTNESS_/HUE_EXT_MAP — HSL palette (rebuild: bakes into
-//     per-building facade textures via buildingColor).
-//   OUTLINE_*                          — wireframe outline (refresh: shared
-//     material uniform / outlineRenderer).
-//   BUILDING_TRANSITION_MS             — enter/stay tween length (live: the
-//     animator reads it fresh per transition, no reaction).
-//   SLAB_/WINDOW_/DOOR_/ROOF_/*_LIGHTNESS_DELTA/GAP_/LIT_/DIM_GLOW_COLOR
-//                                      — procedural facade geometry + contrast +
-//     window lighting (mostly refresh; the JS-side *_COLS/WIDTH_PER/DOOR_WIDTH
-//     keys rebuild since they bake into per-instance attributes).
-//   AD_*                               — media-building billboards (rebuild;
-//     geometry baked at apply time).
-//   GRIME_                             — createdAge weathering (refresh:
-//     refreshBuildingMaterial uniforms, lerped per-building by age).
-//   DEFAULT_/LEVEL1..4_                — selection-fade tier matrix (live: the
-//     fader applies it directly; see the tier comment below).
-//
-// Saturation/lightness MIN/MAX stay separate scalar keys (read independently
-// by buildingColor), same rationale as dimensions.
-//
-// Fade tiers route Live: the fader applies them via its own effect (subscribing
-// to BUILDINGS), NOT the generic material refresh — Live keys are excluded from
-// routeSignature(Refresh/Rebuild), so a fade tweak never forces a rebuild.
+// Everything painted on top of the dimensions. The fade tiers route Live, since
+// the fader subscribes here itself, so a tweak can't force a rebuild.
 const BUILDINGS_FIELDS = {
   // ── Palette (HSL) — rebuild ──
   HALF_LIFE_DAYS: {
@@ -553,19 +511,8 @@ const BUILDINGS_FIELDS = {
     tip: 'Fraction of vertical bands that streak, from newest buildings (left) to oldest (right). Lower is sparser, higher is nearly every band.',
   },
 
-  // ── Selection-fade tiers — live ──
-  // When something is selected, every other building is categorized by its
-  // directory-tree distance from the selection and rendered per the matching
-  // tier's style:
-  //   DEFAULT — the selected/hovered building itself, and every building when
-  //             nothing is selected (idle). On hover a building uses DEFAULT
-  //             regardless of its tier — a "preview the selection" state.
-  //   Level 1 — same dir as the selection (or the dir's direct files).
-  //   Level 2 — one directory deeper than the selection.
-  //   Level 3 — deeper descendants (two or more directories below).
-  //   Level 4 — outside the selection's subtree entirely.
-  // Each tier has four knobs: *_DETAIL (full | silhouette | hidden), *_OUTLINE
-  // (wireframe on?), *_BODY_OPACITY, *_OUTLINE_OPACITY.
+  // Every other building is tiered by directory distance from the selection:
+  // DEFAULT is the selection and the idle state, 4 is everything outside it.
   DEFAULT_DETAIL: {
     route: ChangeRoute.Live,
     kind: FieldKind.Select,

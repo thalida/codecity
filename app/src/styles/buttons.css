@@ -1,13 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Buttons
-   ═══════════════════════════════════════════════════════════════════════════
-   .btn-primary       — solid accent CTA (modal submit, save).
-   .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
-   .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
-   .btn-icon          — 32x32 icon-only button.
-   .btn-toggle        — one-of-N option button (segmented / setting-select).
-   .btn-reset-inline  — tiny inline reset (controls-section + setting-row).
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Buttons: primary, secondary, accent-outline, icon, toggle, reset-inline. */
 
 /* .btn-primary — solid accent CTA. Used everywhere a "primary action"
    appears: modal Open Project, controls Save, etc. */
@@ -34,18 +25,7 @@
   cursor: default;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Icon buttons
-   ═══════════════════════════════════════════════════════════════════════════
-   .btn-icon    — default 32×32 icon button with hover overlay.
-   Modifiers:
-     .btn-icon--sm    — 28×28 (footer chrome).
-     .btn-icon--lg    — auto size via padding, larger font and radius
-                        (large × glyph like modal close).
-     .btn-icon--text  — auto size via padding, inherits font/color
-                        (text-style buttons like breadcrumb segments).
-     .btn-icon--link  — anchor-tag variant (text-decoration removed).
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Icon buttons, with --sm, --lg, --text and --link modifiers. */
 
 .btn-icon {
   appearance: none;
@@ -68,9 +48,8 @@
   display: block;
 }
 
-/* The engaged state for every icon strip (.cluster-item--press,
-   .activity-bar-icon too): accent glyph on an accent fill, deepening on press.
-   A neutral tint just reads as "slightly lighter" on these surfaces. */
+/* Engaged, for every icon strip: accent on accent. A neutral tint reads as
+   "slightly lighter" on these surfaces and says nothing. */
 .btn-icon:not(:disabled):hover,
 .btn-icon:not(:disabled):focus-visible {
   color: var(--cc-accent);
@@ -121,9 +100,8 @@
   font: inherit;
   color: var(--cc-text-strong);
 }
-/* Non-leaf text buttons (breadcrumb segments) hint interactivity on hover with
-   an underline — they sit in body-text color and otherwise read as static. The
-   leaf segment is the current location (.is-leaf) and stays plain. */
+/* Breadcrumb segments sit in body colour and read as static, so hover
+   underlines them. The leaf is where you are, and stays plain. */
 .btn-icon--text:not(.is-leaf):hover {
   text-decoration: underline;
 }
@@ -163,12 +141,8 @@
   cursor: not-allowed;
 }
 
-/* .btn-toggle — one-of-N option button (choose-one segmented control).
-   Base shell + active state. The `.is-active` class flips the option to
-   the accent-tinted "selected" look. Modifiers:
-     .btn-toggle--separated — adds vertical separator borders between
-       sibling options, used by the controls-pane setting-select where the
-       buttons sit edge-to-edge inside a bordered shell. */
+/* One-of-N option button. .is-active is the selected look; --separated rules
+   between siblings that sit edge-to-edge in a shell. */
 .btn-toggle {
   appearance: none;
   background: none;
@@ -193,10 +167,8 @@
   background: var(--cc-accent-bg);
   color: var(--cc-text-strong);
 }
-/* .btn-toggle--separated — modifier that adds a vertical separator
-   between sibling options. Used inside .setting-select where the buttons
-   sit edge-to-edge. Also tightens the padding + font for the dense
-   inline-flex shell, and adds a soft hover background. */
+/* Separators between edge-to-edge siblings, plus the tighter padding and
+   font that dense shell needs. */
 .btn-toggle--separated {
   border-right: 1px solid var(--cc-track);
   font-size: var(--cc-font-2xs);

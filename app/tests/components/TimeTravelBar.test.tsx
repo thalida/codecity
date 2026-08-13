@@ -220,10 +220,8 @@ describe('TimeTravelBar', () => {
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
   });
 
-  // A commit belongs to the day it happened and no other. Carrying it along
-  // made the message snap from one commit to the next while the date under it
-  // moved smoothly, and let you select a commit whose tree the scene hadn't
-  // drawn (it gates at floor(pos), so off-day the two disagreed).
+  // A commit belongs to its own day. Carrying it along made the message snap
+  // between commits while the date moved smoothly, and named undrawn trees.
   it('shows the commit only on the day it happened', async () => {
     setScrubPos(1); // parked on the Feb 1 commit
     render(<TimeTravelBar />, container);

@@ -32,9 +32,8 @@ export interface StreetScrubFlags {
   ruinsOn: boolean;
 }
 
-/** Present beats ruin. A street with live descendants fades with them; a
- *  ruin-only one stays opaque and is set apart by tint. ROOT is always 1: the
- *  repo root exists even scrubbed back to an empty tree. */
+/** Present beats ruin: a street with live descendants fades with them, and a
+ *  ruin-only one is set apart by tint. The root always stands. */
 export function resolveStreetScrubState(
   street: Street,
   rollup: StreetRollup,

@@ -96,10 +96,8 @@ describe('computeAlmanac — buildings + media', () => {
     }),
   ]);
 
-  // oldestCreatedFile = old.ts (created 2020), newestCreatedFile = new.ts (created 2023)
-  // newestModifiedFile = new.ts (modified 2023), oldestModifiedFile = tall.ts (modified 2020-02)
-  // maxLinesFile = tall.ts (999 lines), minLinesFile = old.ts (5 lines)
-  // maxBytesFile = new.ts (4000 bytes), minBytesFile = old.ts (50 bytes)
+  // The leaders this fixture is built to produce: old.ts oldest and smallest,
+  // new.ts newest and largest by bytes, tall.ts the tallest.
   const buildingsStats: RepoStats = {
     ...EMPTY_REPO_STATS,
     oldestCreatedFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
@@ -329,10 +327,8 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], same_day_total: 1 }
   );
 
-  // Streets: maxDepthDir = src/a/b (3 deep); maxChildrenDir = src (6 direct
-  //          children); minChildrenDir = src/a/b (1 direct child)
-  // Forest: maxFilesPerCommit = bbb (40 files), minFilesPerCommit = ccc (1 file)
-  //         maxCommitsPerDay = 2022-01-02 (3 commits), maxCommitStreakDays = 3
+  // The leaders this fixture is built to produce: src/a/b deepest and
+  // narrowest, src widest, bbb the biggest commit and ccc the smallest.
   const DIR_LEADER_DEEP = {
     path: 'src/a/b',
     depth: 3,

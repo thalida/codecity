@@ -1,33 +1,10 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   DESIGN TOKENS — single source of truth.
-
-   Layer-1 of the system per docs/ui-component-system.md. Two kinds of tokens:
-
-   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-2xs,
-                    --cc-overlay-strong = rgba(...,.18))
-   ② BASE ALIASES — semantic names that point AT a scale token
-                    (e.g. --cc-font-base = var(--cc-font-md))
-
-   Components reference base aliases when they want the "default" of that
-   scale. Components reference a scale token directly when they want a
-   specific step. Swap a base alias to change the default everywhere.
-
-   Page-level CSS NEVER hard-codes a value — it references one of these.
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Design tokens: scale tokens hold values, base aliases point at one step of a
+   scale so swapping the alias rebases that default everywhere. Nothing outside
+   this file hard-codes a value. See docs/ui-component-system.md. */
 
 :root {
-  /* ──────────────────────────────────────────────────────────────────────
-     NAMING CONVENTIONS
-
-     Color shade variants:        {color}-light  (brighter hex)
-                                  {color}-dark   (darker hex)
-     Color alpha variants (role): {color}-bg-soft    — subtle background tint
-                                  {color}-bg         — default background fill
-                                  {color}-bg-strong  — pressed / heavy fill
-                                  {color}-border     — border or focus ring
-     Base aliases:                {scale}-base — points at a tier; swap to
-                                  rebase the default of that scale globally.
-     ────────────────────────────────────────────────────────────────────── */
+  /* Naming: -light / -dark shade a colour; -bg-soft / -bg / -bg-strong /
+     -border are its roles; {scale}-base is the swappable default. */
 
   /* ── COLORS — Surfaces ────────────────────────────────────────────────── */
   --cc-bg-app: oklch(0.151 0.011 276.2);
@@ -37,11 +14,8 @@
   --cc-bg-backdrop: color-mix(in oklch, var(--cc-black) 55%, transparent);
   --cc-bg-base: var(--cc-bg-app);
 
-  /* ── COLORS — Borders & tracks ──────────────────────────────────────────
-     Absolute fallbacks, matching the default (cool) surface exactly. The
-     @supports block below rewrites them as offsets from the surface itself so
-     they follow whichever preset is picked; these values are what engines
-     without relative color syntax keep. */
+  /* Borders and tracks. Absolute fallbacks for engines without relative colour
+     syntax; the @supports block below derives them from the surface instead. */
   --cc-border-subtle: oklch(0.249 0.03 278.4);
   --cc-border-input: oklch(0.281 0.03 276.1);
   --cc-border-tooltip: oklch(0.32 0.058 274.6);
@@ -49,10 +23,8 @@
   --cc-track-hover: oklch(0.355 0.042 276.7);
   --cc-border-base: var(--cc-border-subtle);
 
-  /* The commit kind-badge's fill. Its own value, not an alias: the other two
-     badges are painted from the color their object has in the city, and a
-     commit's tree is too dark to read as a label, so this stands in for that
-     object color and must not move when an interaction color does. */
+  /* Its own value, not an alias: the other badges take their object's colour in
+     the city, and a commit's tree is too dark to read as a label. */
   --cc-badge-commit-bg: oklch(0.355 0.042 276.7);
 
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
@@ -66,9 +38,8 @@
   --cc-text-inverse: oklch(0.148 0.013 284.7); /* dark text on accent CTA */
   --cc-text-base: var(--cc-text-primary);
 
-  /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
-     Alpha variants derive from --cc-accent via color-mix → swap that one
-     to recolor the brand everywhere. */
+  /* Accent. The alpha variants derive from it, so swapping this one recolours
+     the brand everywhere. */
   --cc-accent: oklch(0.697 0.16 295);
   --cc-accent-light: oklch(0.806 0.097 297);
   --cc-accent-dark: oklch(0.588 0.196 300);
@@ -78,18 +49,14 @@
   --cc-accent-border: color-mix(in oklch, var(--cc-accent) 45%, transparent);
   --cc-accent-light-border: color-mix(in oklch, var(--cc-accent-light) 45%, transparent);
 
-  /* ── COLORS — Gem palette (the codecity mark's four faces) ─────────────
-     Single source for the brand gem: drives the GemIcon SVG fills and the
-     landing backdrop wash. */
+  /* The mark's four faces: the GemIcon fills and the landing wash both. */
   --cc-gem-lime: #bfff33;
   --cc-gem-cyan: #26e5ff;
   --cc-gem-purple: #9940ff;
   --cc-gem-magenta: #ff338c;
 
-  /* ── COLORS — World-layer accents ─────────────────────────────────────
-     One hue per city layer. Single source for the Info tab's Legend + Overview
-     section accents and the landing "what it does" cue icons, so both screens
-     read the same key. */
+  /* One hue per city layer, shared by the Legend and the landing cues so both
+     screens read the same key. */
   --cc-layer-buildings: #7aa2f7;
   --cc-layer-media: #d98fd0;
   --cc-layer-data: #bb9af7;
@@ -114,11 +81,8 @@
   --cc-overlay-bg-strong: color-mix(in oklch, var(--cc-white) 10%, transparent);
   --cc-overlay-border: color-mix(in oklch, var(--cc-white) 18%, transparent);
 
-  /* ── COLORS — Glass (surfaces that float over the scene) ──────────────
-     One fill and one blur for every panel with the canvas behind it, so the
-     scrubber, the mode toggle, the modals and the landing cards frost the
-     scene identically. Applied via .surface-glass; a surface that needs its
-     own fill (the timeline's error toast) still blurs by this radius. */
+  /* One fill and one blur for everything with the canvas behind it, so every
+     floating surface frosts the scene identically. */
   --cc-glass-fill: color-mix(in oklch, var(--cc-bg-modal) 90%, transparent);
   --cc-glass-blur: 12px;
 
@@ -153,13 +117,11 @@
   --cc-space-8: 24px;
   --cc-space-9: 32px;
   --cc-space-base: var(--cc-space-4);
-  /* Semantic: the inset from a pane/panel edge to its content. Pane-body
-     paddings, row insets, and full-bleed row margins all key off this, so
-     changing it here reflows every panel's content inset in lockstep. */
+  /* Pane edge to its content. Body padding, row insets and full-bleed margins
+     all key off it, so they reflow together. */
   --cc-pane-inset: var(--cc-space-6);
-  /* Height of BOTH chrome bars. One value: they sat at 32px and 24px, which
-     read as a mistake once each held a cluster of the same controls. Sized so a
-     26px cluster (24px items + its border) clears the edges on both sides. */
+  /* Both chrome bars. Sized so a cluster clears the edges on either side; two
+     different heights read as a mistake once both held the same controls. */
   --cc-chrome-h: 44px;
   /* Height of a cluster item. The bars derive their inline padding from it so
      the gap around a cluster is the same on all four sides. */
@@ -167,27 +129,20 @@
   /* Floor for anything pressable. One size for both pointers: a cursor doesn't
      notice the extra, a thumb can't hit anything less. */
   --cc-tap-min: 32px;
-  /* Floor for a list row, which the coarse-pointer block below raises to the
-     platform's 44px. Rows earn the exception: they're the only controls you aim
-     at stacked against their neighbours, where missing means hitting a
-     different file rather than nothing. Buttons stay at --cc-tap-min for both
-     pointers, since the chrome bars derive their geometry from it. */
+  /* Rows are the only controls stacked against their neighbours, where missing
+     one hits a different file rather than nothing, so they get their own floor. */
   --cc-row-min-h: var(--cc-tap-min);
-  /* How far a .btn-icon glyph sits inside its own tap target. A row that ends in
-     one has this much optical inset already, so its own trailing padding has to
-     account for it or the glyph reads as further from the edge than the text. */
+  /* A glyph's inset inside its tap target. A row ending in one already carries
+     it, so the row's trailing padding has to subtract it. */
   --cc-icon-bearing: calc((var(--cc-tap-min) - var(--cc-font-md)) / 2);
   --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
-  /* File/folder icon in a tree row. The tree's indent math needs the same value
-     to line a row's guide up with its icon, so both read it here instead of
-     restating it and promising to agree. */
+  /* The tree's indent maths needs this too, to line a guide up with its icon. */
   --cc-node-icon: 16px;
   /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
      and its scrim start — four rules that have to agree. */
   --cc-rail-w: 44px;
-  /* Default width of either sidebar, before a drag. A third of the window read
-     as a strip on a tablet; the floor is what a pane needs to be worth opening.
-     The sidebars' own min/max still clamp a dragged width. */
+  /* Before a drag. A third of the window read as a strip on a tablet, and the
+     floor is what a pane needs to be worth opening. */
   --cc-sidebar-w: clamp(320px, 40vw, 600px);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
@@ -245,18 +200,8 @@
   --cc-glow-accent: 0 0 6px color-mix(in oklch, var(--cc-accent) 35%, transparent); /* range-pair fill */
 }
 
-/* Borders and tracks, derived from the surface so a preset tints every edge with
-   it. themes.css swaps only --cc-bg-*, and these resolve against whichever value
-   wins, so no preset has to restate a border.
-
-   Lightness is an offset and chroma a multiplier, both measured off the default
-   surface, so the cool theme renders identically to the absolute values above
-   while a warmer or more neutral surface carries its own hue and saturation
-   through. Hue passes straight through.
-
-   @supports because relative color syntax has no per-declaration fallback: a
-   custom property holding an unparseable value fails at substitution, which
-   would leave every border at currentColor rather than at the value above. */
+/* Borders derived from the surface, so a preset tints every edge without
+   restating one. @supports: unparseable relative colour fails at substitution. */
 /* COARSE_POINTER_QUERY (constants/breakpoints.ts), whose own comment says it:
    24px controls are half a thumb. */
 @media (hover: none) and (pointer: coarse) {

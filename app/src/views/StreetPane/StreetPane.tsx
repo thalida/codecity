@@ -1,12 +1,6 @@
-// views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
-// (road) is selected. Shows the subtree's activity-date span and its
-// composition as a ranked by-extension bar list (each bar an extension's share
-// of the directory's files). Path orientation lives in the app-header
-// breadcrumb and tree navigation in the Explore sidebar — this pane answers
-// "what is this neighborhood made of".
-//
-// A Preact function component reading a `state` signal prop (the selected
-// directory); RightSidebar swaps panes by switching which one it renders.
+// views/StreetPane/StreetPane.tsx — the pane for a selected road: its subtree's
+// date span and what it is made of, ranked by extension. Where you are lives in
+// the breadcrumb, so this answers what the neighbourhood is made of.
 
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
@@ -80,9 +74,8 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
 
   const dirPath = d.path ?? '';
 
-  // Backend-computed (api/scan/treebuild.py), sorted by count desc. Guard against a
-  // manifest that predates the field (stale cache / skeleton / in-flight) so a
-  // missing breakdown renders without the section instead of crashing the pane.
+  // Backend-computed and sorted. Guarded, so a manifest predating the field
+  // renders without the section instead of taking the pane down.
   const stats = d.descendants_ext_breakdown ?? [];
   // Total descendant files — each bar's width is its extension's share of this.
   const total = stats.reduce((n, s) => n + s.count, 0);
@@ -144,11 +137,8 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
   );
 }
 
-// One ranked extension row: badge · proportional bar · "share · count". The fill
-// width is this extension's share of the directory's files; its hue matches the
-// badge + the city's buildings (live theme palette). The badge identifies the
-// type; the bar's title names it in full ("TypeScript (.ts)"), which the 4-char
-// badge can't.
+// One extension: badge, a bar of its share, then share and count. The bar's
+// title names the type in full, which a four-character badge can't.
 function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
   const pct = extBarPct(s.count, total);
   const share = extShareLabel(s.count, total);

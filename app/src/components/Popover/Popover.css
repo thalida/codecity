@@ -3,15 +3,13 @@
    PHONE_MAX_PX. */
 
 .popover-panel {
-  /* One inset for every child — group heads, setting rows, list rows, buttons.
-     Each ships its own padding by default, which is what makes an assembled
-     panel look like three unrelated lists. */
+  /* One inset for every child: each ships its own padding, which is what makes
+     an assembled panel read as three unrelated lists. */
   --popover-inset: var(--cc-space-4);
   position: absolute;
   z-index: 300; /* over the sidebars, which sit at 90/100 */
-  /* Sized by its content between bounds, so a panel of two toggles doesn't
-     reserve the room a shortcuts table needs. The floor keeps a setting row's
-     label off its control; the ceiling is where prose stops being readable. */
+  /* Content-sized between bounds, so two toggles don't reserve the room a
+     shortcuts table needs. The floor keeps a label off its control. */
   width: max-content;
   min-width: 20rem;
   max-width: min(30rem, calc(100vw - 2 * var(--cc-chrome-inset)));
@@ -28,10 +26,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
-  /* Off the host bar's type entirely: this is prose and settings rows, not a
-     status line. #app-footer sets white-space:nowrap to keep its one line from
-     breaking, and the panel renders inside it, so without this nothing in here
-     can wrap and every panel becomes a horizontal scroller. */
+  /* The footer sets nowrap for its own single line, and this renders inside it,
+     so without resetting it no panel can wrap and every one scrolls. */
   font-family: var(--cc-font-sans);
   white-space: normal;
 }
@@ -46,17 +42,15 @@
   left: 0;
 }
 
-/* Ruled, not boxed — a border per group would read as stacked panels. Equal
-   margin and padding, so the rule sits centred in the gap instead of hugging
-   whichever group brought less padding of its own. */
+/* Ruled, not boxed: a border per group reads as stacked panels. Equal margin
+   and padding, so the rule centres in the gap. */
 .popover-group {
   /* A column, so a stretched child (a full-width button) fills it: a <button>
      is shrink-to-fit at width:auto even as a block-level box. */
   display: flex;
   flex-direction: column;
-  /* Both of these are flex items (of the panel, and of each other), and a flex
-     item floors at its min-content width unless told otherwise — which is how
-     a wide table inside one pushes the whole panel into horizontal scroll. */
+  /* A flex item floors at min-content unless told otherwise, which is how one
+     wide table pushes the whole panel into horizontal scroll. */
   min-width: 0;
 }
 .popover-group > * {
@@ -75,9 +69,8 @@
   padding-inline: var(--popover-inset);
 }
 
-/* Deliberately NOT .text-label: an uppercase group label next to sentence-case
-   setting rows reads as two labelling systems in one panel. This is the same
-   label the rows use, one group up. */
+/* Not .text-label: an uppercase group head over sentence-case rows reads as two
+   labelling systems in one panel. */
 .popover-group-title {
   flex: 1 1 auto;
   margin: 0;
@@ -135,9 +128,8 @@
   display: none;
 }
 
-/* ── Sheet ──────────────────────────────────────────────────────────────
-   An anchored panel spans the viewport at this width anyway. Still no
-   backdrop: the city keeps updating as these controls change it. */
+/* An anchored panel spans the viewport at this width anyway. Still no backdrop:
+   the city keeps updating as these controls change it. */
 @media (max-width: 640px) {
   /* The sheet covers most of the screen; without this the pane behind it stays
      as loud as the controls in front. Under the panel, over everything else. */
@@ -176,9 +168,8 @@
     box-shadow: 0 -4px 24px oklch(0 0 0 / 0.6);
   }
 
-  /* No tether to the trigger down here, so the handle says where it came from
-     — and closes the sheet, since the trigger is now behind it. Padded well
-     past the bar itself to clear a thumb-sized target. */
+  /* Nothing tethers this to its trigger, so the handle says where it came from
+     and closes it. Padded past the bar for a thumb. */
   .popover-grip {
     display: block;
     appearance: none;

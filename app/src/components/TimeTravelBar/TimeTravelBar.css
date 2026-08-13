@@ -18,15 +18,13 @@
 .time-travel-scrubber {
   display: flex;
   align-items: center;
-  /* The playhead overhangs the track by this much top and bottom, so the row
-     gap alone leaves the dates clearing the track but not the handle. Same
-     token the overhang uses, so the two can't drift apart. */
+  /* The playhead overhangs the track, so the row gap alone would leave the
+     dates clearing the track but not the handle. Same token as the overhang. */
   margin-bottom: var(--cc-space-3);
 }
 
-/* The axis under the track: the history's two ends, and between them the date
-   you've scrubbed to. The commit itself gets the row below, so a long subject
-   can't crowd the dates. */
+/* The history's two ends, and the date you've scrubbed to between them. The
+   commit gets its own row, so a long subject can't crowd them. */
 .time-travel-axis {
   display: grid;
   /* Equal side columns, so the middle is centred on the bar itself rather than
@@ -36,10 +34,8 @@
   gap: var(--cc-space-4);
 }
 
-/* The two calendar bookends — click to jump to the first / latest commit. They
-   sit at the axis ends, so each hugs its own side rather than centring in the
-   column the grid gives it. Dimmed + uppercased like the reference; brighten on
-   hover to signal clickable. */
+/* The bookends jump to the ends of the history. Each hugs its own side rather
+   than centring in the column the grid gives it. */
 .time-travel-edge:first-child {
   justify-self: start;
 }
@@ -61,8 +57,7 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   /* Faded against the handle's date: the ends are where the history starts and
-     stops, the middle is where you are. Secondary, not muted: this bar is glass
-     over the scene, where muted only just clears contrast. */
+     stops, the middle is where you are. Secondary, since this is glass. */
   color: var(--cc-text-secondary);
   white-space: nowrap;
   cursor: pointer;
@@ -80,9 +75,8 @@
   }
 }
 
-/* The time axis, painted on the canvas: an accent played fill + past ticks
-   (from --cc-accent) and neutral future ticks (--tt-tick, a canvas-parseable
-   soft gray that composites over the dark bar). */
+/* The axis is painted on canvas: an accent played fill and past ticks, neutral
+   ticks ahead of the handle. */
 .time-travel-track {
   --tt-tick: rgba(148, 151, 168, 0.5);
   position: relative;

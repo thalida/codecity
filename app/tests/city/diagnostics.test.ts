@@ -184,9 +184,8 @@ describe('_formatStemDiagnostic', () => {
   });
 });
 
-// The audit reads the baked vertex buffer rather than recomputing placement, so
-// these build the buffer shape the tree renderer emits: per tree, canopy verts
-// then trunk verts, with the layout facts on userData.
+// The audit reads the baked buffer, so these build the shape the renderer
+// emits: canopy then trunk per tree, with the layout facts on userData.
 describe('auditTreeGrounding', () => {
   const CANOPY_VERTS = 2;
   const TRUNK_VERTS = 3;

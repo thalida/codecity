@@ -1,13 +1,10 @@
 /* ── Search pane ── */
 
-/* ── Search pane (Search tab in left sidebar) ───────────────────────────
-   The search field IS the header row (no separate title bar): the input
-   fills the row with the × close button pinned right, and the result list
-   scrolls below. Matched query characters in each result are wrapped in <mark>. */
+/* The search field is the header row here, with the results scrolling below
+   and each match wrapped in a mark. */
 
-/* The input takes the place of a title, so the row hugs the field: a uniform
-   inset all round, and the icon→input gap matches it so the search glyph sits
-   with equal space on both sides. */
+/* The input stands in for a title, so the row hugs it: one inset all round,
+   with the icon gap matching so the glyph sits evenly. */
 .pane-header--search {
   padding: var(--cc-space-4);
 }
@@ -42,13 +39,8 @@
   margin: var(--cc-space-0);
   padding: var(--cc-pane-inset) 0; /* rows supply the matching horizontal inset */
 }
-/* A real <button> (native keyboard + role) wearing .row, which carries the
-   height, inset and hover every list row in the app shares. Only the button
-   reset and the type are left here.
-
-   Type matches a tree row's label, not SourceRow's sub-line: a result is the
-   row's identity, and xs/secondary is the recipe for a caption underneath one.
-   Mono because it's a path, like every other path the app prints. */
+/* A real button wearing .row, for native keyboard behaviour and the shared
+   metrics. Typed like a tree row's label, since a result is an identity. */
 .search-result {
   appearance: none;
   width: 100%;

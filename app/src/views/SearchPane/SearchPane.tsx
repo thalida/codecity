@@ -1,19 +1,7 @@
-// views/SearchPane.tsx — "Search" tab in the left sidebar. A
-// path-search over the project's files. Indexes the flat list of files
-// from the manifest tree; each keystroke runs the matcher across the
-// index and renders the top-N results. Clicking a result fires
-// onSelect(path) so the host can route it through the picker (same
-// pathway as a tree click / breadcrumb click).
-//
-// Matching: whitespace-separated tokens. Each token must appear as a
-// contiguous case-insensitive substring of the target path; missing any
-// token fails the match. Searching ".png" therefore looks for the literal
-// ".png" string, not for `.`, `p`, `n`, `g` scattered across the path.
-// Score rewards (a) earlier matches (smaller idx penalty), (b) prefix
-// matches, and (c) matches that begin at word boundaries (after `/`,
-// `_`, `-`, `.`). Shorter targets win ties. No external dep; O(target
-// length x tokens) per file, fine for tens of thousands of paths on
-// every keystroke.
+// views/SearchPane.tsx — path search over the project's files. Tokens are
+// contiguous substrings, not scattered characters, so ".png" finds the literal
+// string; scoring favours earlier matches, prefixes and word boundaries. Cheap
+// enough to re-run over tens of thousands of paths on every keystroke.
 
 import './SearchPane.css';
 import type { VNode } from 'preact';
@@ -52,9 +40,8 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
   const trimmed = query.trim();
   const results = trimmed ? _searchFiles(trimmed, files) : null;
 
-  // Arrow-key navigation over the result buttons, on top of Tab. Focus-based
-  // (not aria-activedescendant) so the buttons keep their native Enter/click
-  // and screen readers announce the focused result.
+  // Focus-based, not aria-activedescendant, so the buttons keep native Enter
+  // and a screen reader announces the result you're on.
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLUListElement>(null);
 
@@ -233,13 +220,8 @@ function _searchFiles(
   return results.slice(0, MAX_RESULTS);
 }
 
-/**
- * Token-based substring matcher. Every token (already lowercased) must
- * appear as a contiguous substring of the lowercased target — if any
- * token is absent, the match fails. Returns the union of matched
- * character positions and a heuristic score. Token order in the query
- * does not have to mirror the target.
- */
+/** Every token must appear as a contiguous substring, in any order. Returns the
+ *  matched positions and a score. */
 function _matchTokens(tokens: string[], t: string): PathMatch | null {
   const positions: number[] = [];
   let score = 0;

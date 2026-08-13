@@ -4,11 +4,8 @@ import { signal } from '@preact/signals';
 import { CommitPane } from '@/views/CommitPane/CommitPane';
 import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import type { CommitEntry } from '@/types';
-// Settling a CommitPane render involves two interleaved schedulers: the
-// commit-body fetch chain (fetchCommitDetail awaits fetch() then resp.json(),
-// or rejects on a non-ok response) and Preact picking up the resulting
-// useState change. drainAsync alternates microtask + macrotask yields to
-// cover both the success and the longer reject path deterministically.
+// Settling this render crosses two schedulers, the fetch chain and Preact, so
+// drainAsync alternates microtask and macrotask yields to cover both.
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../_helpers/commits';
 import { drainAsync } from '../_helpers/preact';
@@ -75,9 +72,8 @@ describe('CommitPane', () => {
   });
 
   afterEach(() => {
-    // Unmount so the useEffect cleanup flips `cancelled` on any in-flight
-    // fetch — stray late resolutions are then dropped instead of touching
-    // an unmounted tree.
+    // Unmounted so the cleanup cancels the in-flight fetch, and a late
+    // resolution is dropped rather than touching an unmounted tree.
     render(null, container);
     container.remove();
   });
@@ -508,9 +504,8 @@ describe('CommitPane', () => {
   });
 
   it('drops a late fetch result when the pane has moved to a different commit', async () => {
-    // Fetch for the first commit hangs, then resolves AFTER the second
-    // commit's render has replaced the body. The late result must
-    // NOT clobber the second commit's body.
+    // The first commit's fetch resolves after the second has replaced the
+    // body, and must not clobber it.
     let resolveFirst!: (resp: Response) => void;
     const firstFetchPromise = new Promise<Response>((r) => {
       resolveFirst = r;
@@ -567,9 +562,8 @@ describe('CommitPane', () => {
 
   // ── Skeleton-on-mount (perf + layout refactor) ────────────────────────────
 
-  // Everything except the body comes off the CommitEntry the picker already
-  // has, so a blocked fetch must not delay any of it. fetch never resolves
-  // here, so these assertions can only pass on the pre-fetch render.
+  // Everything but the body is already on the entry the picker holds, so a
+  // fetch that never resolves must not delay any of it.
   it.each([
     ['the author', '.commit-author-name', 'Alice Author'],
     ['the age', '.commit-age', '2 months 12 days ago'],
@@ -648,9 +642,8 @@ describe('CommitPane', () => {
     );
     await drainAsync();
 
-    // Same DOM nodes are still in the DOM (not replaced) — Preact keyed/diffed
-    // reconciliation preserves the stable skeleton nodes when only the body
-    // slot's contents change.
+    // The same nodes, not replacements: reconciliation keeps the skeleton when
+    // only the body slot's contents change.
     expect(container.querySelector('.commit-message-subject')).toBe(subjectBefore);
     expect(container.querySelector('.commit-author')).toBe(authorBefore);
     expect(container.querySelector('.commit-meta')).toBe(metaBefore);

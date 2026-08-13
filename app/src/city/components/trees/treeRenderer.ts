@@ -382,9 +382,8 @@ export function createTreeRenderer(
   for (let i = 0; i < totalTrees; i++) {
     const commit = commits?.[placements[i].commitIndex];
     const o = i * 4;
-    // -1 marks a placement with no commit behind it: treeHeight gave it the
-    // midpoint, so there is no age for the shader to scrub through. An
-    // unreadable date falls to day 0, matching dateToDays.
+    // -1 marks a placement with no commit: it took the midpoint height, so
+    // there is no age to scrub through. An unreadable date falls to day 0.
     const day = commit ? epochDay(commit.date) : NaN;
     growthData[o] = !commit ? -1 : Number.isNaN(day) ? 0 : day;
     growthData[o + 1] = placements[i].x;

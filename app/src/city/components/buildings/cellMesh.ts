@@ -1,14 +1,7 @@
-// city/components/buildings/cellMesh.ts — Cell-aware building InstancedMesh
-// factory.
-//
-// Geometry is constructed once at module load and shared across all
-// cells; the material is created lazily on the first
-// attachBuildingMeshToCell call with the caller's uniforms and then
-// shared. Per-cell InstancedMeshes get a shallow geometry clone (so
-// per-instance attributes don't bleed between cells) sharing the same
-// vertex/index buffers via Three's BufferGeometry.clone() (only the
-// InstancedBufferAttributes are duplicated, not the index/position
-// buffers).
+// city/components/buildings/cellMesh.ts — the per-cell building InstancedMesh.
+// One geometry and one material for the whole city; each cell takes a shallow
+// clone so its per-instance attributes don't bleed into the others, while the
+// vertex and index buffers stay shared.
 
 import * as THREE from 'three';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -23,11 +16,7 @@ import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
 
-// ---------------------------------------------------------------------------
-// Shared geometry — unit box, constructed once at module load and
-// reused across all cells. Per-cell attributes are attached to a clone
-// of this geometry (see attachBuildingMeshToCell) so they don't bleed.
-// ---------------------------------------------------------------------------
+// The unit box every building scales from, built once.
 
 const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1);
 
@@ -40,18 +29,8 @@ const _writeMatrix = new THREE.Matrix4();
 const _WRITE_QUAT = new THREE.Quaternion();
 const _writeColor = new THREE.Color();
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Map BuildingOrient string enum → 0/1/2/3 per the shader's iDoor.x contract.
- * Shader contract (building.frag.glsl isDoorFace()):
- *   0 = South (+Z = face 4)
- *   1 = North (-Z = face 5)
- *   2 = East  (+X = face 0)
- *   3 = West  (-X = face 1)
- */
+/** The orientation as the shader's iDoor.x wants it: 0 south, 1 north, 2 east,
+ *  3 west (see isDoorFace in building.frag.glsl). */
 function orientToIndex(orient: BuildingOrient): number {
   switch (orient) {
     case BuildingOrient.South:
@@ -67,33 +46,12 @@ function orientToIndex(orient: BuildingOrient): number {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/**
- * Replace the placeholder geometry + material in `cell.detailMesh` with
- * the real building shader geometry + material, and allocate per-instance
- * attribute buffers sized to `cell.capacity`.
- *
- * The shared unit-box geometry is cloned (shallow clone — vertex/index
- * buffers are not duplicated) so per-cell InstancedBufferAttributes don't
- * bleed across cells.
- *
- * Every cell shares the one ShaderMaterial from material.getBuildingMaterial().
- * Do NOT call material.dispose() on the returned mesh's material — it is owned
- * by material.ts, not by the cell. The mesh's `userData.sharedMaterial = true`
- * flag tells the shared disposeObject3D util (city/utils/disposeObject3D.ts) to
- * skip material disposal when tearing down the old cell root.
- *
- * Call this once per cell after `createEmptyCellTile`.
- */
+/** Give a cell the real geometry, the shared material, and attribute buffers
+ *  for its capacity. The material belongs to material.ts: never dispose it. */
 export function attachBuildingMeshToCell(cell: CellTile): void {
   const geom = SHARED_BUILDING_GEOMETRY.clone();
 
-  // Per-instance attribute buffers sized to cell.capacity — matching
-  // the attribute names and strides declared in building.vert.glsl.
-  // iCols: vec2 (cols_ew, cols_ns) — two floats per instance.
+  // Names and strides match the attributes building.vert.glsl declares.
   geom.setAttribute(
     'iCols',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 2), 2)
@@ -141,9 +99,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
   cell.detailMesh.geometry.dispose();
   cell.detailMesh.geometry = geom;
   cell.detailMesh.material = mat;
-  // Signal to the shared disposeObject3D util that this material is
-  // module-owned (shared) and must not be disposed when the cell root is
-  // torn down between applyManifest calls.
+  // Tells disposeObject3D to leave the material alone: it outlives this cell.
   cell.detailMesh.userData.sharedMaterial = true;
 
   // instanceColor: three floats per instance (linear RGB).
@@ -153,18 +109,8 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
   );
 }
 
-/**
- * Write a building's per-instance attributes into the cell's InstancedMesh
- * at the slot identified by `b.slotId`. Both `b.cellId` and `b.slotId` must
- * already be set by the caller (typically the cell-insert path in
- * cellAssembly.ts).
- *
- * Per-instance attribute semantics follow the building.vert.glsl attribute
- * contract (iCols, iFloors, iDoor, iFade, iIconUV, iModifiedAge, iRefColor).
- * Callers must set `mesh.instanceMatrix.needsUpdate = true` (and
- * `mesh.instanceColor.needsUpdate = true`, attribute `.needsUpdate = true`)
- * after a batch of writes.
- */
+/** One building's attributes into its slot. cellId and slotId must be set, and
+ *  the caller flags the buffers dirty once per batch rather than per write. */
 export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const slot = b.slotId!;
   const mesh = cell.detailMesh;
@@ -175,9 +121,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
 
-  // --- Transform matrix (scale + translate) ---
-  // Layout (x, y) → scene (x, z); building.h is scene-Y. Position y = h/2 so the
-  // base sits on y=0.
+  // Layout (x, y) is scene (x, z); y is h/2 so the base sits on the ground.
   _writePos.set(b.x, b.h / 2, b.y);
   _writeScale.set(b.w, b.h, b.d);
   _writeMatrix.compose(_writePos, _WRITE_QUAT, _writeScale);
@@ -199,10 +143,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iRefColorAttr = mesh.geometry.getAttribute('iRefColor') as THREE.InstancedBufferAttribute;
   iRefColorAttr.setXYZ(slot, _writeColor.r, _writeColor.g, _writeColor.b);
 
-  // --- Window column counts ---
-  // Window-column convention:
-  //   ±X faces (east/west walls) span depth d → cols_ew from d
-  //   ±Z faces (north/south walls) span width w → cols_ns from w
+  // East/west walls span depth, north/south span width.
   const colsEW = Math.max(1, Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)));
   const colsNS = Math.max(1, Math.min(windowColsMax, Math.floor(b.w / widthPerWindowCol)));
   const iColsAttr = mesh.geometry.getAttribute('iCols') as THREE.InstancedBufferAttribute;
@@ -216,9 +157,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iDoorAttr = mesh.geometry.getAttribute('iDoor') as THREE.InstancedBufferAttribute;
   iDoorAttr.setXY(slot, orientToIndex(b.orient), b.w * doorWidthFrac);
 
-  // --- Render kind (Empty slab / Data windowless facade; Timeline overwrites Ruin) ---
-  // Empty first, so a 0-byte binary is a slab rather than a data block — same
-  // precedence as getBuildingDimensions.
+  // Empty first, so a 0-byte binary is a slab rather than a data block, which
+  // is the precedence getBuildingDimensions uses.
   const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
   let kind: number = BuildingKind.Normal;
   if (isEmptyFile(b.file)) kind = BuildingKind.Empty;
@@ -229,11 +169,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iFadeAttr = mesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
   iFadeAttr.setXYZ(slot, 1.0, 0.0, 0.0);
 
-  // --- Icon UV (top-left of atlas slot) + per-instance seed + createdAge ---
-  // (-1, -1) on .xy means "no icon" — shader checks .x < 0 and skips the
-  // atlas sample. Seed on .z; createdAge on .w.
-  // If the atlas (material.ts's single ref) is available and the file has a
-  // known icon, write the resolved UV; otherwise fall back to (-1, -1).
+  // (-1, -1) means no icon: the shader checks .x and skips the atlas sample.
   const seed = seedFromPath(b.file?.path ?? '');
   const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
   let iconU = -1.0;

@@ -1,13 +1,6 @@
-// city/components/island/index.ts — Cyberpunk Valley floating-island component:
-// a shaped polygonal slab beneath the city.
-//
-// Self-contained scene component: owns its settings-reactivity (an effect
-// reading ISLAND) and a bounds effect that resizes it reactively off
-// cityState.latestWorldBounds; frees its own GPU resources + stops its effects
-// in dispose(). Persistent — added once at world boot.
-//
-// tick() is OMITTED — island hemispheric lighting is static; there is no
-// per-frame work. The SceneComponent contract makes tick optional.
+// city/components/island/index.ts — the floating island under the city: a
+// settings effect and a bounds effect, added once at world boot. No tick: its
+// lighting is static, so there is no per-frame work to do.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -20,12 +13,8 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
 
-// Coplanar with the city, because it IS the ground the city stands on. This was
-// -2 to keep the island's top out of a z-fight with the sidewalks, asphalt and
-// footprint slab at y=0, which suspended every building and tree two units in
-// the air: trunks ended above the grass and the skirt read as a slab hovering
-// over the island. The depth contest is the material's job, and islandShader
-// already gives it polygonOffset for exactly this.
+// Coplanar with the city, because it is the ground the city stands on. Dropping
+// it to dodge a z-fight suspended every building and tree above the grass.
 export const ISLAND_TOP_Y = 0;
 
 export interface Island extends SceneComponent {
@@ -48,9 +37,8 @@ function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildPa
   };
 }
 
-// Stable seed from bounds so the same repo always gets the same silhouette.
-// Exported so tree placement (running in a worker) can rebuild the identical
-// polygon without reaching into index.ts's private state.
+// Seeded from the bounds, so a repo keeps its silhouette, and exported so the
+// placement worker can rebuild the identical polygon.
 export function islandSeedFromBounds(b: WorldBounds): number {
   const x = Math.round(b.cx * 1000) | 0;
   const z = Math.round(b.cz * 1000) | 0;
@@ -102,21 +90,14 @@ export function createIsland(ctx: SceneContext): Island {
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
   }
 
-  // Bounds effect — the reactive resize entry point. Reads
-  // cityState.latestWorldBounds.value and resizes the island when it CHANGES.
-  // applyManifest only reassigns latestWorldBounds.value on a non-reuse apply
-  // (reference stays stable on a scenic-reuse apply), so this effect fires
-  // exactly on real bounds changes and skips reuse applies natively. The
-  // null-guard makes the construction-time run (bounds still null) a no-op.
+  // The bounds reference is stable across a reuse apply, so this fires on real
+  // changes only, with no gate of its own.
   const stopBounds = effect(() => {
     const bounds = cityState.latestWorldBounds.value;
     if (bounds) setBounds(bounds);
   });
 
-  // Settings effect — reacts to ISLAND changes (Save). Reads ISLAND (ENABLED,
-  // colors, geometry params) and rebuilds geometry + pushes material uniforms.
-  // Runs once at construction, re-applying the same values the constructor
-  // baked (idempotent).
+  // Also runs once at construction, re-applying what the constructor baked.
   const stopEffect = onSettings(ISLAND, () => {
     // Geometry colors changed → rebuild (vertex colors are baked into the
     // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.

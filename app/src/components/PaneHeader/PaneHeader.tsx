@@ -1,8 +1,5 @@
-// components/PaneHeader.tsx — Shared header bar used by every pane
-// (Tree, Search, Info, Controls on the left sidebar; file-preview on
-// the right). Single source of truth for the `.pane-header` row +
-// `.text-pane-title` + `.pane-header-close` triplet, so the panes look
-// identical and adding a new pane is a one-call affair.
+// components/PaneHeader.tsx — the header every pane wears, so they can't drift
+// apart and a new pane is one call rather than a copied row.
 
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
@@ -43,10 +40,8 @@ export interface PaneHeaderProps {
   onExclude?: () => void;
   /** Tooltip / aria-label for the exclude button. */
   excludeTitle?: string;
-  /** Why this node can't be excluded. Set it and the button stays, dimmed and
-   *  inert, carrying the reason: a rule you can see beats an affordance that
-   *  silently isn't there. One field, not a flag plus a message, so a disabled
-   *  button always has something to say for itself. */
+  /** Why this node can't be excluded. The button stays, dimmed and carrying the
+   *  reason: one field, so a disabled button always says why. */
   excludeDisabledReason?: string;
   /** Rich title content rendered inside the title element instead of the
    *  plain `title` string (e.g. a path breadcrumb, or "Commit <sha> · author"). */
@@ -55,11 +50,8 @@ export interface PaneHeaderProps {
 
 // ── Preact component ────────────────────────────────────────────────────────
 
-/** The box a title's contents should measure themselves against. The title
- *  hugs its own content so the identity actions can sit against it, which makes
- *  it useless as a width budget: shrink it once and it stops tracking the pane,
- *  so a ResizeObserver watching it never hears the pane grow back. This group
- *  fills the row, so it does. */
+/** What a title measures itself against. The title hugs its content, so it
+ *  stops tracking the pane once shrunk; this group fills the row. */
 export const PaneTitleBudgetContext = createContext<RefObject<HTMLElement | null> | null>(null);
 
 export function PaneHeader({
@@ -114,9 +106,8 @@ export function PaneHeader({
             title={focusTitle}
             aria-label={focusTitle}
             onClick={(e) => {
-              // Blur so a subsequent Space/Enter doesn't re-activate this button
-              // (re-firing focus) — let those keystrokes fall through to the
-              // document-level canvas keydown handler.
+              // Blurred, so the next Space or Enter reaches the canvas instead
+              // of firing this button again.
               (e.currentTarget as HTMLButtonElement).blur();
               onFocus();
             }}
@@ -129,14 +120,12 @@ export function PaneHeader({
           <button
             type="button"
             class={`btn-icon${excludeDisabledReason ? ' btn-icon--inert' : ''}`}
-            // The reason goes in the tooltip only: the accessible name has to
-            // stay what the button does, or a screen reader announces the
-            // objection and never the action it objects to.
+            // Tooltip only: the accessible name has to stay the action, or a
+            // screen reader announces the objection and never the button.
             title={excludeDisabledReason ?? excludeTitle ?? 'Exclude from city'}
             aria-label={excludeTitle ?? 'Exclude from city'}
-            // aria-disabled, not disabled: a disabled button drops its hover, and
-            // the tooltip is the whole point of still drawing it (same trade as
-            // SourceRow's unavailable rows).
+            // aria-disabled, not disabled: a disabled button drops its hover,
+            // and the tooltip is the whole point of still drawing it.
             aria-disabled={excludeDisabledReason ? 'true' : undefined}
             onClick={excludeDisabledReason ? undefined : () => onExclude()}
           >
@@ -157,14 +146,8 @@ export interface PaneCloseButtonProps {
   title?: string;
 }
 
-/** The pane's close button. Shared by the default header and by panes that
- *  compose their own header (e.g. InfoPane's tab strip). Plain .btn-icon so it
- *  matches the icon-only buttons in the app header.
- *
- *  It puts a panel away rather than closing anything — a right-sidebar pane
- *  keeps its selection — so it draws the panel collapsing toward its own edge.
- *  An × would promise the thing is gone. Outside a sidebar there's no edge to
- *  collapse toward, and × is right again. */
+/** The close button puts a panel away rather than closing anything, so it draws
+ *  it collapsing toward its edge. Outside a sidebar, × is right again. */
 export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseButtonProps) {
   const side = useContext(SidebarSideContext);
   const Icon =

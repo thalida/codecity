@@ -1,27 +1,7 @@
-// utils/dates.ts — every date the app reads or prints goes through here.
-//
-// One parse rule, `parseLocalDate`, behind all of it: a date is a moment in the
-// reader's timezone, and a day-precision string is that day where they are. Two
-// parse rules is how a commit made in the evening ends up labelled one day on
-// the axis and the next day under the handle. Nothing outside this module calls
-// Date.parse or new Date(string).
-//
-// All public functions take a string (typically ISO 8601 or YYYY-MM-DD)
-// and return display-ready text. They never throw — invalid input falls
-// back to the raw string so the UI degrades gracefully.
-//
-// Two relative-age formatters live here on purpose:
-//   - formatRelativeAge      — long form ("3 days ago"). Used where there's
-//                              room: commit metadata, hover tooltips.
-//   - formatRelativeAgeShort — short form ("3d ago"). Used in compact rows:
-//                              the app footer, status chips.
-//
-// Two absolute formatters live here on purpose:
-//   - formatFullDate         — long form ("March 12, 2026"). Used in
-//                              tooltips where the full month name reads
-//                              naturally.
-//   - formatShortDate        — short form ("Mar 12, 2026"). Used inline
-//                              where space is tighter.
+// utils/dates.ts — every date the app reads or prints goes through here, on one
+// parse rule: a date is a moment in the reader's timezone, and a day-precision
+// string is that day where they are. Two rules is how a commit made in the
+// evening is labelled one day on an axis and the next day under the handle.
 
 const MS_SECOND = 1_000;
 const MS_MINUTE = 60_000;
@@ -32,12 +12,8 @@ const MS_YEAR = 365 * MS_DAY;
 
 // ── Parsing ──────────────────────────────────────────────────────────────
 
-/** Parse a date string into local-midnight if it's YYYY-MM-DD, otherwise
- *  delegate to the native `Date` constructor. Day-precision strings parsed
- *  via `new Date('YYYY-MM-DD')` land at UTC midnight, which can shift to
- *  the previous calendar day in negative timezones — using local components
- *  keeps the displayed day matching the source string. Returns null if the
- *  result is invalid. */
+/** Local midnight for a day-precision string, native parse otherwise: through
+ *  `new Date`, a bare date lands at UTC midnight and can show the day before. */
 export function parseLocalDate(input: string): Date | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
     const [y, m, d] = input.split('-').map(Number);
@@ -48,17 +24,14 @@ export function parseLocalDate(input: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** `parseLocalDate` as milliseconds, NaN when unparseable. Anything that turns
- *  a date into a position and back has to parse it the way the labels do, or
- *  the two disagree by a timezone. */
+/** `parseLocalDate` as milliseconds, NaN when unparseable: anything turning a
+ *  date into a position has to read it the way the labels do. */
 export function parseDateMs(input: string): number {
   return parseLocalDate(input)?.getTime() ?? NaN;
 }
 
-/** Days since the epoch of the LOCAL calendar day a moment falls on, as a
- *  fraction through that day. The scene ages things in whole days, and those
- *  days have to be the ones on the calendar the labels print, or a commit made
- *  in the evening is a day older on screen than the date beside it. */
+/** The local calendar day as a day number, fractional through the day: the
+ *  scene ages in whole days, and they have to be the days the labels print. */
 export function epochDayAt(ms: number): number {
   return (ms - new Date(ms).getTimezoneOffset() * MS_MINUTE) / MS_DAY;
 }
@@ -70,10 +43,8 @@ export function epochDay(input: string): number {
   return Number.isNaN(ms) ? NaN : Math.floor(epochDayAt(ms));
 }
 
-/** The calendar day (YYYY-MM-DD) a moment falls on, in the reader's timezone.
- *  Every date the UI prints is local, so a day derived from a timestamp has to
- *  be read the same way: toISOString names the UTC day, which for part of every
- *  day is a different date than the one shown beside it. */
+/** The local calendar day a moment falls on. toISOString would name the UTC
+ *  day, which for part of every day is the date beside it plus one. */
 export function localDay(ms: number): string {
   const date = new Date(ms);
   if (Number.isNaN(date.getTime())) return '';
@@ -95,17 +66,14 @@ const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: 'numeric',
 };
 
-/** Format a date string as a long calendar date (e.g. "March 12, 2026").
- *  YYYY-MM-DD input is parsed as local midnight to avoid timezone shift.
- *  Falls back to the raw input if parsing fails. */
+/** A long calendar date ("March 12, 2026"), or the raw input if it won't
+ *  parse, so the UI degrades rather than printing nothing. */
 export function formatFullDate(input: string): string {
   const date = parseLocalDate(input);
   return date ? date.toLocaleDateString(undefined, FULL_DATE_OPTIONS) : input;
 }
 
-/** Format a date string as a short calendar date (e.g. "Mar 12, 2026").
- *  Same parsing rules as `formatFullDate`. Falls back to the raw input
- *  if parsing fails. */
+/** A short calendar date ("Mar 12, 2026"), same rules as formatFullDate. */
 export function formatShortDate(input: string): string {
   const date = parseLocalDate(input);
   return date ? date.toLocaleDateString('en-US', SHORT_DATE_OPTIONS) : input;
@@ -117,10 +85,8 @@ function pluralizeAgo(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
 }
 
-/** Whole years/months/days from `from` to `to` (to >= from), calendar-accurate
- *  (real month lengths, not fixed 30/365-day buckets — so month gaps between two
- *  same-year dates aren't lost). Local components throughout, matching the one
- *  parse both dates came through. */
+/** Whole years/months/days, on real month lengths rather than 30-day buckets,
+ *  which lose a month between two dates in the same year. */
 function _calendarSpan(from: Date, to: Date): { years: number; months: number; days: number } {
   let years = to.getFullYear() - from.getFullYear();
   let months = to.getMonth() - from.getMonth();
@@ -137,9 +103,8 @@ function _calendarSpan(from: Date, to: Date): { years: number; months: number; d
   return { years, months, days };
 }
 
-/** Join the largest `max` NON-zero units of a calendar span as "2 years 4
- *  months" (zeros are skipped, so an exact anniversary is just "2 years").
- *  Empty string when every unit is zero (a sub-day span). */
+/** The largest `max` non-zero units, so an exact anniversary is "2 years"
+ *  rather than "2 years 0 months". Empty for a sub-day span. */
 function _joinSpan(span: { years: number; months: number; days: number }, max: number): string {
   const parts: [number, string][] = [
     [span.years, 'year'],
@@ -153,10 +118,8 @@ function _joinSpan(span: { years: number; months: number; days: number }, max: n
     .join(' ');
 }
 
-/** Format a date string as an English relative-age. Under a day it's a single
- *  coarse unit ("just now", "5 minutes ago", "3 hours ago"); a day or more is
- *  calendar-accurate to two units ("2 years 4 months ago", "5 months 12 days
- *  ago", "3 days ago"). */
+/** A relative age: one coarse unit under a day, two calendar-accurate ones
+ *  above it ("2 years 4 months ago"). */
 export function formatRelativeAge(dateStr: string, now: Date = new Date()): string {
   const then = parseLocalDate(dateStr);
   if (!then) return dateStr;
@@ -169,10 +132,8 @@ export function formatRelativeAge(dateStr: string, now: Date = new Date()): stri
   return `${_joinSpan(_calendarSpan(then, now), 2) || '1 day'} ago`;
 }
 
-/** Compact relative-time formatter ("3d ago", "5m ago", "just now"). Takes
- *  millisecond timestamps (not strings) since callers already have
- *  `Date.now()`-style values. Used by the app footer where horizontal
- *  space is tight; second-granularity bucket fires under 5 seconds. */
+/** The compact form ("3d ago"), in milliseconds since its callers already
+ *  hold those, for rows with no horizontal room. */
 export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   const diff = Math.max(0, nowMs - thenMs);
   if (diff < 5 * MS_SECOND) return 'just now';
@@ -184,9 +145,8 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
 
-/** Human duration between two dates, calendar-accurate to two units ("2 years
- *  4 months", "5 months 12 days", "3 days"). Deterministic (no "now"), so it's
- *  safe for spans in pure view-models. Returns '' if either date is unparseable. */
+/** A duration between two dates, to two units. Takes no "now", so it is safe
+ *  in a pure view-model; '' if either date won't parse. */
 export function humanSpan(fromISO: string, toISO: string): string {
   const a = parseLocalDate(fromISO);
   const b = parseLocalDate(toISO);

@@ -1,8 +1,5 @@
-/* SelectionChip — a pill over the scene, parked where the selection pane's
-   header was: the same top and right inset .pane-header uses, in a box whose
-   top and right edges are the ones the panel just gave up. It appears in the
-   same frame the panel goes: nothing else in the app animates, so a pill that
-   grew into place would read as the one thing demanding to be watched. */
+/* A pill parked where the pane's header was, on the same insets. It appears in
+   the frame the panel goes: nothing else here animates. */
 
 .selection-chip {
   position: absolute;
@@ -45,10 +42,8 @@
   color: var(--cc-accent);
 }
 
-/* The pill's own action, and it lands on the trailing edge the header's close
-   button just left: same glyph, mirrored. Sized off the row's icon buttons
-   rather than the label's smaller type so it reads as that glyph rather than as
-   punctuation, and full-strength so the destructive ✕ isn't the loud one. */
+/* Lands on the edge the header's close button just left, same glyph mirrored.
+   Sized off the icon buttons, so it reads as a glyph and not punctuation. */
 .selection-chip-reopen {
   flex: 0 0 auto;
   font-size: var(--cc-font-md);

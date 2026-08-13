@@ -13,23 +13,18 @@ export enum SidebarSide {
   Right = 'right',
 }
 
-/** Which edge the surrounding sidebar docks to, for descendants whose rendering
- *  depends on it (the close button's panel icon). Null outside a sidebar, e.g. a
- *  pane header in a modal. Context rather than a prop: every pane would have to
- *  forward it, and a pane can't be in the sidebar it isn't rendered by. */
+/** Which edge the sidebar docks to, for descendants that draw differently by
+ *  side. Context, or every pane in between would have to forward it. */
 export const SidebarSideContext = createContext<SidebarSide | null>(null);
 
-// A drag's pointer X → raw sidebar width. The left sidebar grows rightward from
-// the screen's left edge (width = clientX); the right sidebar grows leftward
-// from the right edge (width = viewport − clientX).
+// Pointer X to width: the left panel grows from the left edge, the right one
+// from the right.
 function _measureWidth(side: SidebarSide, e: PointerEvent): number {
   return side === SidebarSide.Left ? e.clientX : window.innerWidth - e.clientX;
 }
 
-// How wide this panel can get before the row runs out: everything the row has,
-// minus what the other panels hold. The canvas between them can surrender all
-// of its width, so it isn't subtracted — but the other sidebar is a wall, and
-// dragging into it stops rather than pushing it narrower.
+// Everything the row has, less what the other panels hold. The canvas can
+// surrender all of its width; the other sidebar is a wall.
 function _maxWidth(el: HTMLElement): number {
   const row = el.parentElement;
   if (!row) return Number.POSITIVE_INFINITY;
@@ -40,9 +35,8 @@ function _maxWidth(el: HTMLElement): number {
   return Math.max(0, row.clientWidth - others);
 }
 
-// Both sidebars drive a `--sidebar-width` CSS var; CSS owns the actual `width`
-// (`width: var(--sidebar-width, <default>)`), so a drag never fights the width
-// the open/collapsed rules resolve.
+// A drag writes a custom property and CSS owns the width, so it never fights
+// the open and collapsed rules.
 function _applyWidth(el: HTMLElement, w: number): void {
   el.style.setProperty('--sidebar-width', `${w}px`);
 }
@@ -66,9 +60,8 @@ function ResizeHandle({ side, targetRef }: ResizeHandleProps) {
   };
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
-    // CSS min-width/max-width clamp the rendered result, so the handle stops at
-    // those bounds without JS knowing them. The one bound CSS can't express is
-    // the room the OTHER panel is holding, so cap for that here.
+    // CSS clamps its own bounds; the one it can't express is the room the
+    // other panel is holding, so that cap lives here.
     const el = targetRef.current;
     _applyWidth(el, Math.min(_measureWidth(side, e), _maxWidth(el)));
   };

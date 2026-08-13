@@ -1,26 +1,7 @@
-// city/components/trees/treePlacement.ts — commit-driven tree placement.
-//
-// One tree per commit. Trees are scattered across the world floor
-// rectangle via a STRATIFIED GRID: the sampling region is divided
-// into a uniform grid sized to hold roughly `treeTarget` candidates
-// (capped at TREE_MAX_CELLS for massive-repo memory safety). Each
-// cell contributes a single jittered candidate, which is then run
-// through the same two rejection passes:
-//   1. layout-rect collisions (rbush against inflated buildings + streets + paths)
-//   2. density-falloff probabilistic rejection
-// Accepted candidates are sorted by distance to the gem (ascending)
-// and truncated to `treeTarget`; the i-th placement gets
-// commitIndex = i (oldest commit closest to gem).
-//
-// Why stratified instead of pure rejection sampling: a random sampler
-// has to keep retrying to fill `treeTarget` (up to ~2 million iterations
-// for big repos with high rejection rates).
-// A grid traverses every candidate position exactly once and avoids
-// re-sampling the same regions, so total work is bounded by cell
-// count — independent of how big commits.length gets.
-//
-// Determinism is anchored to the bbox dims so the same laid-out
-// city always produces the same placement across reloads.
+// city/components/trees/treePlacement.ts — one tree per commit, scattered on a
+// stratified grid: one jittered candidate per cell, run through the collision
+// and density passes, sorted by distance from the gem so the oldest commit
+// stands closest. A grid, so the work is bounded by cells, not by retries.
 
 import RBush from 'rbush';
 import * as THREE from 'three';
@@ -46,16 +27,12 @@ export interface TreePlacement {
   x: number;
   y: number;
   seed: number;
-  /** Index into Manifest.commits. commitIndex 0 = oldest commit,
-   *  placed closest to the gem; higher index = newer commit,
-   *  placed farther out. */
+  /** Index into Manifest.commits: 0 is the oldest, and stands nearest the gem. */
   commitIndex: number;
 }
 
-/** The only layout fields placeTrees reads — building/street footprints, plus
- *  the optional bbox. The worker receives this slim shape instead of the full
- *  CityLayout (whose buildings/streets carry heavy file/dir payloads) so the
- *  postMessage structured-clone stays cheap. A full CityLayout is assignable. */
+/** All placeTrees reads. The worker gets this rather than the full layout, whose
+ *  file payloads would make the structured clone expensive. */
 export interface LayoutGeometry {
   buildings: Pick<Building, 'x' | 'y' | 'w' | 'd'>[];
   streets: Pick<Street, 'x' | 'y' | 'length' | 'width' | 'orientation' | 'isRoot'>[];
@@ -65,39 +42,26 @@ export interface LayoutGeometry {
 export interface PlaceTreesOptions {
   /** Number of trees to plant — one per commit. */
   commitCount: number;
-  /** Vertical extent of the rendered scene (bbox.max.y − bbox.min.y),
-   *  threaded through to worldBounds so small-but-tall cities get a
-   *  buffer proportional to building height. Optional — defaults to 0. */
+  /** Scene height, so a small but tall city gets a buffer to match. */
   cityHeight?: number;
-  /** Optional override for island geometry config (used by the worker
-   *  which can't read the main-thread store directly). When omitted,
-   *  the live ISLAND_GEOMETRY store is read. Pass null to disable the
-   *  polygon rejection pass (e.g. in non-island tests). */
+  /** The worker's copy of the island config, since it can't read the store.
+   *  Null disables the polygon rejection pass. */
   islandGeoOverride?: IslandConfig | null;
 }
 
-/** Hard ceiling on grid resolution. Caps total iterations + accepted
- *  placements + downstream instance buffers, so a multi-million-commit
- *  repo (e.g. the Linux kernel) doesn't OOM the renderer or stall the
- *  worker. 100k ≈ a 316×316 grid; well within sub-second placement
- *  even with full rejection passes. */
+/** Ceiling on grid resolution, so a multi-million-commit repo can't OOM the
+ *  renderer through the instance buffers downstream. */
 const TREE_MAX_CELLS = 100_000;
 
-/** Per-target multiplier on the grid cell count. Oversampling absorbs
- *  rejection passes (layout collisions / gem buffer / density falloff)
- *  so the final accepted count still hits `treeTarget` when there's
- *  physical room. 4× is enough headroom for ~75% combined rejection.
- *  Independent of TREE_MAX_CELLS — the cap wins for huge repos. */
+/** Spare candidates for the rejection passes to eat, so the accepted count
+ *  still reaches the target wherever there is room. */
 const TREE_CELL_OVERSAMPLE = 4;
 
-/** Floor on the candidate grid so a tiny repo still samples enough positions to
- *  place every commit's tree: at 4× alone a 2-commit repo gets ~8 cells, most of
- *  which collide with the city on a small island. Big repos exceed it anyway. */
+/** A floor for tiny repos: at the multiplier alone a 2-commit repo gets ~8
+ *  cells, most of them inside the city. */
 const TREE_MIN_CELLS = 256;
 
-/**
- * Mulberry32 — small PRNG with proper avalanche.
- */
+/** Mulberry32 — small PRNG with proper avalanche. */
 function mulberry32(s: number): number {
   let t = (s + 0x6d2b79f5) | 0;
   t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -137,13 +101,8 @@ function bboxOfStreet(s: Pick<Street, 'x' | 'y' | 'length' | 'width' | 'orientat
   };
 }
 
-/**
- * Compute the scatter center — the gem position when the layout
- * has a root street; falls back to bbox center for layouts that
- * don't (mostly tests). Uses the shared gemAnchorXZ helper so the
- * scatter center stays in lockstep with the gem's actual world
- * position (gem.ts uses the same helper).
- */
+/** The gem's position, through the same helper gem.ts uses so the two can't
+ *  drift; the bbox centre for layouts with no root street. */
 function gemCenterFromLayout(layout: LayoutGeometry, bbox: CityBbox): { x: number; y: number } {
   const root = layout.streets.find((s) => s.isRoot);
   if (!root) return { x: bbox.cx, y: bbox.cy };
@@ -184,44 +143,21 @@ export function placeTrees(
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
-  // Expand sampling region to cover the island polygon's full bounding
-  // box, not just the inscribed worldBounds rect. The polygon
-  // circumscribes the rect (vertices at radius hypot(halfWidth, halfDepth)),
-  // so its bbox is that radius on both axes. Without this expansion, the
-  // polygon's "ears" past the rect corners get zero candidates and read
-  // as empty zones on the island.
-  //
-  // Edge inset is handled by shrinking the polygon used in the rejection
-  // test (see shrunkPolygon below), NOT by shrinking the sampling rect.
-  //
-  // The island polygon is bigger than the bounds rect: scaled by
-  // sqrt(2)/cos(π/N) so it fully contains the rect's corners. The
-  // sampling rect needs to match the polygon's axis-aligned bounding box
-  // (i.e. the polygon's max X/Z extent) — otherwise tree candidates fill
-  // only the smaller bounds rect, leaving the polygon's expanded edges
-  // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
-  // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
+  // Sampled to the island polygon's extent, not the rect it circumscribes: the
+  // ears past the rect corners would otherwise read as bare ground.
   const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
-  // Irregularity is now reductive (vertices shrink inward), so the polygon's
-  // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
-  // expansion factor needed.
+  // Jitter only shrinks vertices inward, so baseScale bounds the extent.
   const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
   const sampleHalfW = bounds.halfWidth * polygonScale;
   const sampleHalfD = bounds.halfDepth * polygonScale;
 
-  // Clearance from the city, as a share of the island rather than a distance in
-  // world units: the island is sized from the city, so a fixed gap that leaves a
-  // comfortable park around a big repo is most of the ground on a small one, and
-  // a one-commit repo ends up with nowhere its tree is allowed to stand. Off the
-  // narrower half-extent, so a long thin island doesn't take a gap sized by its
-  // long axis. Stacks with the halo the rects are already inflated by.
+  // A share of the island, not a distance: a fixed gap that suits a big repo is
+  // the whole of a small one. Off the narrow axis, and stacks with the halo.
   const halfFoot =
     Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100);
 
-  // Density falloff: trees cluster near the city, fade out toward the
-  // sampling region's edge. `maxFalloffDist` is the largest possible
-  // distance from the city bbox within the sampling region — used to
-  // normalize the per-candidate distance into [0,1].
+  // The farthest a candidate can be from the city, which normalises the
+  // falloff distance into [0,1].
   const falloffPower = cfg.DENSITY_FALLOFF;
   const worldMinX = bounds.cx - sampleHalfW;
   const worldMaxX = bounds.cx + sampleHalfW;
@@ -234,17 +170,8 @@ export function placeTrees(
   const maxFalloffDist = Math.sqrt(Math.max(dxLeft, dxRight) ** 2 + Math.max(dyTop, dyBot) ** 2);
   const falloffActive = falloffPower > 0 && maxFalloffDist > 0;
 
-  // Island polygon containment: build the same polygon that islandMesh
-  // renders so we can reject candidates outside the visible silhouette.
-  // options.islandGeoOverride === null disables the pass (non-island tests);
-  // undefined means read the live store (main-thread / sync path).
-  // The worker passes a snapshot via islandGeoOverride so it never touches
-  // the main-thread store directly.
-  //
-  // Edge inset: each polygon vertex is pulled radially inward by insetFrac
-  // so the rejection test naturally excludes trees within that margin of
-  // the actual polygon edge. This gives visually-uniform clearance regardless
-  // of IRREGULARITY (which makes edges sit at varying distances from origin).
+  // The same polygon islandMesh renders, pulled inward by the inset so the
+  // clearance from the edge reads as uniform however irregular it is.
   let islandPolygon: THREE.Vector3[] | null = null;
   if (options.islandGeoOverride !== null) {
     const islandGeo = options.islandGeoOverride ?? ISLAND.value;
@@ -279,10 +206,8 @@ export function placeTrees(
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxY * 1000));
 
-  // Stratified grid: aim for ~TREE_CELL_OVERSAMPLE × treeTarget cells
-  // (the extra cells absorb the three rejection passes below), capped
-  // at TREE_MAX_CELLS so a Linux-sized repo can't blow up the worker.
-  // Aspect ratio follows the sampling region.
+  // Enough cells to absorb the rejection passes, capped so a Linux-sized repo
+  // can't blow up the worker. The aspect follows the sampling region.
   const samplingW = sampleHalfW * 2;
   const samplingD = sampleHalfD * 2;
   const desiredCells = Math.min(
@@ -302,13 +227,8 @@ export function placeTrees(
   const originX = bounds.cx - sampleHalfW;
   const originZ = bounds.cz - sampleHalfD;
 
-  // Visit each grid cell exactly once. Each contributes a single
-  // jittered candidate; the two rejection passes (layout, density
-  // falloff) match the previous behavior.
-  //
-  // Falloff thins the forest, so on a small island it can leave fewer
-  // candidates than commits. Positions it rejects are kept as spares and
-  // topped up below rather than dropping a commit's tree.
+  // One jittered candidate per cell. Falloff can thin a small island below the
+  // commit count, so what it rejects is kept as spares to top up from.
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
   const spares: { x: number; y: number; d2: number; seed: number }[] = [];
   for (let cz = 0; cz < cellsZ; cz++) {
@@ -336,10 +256,8 @@ export function placeTrees(
         if (overlaps) continue;
       }
 
-      // Density falloff: reject probabilistically based on distance
-      // from the city bbox. Inside the bbox dist=0 → always accept;
-      // far away the acceptance probability drops as
-      // (1 - dist/maxDist)^power.
+      // Acceptance falls off with distance from the city, so the forest thins
+      // outward instead of ending at a line.
       let thinned = false;
       if (falloffActive) {
         const distX = Math.max(bbox.minX - x, 0, x - bbox.maxX);
@@ -351,11 +269,8 @@ export function placeTrees(
         thinned = r > acceptProb;
       }
 
-      // Island polygon containment: reject candidates outside the visible
-      // island silhouette. The polygon is built in LOCAL coords (centered
-      // on origin) but (x, y) are WORLD coords (offset by bounds.cx/cz).
-      // Shift the candidate back into the polygon's frame before testing.
-      // treePlacement uses (x, y) for the XZ plane; the polygon uses (x, z).
+      // The polygon is in local coords and the candidate in world, so it
+      // shifts back into the polygon's frame before the test.
       if (islandPolygon && !pointInIslandPolygon(x - bounds.cx, y - bounds.cz, islandPolygon))
         continue;
 
@@ -372,19 +287,8 @@ export function placeTrees(
 
   accepted.sort((a, b) => a.d2 - b.d2);
 
-  // Reconcile physical positions (accepted cells) with the commit
-  // count. Two paths:
-  //   * accepted.length > treeTarget — we have more grid candidates
-  //     than commits (the common 4× oversample case). Pick treeTarget
-  //     positions evenly spaced across the sorted-by-distance list,
-  //     so the forest spans the whole sampling region rather than
-  //     collapsing into a disk near the gem. Each picked position
-  //     gets commitIndex = i (oldest closest, newest farthest).
-  //   * accepted.length < treeTarget — TREE_MAX_CELLS clamped us
-  //     below commits.length (e.g. multi-million-commit repos). Every
-  //     accepted position is used, but commitIndex stride-samples the
-  //     commits array so the visible trees represent the full
-  //     timeline instead of only the oldest few.
+  // Spare candidates spread evenly across the sorted list; too few, and
+  // commitIndex strides so the trees stand for the whole history.
   const treesToPlace = Math.min(accepted.length, treeTarget);
   const placements: TreePlacement[] = [];
   if (treesToPlace === 0) return placements;

@@ -1,9 +1,5 @@
-// city/types/index.ts — shared scene-component contracts.
-//
-// These interfaces define the uniform shape every scene component, the city
-// composer, and the render loop agree on. Nothing in this file is runtime
-// code; it is types-only. Implementations live in the individual component
-// and system files; wiring happens in later tasks.
+// city/types/index.ts — the shape every scene component, the composer and the
+// render loop agree on. Types only.
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
@@ -13,12 +9,8 @@ import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { Manifest, RangeStat } from '@/types';
 
-/** Everything a scene component needs to wire itself into the scene. scene /
- *  canvas / cityState are set at construction; picker is null until the rig +
- *  picker exist (picker.world reads component handles, so it's built AFTER the
- *  components) — picker-dependent setup defers to the first tick via
- *  armOnFirstTick. The camera lives on the rig (passed to the frame loop) and
- *  reaches components per-frame via FrameContext, not here. */
+/** What a component needs to wire itself in. picker is null until after the
+ *  components exist, so anything needing it arms on the first tick. */
 export interface SceneContext {
   scene: THREE.Scene;
   canvas: HTMLCanvasElement;
@@ -39,18 +31,14 @@ export interface SceneComponent {
   group: THREE.Object3D;
   /** Frame loop calls it if present. */
   tick?(dt: number, ctx: FrameContext): void;
-  /** Re-fit to a canvas resize, if the component caches viewport-dependent
-   *  state (line-material resolution, screen-space buffers). Called with the
-   *  new canvas size; components that don't need either arg ignore them. */
+  /** Re-fit anything cached against the viewport, on a canvas resize. */
   onResize?(cw: number, ch: number): void;
   /** Frees GPU resources AND stops own effects. */
   dispose(): void;
 }
 
-/** Scene-internal read/debug API exposed on City.world — the surface the view
- *  layer can't reach through canonical signals: the live tree renderer (per-sha
- *  commit color) and the two debug diagnostics. Plain manifest/tree/street data
- *  is read straight from the MANIFEST signal by consumers, not duplicated here. */
+/** The scene-internal surface the view layer can't reach through signals.
+ *  Plain manifest data is read from MANIFEST, never duplicated here. */
 export interface CityWorld {
   getTrees(): Trees | null;
   runCollisionCheck(): void;
@@ -62,9 +50,7 @@ export interface CityWorld {
 /** Timeline-mode install surface on the City handle. Owns building the scrub
  *  controller from the components + moving the streets into the transparent pass. */
 export interface CityTimeline {
-  /** Build + install the scrub controller from the per-path replay timelines +
-   *  the per-commit line ranges (height normalization at each scrub position).
-   *  Call AFTER the union has been packed (applyManifest awaited). */
+  /** Install the scrub controller. Only once the union has been packed. */
   installScrubController(timelines: Map<string, PathTimeline>, commitLineRanges: RangeStat[]): void;
   /** Uninstall + dispose the scrub controller (returns the tweens to the tick). */
   uninstallScrubController(): void;
@@ -86,9 +72,7 @@ export interface City {
   /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
    *  is built here because it needs the components' mesh/attr resolvers. */
   timeline: CityTimeline;
-  /** Tear down everything: frame loop, input listeners, picker/rig/postFx,
-   *  all components (GPU + effects), the layout worker, and the renderer.
-   *  Must be called when the owning view unmounts so a remount doesn't stack
-   *  a second renderer + frame loop on the same canvas. */
+  /** Tear all of it down. Required on unmount, or a remount stacks a second
+   *  renderer and frame loop on the same canvas. */
   dispose(): void;
 }

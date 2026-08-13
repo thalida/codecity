@@ -1,13 +1,6 @@
-/* ── SettingRow (layout B: stacked) ──
- * .setting-row is a vertical stack:
- *   .setting-row-main    — the <label>, covering only head + control (NOT the
- *                        description — a wrapping <label>'s text becomes the
- *                        control's accessible name, so the desc stays a sibling)
- *   .setting-row-head    — label (grows) + reset, and for inline kinds the control
- *   .setting-row-control — full-width control (stacked kinds) or inline (head row)
- *   .setting-row-desc    — optional one-line description, sibling of .setting-row-main
- * Labels get the full row width, so they never truncate; every stacked control
- * is full-width, so sliders line up. */
+/* A stacked row: label and reset, then the control, then the description. The
+ * description is a sibling of the label, or it would become part of the
+ * control's accessible name. Labels get the full width and never truncate. */
 .setting-row {
   display: flex;
   flex-direction: column;
@@ -51,10 +44,8 @@
   width: 100%;
 }
 
-/* Inline kinds (toggle, color, select): control sits on the head row, pinned
- * right before the reset icon; no full-width control follows. Shrinkable, since
- * a <select> is as wide as its longest option and would otherwise run over the
- * label rather than give ground. */
+/* Inline controls sit on the head row. Shrinkable, since a select is as wide as
+ * its longest option and would otherwise run over the label. */
 .setting-row--inline .setting-row-head > .setting-row-control {
   flex: 0 1 auto;
   min-width: 0;
