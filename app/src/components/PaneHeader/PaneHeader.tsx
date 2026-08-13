@@ -91,7 +91,7 @@ export function PaneHeader({
         {typeof onFocus === 'function' && (
           <button
             type="button"
-            class="btn-icon btn-icon--text"
+            class="btn-icon"
             title={focusTitle}
             aria-label={focusTitle}
             onClick={(e) => {
