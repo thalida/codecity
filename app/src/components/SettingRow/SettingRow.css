@@ -63,6 +63,6 @@
 
 .setting-row-desc {
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-2xs);
+  font-size: var(--cc-font-xs);
   line-height: var(--cc-lh-base);
 }

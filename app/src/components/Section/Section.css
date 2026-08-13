@@ -8,7 +8,7 @@
 
 .controls-section-hint {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   line-height: var(--cc-lh-base);
   margin-bottom: var(--cc-space-6);
   /* Align with the nested rows to the right of the guide. */

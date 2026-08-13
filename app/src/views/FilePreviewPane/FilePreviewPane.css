@@ -232,7 +232,7 @@
 
 .font-specimen-line {
   margin: var(--cc-space-0);
-  font-size: 28px;
+  font-size: var(--cc-font-2xl);
   line-height: var(--cc-lh-tight);
   word-break: break-word;
 }
@@ -259,7 +259,7 @@
   align-items: center;
   justify-content: center;
   height: 2rem;
-  font-size: 18px;
+  font-size: var(--cc-font-lg);
   line-height: 1;
   border-radius: var(--cc-radius-sm);
 }
