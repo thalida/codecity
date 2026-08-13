@@ -3,7 +3,7 @@
 // formatting rules serve both panes without either reaching for the picker.
 
 import type { FileNode, DirNode } from '@/types';
-import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
+import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
@@ -33,7 +33,7 @@ function countItem(
 /** Relative age with the exact date as its tooltip. */
 function ageItem(iso: string, label: string, now: number): PaneStatItem {
   return {
-    text: `${label} ${formatRelativeAgeShort(new Date(iso).getTime(), now)}`,
+    text: `${label} ${formatRelativeAgeShort(parseDateMs(iso), now)}`,
     title: `${label} ${formatShortDate(iso)}`,
   };
 }

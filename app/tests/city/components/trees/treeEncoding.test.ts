@@ -20,6 +20,7 @@ import type { TreesConfig } from '@/state/stores/settings/trees';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
+import { epochDay } from '@/utils/dates';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },
@@ -50,7 +51,8 @@ describe('computeAgeRange()', () => {
 
 describe('computeAgeRange() scanned', () => {
   // What "now" means to every commit. Newest commit in this fixture is 2026-01-21.
-  const day = (d: string) => Math.floor(Date.parse(d) / 86_400_000);
+  // Through the shared helper, so the expectation isn't the runner's timezone.
+  const day = (d: string) => epochDay(d);
 
   it('is the scan date', () => {
     expect(computeAgeRange(commitStats(commits), '2027-01-21').scanned).toBe(day('2027-01-21'));
@@ -70,10 +72,14 @@ describe('computeAgeRange() scanned', () => {
     expect(computeAgeRange(null, '2036-01-21').scanned).toBe(0);
   });
 
-  it('accepts an ISO datetime scanned_at (day precision)', () => {
-    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').scanned).toBe(
-      day('2027-01-21')
-    );
+  it('reduces a timestamped scanned_at to the whole day it falls on', () => {
+    // Not compared against a fixed day number: which calendar day an instant
+    // falls on is the reader's, and this is the same day everywhere.
+    const morning = computeAgeRange(commitStats(commits), '2027-01-21T09:00:00Z').scanned;
+    const later = computeAgeRange(commitStats(commits), '2027-01-21T09:30:00Z').scanned;
+    expect(Number.isInteger(morning)).toBe(true);
+    expect(later).toBe(morning);
+    expect(morning).toBeGreaterThan(day('2027-01-20'));
   });
 });
 

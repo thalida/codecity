@@ -17,6 +17,7 @@ import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { recencyT } from '@/city/utils/recency';
 import { NodeKind } from '@/types';
 import type { DateRanges } from '@/types';
+import { parseDateMs } from '@/utils/dates';
 
 // Structural shape matches what a real FileNode supplies but also
 // accommodates test mocks that omit unrelated fields. created/modified
@@ -101,9 +102,9 @@ function lerpRange(t: number, config: MinMaxRange): number {
 export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
   const created = file.created || null;
   if (!created) return 0.5; // unknown → midpoint (half-weathered)
-  const c = Date.parse(created);
-  const min = Date.parse(dateRanges.minCreated || '');
-  const max = Date.parse(dateRanges.maxCreated || '');
+  const c = parseDateMs(created);
+  const min = parseDateMs(dateRanges.minCreated || '');
+  const max = parseDateMs(dateRanges.maxCreated || '');
   if (isNaN(c) || isNaN(min) || isNaN(max) || max === min) return 0;
   const t = (c - min) / (max - min);
   return Math.max(0, Math.min(1, 1 - t));
@@ -135,7 +136,7 @@ export function getBuildingColor(file: FileLike, nowMs: number): string {
  * this existed". A long-lived file edited yesterday reads vivid AND grimy.
  */
 export function modifiedRecency(file: FileLike, nowMs: number): number {
-  return recencyT(Date.parse(file.modified || ''), nowMs, BUILDINGS.value.HALF_LIFE_DAYS);
+  return recencyT(parseDateMs(file.modified || ''), nowMs, BUILDINGS.value.HALF_LIFE_DAYS);
 }
 
 /**

@@ -8,6 +8,7 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../../_helpers/commits';
 import { renderTrees } from '../../../_helpers/renderTrees';
+import { epochDay, parseDateMs } from '@/utils/dates';
 
 function resetStores() {
   TREES.value = {
@@ -430,8 +431,9 @@ describe('createTreeRenderer()', () => {
         { date: '2024-06-01', files: 1 }
       );
       trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
-      // Epoch days, the same scale treeEncoding bakes against.
-      expect(scrubbed(trees)).toBe(Math.floor(Date.parse('2024-06-01') / 86_400_000));
+      // Local epoch days, the scale treeEncoding bakes against, through the
+      // shared helper so the expectation isn't the runner's timezone.
+      expect(scrubbed(trees)).toBe(epochDay('2024-06-01'));
     });
 
     it('moves the day to the scrubbed date and back', () => {
@@ -441,8 +443,8 @@ describe('createTreeRenderer()', () => {
       );
       trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
       const baked = scrubbed(trees);
-      trees.setScrubNow(Date.parse('2024-03-01'));
-      expect(scrubbed(trees)).toBeCloseTo(Date.parse('2024-03-01') / 86_400_000, 5);
+      trees.setScrubNow(parseDateMs('2024-03-01'));
+      expect(scrubbed(trees)).toBeCloseTo(epochDay('2024-03-01'), 5);
       trees.setScrubNow(null);
       expect(scrubbed(trees)).toBe(baked);
     });
@@ -461,7 +463,7 @@ describe('createTreeRenderer()', () => {
 
       // Tree 1 is the newer commit: day, orbit center, and the height the
       // vertices above were baked at.
-      expect(texel[4]).toBe(Math.floor(Date.parse('2024-06-01') / 86_400_000));
+      expect(texel[4]).toBe(epochDay('2024-06-01'));
       expect(texel[5]).toBe(40);
       expect(texel[6]).toBe(0);
       expect(texel[7]).toBeGreaterThan(0);
@@ -480,7 +482,7 @@ describe('createTreeRenderer()', () => {
       trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
 
       const atHead = trees.getTreeBoundsBySha(history[0].sha)!;
-      trees.setScrubNow(Date.parse('2023-08-01'));
+      trees.setScrubNow(parseDateMs('2023-08-01'));
       const young = trees.getTreeBoundsBySha(history[0].sha)!;
 
       expect(young.height).toBeLessThan(atHead.height);

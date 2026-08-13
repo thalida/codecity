@@ -1,4 +1,10 @@
-// utils/dates.ts — Date formatting helpers shared across the UI.
+// utils/dates.ts — every date the app reads or prints goes through here.
+//
+// One parse rule, `parseLocalDate`, behind all of it: a date is a moment in the
+// reader's timezone, and a day-precision string is that day where they are. Two
+// parse rules is how a commit made in the evening ends up labelled one day on
+// the axis and the next day under the handle. Nothing outside this module calls
+// Date.parse or new Date(string).
 //
 // All public functions take a string (typically ISO 8601 or YYYY-MM-DD)
 // and return display-ready text. They never throw — invalid input falls
@@ -47,6 +53,21 @@ export function parseLocalDate(input: string): Date | null {
  *  the two disagree by a timezone. */
 export function parseDateMs(input: string): number {
   return parseLocalDate(input)?.getTime() ?? NaN;
+}
+
+/** Days since the epoch of the LOCAL calendar day a moment falls on, as a
+ *  fraction through that day. The scene ages things in whole days, and those
+ *  days have to be the ones on the calendar the labels print, or a commit made
+ *  in the evening is a day older on screen than the date beside it. */
+export function epochDayAt(ms: number): number {
+  return (ms - new Date(ms).getTimezoneOffset() * MS_MINUTE) / MS_DAY;
+}
+
+/** `epochDayAt` for a date string, floored to the whole day. NaN when
+ *  unparseable, so callers can pick their own fallback. */
+export function epochDay(input: string): number {
+  const ms = parseDateMs(input);
+  return Number.isNaN(ms) ? NaN : Math.floor(epochDayAt(ms));
 }
 
 /** The calendar day (YYYY-MM-DD) a moment falls on, in the reader's timezone.
@@ -98,25 +119,15 @@ function pluralizeAgo(n: number, unit: string): string {
 
 /** Whole years/months/days from `from` to `to` (to >= from), calendar-accurate
  *  (real month lengths, not fixed 30/365-day buckets — so month gaps between two
- *  same-year dates aren't lost). `utc` picks UTC vs local component reads and MUST
- *  match how the two Dates were parsed, or the day arithmetic drifts by the tz. */
-function _calendarSpan(
-  from: Date,
-  to: Date,
-  utc: boolean
-): { years: number; months: number; days: number } {
-  const y = (d: Date) => (utc ? d.getUTCFullYear() : d.getFullYear());
-  const mo = (d: Date) => (utc ? d.getUTCMonth() : d.getMonth());
-  const dy = (d: Date) => (utc ? d.getUTCDate() : d.getDate());
-  let years = y(to) - y(from);
-  let months = mo(to) - mo(from);
-  let days = dy(to) - dy(from);
+ *  same-year dates aren't lost). Local components throughout, matching the one
+ *  parse both dates came through. */
+function _calendarSpan(from: Date, to: Date): { years: number; months: number; days: number } {
+  let years = to.getFullYear() - from.getFullYear();
+  let months = to.getMonth() - from.getMonth();
+  let days = to.getDate() - from.getDate();
   if (days < 0) {
     // Borrow days from the month before `to` (day 0 = last day of prev month).
-    const prevMonthDays = utc
-      ? new Date(Date.UTC(y(to), mo(to), 0)).getUTCDate()
-      : new Date(y(to), mo(to), 0).getDate();
-    days += prevMonthDays;
+    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
     months -= 1;
   }
   if (months < 0) {
@@ -145,18 +156,17 @@ function _joinSpan(span: { years: number; months: number; days: number }, max: n
 /** Format a date string as an English relative-age. Under a day it's a single
  *  coarse unit ("just now", "5 minutes ago", "3 hours ago"); a day or more is
  *  calendar-accurate to two units ("2 years 4 months ago", "5 months 12 days
- *  ago", "3 days ago"). YYYY-MM-DD is treated as UTC midnight so the result is
- *  timezone-deterministic. */
+ *  ago", "3 days ago"). */
 export function formatRelativeAge(dateStr: string, now: Date = new Date()): string {
-  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00Z` : dateStr;
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return dateStr;
+  const then = parseLocalDate(dateStr);
+  if (!then) return dateStr;
   const diff = now.getTime() - then.getTime();
   if (diff < MS_MINUTE) return 'just now';
   if (diff < MS_HOUR) return pluralizeAgo(Math.floor(diff / MS_MINUTE), 'minute');
   if (diff < MS_DAY) return pluralizeAgo(Math.floor(diff / MS_HOUR), 'hour');
-  // A day or more: calendar-accurate, up to two units.
-  return `${_joinSpan(_calendarSpan(then, now, true), 2) || '1 day'} ago`;
+  // A day or more: calendar-accurate, up to two units. Local components, since
+  // parseLocalDate built a local date.
+  return `${_joinSpan(_calendarSpan(then, now), 2) || '1 day'} ago`;
 }
 
 /** Compact relative-time formatter ("3d ago", "5m ago", "just now"). Takes
@@ -182,6 +192,5 @@ export function humanSpan(fromISO: string, toISO: string): string {
   const b = parseLocalDate(toISO);
   if (!a || !b) return '';
   const [from, to] = a.getTime() <= b.getTime() ? [a, b] : [b, a];
-  // parseLocalDate builds LOCAL-midnight dates, so read local components.
-  return _joinSpan(_calendarSpan(from, to, false), 2) || '1 day';
+  return _joinSpan(_calendarSpan(from, to), 2) || '1 day';
 }

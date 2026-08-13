@@ -20,7 +20,6 @@ import {
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
-const DAY_MS = 86_400_000;
 import { TREES_PER_CHUNK } from '@/city/utils/instanceChunkSize';
 import { BYTE_MAX, VEC3_COMPONENTS, VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
@@ -28,6 +27,7 @@ import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
+import { epochDay, epochDayAt } from '@/utils/dates';
 
 export interface Trees {
   group: THREE.Group;
@@ -385,8 +385,8 @@ export function createTreeRenderer(
     // -1 marks a placement with no commit behind it: treeHeight gave it the
     // midpoint, so there is no age for the shader to scrub through. An
     // unreadable date falls to day 0, matching dateToDays.
-    const commitMs = commit ? Date.parse(commit.date) : NaN;
-    growthData[o] = !commit ? -1 : Number.isNaN(commitMs) ? 0 : Math.floor(commitMs / DAY_MS);
+    const day = commit ? epochDay(commit.date) : NaN;
+    growthData[o] = !commit ? -1 : Number.isNaN(day) ? 0 : day;
     growthData[o + 1] = placements[i].x;
     growthData[o + 2] = placements[i].y;
     growthData[o + 3] = heights[i];
@@ -527,7 +527,7 @@ export function createTreeRenderer(
   /** The day the scrub sits on, so every tree is the size it was then. Null
    *  (Live) restores the scan date, where the ratio is 1. */
   function setScrubNow(nowMs: number | null): void {
-    const day = nowMs === null ? ageRange.scanned : nowMs / DAY_MS;
+    const day = nowMs === null ? ageRange.scanned : epochDayAt(nowMs);
     if (day === mergedMaterial.uniforms.uNowDay.value) return;
     _scrubDay = nowMs === null ? null : day;
     mergedMaterial.uniforms.uNowDay.value = day;

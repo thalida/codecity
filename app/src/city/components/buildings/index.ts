@@ -49,6 +49,7 @@ import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 import { createBuildingScrubApply } from './scrubApply';
 import type { BuildingScrubState } from './scrubState';
+import { parseDateMs } from '@/utils/dates';
 
 /** The enter/stay diff rebuild() computes internally (against the prior cells)
  *  and feeds straight to the tween queue. Only entering/staying matter to the
@@ -396,7 +397,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const buildings = layout?.buildings ?? [];
     // Colour and weathering measure against the scan, not a live clock, so a
     // rebuild is deterministic and the goldens hold.
-    const nowMs = Date.parse(scannedAt ?? '') || Date.now();
+    const nowMs = parseDateMs(scannedAt ?? '') || Date.now();
 
     // ---- Color the buildings. ----
     for (const b of buildings) {

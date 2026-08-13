@@ -19,6 +19,7 @@
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import type { TreesConfig } from '@/state/stores/settings/trees';
 import { recencyT } from '@/city/utils/recency';
+import { epochDay } from '@/utils/dates';
 
 export interface AgeRange {
   /** Epoch days of the oldest commit. */
@@ -43,7 +44,7 @@ export interface SizeRange {
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-// Memoized by date string. Date.parse is the hot cost in the decoration pass —
+// Memoized by date string. Parsing is the hot cost in the decoration pass —
 // ageT/treeHeight/treeRadius re-parse a commit's date several times per tree
 // (and again per firefly orb), but only ~one distinct date per day exists.
 const _daysCache = new Map<string, number>();
@@ -55,8 +56,8 @@ const _DAYS_CACHE_MAX = 1 << 16;
 function dateToDays(date: string): number {
   const cached = _daysCache.get(date);
   if (cached !== undefined) return cached;
-  const ms = Date.parse(date);
-  const days = Number.isNaN(ms) ? 0 : Math.floor(ms / MS_PER_DAY);
+  const day = epochDay(date);
+  const days = Number.isNaN(day) ? 0 : day;
   if (_daysCache.size >= _DAYS_CACHE_MAX) _daysCache.clear();
   _daysCache.set(date, days);
   return days;
@@ -73,7 +74,7 @@ function clamp01(t: number): number {
  *  All zeroes when stats are absent or the repo has no commits (commitDates
  *  null) — collapses ageT to the 0.5 midpoint.
  *
- *  `scannedAt` is the manifest's `scanned_at` (any Date.parse-able string; day
+ *  `scannedAt` is the manifest's `scanned_at` (any parseable date string; day
  *  precision). Omitting it treats the newest commit as now, so a missing scan
  *  date can't make the forest look abandoned. */
 export function computeAgeRange(

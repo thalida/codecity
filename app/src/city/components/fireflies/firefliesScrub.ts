@@ -17,9 +17,8 @@ import {
   treeRadius,
   type AgeRange,
 } from '@/city/components/trees/treeEncoding';
+import { epochDayAt } from '@/utils/dates';
 import { scaleByAuthor, type FireflyPlacement } from './firefliesPlacement';
-
-const DAY_MS = 86_400_000;
 
 export interface FirefliesScrub {
   /** The last commit in effect, and the date the scrub sits on. Either null
@@ -76,7 +75,7 @@ export function createFirefliesScrub(
     apply(maxCommitIndex: number | null, nowMs: number | null): boolean {
       if (maxCommitIndex === null || nowMs === null) return restore();
 
-      const day = nowMs / DAY_MS;
+      const day = epochDayAt(nowMs);
       if (maxCommitIndex === _appliedCommit && day === _appliedDay) return false;
       _appliedCommit = maxCommitIndex;
       _appliedDay = day;

@@ -236,7 +236,10 @@ export function genCommits(n: number, rng: () => number): CommitEntry[] {
   const base = Date.UTC(2016, 2, 1);
   for (let i = 0; i < n; i++) {
     const day = Math.floor((i / n) * 2000) + Math.floor(rng() * 4);
-    const date = new Date(base + day * 86400000).toISOString().slice(0, 10);
+    // Full timestamps, like the scanner emits: a day-precision string parses
+    // against the reader's timezone, which would make this golden machine-
+    // dependent for anyone east of UTC.
+    const date = new Date(base + day * 86400000).toISOString();
     const a = AUTHORS[i % AUTHORS.length];
     const authors = i % 5 === 0 ? [a, AUTHORS[(i + 2) % AUTHORS.length]] : [a];
     out.push({

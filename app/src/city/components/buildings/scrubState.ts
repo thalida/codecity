@@ -19,6 +19,7 @@ import { recencyT } from '@/city/utils/recency';
 import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
+import { parseDateMs } from '@/utils/dates';
 
 /** PathState read through the ruin settings.
  *  Absent is still driven every frame, or a Live fade sweep lingers on it. */
@@ -96,7 +97,7 @@ function laneAt(input: BuildingScrubInput, f: ScrubFrame): BuildingLane {
 function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly number[]): number {
   const lmIdx = lastModifiedIndexAt(input.pt, pos);
   if (lmIdx >= input.finalIdx) {
-    const full = Date.parse(input.b.file?.modified ?? '');
+    const full = parseDateMs(input.b.file?.modified ?? '');
     if (!Number.isNaN(full)) return full;
   }
   return commitMs[lmIdx] ?? 0;
@@ -104,7 +105,7 @@ function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly
 
 /** A fixed event, so the file's own date wins; genesis is the fallback. */
 function createdMsFor(input: BuildingScrubInput, commitMs: readonly number[]): number {
-  const full = Date.parse(input.b.file?.created ?? '');
+  const full = parseDateMs(input.b.file?.created ?? '');
   return Number.isNaN(full) ? (commitMs[input.createdIdx] ?? 0) : full;
 }
 

@@ -11,6 +11,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
+import { parseDateMs } from '@/utils/dates';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
  *  this and nothing more. */
@@ -46,9 +47,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // Fixed for the life of the controller; readScrubFrame owns everything that
   // varies per frame.
   const bundle = TIMELINE_BUNDLE.peek();
-  const commitMs = (bundle?.commits ?? []).map((c) => Date.parse(c.date) || 0);
+  const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
-  const scannedAtMs = Date.parse(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
+  const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -68,7 +69,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
       picker: deps.picker,
     });
 
-    const gatePos = Math.floor(frame.pos);
+    // Capped at the last commit: the today stop past it shows the same commits.
+    const gatePos = Math.min(Math.floor(frame.pos), Math.max(0, commitMs.length - 1));
     for (const gate of deps.scrubGates) {
       gate.setScrubCommit(gatePos);
       gate.setScrubNow?.(frame.nowMs);
