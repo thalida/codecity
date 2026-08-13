@@ -142,11 +142,24 @@ describe('what now means mid-scrub', () => {
     expect(at(2).nowMs).toBe(SCANNED_AT);
   });
 
-  it('is the commit under the scrubber before that', () => {
+  it('is the commit under the scrubber when parked on one', () => {
     // Otherwise a repo scrubbed to its first commit paints brand-new files as
     // years old, measured against a date that has not happened yet there.
     expect(at(0).nowMs).toBe(COMMIT_MS[0]);
-    expect(at(1.9).nowMs).toBe(COMMIT_MS[1]);
+    expect(at(1).nowMs).toBe(COMMIT_MS[1]);
+  });
+
+  // Held at the commit, a quiet stretch aged nothing until the next commit
+  // arrived and then aged everything at once. This is the date the timeline bar
+  // prints, so the city and the readout agree.
+  it('follows the handle between commits, so the city ages as you drag', () => {
+    const half = at(0.5).nowMs;
+    expect(half).toBeGreaterThan(COMMIT_MS[0]);
+    expect(half).toBeLessThan(COMMIT_MS[1]);
+    expect(half).toBe(COMMIT_MS[0] + (COMMIT_MS[1] - COMMIT_MS[0]) * 0.5);
+    // Monotonic across the whole segment, not just at the midpoint.
+    expect(at(0.25).nowMs).toBeLessThan(half);
+    expect(at(0.75).nowMs).toBeGreaterThan(half);
   });
 });
 

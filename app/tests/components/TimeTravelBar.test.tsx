@@ -179,6 +179,17 @@ describe('TimeTravelBar', () => {
     expect(container.querySelector('.time-travel-subject')!.textContent).toBe('oldest');
   });
 
+  // The date follows the handle rather than snapping to the nearest commit, so
+  // dragging through a quiet stretch reads as days passing.
+  it('shows the day the handle sits on, even alongside a commit', async () => {
+    setScrubPos(0.5); // midway between Jan 1 and Feb 1
+    render(<TimeTravelBar />, container);
+    await flush();
+    const shown = container.querySelector('.time-travel-date')!.textContent;
+    expect(shown).not.toBe('Jan 1, 2026');
+    expect(shown).toMatch(/Jan 1[5-9], 2026|Jan 2\d, 2026/);
+  });
+
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
     setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
     render(<TimeTravelBar />, container);

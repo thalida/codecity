@@ -67,12 +67,24 @@ export interface ScrubFrameDeps {
 const _futureColor = new THREE.Color();
 
 /** At HEAD the city IS the working tree, so "now" is the scan date and colour
- *  matches Live. Earlier, it is the commit you are standing on, or a repo
- *  scrubbed to its first commit would paint brand-new files as ancient. */
+ *  matches Live. Earlier, it is the date the handle sits on: the commit you're
+ *  standing on, plus however far you've dragged toward the next one.
+ *
+ *  Interpolated rather than snapped to the commit, so a long quiet stretch
+ *  actually reads as time passing. Held at the commit, nothing aged until the
+ *  next one arrived and then everything aged at once. The handle's date is what
+ *  the timeline bar prints, so the city and the readout agree.
+ *
+ *  Not measured past the commit you're standing on: a repo scrubbed to its
+ *  first commit would paint brand-new files as ancient against a date that
+ *  hasn't happened there yet. */
 function scrubNow(pos: number, deps: ScrubFrameDeps): number {
+  const last = deps.commitMs.length - 1;
   const i = Math.floor(pos);
-  if (i >= deps.commitMs.length - 1) return deps.scannedAtMs;
-  return deps.commitMs[i] ?? deps.scannedAtMs;
+  if (i >= last) return deps.scannedAtMs;
+  const from = deps.commitMs[i] ?? deps.scannedAtMs;
+  const to = deps.commitMs[i + 1] ?? deps.scannedAtMs;
+  return from + (to - from) * (pos - i);
 }
 
 export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {

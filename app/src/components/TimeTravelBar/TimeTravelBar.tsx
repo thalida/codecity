@@ -112,7 +112,9 @@ export function TimeTravelBar() {
   const nearestIdx = Math.min(Math.round(pos), maxIndex);
   const handleMs = indexToMs(scale, pos);
   const inGap = Math.abs(handleMs - scale.ms[nearestIdx]) > 4 * 86_400_000;
-  const gapDay = new Date(handleMs).toISOString().slice(0, 10);
+  // The calendar day the handle sits on, interpolated between the commits it
+  // falls between. Shown always, not just in a lull: it's where you are.
+  const handleDay = new Date(handleMs).toISOString().slice(0, 10);
 
   const setFromClientX = (clientX: number) => {
     const el = trackRef.current;
@@ -176,7 +178,7 @@ export function TimeTravelBar() {
           aria-valuenow={Math.round(pos)}
           aria-valuetext={
             inGap
-              ? `${formatShortDate(gapDay)}, no commits`
+              ? `${formatShortDate(handleDay)}, no commits`
               : `${formatShortDate(commit.date)}, commit ${commit.sha.slice(0, 7)}`
           }
           onPointerDown={onPointerDown}
@@ -197,7 +199,10 @@ export function TimeTravelBar() {
         >
           {formatShortDate(commits[0].date)}
         </button>
-        <span class="time-travel-date">{formatShortDate(inGap ? gapDay : commit.date)}</span>
+        {/* The day the handle is on, always: showing the commit's own date
+            instead held it still until the handle was days clear of a commit,
+            then jumped. The commit in effect on that day reads below. */}
+        <span class="time-travel-date">{formatShortDate(handleDay)}</span>
         <button
           type="button"
           class="time-travel-edge"
