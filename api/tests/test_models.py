@@ -145,6 +145,8 @@ class ModelTests(unittest.TestCase):
                 "maxDepthDir": None,
                 "maxChildrenDir": None,
                 "minChildrenDir": None,
+                "oldestCreatedDir": None,
+                "newestCreatedDir": None,
                 "maxFilesPerCommit": None,
                 "minFilesPerCommit": None,
                 "commitCount": 0,

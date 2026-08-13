@@ -172,6 +172,10 @@ class DirLeader(BaseModel):
     depth: int
     children: int
     descendants: int
+    # A directory has no timestamps of its own, so it takes its subtree's:
+    # the oldest file created under it, and the newest change anywhere in it.
+    created: Optional[str]
+    modified: Optional[str]
 
 
 class CommitLeader(BaseModel):
@@ -228,6 +232,8 @@ class RepoStats(BaseModel):
     maxDepthDir: Optional[DirLeader]
     maxChildrenDir: Optional[DirLeader]
     minChildrenDir: Optional[DirLeader]
+    oldestCreatedDir: Optional[DirLeader]
+    newestCreatedDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]
     minFilesPerCommit: Optional[CommitLeader]
     commitCount: int = Field(

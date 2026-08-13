@@ -445,6 +445,23 @@ function streetsSection(m: Manifest): AlmanacSection {
   const childCount = (l: DirLeader) =>
     `${formatCount(l.children)} ${l.children === 1 ? 'child' : 'children'}`;
   const facts = compact([
+    // Age first, matching the buildings section: a street's dates are its
+    // subtree's, so these name the street that holds the oldest or newest file
+    // rather than every parent above it.
+    dirFact({
+      group: 'Age',
+      label: 'Oldest',
+      leader: s.oldestCreatedDir,
+      secondary: (l) => (l.created ? formatShortDate(l.created) : ''),
+      tip: 'Street holding the oldest file in the project.',
+    }),
+    dirFact({
+      group: 'Age',
+      label: 'Newest',
+      leader: s.newestCreatedDir,
+      secondary: (l) => (l.created ? formatShortDate(l.created) : ''),
+      tip: 'Street whose oldest file is the most recent: the newest part of town.',
+    }),
     dirFact({
       group: 'Depth',
       label: 'Deepest',

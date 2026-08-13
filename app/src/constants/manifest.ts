@@ -38,6 +38,8 @@ export const EMPTY_REPO_STATS: RepoStats = {
   maxDepthDir: null,
   maxChildrenDir: null,
   minChildrenDir: null,
+  oldestCreatedDir: null,
+  newestCreatedDir: null,
   maxFilesPerCommit: null,
   minFilesPerCommit: null,
   commitCount: 0,

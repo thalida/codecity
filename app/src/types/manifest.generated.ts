@@ -382,6 +382,10 @@ export interface components {
       children: number;
       /** Descendants */
       descendants: number;
+      /** Created */
+      created: string | null;
+      /** Modified */
+      modified: string | null;
     };
     /** DirNode */
     DirNode: {
@@ -673,6 +677,8 @@ export interface components {
       maxDepthDir: components['schemas']['DirLeader'] | null;
       maxChildrenDir: components['schemas']['DirLeader'] | null;
       minChildrenDir: components['schemas']['DirLeader'] | null;
+      oldestCreatedDir: components['schemas']['DirLeader'] | null;
+      newestCreatedDir: components['schemas']['DirLeader'] | null;
       maxFilesPerCommit: components['schemas']['CommitLeader'] | null;
       minFilesPerCommit: components['schemas']['CommitLeader'] | null;
       /**

@@ -333,12 +333,30 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   //          children); minChildrenDir = src/a/b (1 direct child)
   // Forest: maxFilesPerCommit = bbb (40 files), minFilesPerCommit = ccc (1 file)
   //         maxCommitsPerDay = 2022-01-02 (3 commits), maxCommitStreakDays = 3
+  const DIR_LEADER_DEEP = {
+    path: 'src/a/b',
+    depth: 3,
+    children: 1,
+    descendants: 1,
+    created: '2020-01-01T00:00:00Z',
+    modified: '2020-02-02T00:00:00Z',
+  };
   // Fireflies: Ada (3 commits), Bo (2 commits)
   const sfStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    maxDepthDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
-    maxChildrenDir: { path: 'src', depth: 1, children: 6, descendants: 12 },
-    minChildrenDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
+    maxDepthDir: DIR_LEADER_DEEP,
+    maxChildrenDir: { ...DIR_LEADER_DEEP, path: 'src', depth: 1, children: 6, descendants: 12 },
+    minChildrenDir: DIR_LEADER_DEEP,
+    oldestCreatedDir: {
+      ...DIR_LEADER_DEEP,
+      path: 'src/old',
+      created: '2019-03-04T00:00:00Z',
+    },
+    newestCreatedDir: {
+      ...DIR_LEADER_DEEP,
+      path: 'src/new',
+      created: '2024-08-09T00:00:00Z',
+    },
     maxFilesPerCommit: { sha: 'bbb', files: 40 },
     minFilesPerCommit: { sha: 'ccc', files: 1 },
     commitCount: 4,
@@ -383,6 +401,20 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     expect(f.landmark).toBeUndefined();
     expect(f.secondary).toContain('3');
   });
+  // A street's dates come from its subtree, so the leader is the street that
+  // holds the file, not each parent that contains it (stats.py breaks the tie).
+  it('names the oldest and newest streets with their dates', () => {
+    expect(fact('streets', 'Oldest').primary).toBe('src/old');
+    expect(fact('streets', 'Oldest').secondary).toContain('2019');
+    expect(fact('streets', 'Newest').primary).toBe('src/new');
+    expect(fact('streets', 'Newest').secondary).toContain('2024');
+  });
+  it('drops the street age rows when the scan has no dated directories', () => {
+    const b = computeAlmanac(manifest(tree, { commits, stats: EMPTY_REPO_STATS }))!;
+    const streets = b.sections.find((s) => s.key === 'streets')!;
+    expect(streets.facts.some((f) => f.label === 'Oldest')).toBe(false);
+  });
+
   it('longest streak counts consecutive days', () => {
     expect(fact('forest', 'Streak').primary).toContain('3');
   });

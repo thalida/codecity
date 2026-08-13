@@ -199,6 +199,8 @@ class DirLeader(TypedDict):
     depth: int
     children: int
     descendants: int
+    created: Optional[str]
+    modified: Optional[str]
 
 
 class CommitLeader(TypedDict):
