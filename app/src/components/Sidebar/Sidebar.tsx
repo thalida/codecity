@@ -21,8 +21,8 @@ function _measureWidth(side: SidebarSide, e: PointerEvent): number {
 }
 
 // Both sidebars drive a `--sidebar-width` CSS var; CSS owns the actual `width`
-// (`width: var(--sidebar-width, <default>)`), so the handle never fights inline
-// styles or the open/close transition.
+// (`width: var(--sidebar-width, <default>)`), so a drag never fights the width
+// the open/collapsed rules resolve.
 function _applyWidth(el: HTMLElement, w: number): void {
   el.style.setProperty('--sidebar-width', `${w}px`);
 }

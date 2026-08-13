@@ -3,14 +3,14 @@
 #right-sidebar {
   position: relative;
   flex: 0 0 auto;
-  /* Closed by default — width 0, animates open via the .open rule below.
-     The dragged width lives on a CSS variable so the resize handle can
-     mutate it without fighting the open/close transitions. */
+  /* Closed by default — width 0, opened by the .open rule below. The dragged
+     width lives on a CSS variable so the resize handle can mutate it without
+     the rules here restating a width. Open and close are instant: the panel
+     shares the row with the canvas, so a width transition would reflow and
+     re-raster the renderer on every frame of it. */
   width: 0;
   height: 100%;
   border-left: 1px solid var(--cc-border-subtle);
-  /* No transition during drag (would lag the cursor); transition is added
-     by .is-animating which we toggle around open/close. */
   display: flex;
   flex-direction: column;
   overflow: hidden;

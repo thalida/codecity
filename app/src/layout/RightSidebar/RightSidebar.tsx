@@ -1,7 +1,7 @@
 // layout/RightSidebar.tsx — Right-side panel chrome + pane router.
 //
 // Owns:
-//   - the .open class that drives the open/close transition
+//   - the .open class that gives the panel its width
 //   - the drag-to-resize handle on the inside (left) edge
 //   - choosing which of three panes to mount based on picker selection:
 //       file → FilePreviewPane
