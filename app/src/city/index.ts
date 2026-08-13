@@ -240,7 +240,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
             setScrubCommit: (i) => trees.setScrubCommit(i),
             setScrubNow: (ms) => trees.setScrubNow(ms),
           },
-          { setScrubCommit: (i) => fireflies.setScrubCommit(i) },
+          {
+            setScrubCommit: (i) => fireflies.setScrubCommit(i),
+            setScrubNow: (ms) => fireflies.setScrubNow(ms),
+          },
         ],
       });
       buildings.setScrubController(_scrubController);

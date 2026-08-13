@@ -20,6 +20,9 @@ function makePlacement(commitIndex: number): FireflyPlacement {
     rgb: [1, 1, 1],
     lightRgb: [0.5, 0.5, 0.5],
     scale: 1,
+    author: `Author ${commitIndex}`,
+    heightFrac: 0.5,
+    orbitRadiusFrac: 1.2,
     commitIndex,
   };
 }

@@ -46,6 +46,13 @@ export interface FireflyPlacement {
   lightRgb: readonly [number, number, number];
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
+  /** The author this orb belongs to, so a scrub can re-rank it on the commits
+   *  made by that date rather than the whole history's. */
+  author: string;
+  /** `height` and `orbitRadius` as fractions of the tree's canopy height and
+   *  radius, so a scrub can re-derive both against a tree that has grown. */
+  heightFrac: number;
+  orbitRadiusFrac: number;
   /** Index of the commit (in manifest.commits) this orb belongs to. */
   commitIndex: number;
 }
@@ -73,6 +80,34 @@ function seededRng(seed: string): () => number {
  *  bites pathological co-authorship on already-capped forests. */
 const MAX_FIREFLY_ORBS = 200_000;
 
+/** Rank authors by commit count into [SCALE_MIN..SCALE_MAX].
+ *
+ *  Shared with the timeline, which re-ranks on the commits made so far, so an
+ *  orb's size always says the same thing: how much of the work on screen is
+ *  this author's. Every author tied (most commonly: a lone author) is no
+ *  ranking at all, so everyone takes SCALE_MAX — the top of a distribution
+ *  of one. */
+export function scaleByAuthor(
+  counts: Iterable<readonly [string, number]>,
+  cfg: { SCALE_MIN: number; SCALE_MAX: number }
+): Map<string, number> {
+  const entries = [...counts];
+  const out = new Map<string, number>();
+  if (entries.length === 0) return out;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const [, n] of entries) {
+    if (n < min) min = n;
+    if (n > max) max = n;
+  }
+  const range = max - min;
+  for (const [name, n] of entries) {
+    const t = range === 0 ? 1 : (n - min) / range;
+    out.set(name, cfg.SCALE_MIN + t * (cfg.SCALE_MAX - cfg.SCALE_MIN));
+  }
+  return out;
+}
+
 export function placeFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
@@ -88,31 +123,13 @@ export function placeFireflies(
   // scanner does). The list is sorted by count desc, so [0] is the max and the
   // last entry the min.
   const authors = stats?.authors ?? [];
-  const maxCount = authors.length ? authors[0].commits : 0;
-  const minCount = authors.length ? authors[authors.length - 1].commits : 0;
-  const authorScale = new Map<string, number>();
+  const authorScale = scaleByAuthor(
+    authors.map((a) => [a.name, a.commits] as const),
+    fireflyConfig
+  );
   // Hue is backend-resolved (AuthorStat.hue) so the orb and the commit pane's
   // dot can't drift apart.
   const hueByAuthor = new Map(authors.map((a) => [a.name, a.hue]));
-  // Degenerate case: every author has the same count (most commonly: only
-  // one author, or all authors tied). There's no meaningful ranking, so
-  // everyone gets SCALE_MAX — the lone/tied contributor is the "top" of
-  // a distribution of one. Otherwise, lerp [minCount..maxCount] →
-  // [SCALE_MIN..SCALE_MAX].
-  if (maxCount === minCount) {
-    for (const a of authors) {
-      authorScale.set(a.name, fireflyConfig.SCALE_MAX);
-    }
-  } else {
-    const range = maxCount - minCount;
-    for (const a of authors) {
-      const t = (a.commits - minCount) / range;
-      authorScale.set(
-        a.name,
-        fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN)
-      );
-    }
-  }
 
   const cfg = TREES.value;
 
@@ -146,16 +163,19 @@ export function placeFireflies(
       const lightColor = lightColorForAuthor(authorHue);
       const orbitStartAngle = rng() * Math.PI * 2;
       // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
-      const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);
-      const orbHeight = rng() * (height * 1.3);
+      const orbitRadiusFrac = 1.05 + rng() * 0.35;
+      const heightFrac = rng() * 1.3;
       const phase = rng() * Math.PI * 2;
       const orbitTilt = (rng() - 0.5) * (Math.PI / 3);
       const pulsePhase = pulseRng() * Math.PI * 2;
       out.push({
         treeX: p.x,
         treeZ: p.y,
-        height: orbHeight,
-        orbitRadius,
+        height: heightFrac * height,
+        orbitRadius: orbitRadiusFrac * canopyRadius,
+        author,
+        heightFrac,
+        orbitRadiusFrac,
         orbitStartAngle,
         orbitTilt,
         phase,
