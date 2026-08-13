@@ -90,7 +90,7 @@ const ISLAND_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Grass texture',
-    tip: 'How much the grass varies in lightness patch to patch. The top of the island is flat, so it otherwise shades to one constant colour, and an unvarying field reads as a backdrop rather than as ground running away from you. 0 is flat.',
+    tip: 'How much the grass varies in lightness, patch to patch. 0 is flat.',
   },
   GRASS_PATCH_SIZE: {
     route: ChangeRoute.Refresh,
@@ -100,7 +100,7 @@ const ISLAND_FIELDS = {
     max: 600,
     step: 10,
     label: 'Grass patch size',
-    tip: 'World units across one patch of grass. Smaller patches compress harder with distance, which is what tells the eye the ground is a plane; too small and it dissolves into noise.',
+    tip: 'World units across one patch of grass. Smaller reads as finer ground detail.',
   },
   ROCK_TEXTURE: {
     route: ChangeRoute.Refresh,
@@ -110,7 +110,7 @@ const ISLAND_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Rock texture',
-    tip: 'How much the rock body varies in lightness patch to patch, on top of its faceted shading. 0 is flat.',
+    tip: 'How much the rock varies in lightness, patch to patch. 0 is flat.',
   },
   ROCK_PATCH_SIZE: {
     route: ChangeRoute.Refresh,
@@ -120,7 +120,7 @@ const ISLAND_FIELDS = {
     max: 1200,
     step: 10,
     label: 'Rock patch size',
-    tip: 'World units across one patch of rock. Larger than the grass by default: the cliff reads as broad strata rather than the fine mottling that gives the ground its distance cue.',
+    tip: 'World units across one patch of rock. Larger than the grass reads as strata.',
   },
   GRASS_COLOR: {
     route: ChangeRoute.Refresh,
