@@ -85,7 +85,7 @@ const ISLAND_FIELDS = {
   GRASS_TEXTURE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.18,
+    default: 0.1,
     min: 0,
     max: 1,
     step: 0.01,
@@ -95,7 +95,7 @@ const ISLAND_FIELDS = {
   GRASS_PATCH_SIZE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Number,
-    default: 90,
+    default: 256,
     min: 10,
     max: 600,
     step: 10,
@@ -105,7 +105,7 @@ const ISLAND_FIELDS = {
   ROCK_TEXTURE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.12,
+    default: 0.1,
     min: 0,
     max: 1,
     step: 0.01,
@@ -115,7 +115,7 @@ const ISLAND_FIELDS = {
   ROCK_PATCH_SIZE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Number,
-    default: 220,
+    default: 512,
     min: 10,
     max: 1200,
     step: 10,
