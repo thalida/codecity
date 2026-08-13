@@ -168,6 +168,17 @@ describe('TimeTravelBar', () => {
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
   });
 
+  // The scene draws trees up to floor(pos), so naming round(pos) would put a
+  // commit on the bar whose tree isn't there — and the sha chip would then
+  // select it, leaving an outline around nothing.
+  it('names the commit the scene has drawn, not the one it is heading toward', async () => {
+    setScrubPos(0.9);
+    render(<TimeTravelBar />, container);
+    await flush();
+    expect(container.querySelector('.time-travel-sha')!.textContent).toBe(old.sha.slice(0, 7));
+    expect(container.querySelector('.time-travel-subject')!.textContent).toBe('oldest');
+  });
+
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
     setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
     render(<TimeTravelBar />, container);

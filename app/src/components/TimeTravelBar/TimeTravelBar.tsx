@@ -102,7 +102,10 @@ export function TimeTravelBar() {
   // deps while it rendered nothing.
   if (!mounted) return null;
 
-  const commit = commits[Math.min(Math.round(pos), maxIndex)];
+  // floor, not round: the scene gates trees and fireflies at floor(pos)
+  // (scrubController), so rounding up names a commit whose tree hasn't been
+  // drawn. Selecting one of those left an outline around nothing.
+  const commit = commits[Math.min(Math.floor(pos), maxIndex)];
   const pct = indexToFraction(scale, pos) * 100;
 
   // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
