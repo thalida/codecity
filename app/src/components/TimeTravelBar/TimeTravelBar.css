@@ -130,6 +130,8 @@ a.time-travel-sha:hover {
 }
 
 .time-travel-nocommit {
-  color: var(--cc-text-muted);
+  /* Secondary like the label above it: muted only clears 4.5:1 against the
+     sidebar surface, and this bar is glass over the scene. */
+  color: var(--cc-text-secondary);
   font-style: italic;
 }
