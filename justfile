@@ -30,15 +30,29 @@ url:
      SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      echo "http://$SLUG.localhost:$PORT/"
 
-# Expose this worktree's dev server at a STABLE public URL for phone testing:
-# https://<branch-slug>.tunl.sh, via the self-hosted sish tunnel (plain ssh —
-# your agent must hold the authorized key). Same SLUG + port `just dev` binds,
-# so the URL is fixed per branch across restarts. Run alongside `just dev`;
-# Ctrl-C closes the tunnel.
-tunl:
-    @PORT=$(python3 bin/pick-port.py vite) ; \
+# Serve this worktree at a STABLE public URL for phone testing:
+# https://codecity-<branch-slug>.tunl.sh, fixed per branch across restarts.
+# Starts `just run` itself (reusing it if that port is already serving) and
+# opens the self-hosted sish tunnel; Ctrl-C stops both. Takes the same
+# `-v` / `-e` flags as `run`, and needs your ssh agent to hold the key.
+#
+# `run`, not `dev`: sish carries every request over one SSH connection, and
+# dev's 169 separately-served icon SVGs never all arrive, so the page hangs
+# mid-boot. The built app bundles them. For HMR on a phone, use the LAN URL
+# (host IP + the `just url` port) instead.
+tunl *args='':
+    @set -e ; \
+     PORT=$(python3 bin/pick-port.py run) ; \
      SLUG=codecity-$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
-     echo "[codecity-tunl] https://$SLUG.tunl.sh/" ; \
+     if curl -sf -o /dev/null --max-time 2 http://localhost:$PORT/ ; then \
+         echo "[codecity-tunl] reusing the app already serving on :$PORT" ; \
+     else \
+         echo "[codecity-tunl] building + starting the app (first build takes a few minutes)" ; \
+         trap 'kill 0' EXIT INT TERM ; \
+         just run {{args}} & \
+         until curl -sf -o /dev/null --max-time 2 http://localhost:$PORT/ ; do sleep 2 ; done ; \
+     fi ; \
+     echo "[codecity-tunl] https://$SLUG.tunl.sh/ -> localhost:$PORT" ; \
      ssh -p 2222 -R $SLUG:80:localhost:$PORT tunl.sh
 
 # Prod-like local run: one container, mirrors the README Quick Start.
