@@ -109,6 +109,9 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-7);
+  /* It's a home link now: keep the wordmark looking like a wordmark. */
+  text-decoration: none;
+  color: inherit;
 }
 
 /* Brand row and the meta line as one block, tighter than the hero's own gap so

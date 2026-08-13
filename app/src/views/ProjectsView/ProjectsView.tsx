@@ -107,12 +107,14 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       <div class="landing-inner">
         <section class="landing-hero">
           <div class="landing-identity">
-            <div class="landing-brand">
+            {/* Plain anchor to the root: a full navigation, so it behaves
+                like any site's home button (clears ?src, fresh boot). */}
+            <a class="landing-brand" href="/" aria-label="codecity home">
               <span class="landing-gem">
                 <GemIcon />
               </span>
               <h1 class="landing-wordmark">codecity</h1>
-            </div>
+            </a>
             {/* The landing covers the chrome, so this is the only place the
                 version and credit appear before a repo loads. */}
             <MetaLine linkClass="link" />

@@ -403,14 +403,16 @@ describe('ProjectsView', () => {
       expect(hero.textContent).toContain('v1.4.0');
     });
 
-    it('links about to the repo and the credit to thalida.com', async () => {
+    it('links the brand home, about to the repo, and the credit to thalida.com', async () => {
       const hero = await renderLanding({ dismissible: false });
       const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
       expect(links.map((a) => a.getAttribute('href'))).toEqual([
+        '/',
         'https://github.com/thalida/codecity',
         'https://thalida.com',
       ]);
-      for (const a of links) {
+      // The brand is an in-app home link; the external pair opens new tabs.
+      for (const a of links.slice(1)) {
         expect(a.getAttribute('target')).toBe('_blank');
         expect(a.getAttribute('rel')).toBe('noopener noreferrer');
       }
@@ -424,7 +426,7 @@ describe('ProjectsView', () => {
     it('shows on the dismissible switcher too, which also covers the chrome', async () => {
       const hero = await renderLanding({ dismissible: true });
       expect(hero.textContent).toContain('v1.4.0');
-      expect(hero.querySelectorAll('a')).toHaveLength(2);
+      expect(hero.querySelectorAll('a')).toHaveLength(3);
     });
   });
 });
