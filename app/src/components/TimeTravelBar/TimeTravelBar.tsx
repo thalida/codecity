@@ -16,7 +16,7 @@ import {
 } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
-import { formatFullDate, formatShortDate } from '@/utils/dates';
+import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/scene';
 import {
   buildScrubberScale,
@@ -110,14 +110,17 @@ export function TimeTravelBar() {
   const pct = indexToFraction(scale, pos) * 100;
 
   // The calendar day the handle sits on, interpolated between the commits it
-  // falls between. This is the readout: scrubbing is moving through days.
+  // falls between. This is the readout: scrubbing is moving through days. Local,
+  // like the edge labels: a commit late in the evening is stored as the next
+  // UTC day, and reading one end of the track on a different calendar than the
+  // other had this row a day ahead of the dates on either side of it.
   const handleMs = indexToMs(scale, pos);
-  const handleDay = new Date(handleMs).toISOString().slice(0, 10);
+  const handleDay = localDay(handleMs);
   // A commit belongs to the day it happened, and to no other. Anywhere else the
   // row says so rather than carrying the last commit's message along, which
   // made the message snap from one to the next as you crossed each commit
   // while the date underneath moved smoothly.
-  const onCommitDay = commit.date.slice(0, 10) === handleDay;
+  const onCommitDay = localDay(scale.ms[Math.min(Math.floor(pos), maxIndex)]) === handleDay;
 
   const setFromClientX = (clientX: number) => {
     const el = trackRef.current;
@@ -220,17 +223,17 @@ export function TimeTravelBar() {
         {!onCommitDay ? (
           <span class="time-travel-subject time-travel-nocommit">no commits</span>
         ) : (
-          <>
-            <button
-              type="button"
-              class="time-travel-sha"
-              title="Show this commit's details"
-              onClick={() => showCommit(commit.sha)}
-            >
-              {commit.sha.slice(0, 7)}
-            </button>
+          // The whole row, not just the sha: the message is the larger half of
+          // the target and reads as part of the same thing to click.
+          <button
+            type="button"
+            class="time-travel-commit"
+            title="Show this commit's details"
+            onClick={() => showCommit(commit.sha)}
+          >
+            <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
             <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
-          </>
+          </button>
         )}
       </div>
     </div>

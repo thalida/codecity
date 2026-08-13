@@ -164,7 +164,12 @@ describe('TimeTravelBar', () => {
     expect(axis.querySelector('.time-travel-date')).not.toBeNull();
     const info = container.querySelector('.time-travel-info')!;
     const order = Array.from(info.children).map((c) => c.className.split(' ')[0]);
-    expect(order).toEqual(['time-travel-sha', 'time-travel-subject']);
+    expect(order).toEqual(['time-travel-commit']);
+    const row = info.querySelector('.time-travel-commit')!;
+    expect(Array.from(row.children).map((c) => c.className)).toEqual([
+      'time-travel-sha',
+      'time-travel-subject',
+    ]);
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
   });
 

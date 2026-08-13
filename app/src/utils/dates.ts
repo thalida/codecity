@@ -32,7 +32,7 @@ const MS_YEAR = 365 * MS_DAY;
  *  the previous calendar day in negative timezones — using local components
  *  keeps the displayed day matching the source string. Returns null if the
  *  result is invalid. */
-function parseLocalDate(input: string): Date | null {
+export function parseLocalDate(input: string): Date | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
     const [y, m, d] = input.split('-').map(Number);
     const date = new Date(y, m - 1, d);
@@ -40,6 +40,24 @@ function parseLocalDate(input: string): Date | null {
   }
   const date = new Date(input);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** `parseLocalDate` as milliseconds, NaN when unparseable. Anything that turns
+ *  a date into a position and back has to parse it the way the labels do, or
+ *  the two disagree by a timezone. */
+export function parseDateMs(input: string): number {
+  return parseLocalDate(input)?.getTime() ?? NaN;
+}
+
+/** The calendar day (YYYY-MM-DD) a moment falls on, in the reader's timezone.
+ *  Every date the UI prints is local, so a day derived from a timestamp has to
+ *  be read the same way: toISOString names the UTC day, which for part of every
+ *  day is a different date than the one shown beside it. */
+export function localDay(ms: number): string {
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 // ── Absolute formatters (calendar dates) ─────────────────────────────────

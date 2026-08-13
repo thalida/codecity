@@ -159,18 +159,30 @@
   color: var(--cc-text-secondary);
 }
 
-/* Pressable, so it takes the brighter step; the bare span stays a readout. */
-button.time-travel-sha {
+/* Sha and message press as one target. */
+.time-travel-commit {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  min-width: 0;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  color: var(--cc-text-strong);
   cursor: pointer;
 }
-button.time-travel-sha:hover {
+.time-travel-commit .time-travel-sha {
+  color: var(--cc-text-strong);
+}
+.time-travel-commit:hover .time-travel-sha,
+.time-travel-commit:hover .time-travel-subject {
   color: var(--cc-accent);
   text-decoration: underline;
+}
+.time-travel-commit:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+  border-radius: var(--cc-radius-sm);
 }
 
 .time-travel-subject {

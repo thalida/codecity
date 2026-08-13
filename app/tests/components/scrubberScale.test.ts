@@ -17,8 +17,11 @@ describe('scrubberScale', () => {
     // index 2 (Jan 3) sits before its predecessor (Jan 5) → clamped up to Jan 5.
     expect(s.ms[2]).toBe(s.ms[1]);
     expect(s.ms.every((m, i) => i === 0 || m >= s.ms[i - 1])).toBe(true);
-    expect(s.ms[0]).toBe(Date.parse('2020-01-01'));
-    expect(s.ms[3]).toBe(Date.parse('2020-01-10'));
+    // Day-precision dates land on LOCAL midnight, the same instant the labels
+    // print them from: Date.parse would read them as UTC and put the handle's
+    // day a day off the axis labels in half the world's timezones.
+    expect(s.ms[0]).toBe(new Date(2020, 0, 1).getTime());
+    expect(s.ms[3]).toBe(new Date(2020, 0, 10).getTime());
   });
 
   it('separates same-day commits once dates carry a time', () => {

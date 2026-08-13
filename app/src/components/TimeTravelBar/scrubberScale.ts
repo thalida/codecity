@@ -1,5 +1,10 @@
 // Pure date<->index mapping for the scrubber. Track position blends each commit's
 // point in time with its ordinal; SCRUB_POS stays a float commit index.
+//
+// Dates parse through utils/dates, the same rule the labels print by, so the day
+// under the handle is the day the axis names on either side of it.
+
+import { parseDateMs } from '@/utils/dates';
 
 export interface ScrubberScale {
   /** Commit date ms, index-aligned, clamped non-decreasing. */
@@ -10,7 +15,7 @@ export interface ScrubberScale {
 
 /** `indexWeight` 0 = place commits purely by time, 1 = purely by ordinal. */
 export function buildScrubberScale(dates: string[], indexWeight = 0): ScrubberScale {
-  const ms = dates.map((d) => Date.parse(d) || 0);
+  const ms = dates.map((d) => parseDateMs(d) || 0);
   for (let i = 1; i < ms.length; i++) if (ms[i] < ms[i - 1]) ms[i] = ms[i - 1];
 
   const n = ms.length;
