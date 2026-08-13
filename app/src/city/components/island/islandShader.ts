@@ -17,6 +17,10 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
     vertexShader: vertSrc,
     fragmentShader: fragSrc,
     uniforms: {
+      uGrassTexture: { value: mats.GRASS_TEXTURE },
+      uGrassPatchSize: { value: mats.GRASS_PATCH_SIZE },
+      uRockTexture: { value: mats.ROCK_TEXTURE },
+      uRockPatchSize: { value: mats.ROCK_PATCH_SIZE },
       uHemiSkyColor: { value: new THREE.Color(mats.HEMI_SKY_COLOR) },
       uHemiGroundColor: { value: new THREE.Color(mats.HEMI_GROUND_COLOR) },
     },

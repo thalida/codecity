@@ -125,6 +125,10 @@ export function createIsland(ctx: SceneContext): Island {
     const m = ISLAND.value;
     (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(m.HEMI_SKY_COLOR);
     (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(m.HEMI_GROUND_COLOR);
+    material.uniforms.uGrassTexture!.value = m.GRASS_TEXTURE;
+    material.uniforms.uGrassPatchSize!.value = m.GRASS_PATCH_SIZE;
+    material.uniforms.uRockTexture!.value = m.ROCK_TEXTURE;
+    material.uniforms.uRockPatchSize!.value = m.ROCK_PATCH_SIZE;
   });
 
   function dispose(): void {

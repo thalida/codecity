@@ -221,6 +221,10 @@ export function buildIslandGeometry(
   const positions: number[] = [];
   const colorsArr: number[] = [];
   const aoArr: number[] = [];
+  // Which material a vertex belongs to, so the shader can texture grass and
+  // rock differently: 1 = grass (top cap + the band wrapping its edge),
+  // 0 = rock (everything below).
+  const surfaceArr: number[] = [];
   const indices: number[] = [];
 
   const grass = new THREE.Color(colors.GRASS);
@@ -228,19 +232,23 @@ export function buildIslandGeometry(
   const rock = new THREE.Color(colors.ROCK);
 
   // Push a vertex; return its index.
-  function addVertex(p: THREE.Vector3, c: THREE.Color, ao: number): number {
+  function addVertex(p: THREE.Vector3, c: THREE.Color, ao: number, surface: number): number {
     const idx = positions.length / 3;
     positions.push(p.x, p.y, p.z);
     colorsArr.push(c.r, c.g, c.b);
     aoArr.push(ao);
+    surfaceArr.push(surface);
     return idx;
   }
+
+  const SURFACE_ROCK = 0;
+  const SURFACE_GRASS = 1;
 
   // ----- TOP CAP (grass, flat at y=0) -----
   // Fan from a center vertex to each edge of the top ring.
   // AO = 1.0 everywhere on the top — fully lit, city sits here.
-  const centerIdx = addVertex(new THREE.Vector3(0, 0, 0), grass, 1.0);
-  const topIdx: number[] = topRing.map((v) => addVertex(v, grass, 1.0));
+  const centerIdx = addVertex(new THREE.Vector3(0, 0, 0), grass, 1.0, SURFACE_GRASS);
+  const topIdx: number[] = topRing.map((v) => addVertex(v, grass, 1.0, SURFACE_GRASS));
   for (let i = 0; i < sides; i++) {
     const a = topIdx[i]!;
     const b = topIdx[(i + 1) % sides]!;
@@ -259,8 +267,10 @@ export function buildIslandGeometry(
     // Side band uses GRASS_SIDE so the user can tune it independently of
     // the top cap (top points up, side points outward — they get very
     // different hemispheric lighting).
-    const grassTopIdx: number[] = topRing.map((v) => addVertex(v, grassSide, 1.0));
-    const grassBotIdx: number[] = grassBotRing.map((v) => addVertex(v, grassSide, 0.9));
+    const grassTopIdx: number[] = topRing.map((v) => addVertex(v, grassSide, 1.0, SURFACE_GRASS));
+    const grassBotIdx: number[] = grassBotRing.map((v) =>
+      addVertex(v, grassSide, 0.9, SURFACE_GRASS)
+    );
     for (let i = 0; i < sides; i++) {
       const j = (i + 1) % sides;
       const tl = grassTopIdx[i]!;
@@ -310,7 +320,7 @@ export function buildIslandGeometry(
   // Resulting AO at the deepest ring: UNDERSIDE_AO_TOP - UNDERSIDE_AO_RANGE = 0.45
 
   const topRockIdx: number[] = grassBotRing.map((v) =>
-    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, UNDERSIDE_AO_TOP)
+    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, UNDERSIDE_AO_TOP, SURFACE_ROCK)
   );
   allRingIdx.push(topRockIdx);
 
@@ -318,7 +328,7 @@ export function buildIslandGeometry(
     const frac = (t + 1) / (tiers + 1);
     const ao = UNDERSIDE_AO_TOP - UNDERSIDE_AO_RANGE * frac;
     const ring = undersideRings[t]!;
-    const ringIdx: number[] = ring.map((v) => addVertex(v, rock, ao));
+    const ringIdx: number[] = ring.map((v) => addVertex(v, rock, ao, SURFACE_ROCK));
     allRingIdx.push(ringIdx);
   }
 
@@ -342,7 +352,7 @@ export function buildIslandGeometry(
 
   // Fan from the last ring to the pit vertex.
   const lastRingIdx = allRingIdx[allRingIdx.length - 1]!;
-  const pitIdx = addVertex(pitPos, rock, 0.45);
+  const pitIdx = addVertex(pitPos, rock, 0.45, SURFACE_ROCK);
   for (let i = 0; i < sides; i++) {
     const j = (i + 1) % sides;
     const a = lastRingIdx[i]!;
@@ -360,6 +370,7 @@ export function buildIslandGeometry(
   indexed.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   indexed.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
   indexed.setAttribute('ao', new THREE.Float32BufferAttribute(aoArr, 1));
+  indexed.setAttribute('aSurface', new THREE.Float32BufferAttribute(surfaceArr, 1));
 
   // toNonIndexed() duplicates each vertex so adjacent triangles don't share
   // vertices — computeVertexNormals() then computes a pure face normal for

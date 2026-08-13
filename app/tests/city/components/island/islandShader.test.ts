@@ -33,9 +33,21 @@ describe('createIslandMaterial', () => {
   it('carries no ground-haze plumbing — the island opts out of fog entirely', () => {
     const mat = createIslandMaterial();
     expect(mat.fragmentShader).not.toMatch(/applyFog|uFog/);
-    // vWorldPos existed only to feed the fog.
-    expect(mat.vertexShader).not.toMatch(/vWorldPos/);
-    expect(Object.keys(mat.uniforms)).toEqual(['uHemiSkyColor', 'uHemiGroundColor']);
+    expect(Object.keys(mat.uniforms)).not.toContain('uFogColor');
+    mat.dispose();
+  });
+
+  // World position is now the surface texture's sample coordinate, so the
+  // pattern belongs to the ground instead of swimming with the camera. It used
+  // to exist only for fog, which is why the test above used to police it.
+  it('samples its texture on world position, per surface', () => {
+    const mat = createIslandMaterial();
+    expect(mat.vertexShader).toMatch(/vWorldPos/);
+    expect(mat.vertexShader).toMatch(/aSurface/);
+    expect(mat.fragmentShader).toMatch(/vWorldPos\.xz/);
+    expect(Object.keys(mat.uniforms)).toEqual(
+      expect.arrayContaining(['uGrassTexture', 'uGrassPatchSize', 'uRockTexture', 'uRockPatchSize'])
+    );
     mat.dispose();
   });
 
