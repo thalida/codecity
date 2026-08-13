@@ -45,26 +45,16 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   const scene = new THREE.Scene();
 
-  // Renderer FIRST + register it with the ad-panel texture array BEFORE the
-  // boot applyManifest: the cell pass kicks async <img> loads whose onload
-  // (early for cached responses) needs the registered renderer to upload the
-  // texture layer; without it the panel ramps iTextureFade but samples an
-  // unwritten layer and renders transparent.
-  // antialias OFF: every scene pixel goes through the EffectComposer's
-  // offscreen HDR targets, so the canvas only ever receives a fullscreen
-  // quad — default-framebuffer MSAA antialiases nothing yet allocates a
-  // 4x multisample buffer. On high-DPR phones that pressure makes Adreno/
-  // Mali drop tile memory mid-frame (whole-frame garbage flicker).
+  // Renderer FIRST, registered pre-apply (cached <img> onloads need it).
+  // antialias OFF: with the composer, canvas MSAA does nothing yet costs 4x.
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: false,
     alpha: false,
     powerPreference: 'high-performance',
   });
-  // Pixel-ratio cap for the same reason: phones report 3–3.5x, which cubes
-  // the fp16 composer buffers past what their GPUs sustain. 2x matches
-  // desktop retina; smoothing comes from that supersampling, not MSAA.
-  // ?dpr=<n> overrides the cap (diagnostic: dial GPU load up/down live).
+  // Cap at 2x (desktop-retina parity): phone 3–3.5x DPRs cube the fp16
+  // buffers past what their GPUs sustain. ?dpr=<n> overrides (diagnostic).
   const dprOverride = Number(
     new URLSearchParams(window.location.search).get(URL_PARAMS.DPR) ?? NaN
   );
@@ -76,9 +66,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
 
-  // Device telemetry (dev-only no-ops in prod): GPU identity + the two GL
-  // events that explain whole-frame corruption if they fire. Feature-guarded:
-  // the test harness's mocked context has no getExtension.
+  // Dev-only telemetry: GPU identity + context-loss events. Feature-guarded
+  // because the test harness's mocked context has no getExtension.
   const _gl = renderer.getContext();
   if (typeof _gl.getExtension === 'function') {
     const _dbgExt = _gl.getExtension('WEBGL_debug_renderer_info');
@@ -96,14 +85,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
-  // applyManifest + invalidateLayoutCache are cityState's (the manifest
-  // pipeline); pulled out here for the City handle + reaction wiring. Components
-  // don't wire into them — they rebuild reactively off cityState's signals.
+  // Pulled off cityState for the City handle; components never wire into
+  // these — they rebuild reactively off cityState's signals.
   const { applyManifest, invalidateLayoutCache } = cityState;
 
-  // picker is populated below (it's built after the components, since
-  // picker.world reads their handles); components defer picker-dependent setup
-  // to the first tick via armOnFirstTick, so the null + cast is safe.
+  // picker is backfilled below (built after the components it reads);
+  // armOnFirstTick defers picker-dependent setup, so the null cast is safe.
   const ctx = {
     scene,
     canvas,
@@ -111,9 +98,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     picker: null,
   } as unknown as SceneContext;
 
-  // Component construction order is load-bearing: gem before repoLabel (its
-  // beam foot tracks the gem group); streets before buildings + pathLine
-  // (their deps read streets by dir at call time).
+  // Construction order is load-bearing: gem before repoLabel, streets
+  // before buildings + pathLine (deps read at call time).
   const gem = createGem(ctx);
   const sky = createSky(ctx);
   const island = createIsland(ctx);
@@ -124,18 +110,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const trees = createTrees(ctx);
   const fireflies = createFireflies(ctx);
   const pathLine = createPathLine(ctx);
-  // The component set, in TICK order — the only ordering that's load-bearing at
-  // runtime:
-  //   - sky LAST: its camera-follow must run immediately before postFx.render
-  //     so the sphere's world matrix is fresh.
-  //   - gem after repoLabel: gem.tick bobs gem.position.y and repoLabel's beam
-  //     foot reads it, so repoLabel sees the previous frame's y (a deliberate,
-  //     pre-existing 1-frame lag — don't reorder to "fix" it).
-  //   - island/footprint have no tick(); harmless in the array.
-  // Draw order is governed entirely by RENDER_ORDERS (three sorts the render
-  // list by renderOrder, then depth, then object-creation id — never by
-  // scene-graph child index), so scene.add order is free: we add in this same
-  // order rather than maintain a second sequence.
+  // TICK order (draw order is RENDER_ORDERS' job): sky LAST; gem after
+  // repoLabel — the beam foot reads last frame's bob ON PURPOSE.
   const components: SceneComponent[] = [
     fireflies,
     repoLabel,
@@ -177,10 +153,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
-  // cityState is threaded so the rig re-frames reactively when bbox changes and
-  // reads its world-framing inputs (bbox/gem/root street/tallest building)
-  // directly. deps carries only the component-geometry accessors the rig can't
-  // reach via state.
+  // The rig reads its framing inputs from cityState directly; deps carries
+  // only component-geometry accessors state can't reach.
   const rig = createCameraRig({
     canvas,
     cityState,
@@ -189,11 +163,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Snap the camera when a NEW source's city has applied (initial load or repo
-  // switch). Track cityRevision (every apply), not bbox: the final manifest is a
-  // reuse apply that leaves bbox frozen, so a bbox-only effect would miss it. The
-  // key guard skips the empty boot (key null — no source yet) and same-source
-  // re-applies (live-updates, config saves) — only a real source change reframes.
+  // Reframe only on a real source change. Tracks cityRevision, not bbox —
+  // the final manifest is a reuse apply that leaves bbox frozen.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
@@ -243,11 +214,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResize() {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
-      // ResizeObserver fires on fractional layout jitter (on phones, every
-      // couple of seconds — the ticking freshness label nudges the canvas
-      // box). Reallocating render targets + presenting mid-frame for a
-      // no-op "resize" makes some mobile drivers emit garbage frames, so
-      // bail unless the CSS pixel size actually changed.
+      // ResizeObserver fires on fractional layout jitter; a no-op "resize"
+      // reallocates targets mid-frame, garbage on some mobile drivers.
       if (cw === _lastResizeW && ch === _lastResizeH) return;
       _lastResizeW = cw;
       _lastResizeH = ch;
@@ -380,13 +348,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },
     timeline: timelineApi,
-    /** Tear the whole city down: stop the frame loop, detach input listeners,
-     *  dispose the picker/rig/postFx/components (GPU geometry + their effects),
-     *  the layout worker, and the renderer. Without this, a remount (or HMR)
-     *  leaks the renderer + frame loop, stacking a second city on the same
-     *  canvas — the old one keeps rendering as a faint ghost and its picker
-     *  still answers raycasts. Order: stop the loop FIRST so nothing ticks or
-     *  renders mid-teardown; renderer LAST. */
+    /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a
+     *  ghost city whose picker still answers raycasts. */
     dispose(): void {
       stopFrameLoop();
       stopReframe();
@@ -398,10 +361,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       postFx.dispose();
       for (const c of components) c.dispose();
       layoutClient.dispose();
-      // dispose() frees GPU resources but leaves the WebGL context alive;
-      // forceContextLoss() actually releases it. Without this, every teardown
-      // (HMR reload, project switch) leaks a context until Chrome hits its
-      // per-page cap (~16) and blocks new ones ("context loss ... blocked").
+      // dispose() leaves the WebGL context alive; without forceContextLoss()
+      // every teardown leaks one until Chrome's ~16-per-page cap blocks new.
       renderer.dispose();
       renderer.forceContextLoss();
     },

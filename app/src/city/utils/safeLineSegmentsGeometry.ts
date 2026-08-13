@@ -1,10 +1,7 @@
-// city/utils/safeLineSegmentsGeometry.ts — LineSegmentsGeometry with flat
-// (non-interleaved) instanced attributes. The stock class packs each segment's
-// start/end into one interleaved buffer read at byte offsets, a layout some
-// Android GPU drivers mis-fetch per instance: path lines grow a phantom
-// diagonal "closing" segment and outline quads explode across the screen.
-// Desktop ANGLE fetches it correctly, so the corruption is phone-only.
-// The fat-lines shader reads attributes by name and never sees the layout.
+// city/utils/safeLineSegmentsGeometry.ts — LineSegmentsGeometry with flat,
+// non-interleaved instance attributes. The stock interleaved-at-byte-offsets
+// layout is mis-fetched by some Android drivers (phantom "closing" segments,
+// exploded quads); the shader reads by name and never sees the difference.
 
 import * as THREE from 'three';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -25,9 +22,8 @@ export class SafeLineSegmentsGeometry extends LineSegmentsGeometry {
     return this;
   }
 
-  /** Split `(abc abc)`-per-segment data into two flat divisor-1 attributes,
-   *  reusing the existing arrays when the segment count is unchanged (the
-   *  rainbow chase rewrites colors every frame). */
+  /** Split `(abc abc)`-per-segment data into two flat attributes, reusing
+   *  the arrays at a stable segment count (the rainbow rewrites per frame). */
   private _writeSegmentPair(nameA: string, nameB: string, src: Float32Array): void {
     const segments = src.length / 6;
     let a = this.getAttribute(nameA) as THREE.InstancedBufferAttribute | undefined;

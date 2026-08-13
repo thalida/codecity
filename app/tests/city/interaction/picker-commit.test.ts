@@ -37,9 +37,8 @@ interface FakeTrees {
   isScrubHidden: (placementIndex: number) => boolean;
 }
 
-// Fake merged renderer: face f belongs to tree f (one "face" per tree keeps
-// the mapping trivial — the real face→range math is pinned in
-// treeRenderer.test's commitForFace coverage).
+// Fake merged renderer: face f is tree f (the real face→range math is
+// pinned by treeRenderer.test's commitForFace coverage).
 function makeFakeTrees(chunk: THREE.Mesh, commits: CommitEntry[]): FakeTrees {
   const group = new THREE.Group();
   group.add(chunk);
@@ -230,9 +229,8 @@ describe('picker: tree commit picking', () => {
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    // World rebuild: trees absent initially (simulates the moment between
-    // street/building rebuild and async tree placement completing). cityRevision
-    // bumps here with no trees attached.
+    // Rebuild with trees absent: the window between street/building rebuild
+    // and async placement completing.
     world.setTrees(null);
     world.triggerRebuild();
     // Now trees arrive asynchronously and the world bumps decorationRevision.

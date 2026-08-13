@@ -1,12 +1,7 @@
-// city/components/gem/index.ts — the root gem component.
-//
-// Self-contained scene component: owns its persistent group, rebuilds the inner
-// gem mesh reactively off cityState.rootStreet, reacts to GEM settings via an
-// effect, animates per-frame in tick() (reading GEM + BLOOM), and frees its own
-// GPU resources + stops its effects in dispose().
-//
-// The gem is built before the picker/camera/renderer exist, so it reads
-// ctx.picker only in tick() (live by the first frame), never at construction.
+// city/components/gem/index.ts — the root gem component: rebuilds the inner
+// mesh off cityState.rootStreet, repaints on GEM Saves, animates in tick().
+// Built before the picker/camera exist, so it reads ctx.picker only in
+// tick() (live by the first frame), never at construction.
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
@@ -22,11 +17,8 @@ import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
 
-// Cycle a THREE.Color in place through a palette of [r,g,b] triples,
-// smoothly interpolating between adjacent palette entries. One full
-// loop through every color takes `period` seconds; `offset` (0..1)
-// shifts the starting phase so multiple sprites can run different
-// "ahead-of-each-other" cadences without allocating new Colors.
+// Cycle a Color in place through the palette (one loop per `period`
+// seconds); `offset` phases multiple halos apart without allocating.
 function _setPaletteColor(
   out: THREE.Color,
   palette: ReadonlyArray<Rgb>,
@@ -100,31 +92,15 @@ export function createGem(ctx: SceneContext): Gem {
     if (inner) group.add(inner);
   }
 
-  // Layout effect — the reactive rebuild entry point. Reads
-  // cityState.rootStreet.value (computed off layout) and rebuilds the inner
-  // gem when it CHANGES. rootStreet is reference-stable across a scenic-reuse
-  // apply (layout reference unchanged → computed re-derives the same value
-  // only when layout's reference changes), so this effect fires exactly on
-  // non-reuse applies — the gem must NOT rebuild on a scenic-reuse apply, which
-  // would flash + realloc GPU. The null-guard makes the construction-time run
-  // (rootStreet null) a no-op.
-  //
-  // rebuild() is wrapped untracked because createRootGem reads GEM.value (sides,
-  // radius, face palette, glow). Without it this effect would subscribe to the
-  // whole GEM store and rebuild on every Refresh-route GEM Save — recreating the
-  // pickable gem body without bumping cityRevision, so the picker (which
-  // re-syncs only then) would keep raycasting the disposed body. GEM visual
-  // changes are repainted in place by the theme effect; only SIDES/RADIUS reach
-  // here, via applyManifest → a fresh rootStreet reference.
+  // untracked() is load-bearing: createRootGem reads GEM.value, and a GEM
+  // subscription would recreate the pickable body sans cityRevision bump.
   const stopLayout = effect(() => {
     const rootStreet = cityState.rootStreet.value;
     if (rootStreet) untracked(() => rebuild(rootStreet));
   });
 
-  // Theme effect — reacts to GEM signal changes (Save). No-ops while refs are
-  // null (pre-first-rebuild) via `if (rootGemBody?.material)`-style guards.
-  // Runs once at construction (before the picker exists), which is safe: it
-  // reads only GEM signals and reproduces the same values mesh.ts baked.
+  // GEM Save → repaint in place. Safe at construction: null guards no-op
+  // until the first rebuild.
   const stopEffect = onSettings(GEM, () => {
     const gemAppearance = GEM.value;
 
@@ -134,18 +110,16 @@ export function createGem(ctx: SceneContext): Gem {
     if (body?.material) {
       const op = gemAppearance.BODY_OPACITY;
       body.material.opacity = op;
-      // Toggle `transparent` to match the opacity. Without this, dropping
-      // opacity below 1 has no visual effect after the gem was created
-      // with opacity = 1.
+      // `transparent` must follow the opacity, or dropping below 1 has no
+      // visual effect after an opaque build.
       const wantTransparent = op < 1;
       if (body.material.transparent !== wantTransparent) {
         body.material.transparent = wantTransparent;
         body.material.needsUpdate = true;
       }
     }
-    // Per-face colors live on the gem body's geometry as a BufferAttribute,
-    // baked at construction. Rewrite it in place on Save so palette tweaks
-    // take effect without a full applyManifest rebuild.
+    // Face colors are a baked BufferAttribute; rewrite in place so palette
+    // tweaks skip a full rebuild.
     if (body?.geometry?.attributes.color) {
       const colorAttr = body.geometry.attributes.color as THREE.BufferAttribute;
       writeFaceColors(colorAttr.array as Float32Array, gemFaceColors.value);
@@ -156,8 +130,7 @@ export function createGem(ctx: SceneContext): Gem {
       gem.userData.baseY = gem.userData.radius + gem.userData.streetWidth * hoverFrac;
     }
 
-    // Glow halo: scale, opacity, visibility from GEM_GLOW config. Color
-    // is driven per-frame by tick() (palette cycle), so we don't touch it here.
+    // Halo scale/opacity/visibility only — color is tick()'s per-frame job.
     if (gem && gem.userData.radius != null) {
       const r = gem.userData.radius as number;
       const inner = innerGlow;
@@ -181,31 +154,25 @@ export function createGem(ctx: SceneContext): Gem {
     // Absolute time (seconds since render-loop start), NOT dt.
     const t = frame.time;
     gem.rotation.y = t * gemCfg.ROTATION_SPEED;
-    // BOB_AMPLITUDE_FRAC is read live each frame so the slider
-    // updates without a rebuild. The gem radius is cached on
-    // userData at gem-build time (it depends on root-street width).
+    // Config read live each frame so the sliders update without a rebuild.
     gem.position.y =
       gem.userData.baseY +
       Math.sin(t * gemCfg.BOB_FREQUENCY) * (gem.userData.radius * gemCfg.BOB_AMPLITUDE_FRAC);
-    // Scale-up affordance on hover so the gem reads as clickable. Hover is
-    // read from the captured SceneContext's picker (populated by createCity
-    // before the first frame), guarded for the pre-population window.
+    // Hover scale-up affordance; ctx.picker is guarded for the brief
+    // pre-population window at boot.
     const hov = ctx.picker?.hover.value ?? null;
     const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemCfg.HOVER_SCALE : 1.0;
     const curS = gem.scale.x;
     const nextS = curS + (gemTargetScale - curS) * gemCfg.SCALE_LERP_SPEED;
     gem.scale.set(nextS, nextS, nextS);
 
-    // Glow color: animate through GEM_FACE_PALETTE when ANIMATE_COLORS
-    // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
-    // cycle on different phases so the gem reads with two colors at
-    // any moment, blending as they cross.
+    // Palette-cycle the halo colors on two phases, so the gem reads with
+    // two blending colors at any moment (EDGE_COLOR when not animating).
     const inner = innerGlow;
     const outer = outerGlow;
     if (inner || outer) {
-      // Face the camera. The quads are children of the spinning gem group,
-      // so the local orientation is the group's Y-spin undone, then the
-      // camera's world orientation (the group's parents don't rotate).
+      // Billboard: undo the group's Y-spin, then take the camera's world
+      // orientation (the group's parents don't rotate).
       _glowQuat.setFromAxisAngle(_Y_AXIS, -gem.rotation.y).multiply(frame.camera.quaternion);
       if (inner) inner.quaternion.copy(_glowQuat);
       if (outer) outer.quaternion.copy(_glowQuat);
@@ -220,11 +187,8 @@ export function createGem(ctx: SceneContext): Gem {
         if (inner) inner.material.color.set(edge);
         if (outer) outer.material.color.set(edge);
       }
-      // HDR push for selective gem bloom. Halo color was just set
-      // to an LDR palette value; multiplying scales it past 1.0 in
-      // linear space so the bloom pass picks it up. 1.0 = no bloom from
-      // gem; higher = more. GEM.GLOW_EMISSION supplies the level, gated on
-      // BLOOM.ENABLED so the "flat" comparison mode skips the HDR push.
+      // HDR push: scaling the LDR halo color past 1.0 is what the bloom
+      // threshold picks up; gated on BLOOM.ENABLED for the flat mode.
       const gemEmission = BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
       if (gemEmission !== 1) {
         if (inner) inner.material.color.multiplyScalar(gemEmission);

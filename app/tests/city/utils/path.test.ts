@@ -18,11 +18,8 @@ interface TestStreet {
   dir: { path: string };
 }
 
-// Synthetic streets for chain tests. Layout:
-//   root (x-orientation, centerline at z=0, extends 0..L)
-//     ├─ src   (y-orientation, branches at x=200, extends 0..-100)
-//     │    └─ scene (x-orientation, branches at z=-50, extends 200..280)
-//     └─ tests (y-orientation, branches at x=400, extends 0..+100)
+// Synthetic streets: an x-oriented root at z=0, with src (branching at
+// x=200) → scene (at z=-50), and tests (at x=400).
 const ROOT: TestStreet = {
   x: 250,
   y: 0,
@@ -164,9 +161,8 @@ describe('computePathPoints', () => {
   });
 
   it('file selection: gem → bends → walk along → perpendicular to building edge', () => {
-    // File in src/scene at building (x=250, y=-30, w=10, d=10).
-    // SCENE is x-orientation at z=-50. Building y=-30 > street.y=-50,
-    // so road-side edge is b.y - b.d/2 = -35.
+    // Building at y=-30 sits above SCENE's z=-50 centerline, so its
+    // road-side edge is b.y - b.d/2 = -35.
     const sel = {
       kind: NodeKind.File,
       file: { path: 'src/scene/colors.js' },

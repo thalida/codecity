@@ -4,16 +4,14 @@
 
 import { render } from 'preact';
 import './styles/index.css';
-// Applies the persisted accent/surface theme to <html> before the first
-// render (no flash). persistedSignal hydrates synchronously, so the module's
-// effect sets data-cc-* before Preact mounts.
+// Sets data-cc-* from the persisted theme before Preact mounts, so there's
+// no flash (persistedSignal hydrates synchronously).
 import '@/state/stores/settings/theme';
 import { openBootPickerIfNeeded } from '@/state/bootView';
 import { installDeviceDebugLog } from '@/utils/deviceDebugLog';
 import { App } from '@/layout/App/App';
 
-// Dev-only device telemetry (no-op in prod/test): streams errors + render
-// diagnostics to the vite dev server so phone sessions are debuggable.
+// Dev-only telemetry, so phone sessions over a tunnel are debuggable.
 installDeviceDebugLog();
 
 // Decide the cold-boot picker BEFORE the first render so the full-page landing

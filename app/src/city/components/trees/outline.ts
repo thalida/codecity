@@ -1,18 +1,7 @@
-// city/components/trees/outline.ts — owns:
-//   • the shared tree hover outline mesh (white LineSegments2 silhouette
-//     around the hovered tree's canopy)
-//   • the shared tree selected outline mesh (rainbow-chasing silhouette)
-//
-// Mirrors buildings/outline.ts but for tree canopies.
-// Exactly two LineSegments2 meshes exist regardless of tree count;
-// transforms are snapped per frame to the 0-2 currently-active outlines.
-//
-// Subscribes to picker.hover and picker.selection. Hover deduplicates
-// against selection by sha so a tree that is both hovered and selected
-// shows only the selected outline.
-//
-// refreshMaterials() is called by the trees component's theme effect to
-// push TREE_OUTLINE config changes into the two outline materials.
+// city/components/trees/outline.ts — the hover (white) + selected
+// (rainbow-chasing) canopy silhouettes, mirroring buildings/outline.ts.
+// Exactly two meshes exist regardless of tree count, snapped per frame to
+// the 0-2 active trees; hover dedups against selection by sha.
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
@@ -50,9 +39,8 @@ interface CreateArgs {
 export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
   const _cfg = TREES.value;
 
-  // Single canopy silhouette geometry shared by both outline meshes — every
-  // tree uses one facet count, so there's no per-tier swap. Wrapped in
-  // LineSegmentsGeometry (line2 addon's flat-array format).
+  // One shared silhouette: every tree uses the same facet count, so there's
+  // no per-tier geometry swap.
   const _edges = buildCanopyEdges();
   const _edgesGeom = new SafeLineSegmentsGeometry();
   _edgesGeom.setPositions(_edges.getAttribute('position').array as Float32Array);
@@ -92,9 +80,8 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   const _tmpMatrix = new THREE.Matrix4();
 
-  /** Snap the outline onto the tree with the given sha. The silhouette
-   *  geometry is shared (one facet count for all trees), so this only writes
-   *  the instance transform — no per-tier geometry swap. */
+  /** Snap the outline onto the tree with the given sha — transform only,
+   *  since the silhouette geometry is shared. */
   function _syncOutline(outline: LineSegments2, sha: string): boolean {
     const trees = getTrees();
     if (!trees) return false;

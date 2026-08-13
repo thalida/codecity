@@ -1,17 +1,7 @@
 // city/components/fireflies/firefliesRenderer.ts — one THREE.Points draw:
-// one VERTEX per orb, orbit/bob animated in the vertex shader, soft round
-// glow in the fragment shader.
-//
-// Deliberately NOT an InstancedMesh of icospheres (the previous design):
-// per-orb spheres instanced by the thousand glitched a mobile driver
-// (Samsung Xclipse) under both Chrome's and Firefox's GL stacks. A points
-// draw is the smallest possible GPU surface for the same visual — no
-// instancing, no index buffer, ~50 bytes per orb.
-//
-//   setTime(seconds): drive the uTime uniform from the render loop.
-//   refresh():        hot-reload animation uniforms from current config
-//                     (radius + orb count require a full rebuild).
-//   dispose():        clean up geometry + material.
+// one VERTEX per orb, orbit/bob in the vertex shader, round glow in the
+// fragment. Deliberately NOT instanced icospheres — those glitched a mobile
+// driver (Samsung Xclipse) under both browsers' GL stacks; ~50 bytes/orb.
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -66,9 +56,8 @@ export function createFireflyRenderer(
   const uHoveredCommit = { value: -1.0 };
   const uSelectedCommit = { value: -1.0 };
   const uScrubCommit = { value: -1.0 };
-  // canvas.height is the drawing-buffer height (device pixels) — the unit
-  // gl_PointSize wants. Kept fresh per frame in setTime; 1024 covers the
-  // headless/test case where no canvas is supplied.
+  // canvas.height = drawing-buffer device pixels, gl_PointSize's unit.
+  // Refreshed per frame in setTime; the fallback covers headless tests.
   const uHalfViewportHeight = { value: (canvas?.height ?? 2048) / 2 };
 
   const geometry = new THREE.BufferGeometry();

@@ -170,9 +170,8 @@ describe('createTreeRenderer()', () => {
     for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(true);
   });
 
-  // treeEncoding owns the height/radius curves. What these pin is that the
-  // renderer feeds them into the baked vertices at all, so the expected
-  // values are literal rather than the curve restated.
+  // treeEncoding owns the curves; these pin that the renderer bakes them
+  // into vertices at all, so the expectations are literal.
   it('writes commit-age-driven height into the trunk vertices (older = taller)', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 },

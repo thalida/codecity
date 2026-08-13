@@ -19,9 +19,8 @@ describe('createFireflyAssembly', () => {
     const stats = commitStats(COMMITS);
     const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
     expect(f.group).toBeInstanceOf(THREE.Group);
-    // The parent group has two child Groups (rings + renderer).
-    // The ring group is lazy: it starts empty and only spawns meshes on
-    // hover/select. The renderer group contains one Points object.
+    // Two child Groups: the lazy ring group (empty until hover/select) and
+    // the renderer's, holding one Points object.
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const orbPoints = allDescendants.filter((c) => c instanceof THREE.Points);
     const tubeMeshes = allDescendants.filter((c) => c instanceof THREE.Mesh);

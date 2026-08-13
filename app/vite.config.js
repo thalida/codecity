@@ -3,18 +3,13 @@ import { resolve } from 'node:path';
 import { appendFileSync } from 'node:fs';
 import preact from '@preact/preset-vite';
 
-// Vite root is this directory. Build output lands in ./dist/ — the
-// Dockerfile copies app/dist/ into the runtime image's static dir, and
-// the api server (api/server.py) serves from there at runtime.
-//
-// Three.js is bundled into the output via the standard `three` npm
-// dependency — no importmap, no CDN runtime fetch.
+// Vite root is this directory; ./dist/ is what the Dockerfile copies into
+// the runtime image for api/server.py to serve.
 
 const appDir = import.meta.dirname;
 
-// Dev-only sink for src/utils/deviceDebugLog.ts: phones over a tunnel have no
-// reachable console, so the page POSTs telemetry here and it lands in a local
-// NDJSON file the developer can tail.
+// Dev-only sink for deviceDebugLog: phones over a tunnel have no reachable
+// console, so telemetry POSTs here and lands in a tailable NDJSON file.
 const deviceDebugLogPlugin = {
   name: 'device-debug-log',
   configureServer(server) {
@@ -47,9 +42,8 @@ export default defineConfig({
   base: './',
   plugins: [preact(), deviceDebugLogPlugin],
   resolve: {
-    // `@/` maps to app/src so cross-directory imports stay short and
-    // survive file moves. Mirrored in tsconfig.json paths and
-    // vitest.config.js so the editor + test runner resolve identically.
+    // Mirrored in tsconfig.json paths + vitest.config.js so the editor and
+    // test runner resolve `@/` identically.
     alias: { '@': resolve(appDir, 'src') },
   },
   build: {
@@ -66,9 +60,8 @@ export default defineConfig({
     // `feature-x.localhost:5174`. Vite 5+ rejects unknown hosts by default.
     allowedHosts: true,
     proxy: {
-      // VITE_API_PROXY is set by docker-compose.dev.yml (Task 13) to point at
-      // the api service over the compose-internal network. Fallback matches
-      // `python -m api`'s default port for ad-hoc "vite alone, api alone" dev.
+      // docker-compose.dev.yml sets VITE_API_PROXY to the compose-internal
+      // api; the fallback matches `python -m api`'s default port.
       '/api': process.env.VITE_API_PROXY ?? 'http://localhost:8080',
     },
   },

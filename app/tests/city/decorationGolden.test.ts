@@ -16,14 +16,8 @@ import {
 } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
-// Settings-default-sensitive: a TREES width/height default change legitimately
-// moves the hash (placements stay put) and the value must be recaptured.
-// Recaptured when DENSITY_FALLOFF became a setting again at its 1.5 default
-// (clustering the forest toward the city) and CITY_CLEARANCE landed at 64.
-// Rebaselined when tree rendering went merged (no instanced buffers left to
-// hash — the mesh sweep below now contributes nothing). The digest still
-// pins every placement + orb value, which is where decoration determinism
-// lives; the renderers' vertex baking is covered by their own unit tests.
+// Settings-default-sensitive: TREES defaults legitimately move the hash, so
+// it gets recaptured (last: merged tree rendering).
 const EXPECTED = '12k:trees43000:orbs51600:e03b3688';
 
 describe('decoration golden (bit-identical guard)', () => {

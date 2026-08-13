@@ -1,46 +1,7 @@
-// city/interaction/picker.ts — owns the raycaster + the hover and selection
-// state machine. State rides on @preact/signals so consumers
-// (the outline, path-line, and building-fader renderers) use the same
-// `effect` / `.value` idiom they already use for every settings store.
-//
-// Public contract:
-//
-//   const picker = createPicker({ canvas, camera, world });
-//
-//   picker.hover                  // signal: null | hover target
-//   picker.selection              // signal: null | selection target
-//   picker.setHover(target)       // updates hover signal
-//   picker.setSelection(target)   // updates selection + derived selectionKey signals
-//   picker.selectByPath(path)     // tree clicks, breadcrumb segment clicks
-//   picker.selectByCommit(sha)    // commit/tree landmark selection
-//   picker.pickAt(x, y)           // raycast against living meshes; returns null | hit
-//   picker.interpretHit(hit)      // null | { kind, mesh|sidewalk, file|street|dir }
-//   picker.dispose()
-//
-// Target shape (the value held by hover / selection):
-//   null
-//   { kind: NodeKind.Gem }
-//   { kind: NodeKind.File,      mesh, data, file }
-//   { kind: NodeKind.Directory, sidewalk, street, dir }
-//   { kind: NodeKind.Commit,    mesh, instanceId, commit }
-//
-// Selection key (in-memory only)
-// ------------------------------
-// PICKER_SELECTION_KEY holds the path/sha form of the current selection, a
-// tagged union over the same three discriminators carried by selection:
-//   { kind: NodeKind.File,      path: string }
-//   { kind: NodeKind.Directory, path: string }
-//   { kind: NodeKind.Commit,    sha: string }
-// One-way derivation: selection is the source of truth; whenever it changes,
-// picker writes the matching key. On a city rebuild (cityState.cityRevision
-// bumps) the key is re-resolved to a live selection (or cleared if the path is
-// gone) so an in-session rebuild — a settings change recreates the city's
-// meshes — keeps the selected node alive instead of leaving a dangling mesh
-// ref. A Commit selection additionally re-resolves when the deferred trees
-// attach (cityState.decorationRevision). The key is NOT persisted: a
-// fresh page load starts with no selection, and nothing is remembered across
-// sessions or source switches.
-
+// city/interaction/picker.ts — owns the raycaster + the hover/selection state
+// machine on @preact/signals. selection is the source of truth; the in-memory
+// PICKER_SELECTION_KEY (path/sha) is derived from it and re-resolved to a live
+// target on world rebuilds, so selections survive mesh swaps. Not persisted.
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
@@ -77,12 +38,8 @@ export function createPicker({
   // Cached pickables list. Refreshed on the cityRevision/decorationRevision
   // effects below so per-frame raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
-  // Spatial index over the pickables. THREE's intersectObjects tests every
-  // building instance per pointer move (~34ms/cast at 80k); an ObjectBVH (each
-  // InstancedMesh instance is a BVH primitive) turns that into ~0.07ms/cast.
-  // Built lazily on the first pickAt after a refresh — deferred so the ~180ms
-  // build (80k instances) stays off the manifest-apply path, AND so the world
-  // matrices the BVH reads are already fresh from the frame loop by then.
+  // ObjectBVH: ~34ms casts (80k instances) → ~0.07ms. Built lazily on first
+  // pickAt: off the apply path, and world matrices are fresh by then.
   let _bvh: ObjectBVH | null = null;
   let _bvhDirty = true;
   function _refreshPickables() {
@@ -113,16 +70,8 @@ export function createPicker({
     _bvhDirty = true;
   }
 
-  // ── Selection → key derivation ────────────────────────────────────
-  // selection is the source of truth. Any time it changes, we recompute
-  // PICKER_SELECTION_KEY so the re-resolution below has the current anchor.
-  // No code path writes to both signals simultaneously.
-  //
-  // _suspendKeyDerive guards against feedback: it's raised while
-  // _resolveKeyToSelection writes selection.value, so that write doesn't
-  // re-fire this effect and overwrite the key mid-resolution. The initial
-  // fire is suppressed for the same reason (the key starts null on a fresh
-  // load — nothing to derive yet).
+  // Selection → key derivation. _suspendKeyDerive guards feedback: raised
+  // while _resolveKeyToSelection writes selection.value.
   let _suspendKeyDerive = true;
   const _disposeSelectionEffect = effect(() => {
     const sel = selection.value;
@@ -147,11 +96,8 @@ export function createPicker({
   // Lift the initial suppression now that the first (no-op) fire is done.
   _suspendKeyDerive = false;
 
-  // ── Key → selection re-resolution on world rebuild ────────────
-  // After a manifest swap, any prior live selection (mesh, street ref)
-  // is stale. Re-resolve from the persistable key so the user's
-  // selected node survives across rebuilds when its path still exists,
-  // and clears cleanly when it doesn't.
+  // Key → selection re-resolution on rebuild: a manifest swap stales every
+  // live mesh ref; the key keeps the selected node alive.
   function _resolveKeyToSelection() {
     const key = PICKER_SELECTION_KEY.value;
     _refreshPickables(); // also refresh pickables on every rebuild
@@ -199,10 +145,8 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    // trees is null when the manifest hasn't applied yet or ENABLED
-    // is off. Either way, the SHA can't be located, so we clear — same
-    // collapse rule the File / Directory branches use when their
-    // path lookup misses.
+    // trees is null pre-apply or when disabled; either way the SHA can't
+    // resolve, so clear — same collapse rule as the path branches.
     if (key.kind === NodeKind.Commit) {
       const trees = world.getTrees();
       const hit = trees?.findTreeBySha(key.sha) ?? null;
@@ -229,14 +173,8 @@ export function createPicker({
     hover.value = null;
   }
 
-  // ── Rebuild reactions ─────────────────────────────────────────────
-  // cityRevision bumps ONCE per applyManifest (streets/buildings already
-  // rebuilt by the time it fires). Clear the now-stale hover, then re-resolve
-  // the selection key against the fresh scene + refresh pickables. The body
-  // runs untracked() so the
-  // effect subscribes ONLY to cityRevision: _resolveKeyToSelection reads (and
-  // writes) PICKER_SELECTION_KEY + selection, which would otherwise make this
-  // effect re-fire on every ordinary selection change.
+  // Rebuild reaction: untracked() keeps this subscribed ONLY to
+  // cityRevision — the body reads/writes signals that would re-fire it.
   const _disposeCityRevEffect = effect(() => {
     void cityState.cityRevision.value;
     untracked(() => {
@@ -244,11 +182,8 @@ export function createPicker({
       _resolveKeyToSelection();
     });
   });
-  // decorationRevision bumps AFTER the deferred trees attach. At cityRevision
-  // time getTrees() was null (trees cleared), so a Commit selection was cleared
-  // and the pickables had no tree meshes. Re-resolve + refresh now that the live
-  // tree group exists. Hover is left alone (it was already cleared above, and a
-  // foliage attach shouldn't drop an interactive hover the user just made).
+  // decorationRevision bumps AFTER the deferred trees attach — at
+  // cityRevision time getTrees() was still null, so re-resolve now.
   const _disposeDecorationRevEffect = effect(() => {
     void cityState.decorationRevision.value;
     untracked(_resolveKeyToSelection);
@@ -256,12 +191,8 @@ export function createPicker({
   // Note: both effects fire ONCE at construction (revisions start at 0). That
   // initial resolve runs with key null → selection cleared + pickables primed.
 
-  // Timeline scrub mutates every building's instance matrix each frame (height +
-  // the age-lean shear). The cached ObjectBVH stores bounds at build time, so
-  // without this it keeps the heights from whenever it was last built — the
-  // hitbox freezes while the render follows the scrub. Invalidate on SCRUB_POS so
-  // the next pickAt rebuilds against the scrubbed matrices. Live mode never fires
-  // the rebuild (matrices are static there).
+  // The scrub rewrites building matrices per frame but the BVH caches bounds
+  // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
   const _disposeScrubBvhEffect = effect(() => {
     void SCRUB_POS.value;
     if (!TIMELINE_MODE.peek()) return;
@@ -278,19 +209,13 @@ export function createPicker({
     selection.value = sel;
   }
 
-  /** Convenience for "deselect everything" — equivalent to setSelection(null)
-   *  but gives view-side code a self-documenting verb instead of a magic
-   *  null argument. */
+  /** setSelection(null) with a self-documenting verb for view code. */
   function clearSelection(): void {
     selection.value = null;
   }
 
-  // Resolve a path string (file or directory) to a live PickTarget, or null
-  // if it matches nothing. Pure — no side effects. The single place that maps
-  // a path to scene internals (building mesh / street / sidewalk), so view
-  // code never switches on node kind or constructs PickTargets itself; it
-  // just calls selectByPath / hoverByPath, or feeds the result to
-  // rig.focusSelection.
+  // The ONE place a path maps to scene internals, so view code never
+  // switches on node kind or constructs PickTargets itself. Pure.
   function targetForPath(path: string): PickTarget | null {
     if (!path) return null;
     const resolved = world.getBuildingByPath(path);
@@ -339,11 +264,8 @@ export function createPicker({
     if (target) setHover(target);
   }
 
-  // ── Timeline scrub-hidden guard ─────────────────────────────────────
-  // Scrub-faded/zeroed meshes stay in the scene (never removed), so the
-  // raycast still hits them; reject a resolved hit here rather than let a
-  // faded-out building/tree/street stay hoverable or selectable. Only
-  // active in Timeline mode — live-mode resolution is untouched.
+  // Scrub-hidden guard: scrubbed-away meshes stay in the scene, so reject
+  // resolved hits on them (Timeline mode only).
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
@@ -362,19 +284,16 @@ export function createPicker({
     return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Ruin;
   }
 
-  // Streets fade per-vertex (aOpacity); read a face vertex directly so this
-  // can't drift from what the shader is actually drawing. Takes a bare mesh +
-  // vertex (not a hit) so a stored selection can be re-checked on scrub without
-  // a fresh raycast.
+  // Read a face vertex's aOpacity directly so this can't drift from what
+  // the shader draws; bare mesh+vertex args allow raycast-free rechecks.
   function _streetScrubHidden(mesh: THREE.Mesh, vi: number | null | undefined): boolean {
     const aOpacity = mesh.geometry?.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
     if (!aOpacity || vi == null) return false;
     return aOpacity.getX(vi) < SCRUB_HIDE_EPS;
   }
 
-  // Whether the current selection has been removed by the scrub (absent building,
-  // faded-out road, zero-scaled tree). A ruin stub stays selected — it's still
-  // visible. Used to prune a dangling selection each frame while scrubbing.
+  // Has the scrub removed the current selection? A ruin stub stays selected
+  // — it's still visible.
   function _selectionScrubHidden(sel: PickTarget): boolean {
     if (sel.kind === NodeKind.File) {
       return (
@@ -392,9 +311,8 @@ export function createPicker({
     return false;
   }
 
-  // Called each frame in Timeline (after the scrub controller writes the frame's
-  // presence attributes): drop a selection the scrub just removed so its outline
-  // can't dangle over empty space.
+  // Per-frame in Timeline: drop a selection the scrub just removed so its
+  // outline can't dangle over empty space.
   function pruneScrubHiddenSelection(): void {
     const sel = selection.peek();
     if (sel && _selectionScrubHidden(sel)) selection.value = null;
@@ -402,11 +320,8 @@ export function createPicker({
 
   // ── Raycasting ────────────────────────────────────────────────────
 
-  // Tie-break: when an InstancedMesh (cell detail) hit lies within
-  // ~0.1% of the closest hit's distance, prefer it over any sidewalk at the
-  // same distance — same-distance ties otherwise swing arbitrarily by JS
-  // sort stability and the user gets a directory tooltip when their cursor
-  // is plainly over a building.
+  // Same-distance ties otherwise swing on JS sort stability; prefer the
+  // building over the sidewalk when the cursor is plainly over a building.
   function _resolveTieBreak(
     hits: THREE.Intersection<THREE.Object3D>[]
   ): THREE.Intersection<THREE.Object3D> | null {
@@ -425,10 +340,8 @@ export function createPicker({
     return closest;
   }
 
-  // pickAt(x, y) — raycast at canvas-relative client coords; returns
-  // the first hit or null. Pickables are cached + spatially indexed (ObjectBVH),
-  // both refreshed on world rebuild. The BVH is (re)built here on first use so
-  // its object world matrices are already fresh from the frame loop.
+  // Raycast at canvas-relative coords → first hit or null. The BVH is
+  // (re)built here on first use, after the frame loop freshened matrices.
   function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -445,10 +358,8 @@ export function createPicker({
     return _resolveTieBreak(hits);
   }
 
-  // interpretHit(hit) — reduce a raw raycast hit to a target object of
-  // the same shape held by hover / selection signals. Returns null for
-  // hits that aren't selectable (e.g. street labels, which don't have
-  // userData.type populated for picking).
+  // Reduce a raw hit to a hover/selection-shaped target; null for
+  // non-selectable hits (e.g. street labels).
   /** A tree carries the commit that grew it. The renderer maps the hit face
    *  back to its placement (and filters scrub-hidden trees itself). */
   function commitTargetFor(

@@ -1,27 +1,7 @@
-// city/components/trees/treeRenderer.ts — turns a TreePlacement[] + the
-// manifest's commit list into merged static meshes: one plain triangle list
-// per spatial chunk, every tree's vertices pre-transformed to world space,
-// every color baked per-vertex (bytes). Roads-style — no instancing.
-// Instanced tree draws corrupt on mobile GPU drivers (verified on a Samsung
-// Xclipse 950 in both browser GL stacks, indexed and non-indexed alike);
-// the identical triangles drawn merged are clean, and per frame the GPU does
-// the same work either way, so merged is the only path on every device.
-//
-// Picking works the way buildings pick — against the rendered mesh itself: a
-// tree owns a contiguous vertex range in its chunk, so a raycast hit's
-// faceIndex maps straight back to the placement (commitForFace). Outline
-// transforms are composed from placement math on demand; the timeline scrub
-// gates rendering via a shader uniform and picking via isScrubHidden.
-//
-// Canopy vertices carry a baked color combining a vertical gradient (dark
-// base → light top) and a directional face shade (vertex normal dotted with
-// a fixed pseudo-light), giving every facet of the low-poly oval a distinct
-// brightness without runtime lighting.
-//
-// `refresh()` rewrites baked vertex colors + visibility from TREES without
-// rebuilding geometry. Anything that changes geometry sizes (height/width
-// range, trunk fractions, shading strength) goes through the rebuild path in
-// state/settingsReactions.ts.
+// city/components/trees/treeRenderer.ts — merged static tree meshes: one
+// world-space triangle list per spatial chunk, colors baked per-vertex, NOT
+// instanced (mobile drivers corrupt instanced tree draws — Xclipse 950). A
+// tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
 import { TREES } from '@/state/stores/settings/trees';
@@ -50,16 +30,14 @@ export interface Trees {
   group: THREE.Group;
   refresh(): void;
   dispose(): void;
-  /** Resolve a raycast hit on a merged tree mesh back to the tree it struck.
-   *  Returns null if the mesh isn't one of this group's, the face is out of
-   *  range, the placement has no valid commit, or the tree is scrub-hidden. */
+  /** Raycast hit → tree. Null for foreign meshes, out-of-range faces,
+   *  commit-less placements, and scrub-hidden trees. */
   commitForFace(
     mesh: THREE.Object3D,
     faceIndex: number | null | undefined
   ): { commit: CommitEntry; placementIndex: number } | null;
-  /** Resolve a commit SHA to the merged mesh + placement index rendering that
-   *  commit's tree. Used by the picker to re-resolve a selection-by-sha
-   *  across world rebuilds. Returns null when no tree has the given sha. */
+  /** SHA → merged mesh + placement index; how the picker re-resolves a
+   *  selection across world rebuilds. Null for unknown shas. */
   findTreeBySha(sha: string): {
     mesh: THREE.Mesh;
     instanceId: number;
@@ -68,14 +46,11 @@ export interface Trees {
   /** The tree's baked base color for the given SHA as a CSS hex string
    *  (e.g. "#5e8a3a"), or null when the sha can't be found. */
   colorForSha(sha: string): string | null;
-  /** Write the canopy world transform for `sha` into `out` (composed from
-   *  placement data). Returns true when a tree was found. Used by
-   *  treeOutlineRenderer to snap the hover/selected outline to the tree. */
+  /** Compose the canopy world transform for `sha` into `out`, so the
+   *  outline renderer can snap to the tree. False when not found. */
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
-  /** Look up a tree's world position and dimensions by commit SHA.
-   *  Returns null for an unknown sha, or when commits is null. The (x, z)
-   *  are the tree's XZ position; y is the base (always 0). height is the
-   *  trunk-top to canopy-top distance; radius is the canopy XZ radius. */
+  /** Tree world position + dimensions by SHA (y is always the base, 0);
+   *  null for unknown shas or a null commit list. */
   getTreeBoundsBySha(sha: string): {
     x: number;
     y: number;
@@ -83,26 +58,18 @@ export interface Trees {
     height: number;
     radius: number;
   } | null;
-  /** Timeline scrub gate: null shows every tree (live/no-scrub); a number
-   *  hides every tree whose placement.commitIndex exceeds it. Rendering is
-   *  gated by a shader uniform (fragment discard); picking via isScrubHidden. */
+  /** Timeline scrub gate: hides trees whose commitIndex exceeds the value
+   *  (rendering via shader uniform, picking via isScrubHidden); null = all. */
   setScrubCommit(maxCommitIndex: number | null): void;
   /** True when the scrub currently hides the tree at `placementIndex`. */
   isScrubHidden(placementIndex: number): boolean;
 }
 
-/** Radial segment count for every canopy LatheGeometry — one shared value
- *  for all trees (not file-driven). Bump for rounder crowns, drop for a
- *  chunkier low-poly look. */
+/** Shared canopy facet count: bump for rounder crowns, drop for chunkier. */
 const TREE_CANOPY_FACETS = 6;
 
-/** Lathe control points for the canopy silhouette: hand-picked (radius, height)
- *  pairs producing a round, near-spherical crown — widest at the middle (~y 0.5)
- *  and tapering symmetrically to rounded poles at top + bottom, so it reads as a
- *  ball rather than an elongated/popsicle column. Bottom→top, both axes
- *  normalized to [0,1] so one profile drives the canopy at any scale. Shared by
- *  `buildCanopyGeometry` (the rendered canopy) and `buildCanopyEdges` (the
- *  outline wireframe) — keep these two in sync. */
+/** Canopy silhouette (bottom→top, both axes [0,1]): near-spherical so the
+ *  crown reads as a ball, not a popsicle column. Shared by geometry + edges. */
 const CANOPY_PROFILE: readonly THREE.Vector2[] = [
   new THREE.Vector2(0, 0),
   new THREE.Vector2(0.42, 0.03),
@@ -118,18 +85,8 @@ const CANOPY_PROFILE: readonly THREE.Vector2[] = [
   new THREE.Vector2(0, 1.0),
 ];
 
-/** Build a unit-height (Y ∈ [0,1]), unit-radius round canopy geometry.
- *
- *  Profile (lathed around the Y axis) is a near-sphere: widest at the
- *  middle, curving symmetrically in to rounded poles top + bottom, so the
- *  crown reads as a ball. It still converges to the axis at both poles (a
- *  lathe profile must), but the convex sides keep it round rather than the
- *  straight-sided, domed-top "popsicle" a wide-column profile produces. The
- *  trunk pokes up into the rounded underside.
- *
- *  Profile max X = 1.0, so when the bake applies XZ scale = r, the canopy
- *  world radius at its widest = r exactly; with height ≈ 2r the crown
- *  renders as a circle, taller trees as a vertical ellipsoid. */
+/** Unit-height, unit-radius canopy: profile max X = 1.0, so XZ scale r
+ *  gives an exact world radius r (height ≈ 2r reads as a circle). */
 function buildCanopyGeometry(): THREE.BufferGeometry {
   const profile = CANOPY_PROFILE as THREE.Vector2[];
   const geom = new THREE.LatheGeometry(profile, TREE_CANOPY_FACETS);
@@ -141,36 +98,19 @@ function buildCanopyGeometry(): THREE.BufferGeometry {
   return flat;
 }
 
-/** Build a clean wireframe `EdgesGeometry` for the canopy silhouette. Uses
- *  the SAME profile + segment count as `buildCanopyGeometry`, but on the
- *  indexed lathe (no `toNonIndexed`) so adjacent triangles share vertex
- *  normals — that lets `EdgesGeometry` collapse coplanar interior edges and
- *  emit only the ring boundaries.
- *
- *  Consumed by `./outline.ts` (the tree outline renderer). */
+/** Canopy silhouette wireframe for ./outline.ts — built on the INDEXED
+ *  lathe so EdgesGeometry collapses coplanar edges to ring boundaries. */
 export function buildCanopyEdges(): THREE.EdgesGeometry {
   const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], TREE_CANOPY_FACETS);
-  // Default 1° threshold keeps any edge whose adjacent face normals differ
-  // by >1° — for the canopy this means ring boundaries (profile slope
-  // changes) plus the lathe's wrap seam. The result reads as a wireframe
-  // silhouette covering both the outer outline and a few interior facet rings.
+  // The 1° threshold keeps ring boundaries + the wrap seam: an outline
+  // plus a few interior facet rings.
   const edges = new THREE.EdgesGeometry(lathe, 1);
   lathe.dispose();
   return edges;
 }
 
-/** Bake per-vertex shading factors on a unit-height canopy geometry.
- *
- *  Two effects combined, both scaled by `strength` ∈ [0,1]:
- *
- *  1. Vertical gradient — dark at y=0 (base), full bright at y=1 (top).
- *  2. Directional face shading — dot the vertex normal against a fixed
- *     3D pseudo-light. On the non-indexed lathe each face has its own
- *     outward normal, so this gives every facet a distinct brightness,
- *     defining the low-poly silhouette without runtime lighting.
- *
- *  The merged bake multiplies these factors into each tree's age-driven
- *  color, so the same tree gets both hue AND clear facet definition. */
+/** Bake shading factors (vertical gradient × directional facet shade, both
+ *  scaled by strength) that the merge multiplies into each tree's color. */
 function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
   // Sun direction from the fixed LIGHTING constants (shared with buildings
   // and the island mesh) so the scene agrees on where the sun is.
@@ -178,10 +118,8 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
   const LIGHT_X = sun.x;
   const LIGHT_Y = sun.y;
   const LIGHT_Z = sun.z;
-  // Shadow side dims to (1 - DIRECTIONAL_RANGE × strength); lit side
-  // stays at 1. 0.75 gives a ~50% spread between dimmest and brightest
-  // facet at strength=0.65 (default), matching the strong lit/shadow
-  // contrast in low-poly tree art.
+  // 0.75 gives ~50% dimmest-to-brightest facet spread at default strength,
+  // matching low-poly tree art's strong lit/shadow contrast.
   const DIRECTIONAL_RANGE = 0.75;
   // Vertical gradient is the secondary effect — keep it subtle so
   // directional facet contrast dominates the silhouette.
@@ -221,18 +159,15 @@ export function createTreeRenderer(
 ): Trees {
   let cfg = TREES.value;
 
-  // Per-tree height/width come from treeEncoding (treeHeight / treeRadius),
-  // the single source shared with the firefly orbit field.
+  // Heights/widths come from treeEncoding — shared with the firefly field.
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
   const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC;
-  // Fraction of trunk height hidden inside the canopy bottom. The
-  // canopy is positioned this far below trunk-top so the trunk visibly
-  // enters the canopy instead of just touching its bottom vertex.
+  // Fraction of trunk height inside the canopy, so the trunk visibly
+  // enters it instead of touching a single vertex.
   const canopyOverlapFrac = Math.max(0, Math.min(1, cfg.CANOPY_TRUNK_OVERLAP_FRAC));
 
-  // Age + size ranges come from the backend-precomputed stats (commitDates +
-  // sparsest/grandest commit), not a client-side scan of `commits`. scannedAt
-  // (manifest.scanned_at) drives the absolute-age staleness lift on height.
+  // Ranges come from backend-precomputed stats, not a client-side scan;
+  // scannedAt drives the absolute-age staleness lift on height.
   const ageRange: AgeRange = computeAgeRange(stats, scannedAt);
   const sizeRange: SizeRange = computeSizeRange(stats);
 
@@ -245,9 +180,8 @@ export function createTreeRenderer(
     return null;
   }
 
-  // HEIGHT is driven by AGE; WIDTH by FILES (attenuated by age). Both
-  // formulas live in treeEncoding so the firefly orbit field derives from
-  // the identical math (see treeHeight / treeRadius).
+  // HEIGHT follows AGE, WIDTH follows FILES (age-attenuated); formulas live
+  // in treeEncoding so firefly orbits derive from identical math.
   function perTreeHeight(i: number): number {
     return treeHeight(commitForPlacement(i), ageRange, cfg);
   }
@@ -256,16 +190,8 @@ export function createTreeRenderer(
     return treeRadius(commitForPlacement(i), ageRange, sizeRange, cfg);
   }
 
-  // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
-  // COLOR_SOLO_DAY; busy days (many commits the same day)
-  // interpolate toward COLOR_BUSY_DAY. All commits on the
-  // same date share a color. Log-normalized so the typical 1–10
-  // commits-per-day band stays readable when one outlier day spikes to
-  // 50+ commits.
-  //
-  // Interpolation is done in OKLCH (shortest hue arc) so the midpoint
-  // between distant hues stays saturated — picking purple + teal gives
-  // a vivid blue through the middle instead of a muddy gray.
+  // COLOR follows COMMITS-PER-DAY between the SOLO/BUSY endpoints (same-date
+  // commits share a color), interpolated in OKLCH so midpoints stay vivid.
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
@@ -283,8 +209,7 @@ export function createTreeRenderer(
 
   const totalTrees = placements.length;
 
-  // Height + radius are needed by both the bake and the transform/bounds
-  // lookups; compute each once (treeRadius also re-derives height internally).
+  // Computed once: the bake AND the transform/bounds lookups both read these.
   const heights = new Float64Array(totalTrees);
   const radii = new Float64Array(totalTrees);
   for (let i = 0; i < totalTrees; i++) {
@@ -292,12 +217,10 @@ export function createTreeRenderer(
     radii[i] = perTreeRadius(i);
   }
 
-  // Base color cache: keyed by commit SHA, value is the hex color string
-  // (e.g. "#5e8a3a") computed during bake. Rebuilt on every refresh().
+  // sha → hex base color, filled during bake, rebuilt on refresh().
   const _baseColorBySha = new Map<string, string>();
 
-  // O(1) index from sha → merged mesh + placement index. Populated in the
-  // bake loop, cleared + rebuilt on refresh().
+  // O(1) sha → merged mesh + placement index, rebuilt on refresh().
   const _treeIndexBySha = new Map<
     string,
     { mesh: THREE.Mesh; instanceId: number; commit: CommitEntry }
@@ -327,9 +250,8 @@ export function createTreeRenderer(
     ...NEUTRAL_POLYGON_OFFSET,
   });
 
-  // Chunk membership is SPATIAL (coarse grid tiles), not placement order, so
-  // each chunk covers a compact region and per-chunk frustum culling drops
-  // off-screen forest.
+  // SPATIAL chunk membership (coarse grid tiles): compact chunks make
+  // per-chunk frustum culling actually drop off-screen forest.
   const chunkSize = instanceChunkSize();
   const SPATIAL_TILE = 256;
   const spatialOrder = new Array<number>(totalTrees);
@@ -344,10 +266,8 @@ export function createTreeRenderer(
     return a - b;
   });
 
-  /** Colors for one tree's merged vertices: baked facet shading × per-tree
-   *  age color for the canopy, flat TRUNK_COLOR for the trunk. Shared by the
-   *  bake and refresh() (settings recolors rewrite in place). Also feeds the
-   *  sha → color/index caches. */
+  /** One tree's vertex colors (shading × age color; flat trunk), shared by
+   *  bake and refresh(); also feeds the sha caches. */
   function writeTreeColors(mesh: THREE.Mesh, colors: Uint8Array, slot: number, i: number): void {
     perTreeColor(i, tmpColor);
     const commit = commits?.[placements[i].commitIndex];
@@ -389,10 +309,8 @@ export function createTreeRenderer(
       const r = radii[i];
       const trunkH = h * trunkHeightFrac;
       const trunkR = r * trunkRadiusFrac;
-      // Canopy base sits BELOW the trunk top by `canopyOverlapFrac × trunkH`,
-      // so the trunk visibly enters the canopy from below instead of touching
-      // it at a single point. Y-scale = h, XZ-scale = r → a vertical ellipsoid
-      // when h > r.
+      // Canopy base sits canopyOverlapFrac×trunkH below the trunk top, so
+      // the trunk visibly enters it from below.
       const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
       const base = slot * PER_TREE_VERTS;
       for (let v = 0; v < CANOPY_VERTS; v++) {
@@ -418,8 +336,7 @@ export function createTreeRenderer(
     mesh.visible = cfg.ENABLED;
     mesh.userData.meshKind = 'trees';
     mesh.userData.placementOrder = placementOrder;
-    // Vertex-layout facts, so consumers (tests) can slice a tree's range
-    // without hand-syncing geometry constants.
+    // Layout facts so tests can slice a tree's range without hand-syncs.
     mesh.userData.canopyVerts = CANOPY_VERTS;
     mesh.userData.trunkVerts = TRUNK_VERTS;
     return mesh;
@@ -450,8 +367,7 @@ export function createTreeRenderer(
     setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
     setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 
-    // Rebuild the base-color cache and sha index before re-baking so
-    // colorForSha / findTreeBySha always reflect the current config colors.
+    // Rebuilt before re-baking so the sha caches reflect current colors.
     _baseColorBySha.clear();
     _treeIndexBySha.clear();
     for (const mesh of mergedMeshes) {
@@ -473,8 +389,7 @@ export function createTreeRenderer(
     mergedMaterial.dispose();
   }
 
-  // Threshold applied by the last setScrubCommit call. Rendering reads it via
-  // the shader uniform; picking via isScrubHidden/commitForFace.
+  // Last scrub threshold: rendering reads the uniform, picking reads this.
   let _scrubCommit: number | null = null;
 
   function isScrubHidden(placementIndex: number): boolean {
@@ -490,8 +405,8 @@ export function createTreeRenderer(
     if (faceIndex == null || !commits) return null;
     const order = mesh.userData?.placementOrder as number[] | undefined;
     if (!order || mesh.userData?.meshKind !== 'trees') return null;
-    // Non-indexed triangle list: face f spans vertices [3f, 3f+3); every tree
-    // owns PER_TREE_VERTS consecutive vertices.
+    // Non-indexed list: face f spans vertices [3f, 3f+3); every tree owns
+    // PER_TREE_VERTS consecutive vertices.
     const slot = Math.floor((faceIndex * 3) / PER_TREE_VERTS);
     if (slot < 0 || slot >= order.length) return null;
     const placementIndex = order[slot];

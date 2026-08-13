@@ -10,9 +10,8 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
-/** Public handle returned by createFireflyAssembly. Extends the renderer with
- *  sha-based hover/select methods so callers don't need to manage the
- *  sha→index map externally. */
+/** createFireflyAssembly's handle: the renderer plus sha-based hover/select
+ *  so callers never manage the sha→index map. */
 export interface Fireflies {
   group: FireflyRenderer['group'];
   setTime: FireflyRenderer['setTime'];
@@ -71,10 +70,8 @@ export function createFireflyAssembly(
     group: parent,
     setTime(seconds: number) {
       renderer.setTime(seconds);
-      // Piggyback on the per-frame setTime tick to advance the orbit-ring
-      // rainbow chase on selected commits. rings.update wants milliseconds
-      // (matches treeOutlineRenderer's `performance.now() * RAINBOW.SPEED`
-      // convention); convert from the seconds the renderer was passed.
+      // Piggyback the ring rainbow chase on setTime; rings.update wants
+      // milliseconds (the treeOutlineRenderer convention).
       rings.update(seconds * 1000);
     },
     setHoveredCommit(sha: string | null) {

@@ -1,8 +1,6 @@
-// picker-timeline.test.ts — Timeline mode fades buildings/trees/streets by
-// writing opacity/scale onto their still-in-scene meshes (each component's
-// applyScrub, treeRenderer.setScrubCommit), so a raycast still hits them. Guards that
-// interpretHit rejects a scrub-hidden hit while TIMELINE_MODE is on, and
-// leaves live-mode resolution untouched.
+// picker-timeline.test.ts — scrubbed-away meshes stay in the scene, so a
+// raycast still hits them. Guards that interpretHit rejects those hits in
+// Timeline mode and leaves live-mode resolution untouched.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -164,9 +162,8 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
     return m;
   }
 
-  // Mock merged renderer: face f is tree f; the scrub threshold hides
-  // higher commit indices from BOTH rendering and picking, exactly like the
-  // real renderer's commitForFace/isScrubHidden pair.
+  // Mock merged renderer: face f is tree f, and the threshold hides higher
+  // commit indices like the real commitForFace/isScrubHidden pair.
   function makeWorld(chunk: THREE.Mesh, commits: CommitEntry[], scrubMax: number | null) {
     const cityState = makeCityState();
     const hidden = (i: number) => scrubMax !== null && i > scrubMax;
