@@ -20,7 +20,7 @@ import { getFileIconName } from '@/utils/fileIcons';
 import { isDataBuilding } from '@/utils/binaryKind';
 import { isEmptyFile } from '@/utils/emptyKind';
 import { BuildingKind } from './buildingKind';
-import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
+import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +36,8 @@ const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 
 const _writePos = new THREE.Vector3();
 const _writeScale = new THREE.Vector3();
 const _writeMatrix = new THREE.Matrix4();
+// Buildings are axis-aligned: one identity rotation serves every compose.
+const _WRITE_QUAT = new THREE.Quaternion();
 const _writeColor = new THREE.Color();
 
 // ---------------------------------------------------------------------------
@@ -173,14 +175,12 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
 
-  // --- Transform matrix (scale + translate + age-lean shear) ---
+  // --- Transform matrix (scale + translate) ---
   // Layout (x, y) → scene (x, z); building.h is scene-Y. Position y = h/2 so the
-  // base sits on z=0. The lean is baked in as a Y-driven XZ shear (see tilt.ts)
-  // so the render, outline, and picker all read one sheared matrix.
-  const { tiltX, tiltZ } = getBuildingTilt(b);
+  // base sits on y=0.
   _writePos.set(b.x, b.h / 2, b.y);
   _writeScale.set(b.w, b.h, b.d);
-  composeShearMatrix(_writePos, _writeScale, tiltX, tiltZ, _writeMatrix);
+  _writeMatrix.compose(_writePos, _WRITE_QUAT, _writeScale);
   mesh.setMatrixAt(slot, _writeMatrix);
 
   // --- Color (linear RGB via Three.Color) ---

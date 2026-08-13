@@ -7,7 +7,7 @@
 // dim end means "nobody has touched this in a long time" rather than merely
 // "this is the oldest one here".
 // `getCreatedAge` (also exported here) tracks a SEPARATE axis: how long
-// the file has existed in the repo. That drives grime + tilt + lit-window
+// the file has existed in the repo. That drives grime + lit-window
 // glow color in the shader, independent of recent edits.
 //
 // Tunables come from BUILDINGS in state/stores/settings/buildings.ts. Tests
@@ -130,7 +130,7 @@ export function getBuildingColor(file: FileLike, nowMs: number): string {
 /**
  * How recently a file was touched, from its own age alone.
  *
- * A separate axis from getCreatedAge (grime, tilt, window glow), which ranks by
+ * A separate axis from getCreatedAge (grime, window glow), which ranks by
  * CREATION: colour is "how recently was this touched", those are "how long has
  * this existed". A long-lived file edited yesterday reads vivid AND grimy.
  */

@@ -22,7 +22,6 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { Building } from '@/types';
 import type { createPicker } from '@/city/interaction/picker';
 import type { FileTarget } from '@/types';
@@ -69,6 +68,7 @@ export function createGhostRenderer({
 
   // Scratch objects reused per frame to avoid GC pressure.
   const _tmpMatrix = new THREE.Matrix4();
+  const _GHOST_QUAT = new THREE.Quaternion();
   const _tmpPos = new THREE.Vector3();
   const _tmpScale = new THREE.Vector3();
   const _tmpQuat = new THREE.Quaternion();
@@ -81,7 +81,7 @@ export function createGhostRenderer({
   // live instance matrix so the ghost tracks the animator's tween position.
   // Falls back to layout dimensions from target.data when no live mesh is
   // available. The shader's Y-shear lean is then baked into the ghost matrix
-  // (same as the outline) — without it a tilted building's vertical ghost
+  // (same as the outline) — without it the vertical ghost
   // diverges from the leaning body and reads as an offset double-image.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
@@ -118,14 +118,10 @@ export function createGhostRenderer({
       _ghostMat.color.set(b.color ?? '#ffffff');
     }
 
-    // Bake the same Y-shear the vertex shader (and the outline) apply, so the
-    // ghost leans with the building. GHOST_SCALE_INSET keeps it flush. With
-    // tilt off / newest buildings (tiltX = tiltZ = 0) this is a plain TRS,
-    // identical to the previous position + scale path.
-    const { tiltX, tiltZ } = getBuildingTilt(b);
+    // GHOST_SCALE_INSET keeps it flush inside the building it shadows.
     _tmpPos.set(px, py, pz);
     _tmpScale.set(sx * GHOST_SCALE_INSET, sy * GHOST_SCALE_INSET, sz * GHOST_SCALE_INSET);
-    composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, ghostMesh.matrix);
+    ghostMesh.matrix.compose(_tmpPos, _GHOST_QUAT, _tmpScale);
     ghostMesh.matrixAutoUpdate = false;
     ghostMesh.matrixWorldNeedsUpdate = true;
   }

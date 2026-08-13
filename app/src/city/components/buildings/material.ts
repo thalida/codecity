@@ -68,7 +68,6 @@ export function getIconAtlas(): IconAtlas | null {
 
 // Grime is age-scaled: a [newest, oldest] range the shader lerps per-building by
 // createdAge, written into a Vector2 uniform (both 0 when disabled → mix → 0).
-// (The age-lean is NOT here — it's baked into the instance matrix; see tilt.ts.)
 function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
   const f = BUILDINGS.value;
   const [lo, hi] = f.GRIME_ENABLED ? f.GRIME_INTENSITY : [0, 0];
@@ -209,7 +208,7 @@ export function refreshBuildingMaterial(): void {
   // routes the whole store through scheduleRebuild so the uniforms here
   // are kept fresh on the next rebuild without separate plumbing.
   const facade = BUILDINGS.value;
-  // Age weathering (grime + tilt) — [newest, oldest] ranges the shader lerps
+  // Age weathering (grime) — [newest, oldest] ranges the shader lerps
   // per-building by createdAge.
   _grimeIntensityVec(_sharedMaterial.uniforms.uGrimeIntensity.value as THREE.Vector2);
   (_sharedMaterial.uniforms.uGrimeCoverage.value as THREE.Vector2).set(...facade.GRIME_COVERAGE);

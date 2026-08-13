@@ -82,7 +82,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
       { label: 'Footprint', detail: 'file size' },
       { label: 'Color & roof icon', detail: 'file type' },
       { label: 'Brightness', detail: 'how recently it changed' },
-      { label: 'Grime & lean', detail: "how long it's existed" },
+      { label: 'Grime', detail: "how long it's existed" },
       { label: 'Flat slab', detail: 'an empty file: no walls, no windows' },
     ],
   },

@@ -124,11 +124,6 @@ export const BUILDINGS_SECTION: SectionNode = {
             field(BUILDINGS, 'GRIME_COVERAGE'),
           ],
         },
-        {
-          key: 'facade-tilt',
-          label: 'Tilt',
-          children: [field(BUILDINGS, 'TILT_ENABLED'), field(BUILDINGS, 'TILT_DEGREES')],
-        },
       ],
     },
     {

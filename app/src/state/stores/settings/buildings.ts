@@ -159,7 +159,7 @@ export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELD
 //     keys rebuild since they bake into per-instance attributes).
 //   AD_*                               — media-building billboards (rebuild;
 //     geometry baked at apply time).
-//   GRIME_/TILT_                       — createdAge weathering (refresh:
+//   GRIME_                             — createdAge weathering (refresh:
 //     refreshBuildingMaterial uniforms, lerped per-building by age).
 //   DEFAULT_/LEVEL1..4_                — selection-fade tier matrix (live: the
 //     fader applies it directly; see the tier comment below).
@@ -551,26 +551,6 @@ const BUILDINGS_FIELDS = {
     step: 0.05,
     label: 'Coverage (new → old)',
     tip: 'Fraction of vertical bands that streak, from newest buildings (left) to oldest (right). Lower is sparser, higher is nearly every band.',
-  },
-  TILT_ENABLED: {
-    // Rebuild (not Refresh): the lean is baked into each building's instance
-    // matrix (tilt.ts), so a change must re-bake matrices — a full apply — not
-    // just push a uniform. Keeps the picker + outline in sync with the render.
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Toggle,
-    default: true,
-    label: 'Enabled',
-    tip: "Small lean at the base that grows with a building's age. Each one leans in a fixed direction. Turn off to keep every building upright.",
-  },
-  TILT_DEGREES: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.RangePair,
-    default: [0, 1] as [number, number],
-    min: 0,
-    max: 10,
-    step: 0.1,
-    label: 'Lean degrees (new → old)',
-    tip: 'Lean angle in degrees, from newest buildings (left) to oldest (right). Above 10° buildings start clipping into their neighbors.',
   },
 
   // ── Selection-fade tiers — live ──

@@ -19,7 +19,6 @@ import { recencyT } from '@/city/utils/recency';
 import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
-import { getBuildingTiltAtAge } from './tilt';
 
 /** PathState read through the ruin settings.
  *  Absent is still driven every frame, or a Live fade sweep lingers on it. */
@@ -41,8 +40,6 @@ export interface BuildingScrubState {
   height: number;
   /** Window rows; a ruin blanks its facade. */
   floors: number;
-  tiltX: number;
-  tiltZ: number;
   /** iFade.xyz. Only a present building owns the last two. */
   bodyOp: number;
   silhouette: number;
@@ -76,8 +73,6 @@ export function blankBuildingScrubState(): BuildingScrubState {
     op: 0,
     height: 0,
     floors: 0,
-    tiltX: 0,
-    tiltZ: 0,
     bodyOp: 0,
     silhouette: 0,
     outlineOp: 0,
@@ -153,15 +148,10 @@ export function resolveBuildingScrubState(
     const dims = getBuildingDimensions(scrubFile, f.lineStats, f.byteStats);
     out.height = dims.h;
     out.floors = dims.floors;
-    const tilt = getBuildingTiltAtAge(b.file.path, out.createdAge);
-    out.tiltX = tilt.tiltX;
-    out.tiltZ = tilt.tiltZ;
   } else {
     // Stub or slab: the blank facade is what makes each read as what it is.
     out.height = lane === BuildingLane.Ruin ? f.ruinHeight : 0;
     out.floors = 0;
-    out.tiltX = 0;
-    out.tiltZ = 0;
   }
 
   if (present) {

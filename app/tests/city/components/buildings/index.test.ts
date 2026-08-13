@@ -358,11 +358,6 @@ describe('createBuildings()', () => {
   it('a SECOND rebuild introducing a new building fires its enter tween through tick() and lands the final transform', async () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
-    // Isolate the tween's scale+position landing from the age-lean shear (baked
-    // into the instance matrix, tilt.ts) — otherwise the landed X/Z carry the
-    // lean offset. The lean itself is covered by tilt.test.
-    BUILDINGS.value = { ...BUILDINGS.value, TILT_ENABLED: false };
-
     // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);

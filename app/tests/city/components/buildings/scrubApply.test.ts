@@ -102,15 +102,6 @@ describe('applying a scrub frame', () => {
     expect(e[13]).toBeCloseTo(4, 5); // height / 2
   });
 
-  it('bakes the age lean into the matrix, so the picker and outline follow it', () => {
-    run({ ...PRESENT, tiltX: 0.1, tiltZ: -0.2 });
-    const e = matrix().elements;
-    // The lean shears the Y column (column-major slots 4 and 6).
-    expect(e[4]).toBeCloseTo(8 * 0.1, 5);
-    expect(e[6]).toBeCloseTo(8 * -0.2, 5);
-    expect(e[12]).toBeCloseTo(b.x + 4 * 0.1, 5);
-  });
-
   it('zero-scales an absent building on every axis, not into a flat quad', () => {
     // A (w, 0, d) quad still writes depth and outlines as a cutout on the road.
     run({ lane: BuildingLane.Absent });

@@ -133,7 +133,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Fading is real time, not rank within the repo**: an abandoned project reads faded all over, and one edit recolors one building instead of shifting the whole city
 - **Roof border**: the color the file would have if you touched it today, so the gap between the border and the faded walls is how far it has aged
 - **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
-- **Aging**: older files get grime streaks and a slight lean
+- **Aging**: older files get grime streaks
 - **Media files** (images, video) render an ad-panel face on the front above the door
 - **Binary files** (databases, `.wasm`, `.so`, fonts, audio) become windowless data blocks sized by byte count, faced with a fingerprint of their own bytes — or, for fonts and audio, a letter set in the font and the waveform itself
 
@@ -171,14 +171,11 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 
 ## Timeline
 
-<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files crossed out where they stood and future files marked by low tinted slabs" width="800" />
+<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files crossed out where they stood" width="800" />
 
 **Scrub the whole history and watch the city grow.** The scene toggle flips from Live to Timeline, and a dated slider spans the repo, a tick per commit. Drag it and the city rebuilds at that commit.
 
-Files that don't exist at that commit still get a place, set in the World tab under Timeline:
-
-- **Deleted files** keep their plot and get crossed out, so a folder that's since been emptied still shows what it used to hold.
-- **Future files** mark where a not-yet-created file will land with an ultra-low slab, tinted toward its own color. Off by default; turn it on to see the shape the city is growing toward.
+**Deleted files** keep their plot and get crossed out, so a folder that's since been emptied still shows what it used to hold. Set it in the World tab under Timeline. A file that hasn't been written yet simply isn't there.
 
 ## How it works
 

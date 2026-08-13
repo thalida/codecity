@@ -256,14 +256,6 @@ describe('weathering', () => {
   });
 });
 
-describe('the tilt shear', () => {
-  it('is zero for the non-present lanes: only a lived-in building leans', () => {
-    const ruin = resolve(3, { ruinsOn: true });
-    expect(ruin.tiltX).toBe(0);
-    expect(ruin.tiltZ).toBe(0);
-  });
-});
-
 it('resolves into the state it was handed, so a frame allocates nothing per building', () => {
   const out = blankBuildingScrubState();
   const subject = scrubSubject(SUBJECT_BUNDLE, file);

@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import type { Building } from '@/types';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { BuildingIndex } from './buildingIndex';
-import { composeShearMatrix } from './tilt';
 import { BuildingLane, type BuildingScrubState } from './scrubState';
 
 export interface BuildingScrubApplyCtx {
@@ -21,6 +20,7 @@ function attr(mesh: THREE.InstancedMesh, name: string): THREE.BufferAttribute | 
 
 export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
   const _m = new THREE.Matrix4();
+  const _SCRUB_QUAT = new THREE.Quaternion();
   const _pos = new THREE.Vector3();
   const _scale = new THREE.Vector3();
   const _color = new THREE.Color();
@@ -43,11 +43,9 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
       // a cutout on the road.
       _m.makeScale(0, 0, 0);
     } else {
-      // The lean is baked in so the picker and outline follow it; zero tilt
-      // reduces this to a plain scale + position.
       _pos.set(b.x, s.height / 2, b.y);
       _scale.set(b.w, s.height, b.d);
-      composeShearMatrix(_pos, _scale, s.tiltX, s.tiltZ, _m);
+      _m.compose(_pos, _SCRUB_QUAT, _scale);
     }
     mesh.setMatrixAt(slot, _m);
     _meshes.add(mesh);
