@@ -3,9 +3,10 @@
 /* Pane headers: title left, the pane's own actions right. Every pane mounts this
  * same row, so they can't drift apart. */
 .pane-header {
-  /* The action glyphs are centred in their targets, so they already clear three
-     sides by that bearing; the title adds one and the four insets read alike. */
-  padding: var(--cc-space-4);
+  /* One rail item tall, border included, so both panes' headers line up with the
+     activity bar's first icon rather than sitting a few pixels below it. */
+  height: var(--cc-rail-w);
+  padding-inline: var(--cc-space-4);
   padding-inline-start: calc(var(--cc-space-4) + var(--cc-icon-bearing));
   border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;

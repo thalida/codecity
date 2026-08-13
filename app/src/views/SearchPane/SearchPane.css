@@ -3,10 +3,10 @@
 /* The search field is the header row here, with the results scrolling below
    and each match wrapped in a mark. */
 
-/* The input stands in for a title, so the row hugs it: one inset all round,
-   with the icon gap matching so the glyph sits evenly. */
+/* The input stands in for a title, so it takes the plain inset on both sides
+   rather than the title's extra glyph bearing. The row's own height centres it. */
 .pane-header--search {
-  padding: var(--cc-space-4);
+  padding-inline: var(--cc-space-4);
 }
 
 .search-input-wrap {
