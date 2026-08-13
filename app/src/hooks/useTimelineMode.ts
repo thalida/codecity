@@ -54,8 +54,8 @@ function timelineLoadingTail(p: TimelineProgress): string | null {
 //   - fresh enter (from Live): full overlay + cancel-back-to-Live, scrub at present.
 //   - inPlace (already in Timeline — an exclude edit changed the union DATA, or a
 //     Fresh scan asked for the walk again, so the warm bundle must be refetched):
-//     footer "rebuilding" instead of the overlay, hold the scrub position, and stay
-//     in Timeline on error (no Live scene to fall back to). Settings changes don't
+//     the header's freshness readout instead of the overlay, hold the scrub position,
+//     and stay in Timeline on error (no Live scene to fall back to). Settings changes don't
 //     come here — they re-pack the warm bundle via reapplyTimelineScene, no refetch.
 // `noCache` is the Fresh scan's flag: the bundle is cached per HEAD, so re-reading
 // history takes asking for it.
@@ -70,7 +70,7 @@ export async function loadTimelineScene({ inPlace = false, noCache = false } = {
   let committed = false;
 
   if (inPlace) {
-    markRebuilding(); // footer status; the trees decoration pass clears it after the pack
+    markRebuilding(); // freshness readout; the trees decoration pass clears it after the pack
   } else {
     // Full overlay, repo-name header included (PENDING_SOURCE_LABEL, the same signal
     // the live load sets), with a cancel that aborts the history fetch and stays on

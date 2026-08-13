@@ -50,8 +50,8 @@ export function City() {
         invalidateLayoutCache: handle.invalidateLayoutCache,
       });
 
-      // Apply MANIFEST → scene on every change. This flips the footer to
-      // Rebuilding before each apply; success → Idle (+ error clear) is owned by
+      // Apply MANIFEST → scene on every change. This flips the freshness
+      // readout to Rebuilding before each apply; success → Idle (+ error clear) is owned by
       // the trees decoration pass (markIdle, the last stage of every
       // applyManifest), and the camera reframe-on-source-change lives in the city
       // composer — so this effect only kicks off the apply and surfaces a

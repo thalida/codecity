@@ -388,12 +388,12 @@ export function setupLiveUpdates(): () => void {
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
     // Timeline owns the scene: excludes change the union data, so refetch its bundle
-    // + re-pack (it owns its own rebuilding footer). Live: in-place re-scan.
+    // + re-pack (it marks rebuilding itself). Live: in-place re-scan.
     let refresh: Promise<void>;
     if (TIMELINE_MODE.peek() && timelineRefresh) {
       refresh = timelineRefresh();
     } else {
-      markRebuilding(); // flip the footer now, not after the re-scan streams back
+      markRebuilding(); // say so now, not after the re-scan streams back
       refresh = fetchAndApply(cur.src, cur.branch);
     }
     void refresh.finally(() => {

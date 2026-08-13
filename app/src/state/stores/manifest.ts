@@ -1,7 +1,7 @@
 // state/stores/manifest.ts — The current manifest: a canonical signal written
-// by the fetch layer, plus the world-rebuild status that drives the
-// footer + loading overlay. All session-scoped (never persisted — a rehydrated
-// REBUILD_STATUS would strand the footer on "rebuilding…" after a reload).
+// by the fetch layer, plus the world-rebuild status that drives the header's
+// freshness readout + the loading overlay. All session-scoped (never persisted —
+// a rehydrated REBUILD_STATUS would strand it on "rebuilding…" after a reload).
 //
 // MANIFEST is the source of truth, written by the fetch layer; view code (and
 // the scene render-effect) read it reactively. The fetch+apply that drives
@@ -93,8 +93,8 @@ effect(() => {
   }
 });
 
-// Record when a (non-empty) manifest is applied — drives the footer's
-// "last updated" readout. Derived from the canonical MANIFEST signal.
+// Record when a (non-empty) manifest is applied — drives the freshness
+// readout's "last updated". Derived from the canonical MANIFEST signal.
 effect(() => {
   if (!isEmptyManifest(MANIFEST.value)) {
     LAST_UPDATED_AT.value = Date.now();
