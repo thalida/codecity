@@ -11,20 +11,18 @@ import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
-import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
+import { focusPath, focusCommit } from '@/state/stores/scene';
 import { TREES } from '@/state/stores/settings/trees';
 import { computeAlmanac } from './almanac';
 import type { AlmanacFact, LandmarkRef } from './almanac';
 import { SECTION_ICON } from './sectionIcons';
 
+// The row carries a focus icon, so the whole row is that button: it takes the
+// camera there and clears the panel out of the way, unlike the tree and search
+// rows, whose whole point is the details they open.
 function visit(landmark: LandmarkRef): void {
-  if (landmark.kind === NodeKind.Commit) {
-    selectCommit(landmark.id);
-    focusCommit(landmark.id);
-  } else {
-    selectPath(landmark.id);
-    focusPath(landmark.id);
-  }
+  if (landmark.kind === NodeKind.Commit) focusCommit(landmark.id);
+  else focusPath(landmark.id);
 }
 
 /** Collapse a section's flat fact list into render groups: consecutive facts

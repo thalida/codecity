@@ -3,13 +3,13 @@ import { signal } from '@preact/signals';
 import { render } from 'preact';
 import { flush } from '../../_helpers/preact';
 
-const { selectPath, focusPath, selectCommit, focusCommit } = vi.hoisted(() => ({
-  selectPath: vi.fn(),
+// The row wears a focus icon, so it behaves like every other focus control:
+// one command that selects, takes the camera there, and clears the panel away.
+const { focusPath, focusCommit } = vi.hoisted(() => ({
   focusPath: vi.fn(),
-  selectCommit: vi.fn(),
   focusCommit: vi.fn(),
 }));
-vi.mock('@/state/stores/scene', () => ({ selectPath, focusPath, selectCommit, focusCommit }));
+vi.mock('@/state/stores/scene', () => ({ focusPath, focusCommit }));
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewPane gates the Forest section on TREES.value.ENABLED).
@@ -98,9 +98,7 @@ describe('OverviewPane', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    selectPath.mockClear();
     focusPath.mockClear();
-    selectCommit.mockClear();
     focusCommit.mockClear();
     treesState.ENABLED = true;
   });
@@ -154,7 +152,7 @@ describe('OverviewPane', () => {
     expect(container.textContent).toContain('2 buildings');
   });
 
-  it('clicking a building landmark focus button selects + focuses its file', async () => {
+  it('clicking a building landmark focuses its file', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
@@ -163,11 +161,10 @@ describe('OverviewPane', () => {
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(selectPath).toHaveBeenCalledWith('a.ts');
     expect(focusPath).toHaveBeenCalledWith('a.ts');
   });
 
-  it('clicking a commit landmark selects + focuses the commit', async () => {
+  it('clicking a commit landmark focuses the commit', async () => {
     const withCommits: Manifest = {
       ...manifest,
       commits: [
@@ -183,7 +180,6 @@ describe('OverviewPane', () => {
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(selectCommit).toHaveBeenCalledWith('abc1234');
     expect(focusCommit).toHaveBeenCalledWith('abc1234');
   });
 

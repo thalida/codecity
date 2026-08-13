@@ -33,29 +33,23 @@ effect(() => {
   openSelectionPane();
 });
 
+/** Phone: the left drawer covers the city, so a camera move behind it is one you
+ *  can't see. It's the whole screen there and a column everywhere else. */
+function collapseDrawerOnPhone(): void {
+  if (IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
+}
+
 /** Asking to focus something is asking to look at it, so every focus command
- *  clears what's in the way and leaves the chip standing in for the details.
- *  The left drawer only covers the city on a phone; the panel crowds it
- *  everywhere. */
+ *  clears what's in the way and leaves the chip standing in for the details. */
 function revealCity(): void {
   dismissSelectionPane();
-  if (IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
+  collapseDrawerOnPhone();
 }
 
 // ── Scene commands ───────────────────────────────────────────────────
 // Thin, null-safe wrappers UI components call instead of each reaching into
 // SCENE_HANDLE.peek()?.picker / rig / world themselves (same store+actions
 // shape as stores/ui.ts). All no-op before the scene boots (handle null).
-
-/** Select the node at `path` (tree-row / breadcrumb clicks). */
-export function selectPath(path: string): void {
-  SCENE_HANDLE.peek()?.picker.selectByPath(path);
-}
-
-/** Select a commit's tree by sha (almanac landmark clicks). */
-export function selectCommit(sha: string): void {
-  SCENE_HANDLE.peek()?.picker.selectByCommit(sha);
-}
 
 /** Hover-highlight the node at `path` (tree-row hover → city highlight). */
 export function hoverPath(path: string): void {
@@ -72,15 +66,25 @@ export function clearSelection(): void {
   SCENE_HANDLE.peek()?.picker.clearSelection();
 }
 
-/** Focus the camera on the node at `path`. */
+/** Focus the camera on the node at `path`, selecting it if it isn't already —
+ *  a pane's Focus button acts on the current selection, an almanac row is a
+ *  focus button for a node you haven't picked yet. Selecting what's already
+ *  selected re-resolves to the same identity, so the panel doesn't reopen
+ *  underneath the dismissal this is about to make. */
 export function focusPath(path: string): void {
-  SCENE_HANDLE.peek()?.focusByPath(path);
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByPath(path);
+  handle.focusByPath(path);
   revealCity();
 }
 
-/** Focus the camera on a commit's tree by sha. */
+/** focusPath for a commit's tree, by sha. */
 export function focusCommit(sha: string): void {
-  SCENE_HANDLE.peek()?.rig.focusTree(sha);
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByCommit(sha);
+  handle.rig.focusTree(sha);
   revealCity();
 }
 
@@ -94,6 +98,33 @@ export function focusSelection(): void {
   if (!sel) return; // nothing to look at, so nothing to clear out of the way
   handle.rig.focusSelection(sel);
   revealCity();
+}
+
+/** Go to a node named in a list: the tree, a search hit, an almanac landmark.
+ *  Select it, put the camera on it, and show its details.
+ *
+ *  The opposite of the Focus commands where the panel is concerned, and
+ *  deliberately: those act on something already in front of you, so the details
+ *  are what's in the way. Here you picked a name out of a list and the details
+ *  are the thing you asked for, so they open even if you'd put them away for
+ *  this same node earlier. */
+export function goToPath(path: string): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByPath(path);
+  handle.focusByPath(path);
+  openSelectionPane();
+  collapseDrawerOnPhone();
+}
+
+/** goToPath for a commit's tree, by sha (almanac landmarks). */
+export function goToCommit(sha: string): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByCommit(sha);
+  handle.rig.focusTree(sha);
+  openSelectionPane();
+  collapseDrawerOnPhone();
 }
 
 /** Reset the camera framing to the current mode's default pose. */

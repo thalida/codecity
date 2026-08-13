@@ -23,7 +23,7 @@ import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
-import { SCENE_HANDLE, selectPath, hoverPath, clearHover } from '@/state/stores/scene';
+import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -173,7 +173,7 @@ export function LeftSidebar() {
   // Tree rows hand back a TreeNode → adapt to a path. Path/nullary handlers
   // (search, hover-end) use the scene commands directly in the JSX below.
   const onTreeSelect = (node: TreeNode) => {
-    if (node?.path) selectPath(node.path);
+    if (node?.path) goToPath(node.path);
   };
   const onTreeHover = (node: TreeNode) => {
     if (node?.path) hoverPath(node.path);
@@ -207,7 +207,7 @@ export function LeftSidebar() {
           />
         )}
         {tab === SidebarTab.Search && (
-          <SearchPane manifest={HISTORY_MANIFEST} onClose={onPaneClose} onSelect={selectPath} />
+          <SearchPane manifest={HISTORY_MANIFEST} onClose={onPaneClose} onSelect={goToPath} />
         )}
         {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (

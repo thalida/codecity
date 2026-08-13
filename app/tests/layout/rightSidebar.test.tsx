@@ -91,6 +91,9 @@ function makeSceneHandle() {
       setSelection(t: PickTarget | null) {
         selection.value = t;
       },
+      // focusPath selects before it moves the camera, so a handle without this
+      // isn't one the commands can drive.
+      selectByPath() {},
     },
     rig: {
       focusBuilding() {},
