@@ -56,6 +56,63 @@ export function indexToMs(scale: ScrubberScale, pos: number): number {
   return ms[lo] + (ms[hi] - ms[lo]) * (clamped - lo);
 }
 
+/** Wall-clock ms -> float commit index. Inverse of indexToMs, so a date can be
+ *  turned back into a scrub position: its floor is the last commit at or before
+ *  that moment, which is the state the scene draws. */
+export function msToIndex(scale: ScrubberScale, ms: number): number {
+  const t = scale.ms;
+  const n = t.length;
+  if (n <= 1) return 0;
+  if (ms <= t[0]) return 0;
+  if (ms >= t[n - 1]) return n - 1;
+
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (t[mid] <= ms) lo = mid;
+    else hi = mid;
+  }
+  const denom = t[hi] - t[lo];
+  return denom > 0 ? lo + (ms - t[lo]) / denom : lo;
+}
+
+const DAY_MS = 86_400_000;
+
+/** Snap a moment to the nearest place worth stopping, and return its scrub
+ *  position. A drag otherwise slides continuously through a history where one
+ *  day can be a fraction of a pixel, and stopping on the date you want is luck.
+ *
+ *  A day with commits stops at those commits, so each is reachable however many
+ *  a day holds, and the handle always parks on a tick. A day without them stops
+ *  at its end, so a quiet stretch can be stopped anywhere in it, and the end so
+ *  that the day's floor is the last commit before it: the city on a given day
+ *  is the city that day left behind. */
+export function snapToStop(scale: ScrubberScale, ms: number): number {
+  const t = scale.ms;
+  if (t.length === 0) return 0;
+  const day = Math.floor(ms / DAY_MS);
+  const i = Math.floor(msToIndex(scale, ms));
+  const before = t[i];
+  const after = t[Math.min(t.length - 1, i + 1)];
+
+  // A day that has commits is represented by them, and offers no day stop of
+  // its own: one would sit a few hours from a commit's tick and read as the
+  // snap having missed it.
+  const candidates: number[] = [];
+  if (before != null && Math.floor(before / DAY_MS) === day) candidates.push(before);
+  if (after != null && Math.floor(after / DAY_MS) === day) candidates.push(after);
+  if (candidates.length === 0) {
+    candidates.push(Math.floor(ms / DAY_MS) * DAY_MS + (DAY_MS - 1));
+  }
+
+  let target = candidates[0];
+  for (const c of candidates) {
+    if (Math.abs(ms - c) < Math.abs(ms - target)) target = c;
+  }
+  return msToIndex(scale, target);
+}
+
 /** Track fraction [0,1] -> float commit index. Inverse of indexToFraction. */
 export function fractionToIndex(scale: ScrubberScale, f: number): number {
   const { frac } = scale;

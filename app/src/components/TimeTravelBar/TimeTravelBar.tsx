@@ -24,6 +24,7 @@ import {
   indexToFraction,
   indexToMs,
   fractionToIndex,
+  snapToStop,
 } from './scrubberScale';
 
 export function TimeTravelBar() {
@@ -123,7 +124,8 @@ export function TimeTravelBar() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
-    setScrubPos(fractionToIndex(scale, (clientX - r.left) / r.width));
+    const raw = fractionToIndex(scale, (clientX - r.left) / r.width);
+    setScrubPos(snapToStop(scale, indexToMs(scale, raw)));
   };
 
   const onPointerDown = (e: PointerEvent) => {

@@ -205,6 +205,12 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
         ))}
       </div>
       <div class="commit-meta">
+        {/* The date itself, not only how long ago it was: "2 months 11 days
+            ago" tells you the distance and hides the landmark. */}
+        <span class="commit-date">{formatFullDate(commit.date)}</span>
+        <span class="commit-meta-sep" aria-hidden="true">
+          ·
+        </span>
         <span class="commit-age" title={commit.date}>
           {formatRelativeAge(commit.date, now)}
         </span>

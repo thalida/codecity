@@ -108,6 +108,10 @@
 }
 
 /* Inline span; title attribute holds the full ISO date for hover tooltip. */
+.commit-date {
+  color: var(--cc-text-strong);
+}
+
 .commit-age {
   color: var(--cc-text-secondary);
 }

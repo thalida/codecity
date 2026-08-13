@@ -3,7 +3,10 @@ import {
   buildScrubberScale,
   commitFraction,
   indexToFraction,
+  indexToMs,
   fractionToIndex,
+  msToIndex,
+  snapToStop,
 } from '@/components/TimeTravelBar/scrubberScale';
 
 const DAY = 86_400_000;
@@ -139,5 +142,73 @@ describe('scrubberScale', () => {
     const s = buildScrubberScale(dates);
     expect(indexToFraction(s, 5)).toBeCloseTo(0.5, 5);
     expect(fractionToIndex(s, 0.5)).toBeCloseTo(5, 5);
+  });
+});
+
+// A drag runs through a history where one day can be a fraction of a pixel, so
+// it lands on a stop rather than sliding between them.
+describe('snapToStop', () => {
+  const scale = buildScrubberScale(['2020-01-01', '2020-02-01', '2020-03-01']);
+  const dayOf = (pos: number) => new Date(indexToMs(scale, pos)).toISOString().slice(0, 10);
+
+  it('lands on the day the moment falls in', () => {
+    const mid = Date.parse('2020-01-15T09:30:00Z');
+    expect(dayOf(snapToStop(scale, mid))).toBe('2020-01-15');
+  });
+
+  it('gives every day between two commits its own position', () => {
+    const a = snapToStop(scale, Date.parse('2020-01-15T00:00:00Z'));
+    const b = snapToStop(scale, Date.parse('2020-01-16T00:00:00Z'));
+    expect(b).toBeGreaterThan(a);
+    expect(dayOf(a)).toBe('2020-01-15');
+    expect(dayOf(b)).toBe('2020-01-16');
+  });
+
+  // The end of the day, so its floor is that day's last commit: the city on a
+  // given day is the city that day left behind.
+  it('leaves the last commit at or before it as the state to draw', () => {
+    const pos = snapToStop(scale, Date.parse('2020-02-14T12:00:00Z'));
+    expect(Math.floor(pos)).toBe(1); // the Feb 1 commit
+  });
+
+  // Days alone would strand these: a history inside one day snaps whole to that
+  // day, leaving every commit in it but the last out of reach.
+  it('reaches each commit of a busy day', () => {
+    const busy = buildScrubberScale([
+      '2020-01-01T01:00:00Z',
+      '2020-01-01T09:00:00Z',
+      '2020-01-01T17:00:00Z',
+    ]);
+    expect(snapToStop(busy, Date.parse('2020-01-01T02:00:00Z'))).toBe(0);
+    expect(snapToStop(busy, Date.parse('2020-01-01T08:30:00Z'))).toBe(1);
+    expect(snapToStop(busy, Date.parse('2020-01-01T16:00:00Z'))).toBe(2);
+  });
+
+  // A day stop hours from a commit's tick reads as the snap having missed it.
+  it('parks on the tick, not beside it, on a day that has commits', () => {
+    const busy = buildScrubberScale(['2020-01-01T09:00:00Z', '2020-02-01T09:00:00Z']);
+    // Evening of the commit's own day: the day's end is nearer in raw distance,
+    // but that day is already spoken for by its commit.
+    expect(busy.ms[0]).toBe(indexToMs(busy, snapToStop(busy, Date.parse('2020-01-01T20:00:00Z'))));
+  });
+
+  it('stays inside the history at either end', () => {
+    expect(snapToStop(scale, Date.parse('2019-01-01T00:00:00Z'))).toBe(0);
+    expect(snapToStop(scale, Date.parse('2030-01-01T00:00:00Z'))).toBe(2);
+  });
+});
+
+describe('msToIndex', () => {
+  const scale = buildScrubberScale(['2020-01-01', '2020-02-01', '2020-03-01']);
+
+  it('inverts indexToMs', () => {
+    for (const pos of [0, 0.25, 1, 1.5, 2]) {
+      expect(msToIndex(scale, indexToMs(scale, pos))).toBeCloseTo(pos, 6);
+    }
+  });
+
+  it('clamps outside the history', () => {
+    expect(msToIndex(scale, 0)).toBe(0);
+    expect(msToIndex(scale, Date.parse('2099-01-01'))).toBe(2);
   });
 });
