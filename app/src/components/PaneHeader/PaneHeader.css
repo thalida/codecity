@@ -47,6 +47,24 @@
  * timeline, exclude, close) sits here, so all icons are right-aligned. The title
  * flex-fills and pushes this group to the pane edge; a tight inner gap keeps the
  * icons grouped. */
+/* The row's actions split by what they act on. Copy and open act on the thing
+   the title names, so they travel with it and read as part of the identity;
+   focus / exclude / close act on the pane itself and stay at the far edge. */
+.pane-header-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pane-header-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  flex: 0 0 auto;
+}
+
 .pane-header-actions {
   display: flex;
   align-items: center;
@@ -67,7 +85,9 @@
  * truncation, sub-segment gap). The .is-mono modifier flips to monospace for
  * filename-style titles (right-sidebar file-preview). */
 .text-pane-title {
-  flex: 1 1 auto;
+  /* Shrinks under pressure but doesn't grow: growing would push the identity
+     actions to the far side of the lead group instead of against the name. */
+  flex: 0 1 auto;
   min-width: 0;
   margin: var(--cc-space-0);
   white-space: nowrap;

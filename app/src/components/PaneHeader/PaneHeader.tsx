@@ -40,8 +40,6 @@ export interface PaneHeaderProps {
   onExclude?: () => void;
   /** Tooltip / aria-label for the exclude button. */
   excludeTitle?: string;
-  /** Optional prefix element rendered before the title (e.g. an extension badge). */
-  prefixSlot?: ComponentChildren;
   /** Rich title content rendered inside the title element instead of the
    *  plain `title` string (e.g. a path breadcrumb, or "Commit <sha> · author"). */
   titleSlot?: ComponentChildren;
@@ -63,13 +61,30 @@ export function PaneHeader({
   closeTitle = 'Hide sidebar',
   onExclude,
   excludeTitle,
-  prefixSlot,
   titleSlot,
 }: PaneHeaderProps) {
   return (
     <div class="pane-header">
-      {prefixSlot ?? null}
-      <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
+      <div class="pane-header-lead">
+        <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
+        {(copyText != null || openUrl) && (
+          <div class="pane-header-identity">
+            {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
+            {openUrl && (
+              <a
+                class="btn-icon btn-icon--link"
+                href={openUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={openLabel}
+                aria-label={openLabel}
+              >
+                <ExternalLink class="icon" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
       <div class="pane-header-actions">
         {typeof onFocus === 'function' && (
           <button
@@ -87,19 +102,6 @@ export function PaneHeader({
           >
             <Focus class="icon" />
           </button>
-        )}
-        {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
-        {openUrl && (
-          <a
-            class="btn-icon btn-icon--link"
-            href={openUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={openLabel}
-            aria-label={openLabel}
-          >
-            <ExternalLink class="icon" />
-          </a>
         )}
         {actionsSlot ?? null}
         {typeof onExclude === 'function' && (

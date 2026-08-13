@@ -26,8 +26,6 @@ export interface PaneProps {
   titleSlot?: ComponentChildren;
   /** Render the title in monospace (filename / path identifier panes). */
   mono?: boolean;
-  /** Element between the focus button and title (e.g. an extension badge). */
-  prefixSlot?: ComponentChildren;
   /** fn() for the header focus button. Omit to render no button. */
   onFocus?: () => void;
   focusTitle?: string;
@@ -69,7 +67,6 @@ export function Pane({
   title,
   titleSlot,
   mono,
-  prefixSlot,
   onFocus,
   focusTitle,
   copyText,
@@ -96,7 +93,6 @@ export function Pane({
           title={title ?? ''}
           titleSlot={titleSlot}
           mono={mono}
-          prefixSlot={prefixSlot}
           onFocus={onFocus}
           focusTitle={focusTitle}
           copyText={copyText}

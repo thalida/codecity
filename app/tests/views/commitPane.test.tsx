@@ -104,9 +104,9 @@ describe('CommitPane', () => {
     // SHA is inside the pane header title.
     expect(container.querySelector('.text-pane-title .commit-sha')!.textContent).toBe('a1b2c3d');
 
-    // Open link is in the pane header's right action group.
+    // Open link travels with the title: it acts on the commit, not on the pane.
     const link = container.querySelector(
-      '.pane-header-actions a[aria-label="Open commit on origin"]'
+      '.pane-header-identity a[aria-label="Open commit on origin"]'
     ) as HTMLAnchorElement;
     expect(link).not.toBeNull();
     expect(link.href).toBe(`https://github.com/org/repo/commit/${COMMIT.sha}`);
