@@ -77,7 +77,7 @@ export function RightSidebar() {
   });
   const fileState = useComputed<FilePreviewPaneState>(() => {
     // History manifest, so the pane follows the scrub: a file absent at this
-    // commit reads as deleted here instead of quietly showing HEAD's version.
+    // commit says so here instead of quietly showing HEAD's version.
     const m = HISTORY_MANIFEST.value as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
@@ -91,7 +91,7 @@ export function RightSidebar() {
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      isDeleted: TIMELINE_MODE.value && !present,
+      isAbsent: TIMELINE_MODE.value && !present,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {

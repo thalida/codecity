@@ -71,9 +71,10 @@ export interface FilePreviewPaneState {
   branch?: string;
   /** In Timeline mode the preview reads HEAD (the checkout), not the scrubbed
    *  commit — show a note saying so. */
-  /** The file is deleted at HEAD (not in the checked-out tree), so /api/file
-   *  would 404 — show a deleted state instead of fetching. */
-  isDeleted?: boolean;
+  /** The file has no content at the commit being shown, so /api/file would 404.
+   *  Covers both directions in time: deleted before it, or not created until
+   *  after it. Show the unavailable state instead of fetching. */
+  isAbsent?: boolean;
 }
 
 export interface FilePreviewPaneProps {
@@ -556,9 +557,9 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isDeleted } = state.value;
+  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isAbsent } = state.value;
   const path = file?.path ?? '';
-  const deleted = Boolean(file && isDeleted);
+  const absent = Boolean(file && isAbsent);
 
   return (
     <Pane
@@ -579,20 +580,21 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       copyText={file ? path || rootPath : undefined}
       copyLabel="Copy path"
-      openUrl={file && !deleted && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
+      openUrl={file && !absent && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
       openLabel="Open file on origin"
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
-      footerSlot={file && !deleted ? <PaneStats items={fileStatItems(file)} /> : null}
+      footerSlot={file && !absent ? <PaneStats items={fileStatItems(file)} /> : null}
     >
-      {deleted ? (
-        <div class="empty-state empty-state--lg file-deleted-state">
+      {absent ? (
+        <div class="empty-state empty-state--lg file-absent-state">
           <FileX class="icon" aria-hidden="true" />
-          <p class="text-card-title">This file was deleted</p>
+          <p class="text-card-title">File not available</p>
           <p class="text-card-sub">
-            It no longer exists in the repo, so there&rsquo;s nothing to preview.
+            The repo has no contents for it at this commit: it may have been deleted by now, or not
+            created yet. Scrub to a commit where it exists to preview it.
           </p>
         </div>
       ) : (
