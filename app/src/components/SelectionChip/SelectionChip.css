@@ -1,8 +1,8 @@
 /* SelectionChip — a pill over the scene, parked where the selection pane's
    header was: the same top and right inset .pane-header uses, in a box whose
-   top and right edges are the ones the panel just gave up. Closing the panel
-   then reads as it collapsing into the pill (see the width run in the .tsx)
-   rather than the pill arriving from somewhere else. */
+   top and right edges are the ones the panel just gave up. It appears in the
+   same frame the panel goes: nothing else in the app animates, so a pill that
+   grew into place would read as the one thing demanding to be watched. */
 
 .selection-chip {
   position: absolute;
@@ -11,23 +11,9 @@
   z-index: 50;
   display: inline-flex;
   align-items: center;
-  /* Contents pinned to the trailing edge, the one that doesn't move: mid-collapse
-     they sit where the header's action group was while the leading edge sweeps in
-     over them. Left-aligned, the same run reads as an empty box deflating. */
-  justify-content: flex-end;
   max-width: calc(100% - var(--cc-space-8) * 2);
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-pill);
-  overflow: hidden;
-  transition: width var(--cc-t-collapse) ease-out;
-}
-
-/* The panel's width, held for one frame so the settle has somewhere to come
-   from. The pill is in the center pane and the panel is already gone by then,
-   so it reads the shared token rather than measuring a live element. */
-.selection-chip.is-collapsing {
-  width: var(--cc-sidebar-w);
-  transition: none;
 }
 
 .selection-chip-label {
@@ -92,10 +78,4 @@
 .selection-chip-clear:hover {
   color: var(--cc-accent);
   background: var(--cc-accent-bg-soft);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .selection-chip {
-    transition: none;
-  }
 }

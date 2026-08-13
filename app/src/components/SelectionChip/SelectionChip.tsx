@@ -5,14 +5,10 @@
 import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
-import { useLayoutEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import { SCENE_HANDLE, clearSelection } from '@/state/stores/scene';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/ui';
 import { KindBadge } from '@/components/Badge/Badge';
-
-/** Holds the panel's width for the one frame the collapse starts from. */
-const COLLAPSING_CLASS = 'is-collapsing';
 
 /** What the chip names: the node's own label, plus the kind badge its pane
  *  header would have carried. */
@@ -40,43 +36,12 @@ export function SelectionChip() {
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
   const dismissed = useComputed(() => selection.value !== null && SELECTION_PANE_DISMISSED.value);
-  const ref = useRef<HTMLDivElement>(null);
-  const showing = dismissed.value;
-  const label = selection.value?.label ?? null;
+  if (!dismissed.value) return null;
 
-  // The pill opens at the panel's width and settles at its own, so putting the
-  // details away reads as the panel collapsing into what's left of it. Keyed on
-  // the label too: dismissing a second node runs it again. Layout effect so the
-  // start width is in place before the browser paints the pill at its own size.
-  useLayoutEffect(() => {
-    const el = ref.current;
-    // Reduced motion has no transition to end on, and a pinned width would
-    // never be released.
-    if (!el || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const settled = el.offsetWidth; // its own width, measured before we pin one
-    if (!settled) return; // nowhere to collapse to without a layout to measure
-    el.classList.add(COLLAPSING_CLASS);
-    void el.offsetWidth; // flush the start width, or there's nothing to move from
-    el.classList.remove(COLLAPSING_CLASS);
-    el.style.width = `${settled}px`;
-    // Back to intrinsic once it lands: a pinned width would outlive the name
-    // that produced it.
-    const release = () => {
-      el.style.width = '';
-    };
-    el.addEventListener('transitionend', release, { once: true });
-    return () => {
-      el.removeEventListener('transitionend', release);
-      release();
-    };
-  }, [showing, label]);
-
-  if (!showing) return null;
-
-  const { kind, extension } = selection.value as ChipSelection;
+  const { label, kind, extension } = selection.value as ChipSelection;
 
   return (
-    <div ref={ref} class="selection-chip surface-glass">
+    <div class="selection-chip surface-glass">
       <button
         type="button"
         class="selection-chip-clear"
