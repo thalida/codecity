@@ -116,6 +116,15 @@ describe('OverviewPane', () => {
 
   // The pane opens straight into its first section: no intro line, and none of
   // the repo-name/meta header that preceded it.
+  // The Legend tab already guards this; the Overview renders the same almanac
+  // copy, and two of its empty-state notes had em-dashes.
+  it('keeps all visible copy free of em-dashes (house style: colons/commas)', async () => {
+    const sig = signal(manifest);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.textContent).not.toContain('—');
+  });
+
   it('opens with a section, not a preamble', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);

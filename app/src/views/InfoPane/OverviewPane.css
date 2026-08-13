@@ -109,8 +109,6 @@
  * length). Sized to fit the longest label in use ("Least active"). */
 .almanac-fact-label {
   flex: 0 0 76px;
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-xs);
 }
 
 /* basis 0 so it grows into the free space and truncates predictably. One value
@@ -118,8 +116,6 @@
 .almanac-fact-primary {
   flex: 1 1 0;
   min-width: 0;
-  color: var(--cc-text-strong);
-  font-size: var(--cc-font-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,7 +146,7 @@
 .almanac-fact-metric {
   flex: 0 0 auto;
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-xs);
+  font-size: var(--cc-font-sm);
   white-space: nowrap;
 }
 

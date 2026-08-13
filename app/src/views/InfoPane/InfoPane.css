@@ -34,6 +34,24 @@
   color: var(--cc-text-strong);
 }
 
+/* Both tabs render label→value rows: Oldest→LICENSE on one, Height→line count
+   on the other. One rule for the pair, since stating it per pane is how they
+   ended up at opposite emphases (one quiets the label, the other shouts it) in
+   two different sizes. The label names the axis and stays quiet; the value is
+   what you came to read. */
+.almanac-fact-label,
+.legend-cue-label {
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-normal);
+}
+
+.almanac-fact-primary,
+.legend-cue-detail {
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-sm);
+}
+
 .info-markdown code {
   display: inline-block;
   background: var(--cc-accent-bg-soft);

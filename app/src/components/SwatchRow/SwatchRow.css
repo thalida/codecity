@@ -41,8 +41,11 @@
 }
 
 .swatch-label {
-  font-size: var(--cc-font-2xs);
-  color: var(--cc-text-muted);
+  /* Secondary, not muted: these only ever render on a popover surface, where
+     muted drops under 4.5:1 (the same reason .popover-hint carries). Sized with
+     that hint too, so one surface isn't running three text sizes. */
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 

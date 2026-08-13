@@ -63,12 +63,9 @@
 
 .legend-cue-label {
   flex: 0 0 128px;
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-strong);
 }
 
 .legend-cue-detail {
   margin: 0;
   min-width: 0;
-  color: var(--cc-text-primary);
 }

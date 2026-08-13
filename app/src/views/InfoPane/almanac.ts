@@ -76,19 +76,20 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'buildings',
     title: 'Buildings',
-    lead: 'Every code file is a building.',
+    lead: 'Every file is a building',
     cues: [
       { label: 'Height', detail: 'line count' },
       { label: 'Footprint', detail: 'file size' },
       { label: 'Color & roof icon', detail: 'file type' },
       { label: 'Brightness', detail: 'how recently it changed' },
       { label: 'Grime & lean', detail: "how long it's existed" },
+      { label: 'Flat slab', detail: 'an empty file: no walls, no windows' },
     ],
   },
   {
     key: 'media',
     title: 'Billboards',
-    lead: 'Image & video files render as billboard panels showing the file itself.',
+    lead: 'Image and video files wear themselves as a billboard facade',
     cues: [
       { label: 'Shape', detail: "the file's aspect ratio" },
       { label: 'Width', detail: 'file size' },
@@ -98,7 +99,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'data',
     title: 'Data',
-    lead: 'Binary files render as windowless data blocks wearing their byte pattern.',
+    lead: 'Binary files are windowless, wearing a fingerprint of their bytes',
     cues: [
       { label: 'Size', detail: 'file size (both footprint and height)' },
       { label: 'Facade', detail: "a fingerprint of the file's bytes" },
@@ -107,7 +108,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'streets',
     title: 'Streets',
-    lead: 'Directories are streets.',
+    lead: 'Directories are streets',
     cues: [
       { label: 'Width', detail: 'how many files it holds' },
       { label: 'Length', detail: 'how much it contains' },
@@ -117,7 +118,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'forest',
     title: 'Forest',
-    lead: 'Each commit plants a tree.',
+    lead: 'Each commit plants a tree',
     cues: [
       { label: 'Height', detail: 'older commits grow taller' },
       { label: 'Canopy', detail: 'wider for bigger commits' },
@@ -128,7 +129,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'fireflies',
     title: 'Fireflies',
-    lead: 'Each commit author is a firefly, orbiting the trees they touched.',
+    lead: 'Each commit author is a firefly, orbiting the trees (commits) they touched',
     cues: [
       { label: 'Color', detail: 'unique per author' },
       { label: 'Size', detail: 'how many commits they made' },
@@ -144,7 +145,7 @@ const LAYER_BY_KEY = Object.fromEntries(LAYER_LEGEND.map((l) => [l.key, l])) as 
 /** The layer's encodings as one tooltip string: the lead sentence followed by
  *  its cue → meaning pairs. */
 function layerTip(l: LayerLegend): string {
-  return `${l.lead} ${l.cues.map((c) => `${c.label}: ${c.detail}`).join('; ')}.`;
+  return `${l.lead}. ${l.cues.map((c) => `${c.label}: ${c.detail}`).join('; ')}.`;
 }
 
 /** A section's shared header — key, display title, and composed encoding tip —
@@ -319,7 +320,7 @@ function buildingsSection(m: Manifest): AlmanacSection {
   return {
     ...layerHeader('buildings'),
     facts,
-    note: facts.length ? undefined : 'No code files yet.',
+    note: facts.length ? undefined : 'No code files yet',
   };
 }
 
@@ -331,7 +332,7 @@ function mediaSection(m: Manifest): AlmanacSection {
     return {
       ...layerHeader('media'),
       facts: [],
-      note: 'No images or videos.',
+      note: 'No images or videos',
     };
   }
   const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
@@ -408,7 +409,7 @@ function dataSection(m: Manifest): AlmanacSection {
   // their own class, with byte-only superlatives (no line/resolution axis).
   const s = m.stats;
   if (s.binaryCount === 0) {
-    return { ...layerHeader('data'), facts: [], note: 'No binary files.' };
+    return { ...layerHeader('data'), facts: [], note: 'No binary files' };
   }
   const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
   // Pair only when the endpoints are genuinely different files (a one-binary
@@ -469,7 +470,7 @@ function streetsSection(m: Manifest): AlmanacSection {
   return {
     ...layerHeader('streets'),
     facts,
-    note: facts.length ? undefined : 'Everything lives at the root — no sub-directories.',
+    note: facts.length ? undefined : 'Everything lives at the root, with no sub-directories',
   };
 }
 
@@ -483,11 +484,11 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
     return {
       ...base,
       facts: [],
-      note: 'Enable the Trees layer in Settings to explore the forest.',
+      note: 'Enable the Trees layer in Settings to explore the forest',
     };
   }
   if (trees === 0) {
-    return { ...base, facts: [], note: 'No commits yet.' };
+    return { ...base, facts: [], note: 'No commits yet' };
   }
   const s = m.stats;
   const facts = compact([
@@ -545,7 +546,7 @@ function firefliesSection(m: Manifest): AlmanacSection {
   const count = s.authors.length;
   const base = layerHeader('fireflies');
   if (count === 0) {
-    return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
+    return { ...base, facts: [], note: 'No commits yet, so no fireflies' };
   }
   // authors is pre-sorted descending by commits; [0] is the most active, the
   // last the least. Lead with the most active, then pair the least below it

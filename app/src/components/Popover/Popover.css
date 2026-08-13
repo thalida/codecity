@@ -122,7 +122,7 @@
   padding: var(--cc-space-5);
   border: 1px dashed var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
   font-size: var(--cc-font-xs);
 }
 
