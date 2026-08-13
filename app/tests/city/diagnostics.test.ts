@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { _formatCollisionReport, _formatStemDiagnostic } from '@/city/diagnostics';
+import * as THREE from 'three';
+import {
+  _formatCollisionReport,
+  _formatStemDiagnostic,
+  _formatTreeGroundingReport,
+  auditTreeGrounding,
+} from '@/city/diagnostics';
 import { WorldRectKind } from '@/city/layout/occupancyIndex';
 import { LayoutOverlapCategory } from '@/city/layout/overlaps';
 import type { LayoutOverlap } from '@/city/layout/overlaps';
@@ -175,5 +181,121 @@ describe('_formatStemDiagnostic', () => {
     };
     const lines = _formatStemDiagnostic(trace);
     expect(lines.join('\n')).not.toContain('other variants tried');
+  });
+});
+
+// The audit reads the baked vertex buffer rather than recomputing placement, so
+// these build the buffer shape the tree renderer emits: per tree, canopy verts
+// then trunk verts, with the layout facts on userData.
+describe('auditTreeGrounding', () => {
+  const CANOPY_VERTS = 2;
+  const TRUNK_VERTS = 3;
+
+  /** One chunk holding `bases`, a trunk-base Y per tree. */
+  function chunk(bases: number[]): THREE.Mesh {
+    const perTree = CANOPY_VERTS + TRUNK_VERTS;
+    const positions = new Float32Array(bases.length * perTree * 3);
+    bases.forEach((baseY, slot) => {
+      const at = (v: number, x: number, y: number, z: number) => {
+        const o = (slot * perTree + v) * 3;
+        positions[o] = x;
+        positions[o + 1] = y;
+        positions[o + 2] = z;
+      };
+      // Canopy sits well above the trunk; the audit must ignore it and measure
+      // the trunk alone, or every tree reads as floating by its canopy height.
+      at(0, slot, baseY + 50, slot);
+      at(1, slot, baseY + 60, slot);
+      // Trunk: lowest vertex is the base, the rest ride above it.
+      at(CANOPY_VERTS, slot, baseY, slot);
+      at(CANOPY_VERTS + 1, slot, baseY + 10, slot);
+      at(CANOPY_VERTS + 2, slot, baseY + 5, slot);
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mesh = new THREE.Mesh(geo);
+    mesh.userData.meshKind = 'trees';
+    mesh.userData.canopyVerts = CANOPY_VERTS;
+    mesh.userData.trunkVerts = TRUNK_VERTS;
+    mesh.userData.placementOrder = bases.map((_, i) => i);
+    return mesh;
+  }
+
+  function groupOf(...meshes: THREE.Mesh[]): THREE.Group {
+    const g = new THREE.Group();
+    for (const m of meshes) g.add(m);
+    return g;
+  }
+
+  it('passes trees whose trunks sit on the ground', () => {
+    const report = auditTreeGrounding(groupOf(chunk([0, 0, 0])), 0);
+    expect(report.checked).toBe(3);
+    expect(report.offenders).toEqual([]);
+  });
+
+  it('catches a floating trunk and reports its gap', () => {
+    const report = auditTreeGrounding(groupOf(chunk([0, 2, 0])), 0);
+    expect(report.checked).toBe(3);
+    expect(report.offenders).toHaveLength(1);
+    expect(report.offenders[0].index).toBe(1);
+    expect(report.offenders[0].gap).toBeCloseTo(2);
+  });
+
+  it('catches a sunk trunk too, and sorts the worst first', () => {
+    const report = auditTreeGrounding(groupOf(chunk([-5, 2, 0])), 0);
+    expect(report.offenders.map((o) => o.index)).toEqual([0, 1]);
+    expect(report.offenders[0].gap).toBeCloseTo(-5);
+  });
+
+  // The whole point of the ISLAND_TOP_Y fix: trees baked at 0 over ground at -2.
+  it('reports every tree when the ground plane itself is off', () => {
+    const report = auditTreeGrounding(groupOf(chunk([0, 0, 0])), -2);
+    expect(report.offenders).toHaveLength(3);
+    expect(report.offenders[0].gap).toBeCloseTo(2);
+  });
+
+  it('walks every chunk, and ignores meshes that are not trees', () => {
+    const foreign = chunk([9]);
+    foreign.userData.meshKind = 'buildings';
+    const report = auditTreeGrounding(groupOf(chunk([0]), chunk([3]), foreign), 0);
+    expect(report.checked).toBe(2);
+    expect(report.offenders).toHaveLength(1);
+  });
+
+  it('reports nothing to check when the forest is absent', () => {
+    expect(auditTreeGrounding(null, 0).checked).toBe(0);
+    expect(auditTreeGrounding(groupOf(), 0).checked).toBe(0);
+  });
+});
+
+describe('_formatTreeGroundingReport', () => {
+  it('states the all-clear with the plane it checked against', () => {
+    const lines = _formatTreeGroundingReport({ checked: 812, groundY: 0, offenders: [] });
+    expect(lines).toEqual(['[tree-ground] all 812 trees touch the ground (y=0)']);
+  });
+
+  it('names each offender with its gap and where to look', () => {
+    const lines = _formatTreeGroundingReport({
+      checked: 4,
+      groundY: 0,
+      offenders: [{ index: 7, x: 12.5, z: -3.25, baseY: 2, gap: 2 }],
+    });
+    expect(lines[0]).toContain('1 of 4 trees are off the ground');
+    expect(lines[1]).toContain('tree #7');
+    expect(lines[1]).toContain('(12.50, -3.25)');
+    expect(lines[1]).toContain('floats 2.000');
+  });
+
+  it('caps the list so a systemic break prints a report, not a forest', () => {
+    const offenders = Array.from({ length: 25 }, (_, i) => ({
+      index: i,
+      x: 0,
+      z: 0,
+      baseY: 2,
+      gap: 2,
+    }));
+    const lines = _formatTreeGroundingReport({ checked: 25, groundY: 0, offenders });
+    expect(lines).toHaveLength(1 + 20 + 1);
+    expect(lines[lines.length - 1]).toBe('  ... and 5 more');
   });
 });

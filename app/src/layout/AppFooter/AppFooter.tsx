@@ -18,9 +18,14 @@ import { MetaLine } from '@/components/AppMeta/AppMeta';
 export interface AppFooterProps {
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
+  onRunTreeGroundingCheck?: () => void;
 }
 
-export function AppFooter({ onRunCollisionCheck, onRunStemDiagnostic }: AppFooterProps = {}) {
+export function AppFooter({
+  onRunCollisionCheck,
+  onRunStemDiagnostic,
+  onRunTreeGroundingCheck,
+}: AppFooterProps = {}) {
   return (
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
@@ -31,6 +36,7 @@ export function AppFooter({ onRunCollisionCheck, onRunStemDiagnostic }: AppFoote
             <DebugMenu
               onRunCollisionCheck={onRunCollisionCheck}
               onRunStemDiagnostic={onRunStemDiagnostic}
+              onRunTreeGroundingCheck={onRunTreeGroundingCheck}
             />
           )}
         </ChromeCluster>

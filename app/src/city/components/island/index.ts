@@ -26,7 +26,7 @@ import { onSettings } from '../../utils/onSettings';
 // the air: trunks ended above the grass and the skirt read as a slab hovering
 // over the island. The depth contest is the material's job, and islandShader
 // already gives it polygonOffset for exactly this.
-const ISLAND_TOP_Y = 0;
+export const ISLAND_TOP_Y = 0;
 
 export interface Island extends SceneComponent {
   /** Rebuild geometry and reposition group to fit the given bounds. */

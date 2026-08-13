@@ -141,3 +141,8 @@ export function runCollisionCheck(): void {
 export function runStemDiagnostic(): void {
   SCENE_HANDLE.peek()?.world.runStemPlacementDiagnostic();
 }
+
+/** Debug: audit every tree's contact with the ground. */
+export function runTreeGroundingCheck(): void {
+  SCENE_HANDLE.peek()?.world.runTreeGroundingDiagnostic();
+}

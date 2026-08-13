@@ -55,6 +55,8 @@ export interface CityWorld {
   getTrees(): Trees | null;
   runCollisionCheck(): void;
   runStemPlacementDiagnostic(): void;
+  /** Audit every tree's trunk base against the ground plane. */
+  runTreeGroundingDiagnostic(): void;
 }
 
 /** Timeline-mode install surface on the City handle. Owns building the scrub

@@ -18,10 +18,14 @@ import { createScrubController } from './timeline/scrubController';
 import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createCityState } from './state';
-import { runCollisionCheck, runStemPlacementDiagnostic } from './diagnostics';
+import {
+  runCollisionCheck,
+  runStemPlacementDiagnostic,
+  runTreeGroundingDiagnostic,
+} from './diagnostics';
 import { createGem } from './components/gem';
 import { createSky } from './components/sky';
-import { createIsland } from './components/island';
+import { createIsland, ISLAND_TOP_Y } from './components/island';
 import { createRepoLabel } from './components/repoLabel';
 import { createFootprint } from './components/footprint';
 import { createStreets } from './components/streets';
@@ -275,6 +279,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTrees: () => trees.getRenderer(),
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
+      runTreeGroundingDiagnostic: () =>
+        runTreeGroundingDiagnostic(trees.getRenderer()?.group ?? null, ISLAND_TOP_Y),
     },
     timeline: timelineApi,
     /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a

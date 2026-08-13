@@ -27,7 +27,12 @@ import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
-import { clearSelection, runCollisionCheck, runStemDiagnostic } from '@/state/stores/scene';
+import {
+  clearSelection,
+  runCollisionCheck,
+  runStemDiagnostic,
+  runTreeGroundingCheck,
+} from '@/state/stores/scene';
 import {
   openProjectsView,
   closeProjectsView,
@@ -116,7 +121,11 @@ export function App() {
         <CenterPane />
         <RightSidebar />
       </main>
-      <AppFooter onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
+      <AppFooter
+        onRunCollisionCheck={runCollisionCheck}
+        onRunStemDiagnostic={runStemDiagnostic}
+        onRunTreeGroundingCheck={runTreeGroundingCheck}
+      />
       <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
       <LoadingOverlay
         onCancel={() => {
