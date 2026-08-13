@@ -7,9 +7,11 @@
 
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
+import { useContext } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import { KindBadge } from '@/components/Badge/Badge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { PaneTitleBudgetContext } from '@/components/PaneHeader/PaneHeader';
 import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
 export interface PathBreadcrumbsProps {
@@ -31,11 +33,17 @@ export function PathBreadcrumbs({
   rootPath,
   onSegmentClick,
 }: PathBreadcrumbsProps) {
+  // Measure against the header's lead group, not the title: the title hugs its
+  // content, so once truncation shrinks it, it stops resizing with the pane and
+  // the crumbs can never come back. Null outside a pane header, where the hook's
+  // own parent-element default is right.
+  const budgetRef = useContext(PaneTitleBudgetContext);
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {
       segmentClass: 'app-header-seg',
       separatorClass: 'app-header-sep',
       ellipsisClass: 'app-header-ellipsis',
+      observeRef: budgetRef ?? undefined,
     },
     [path]
   );

@@ -7,7 +7,8 @@
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
 import { Focus, X, EyeOff, ExternalLink, PanelLeftClose, PanelRightClose } from 'lucide-preact';
-import { useContext } from 'preact/hooks';
+import { createContext, type RefObject } from 'preact';
+import { useContext, useRef } from 'preact/hooks';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { SidebarSide, SidebarSideContext } from '@/components/Sidebar/Sidebar';
 
@@ -54,6 +55,13 @@ export interface PaneHeaderProps {
 
 // ── Preact component ────────────────────────────────────────────────────────
 
+/** The box a title's contents should measure themselves against. The title
+ *  hugs its own content so the identity actions can sit against it, which makes
+ *  it useless as a width budget: shrink it once and it stops tracking the pane,
+ *  so a ResizeObserver watching it never hears the pane grow back. This group
+ *  fills the row, so it does. */
+export const PaneTitleBudgetContext = createContext<RefObject<HTMLElement | null> | null>(null);
+
 export function PaneHeader({
   title,
   mono,
@@ -71,10 +79,15 @@ export function PaneHeader({
   excludeDisabledReason,
   titleSlot,
 }: PaneHeaderProps) {
+  const leadRef = useRef<HTMLDivElement>(null);
   return (
     <div class="pane-header">
-      <div class="pane-header-lead">
-        <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
+      <div class="pane-header-lead" ref={leadRef}>
+        <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>
+          <PaneTitleBudgetContext.Provider value={leadRef}>
+            {titleSlot ?? title}
+          </PaneTitleBudgetContext.Provider>
+        </h3>
         {(copyText != null || openUrl) && (
           <div class="pane-header-identity">
             {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
