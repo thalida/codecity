@@ -1,7 +1,7 @@
 // createCity builds streets before the picker exists, so the picker-driven
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { createStreets } from '@/city/components/streets';
@@ -134,6 +134,37 @@ describe('createStreets()', () => {
     expect(labelsOf(streets).length).toBeGreaterThanOrEqual(1);
     // Group holds: 1 sidewalk + 1 asphalt + each label group.
     expect(streets.group.children.length).toBe(2 + labelsOf(streets).length);
+  });
+
+  it("rebuild() gives a street's label repeats one geometry, material and texture", () => {
+    const { ctx } = makePickableSceneContext();
+    streets = createStreets(ctx);
+    streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
+
+    const planes = labelsOf(streets).map((g) => g.children[0] as FlatMesh);
+    expect(planes.length).toBeGreaterThan(1);
+    for (const p of planes.slice(1)) {
+      expect(p.geometry).toBe(planes[0].geometry);
+      expect(p.material).toBe(planes[0].material);
+    }
+  });
+
+  // The planes opt out of disposing what they share, so if the street stops
+  // freeing it the texture leaks silently — nothing else owns it.
+  it('rebuild() frees the shared label texture rather than leaking it', () => {
+    const { ctx } = makePickableSceneContext();
+    streets = createStreets(ctx);
+    streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
+
+    const shared = (labelsOf(streets)[0].children[0] as FlatMesh).material;
+    const texture = shared.map!;
+    const texSpy = vi.spyOn(texture, 'dispose');
+    const matSpy = vi.spyOn(shared, 'dispose');
+
+    streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
+
+    expect(texSpy).toHaveBeenCalledTimes(1);
+    expect(matSpy).toHaveBeenCalledTimes(1);
   });
 
   it('rebuild() builds the sidewalk lookup keyed by street dir.path', () => {

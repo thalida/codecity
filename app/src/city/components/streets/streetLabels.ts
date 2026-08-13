@@ -132,6 +132,17 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   const spacing = Math.max(worldW * LABEL_SPACING_MULT, LABEL_SPACING_FLOOR);
   const count = Math.max(1, Math.floor(street.length / spacing));
 
+  // Every repeat of a street is the same quad showing the same texture, so one
+  // geometry and one material serve them all. The first group owns the trio.
+  const sharedGeometry = new THREE.PlaneGeometry(worldW, worldH);
+  const sharedMaterial = new THREE.MeshBasicMaterial({
+    map: info.texture,
+    transparent: true,
+    // Writing depth would z-block the neon path underneath, punching a
+    // bbox-shaped hole around the text.
+    depthWrite: false,
+  });
+
   const labels: THREE.Group[] = [];
   for (let i = 0; i < count; i++) {
     const t = count === 1 ? 0.5 : (i + 0.5) / count;
@@ -141,14 +152,9 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     if (street.orientation === StreetAxis.X) sx += offset;
     else sz += offset;
 
-    const mat = new THREE.MeshBasicMaterial({
-      map: info.texture,
-      transparent: true,
-      // Writing depth would z-block the neon path underneath, punching a
-      // bbox-shaped hole around the text.
-      depthWrite: false,
-    });
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), mat);
+    const plane = new THREE.Mesh(sharedGeometry, sharedMaterial);
+    plane.userData.sharedGeometry = true;
+    plane.userData.sharedMaterial = true;
     plane.rotation.x = -Math.PI / 2; // lay flat
     // Render AFTER the neon path line so the label composites on top.
     plane.renderOrder = orders.STREET_LABEL;
@@ -182,5 +188,19 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.updateMatrix();
     labels.push(group);
   }
+  // Nothing else frees these: the planes opt out so they can't free a sibling's
+  // resources, so the street's teardown reaches them through here.
+  labels[0].userData.labelResources = { geometry: sharedGeometry, material: sharedMaterial };
   return labels;
+}
+
+/** Free the geometry, material and texture one street's labels share. */
+export function disposeStreetLabelResources(labels: readonly THREE.Group[]): void {
+  const owned = labels[0]?.userData.labelResources as
+    { geometry: THREE.BufferGeometry; material: THREE.MeshBasicMaterial } | undefined;
+  if (!owned) return;
+  owned.geometry.dispose();
+  owned.material.map?.dispose();
+  owned.material.dispose();
+  delete labels[0].userData.labelResources;
 }

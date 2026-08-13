@@ -21,7 +21,7 @@ import {
   type SidewalkRange,
   type AsphaltRange,
 } from './streets';
-import { createStreetLabels } from './streetLabels';
+import { createStreetLabels, disposeStreetLabelResources } from './streetLabels';
 import { RUINED_STREET_DIRS } from './scrubState';
 import type { StreetScrubState } from './scrubState';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
@@ -235,6 +235,9 @@ export function createStreets(ctx: SceneContext): Streets {
       if (g.parent) g.parent.remove(g);
       g.traverse(disposeObject3D);
     }
+    // Per street, not per label: a street's repeats share one geometry, material
+    // and texture, and the planes opt out of freeing them.
+    for (const labels of labelGroupsByStreet.values()) disposeStreetLabelResources(labels);
   }
 
   function rebuild(layout: CityLayout): void {
