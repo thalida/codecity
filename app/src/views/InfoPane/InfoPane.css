@@ -25,6 +25,15 @@
   --sec-accent: var(--cc-layer-fireflies);
 }
 
+/* Both tabs title their blocks with .text-label, which paints captions in
+   secondary. These name the block under them rather than captioning it, so they
+   take the strong step. One rule for the pair: stated per-pane, the two tabs
+   drifted to different colours for the same thing. */
+.almanac-section-title,
+.legend-layer-title {
+  color: var(--cc-text-strong);
+}
+
 .info-markdown code {
   display: inline-block;
   background: var(--cc-accent-bg-soft);

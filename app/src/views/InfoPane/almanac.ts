@@ -6,7 +6,7 @@
 
 import { NodeKind } from '@/types';
 import type { Manifest, DirNode, FileLeader, DirLeader, CommitLeader } from '@/types';
-import { formatShortDate, humanSpan } from '@/utils/dates';
+import { formatShortDate } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
 
@@ -42,9 +42,6 @@ export interface AlmanacSection {
   title: string;
   /** One-line "what is this layer" blurb, shown as the section header tooltip. */
   tip: string;
-  /** Summary line under the header — a count + one aggregate ("315 fireflies ·
-   *  ~40 commits each"). Gives every section the same opening rhythm. */
-  overview: string;
   facts: AlmanacFact[];
   /** Shown in place of facts when the section has none — an empty state or a
    *  gated notice (e.g. the Trees layer is off). */
@@ -244,14 +241,6 @@ function compact(facts: (AlmanacFact | null)[]): AlmanacFact[] {
   return facts.filter((f): f is AlmanacFact => f !== null);
 }
 
-/** Rounded "X per Y" for an overview average, or null when the inputs can't
- *  produce a real number (n ≤ 0, or a non-finite total from a pre-totals
- *  cached manifest) — so the caller drops the "· ~N each" clause instead of
- *  rendering NaN. */
-function perEach(total: number, n: number): number | null {
-  return n > 0 && Number.isFinite(total) ? Math.round(total / n) : null;
-}
-
 function buildingsSection(m: Manifest): AlmanacSection {
   const s = m.stats;
   // Four min↔max duos — the dimension (Age / Last touched / Height / Footprint)
@@ -327,14 +316,8 @@ function buildingsSection(m: Manifest): AlmanacSection {
   }
   // Buildings = code files; media (billboards) and binaries (data blocks) each
   // render in their own section.
-  const count = Math.max(0, m.tree.descendants_file_count - s.mediaCount - s.binaryCount);
-  const avgLines = perEach(s.totalLines, count);
-  const overview =
-    pluralize(count, 'building') +
-    (avgLines !== null ? ` · ~${formatCount(avgLines)} lines each` : '');
   return {
     ...layerHeader('buildings'),
-    overview,
     facts,
     note: facts.length ? undefined : 'No code files yet.',
   };
@@ -344,11 +327,9 @@ function mediaSection(m: Manifest): AlmanacSection {
   // Media files render as billboards (image/video billboards) sized by aspect,
   // not lines — a separate class of building with its own superlatives.
   const s = m.stats;
-  const overview = pluralize(s.mediaCount, 'billboard');
   if (s.mediaCount === 0) {
     return {
       ...layerHeader('media'),
-      overview,
       facts: [],
       note: 'No images or videos.',
     };
@@ -372,7 +353,6 @@ function mediaSection(m: Manifest): AlmanacSection {
     const dims = hasRes(hiRes) ? ` · ${resFmt(hiRes)}` : '';
     return {
       ...layerHeader('media'),
-      overview,
       facts: compact([
         fileFact({
           group: 'Spotlight',
@@ -420,16 +400,15 @@ function mediaSection(m: Manifest): AlmanacSection {
         })
       : null,
   ]);
-  return { ...layerHeader('media'), overview, facts };
+  return { ...layerHeader('media'), facts };
 }
 
 function dataSection(m: Manifest): AlmanacSection {
   // Binary files render as windowless data blocks sized by bytes, not lines —
   // their own class, with byte-only superlatives (no line/resolution axis).
   const s = m.stats;
-  const overview = pluralize(s.binaryCount, 'data file');
   if (s.binaryCount === 0) {
-    return { ...layerHeader('data'), overview, facts: [], note: 'No binary files.' };
+    return { ...layerHeader('data'), facts: [], note: 'No binary files.' };
   }
   const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
   // Pair only when the endpoints are genuinely different files (a one-binary
@@ -455,16 +434,11 @@ function dataSection(m: Manifest): AlmanacSection {
       tip: "Biggest binary file by bytes; a data block's size sets its footprint.",
     }),
   ]);
-  return { ...layerHeader('data'), overview, facts };
+  return { ...layerHeader('data'), facts };
 }
 
 function streetsSection(m: Manifest): AlmanacSection {
   const s = m.stats;
-  const dirs = m.tree.descendants_dir_count;
-  const avgFiles = perEach(m.tree.descendants_file_count, dirs);
-  const overview =
-    pluralize(dirs, 'street') +
-    (avgFiles !== null ? ` · ~${formatCount(avgFiles)} files each` : '');
   // Street size = direct children (files + sub-dirs on that street), not total
   // descendants. 'child'/'children' is irregular, so format it by hand.
   const childCount = (l: DirLeader) =>
@@ -494,7 +468,6 @@ function streetsSection(m: Manifest): AlmanacSection {
   ]);
   return {
     ...layerHeader('streets'),
-    overview,
     facts,
     note: facts.length ? undefined : 'Everything lives at the root — no sub-directories.',
   };
@@ -502,17 +475,8 @@ function streetsSection(m: Manifest): AlmanacSection {
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const trees = m.commits.length;
-  const commits = m.stats.commitCount;
   const cd = m.stats.commitDates;
-  const span = cd.oldest && cd.newest ? humanSpan(cd.oldest, cd.newest) : '';
-  // Deep histories ship a sample of their commits, so the forest is one tree
-  // per sampled commit: name both counts rather than imply a tree per commit.
-  const forest =
-    commits > trees
-      ? `${pluralize(commits, 'commit')} · ${pluralize(trees, 'tree')} (sampled)`
-      : pluralize(trees, 'tree');
-  const overview = `${forest}${span ? ` · ${span} of history` : ''}`;
-  const base = { ...layerHeader('forest'), overview };
+  const base = layerHeader('forest');
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
   if (!treesEnabled) {
@@ -554,6 +518,24 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
       primary: pluralize(s.maxCommitStreakDays, 'consecutive day'),
       tip: 'Longest run of consecutive days with commits.',
     }),
+    // Their own group, so the two bind to each other as a duo rather than
+    // joining Activity's run above them.
+    cd.oldest
+      ? statFact({
+          group: 'History',
+          label: 'First',
+          primary: formatShortDate(cd.oldest),
+          tip: 'Date of the oldest commit: the tree at the heart of the forest.',
+        })
+      : null,
+    cd.newest
+      ? statFact({
+          group: 'History',
+          label: 'Latest',
+          primary: formatShortDate(cd.newest),
+          tip: 'Date of the newest commit: the tree at the forest edge.',
+        })
+      : null,
   ]);
   return { ...base, facts };
 }
@@ -561,12 +543,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
 function firefliesSection(m: Manifest): AlmanacSection {
   const s = m.stats;
   const count = s.authors.length;
-  const avgCommits = perEach(m.stats.commitCount, count);
-  // 'firefly' is irregular, so pluralize (naive +s) won't do.
-  const noun = count === 1 ? 'firefly' : 'fireflies';
-  const each = avgCommits !== null ? ` · ~${formatCount(avgCommits)} commits each` : '';
-  const overview = `${formatCount(count)} ${noun}${each}`;
-  const base = { ...layerHeader('fireflies'), overview };
+  const base = layerHeader('fireflies');
   if (count === 0) {
     return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
   }

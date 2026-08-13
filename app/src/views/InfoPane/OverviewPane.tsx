@@ -132,7 +132,6 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
 
   return (
     <div class="almanac pane-inset">
-      <p class="almanac-intro">A guided tour of the city&apos;s landmarks.</p>
       {sections.map((s) => {
         const Icon = SECTION_ICON[s.key];
         return (
@@ -142,10 +141,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
               {s.title}
             </h3>
             {s.facts.length > 0 ? (
-              <>
-                <p class="almanac-section-overview">{s.overview}</p>
-                <SectionBody facts={s.facts} />
-              </>
+              <SectionBody facts={s.facts} />
             ) : (
               <p class="almanac-section-note">{s.note}</p>
             )}

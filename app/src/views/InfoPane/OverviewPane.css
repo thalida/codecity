@@ -5,13 +5,6 @@
 }
 
 /* One-line descriptor leading the pane, mirroring the Legend subtab's intro. */
-.almanac-intro {
-  margin: 0;
-  color: var(--cc-text-primary);
-  line-height: var(--cc-lh-base);
-  font-size: var(--cc-font-md);
-}
-
 /* Section accents (--sec-accent per data-section) are shared with the Legend
  * subtab, so they live in InfoPane.css scoped to .info-body. */
 
@@ -26,6 +19,14 @@
   padding-top: var(--cc-space-6);
 }
 
+/* The rules separate one section from the next, so the first has nothing above
+   it to be separated from: with the intro line gone it drew a bar under the tab
+   strip. */
+.almanac-section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .almanac-section-title {
   display: flex;
   align-items: center;
@@ -37,14 +38,6 @@
   width: 15px;
   height: 15px;
   color: var(--sec-accent);
-}
-
-/* Summary line under each header — count + one aggregate, same rhythm in every
- * section. Flush-left with the header (no indent — the header already groups). */
-.almanac-section-overview {
-  margin: -2px 0 var(--cc-space-4) 0;
-  color: var(--cc-text-primary);
-  font-size: var(--cc-font-sm);
 }
 
 .almanac-section-note {

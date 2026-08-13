@@ -114,42 +114,44 @@ describe('OverviewPane', () => {
     expect(container.textContent).toContain('No project loaded');
   });
 
-  it('leads with a one-line descriptor (no repo name/metadata)', async () => {
+  // The pane opens straight into its first section: no intro line, and none of
+  // the repo-name/meta header that preceded it.
+  it('opens with a section, not a preamble', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.querySelector('.almanac-intro')).toBeTruthy();
-    // The old repo-name/meta header is gone.
+    expect(container.querySelector('.almanac-intro')).toBeNull();
     expect(container.querySelector('.almanac-name')).toBeNull();
     expect(container.querySelector('.almanac-meta')).toBeNull();
+    expect(container.querySelector('.almanac > .almanac-section')).toBeTruthy();
   });
 
   it('updates when the manifest signal changes (live update)', async () => {
     const sig = signal<Manifest | null>(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 building ');
+    expect(container.textContent).toContain('a.ts');
 
-    sig.value = {
-      ...manifest,
-      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
-    };
+    // A fresh scan whose superlatives land on a different file: the facts
+    // themselves re-derive, so the rows name the new winner.
+    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
     await flush();
-    expect(container.textContent).toContain('2 buildings');
+    expect(container.textContent).toContain('b.ts');
+    expect(container.textContent).not.toContain('a.ts');
   });
 
   it('updates through the InfoPane shell when MANIFEST changes (parent does not re-render)', async () => {
     const sig = signal<Manifest | null>(manifest);
     render(<InfoPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 building ');
+    expect(container.textContent).toContain('a.ts');
 
-    sig.value = {
-      ...manifest,
-      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
-    };
+    // A fresh scan whose superlatives land on a different file: the facts
+    // themselves re-derive, so the rows name the new winner.
+    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
     await flush();
-    expect(container.textContent).toContain('2 buildings');
+    expect(container.textContent).toContain('b.ts');
+    expect(container.textContent).not.toContain('a.ts');
   });
 
   it('clicking a building landmark focuses its file', async () => {

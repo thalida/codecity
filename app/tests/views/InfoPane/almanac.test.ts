@@ -300,10 +300,8 @@ describe('computeAlmanac — buildings + media', () => {
     const buildings = m.sections.find((s) => s.key === 'buildings')!;
     const data = m.sections.find((s) => s.key === 'data')!;
     // 3 files − 2 binaries = 1 building; binaries never win a code superlative.
-    expect(buildings.overview).toContain('1 building');
     expect(buildings.facts.every((f) => f.landmark?.id !== 'big.wasm')).toBe(true);
     // Data section: byte Size pair over the binary leaders.
-    expect(data.overview).toContain('2 data files');
     const byLabel = (l: string) => data.facts.find((f) => f.label === l)!;
     expect(byLabel('Smallest').landmark).toEqual({ kind: 'file', id: 'small.db' });
     expect(byLabel('Largest').landmark).toEqual({ kind: 'file', id: 'big.wasm' });
@@ -388,18 +386,12 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   it('longest streak counts consecutive days', () => {
     expect(fact('forest', 'Streak').primary).toContain('3');
   });
-  it('fireflies count distinct authors (overview) and name the most active', () => {
-    expect(section('fireflies').overview).toContain('2'); // 2 authors
+  it('names the most active contributor', () => {
     expect(fact('fireflies', 'Most active').primary).toContain('Ada');
   });
   it('pairs most + least active contributors when there are 2+ authors', () => {
     expect(fact('fireflies', 'Most active').primary).toContain('Ada'); // 3 commits
     expect(fact('fireflies', 'Least active').primary).toContain('Bo'); // 2 commits
-  });
-  it('every section opens with an overview summary', () => {
-    expect(section('streets').overview).toMatch(/street/);
-    expect(section('forest').overview).toMatch(/tree/);
-    expect(section('fireflies').overview).toMatch(/firefl/);
   });
   it('attaches a tooltip to every fact', () => {
     for (const s of a.sections)
@@ -420,19 +412,6 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     const streets = b.sections.find((s) => s.key === 'streets')!;
     expect(streets.facts).toHaveLength(0);
     expect(streets.note).toBeTruthy();
-  });
-  it('counts one tree per commit when the whole history shipped', () => {
-    expect(section('forest').overview).toContain('4 trees');
-    expect(section('forest').overview).not.toContain('sampled');
-  });
-  it('names both counts when the backend sampled a deep history', () => {
-    const deepStats = { ...sfStats, commitCount: 1_430_000 };
-    const b = computeAlmanac(manifest(tree, { commits, stats: deepStats }))!;
-    const forest = b.sections.find((s) => s.key === 'forest')!;
-    expect(forest.overview).toContain('1,430,000 commits · 4 trees (sampled)');
-    // The per-author average divides the true total, not the sample.
-    const fireflies = b.sections.find((s) => s.key === 'fireflies')!;
-    expect(fireflies.overview).toContain('~715,000 commits each');
   });
   it('gates the forest section behind the Trees layer', () => {
     const b = computeAlmanac(manifest(tree, { commits, stats: sfStats }), false)!;
