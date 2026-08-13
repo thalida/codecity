@@ -52,6 +52,10 @@
   gap: var(--cc-space-2);
   min-width: 0;
   flex: 1 1 auto;
+  /* The title hugs its content, so a title too long for the row would push the
+     pane's actions off the edge. Clip instead: the breadcrumb truncates itself
+     against this box, and this is the guarantee if it ever measures wrong. */
+  overflow: hidden;
 }
 
 .pane-header-identity {
