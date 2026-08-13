@@ -170,11 +170,18 @@ describe('StreetPane', () => {
       expect(onExclude).toHaveBeenCalledWith(d);
     });
 
-    // Excluding the root would empty the city, so the affordance is absent.
-    it('offers nothing to exclude on the repo root', () => {
+    // Excluding the root would empty the city. The button stays anyway, inert
+    // and carrying the reason: a rule you can read beats a button that silently
+    // isn't there.
+    it('shows the exclude button inert on the repo root, with the reason', () => {
       const root = dir('repo');
       (root as { path: string }).path = ROOT_PATH;
-      expect(mountWithExclude(root).button).toBeNull();
+      const { onExclude, button } = mountWithExclude(root);
+      expect(button).not.toBeNull();
+      expect(button!.getAttribute('aria-disabled')).toBe('true');
+      expect(button!.getAttribute('title')).toContain('root');
+      button!.click();
+      expect(onExclude).not.toHaveBeenCalled();
     });
   });
 });

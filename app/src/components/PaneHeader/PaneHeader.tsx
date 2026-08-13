@@ -34,14 +34,19 @@ export interface PaneHeaderProps {
   /** Extra action buttons rendered in the right-hand group, between the open link
    *  and exclude (e.g. CommitPane's view-on-timeline). */
   actionsSlot?: ComponentChildren;
-  /** fn() when the user clicks the × close button. Omit to render no button. */
+  /** fn() when the user clicks the close button. Omit to render no button. */
   onClose?: () => void;
-  /** Tooltip text on the × button. Defaults to "Hide sidebar". */
+  /** Tooltip text on the close button. Defaults to "Hide sidebar". */
   closeTitle?: string;
   /** fn() when the user clicks the "exclude from city" button. Omit to render none. */
   onExclude?: () => void;
   /** Tooltip / aria-label for the exclude button. */
   excludeTitle?: string;
+  /** Why this node can't be excluded. Set it and the button stays, dimmed and
+   *  inert, carrying the reason: a rule you can see beats an affordance that
+   *  silently isn't there. One field, not a flag plus a message, so a disabled
+   *  button always has something to say for itself. */
+  excludeDisabledReason?: string;
   /** Rich title content rendered inside the title element instead of the
    *  plain `title` string (e.g. a path breadcrumb, or "Commit <sha> · author"). */
   titleSlot?: ComponentChildren;
@@ -63,6 +68,7 @@ export function PaneHeader({
   closeTitle = 'Hide sidebar',
   onExclude,
   excludeTitle,
+  excludeDisabledReason,
   titleSlot,
 }: PaneHeaderProps) {
   return (
@@ -109,10 +115,17 @@ export function PaneHeader({
         {typeof onExclude === 'function' && (
           <button
             type="button"
-            class="btn-icon"
-            title={excludeTitle ?? 'Exclude from city'}
+            class={`btn-icon${excludeDisabledReason ? ' btn-icon--inert' : ''}`}
+            // The reason goes in the tooltip only: the accessible name has to
+            // stay what the button does, or a screen reader announces the
+            // objection and never the action it objects to.
+            title={excludeDisabledReason ?? excludeTitle ?? 'Exclude from city'}
             aria-label={excludeTitle ?? 'Exclude from city'}
-            onClick={() => onExclude()}
+            // aria-disabled, not disabled: a disabled button drops its hover, and
+            // the tooltip is the whole point of still drawing it (same trade as
+            // SourceRow's unavailable rows).
+            aria-disabled={excludeDisabledReason ? 'true' : undefined}
+            onClick={excludeDisabledReason ? undefined : () => onExclude()}
           >
             <EyeOff class="icon" />
           </button>

@@ -43,6 +43,8 @@ export interface PaneProps {
   /** fn() for the header "exclude from city" button. Omit to render no button. */
   onExclude?: () => void;
   excludeTitle?: string;
+  /** Why this node can't be excluded; see PaneHeader. */
+  excludeDisabledReason?: string;
   /** When set (or when `bodyRef` is set), Pane renders a `.pane-body` wrapper
    *  with this extra class around `children`. Omit for custom body layout. */
   bodyClass?: string;
@@ -78,6 +80,7 @@ export function Pane({
   closeTitle,
   onExclude,
   excludeTitle,
+  excludeDisabledReason,
   bodyClass,
   bodyRef,
   bodyProps,
@@ -104,6 +107,7 @@ export function Pane({
           closeTitle={closeTitle}
           onExclude={onExclude}
           excludeTitle={excludeTitle}
+          excludeDisabledReason={excludeDisabledReason}
         />
       )}
       {ownsBody ? (

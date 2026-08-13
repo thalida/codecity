@@ -82,6 +82,17 @@
 .btn-icon:disabled {
   cursor: default;
 }
+/* Present but not offered: the action doesn't apply here and the title says why.
+   aria-disabled rather than disabled at the call site, so the tooltip survives. */
+.btn-icon--inert {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-icon--inert:hover {
+  color: var(--cc-text-strong);
+  background: none;
+}
+
 .btn-icon.is-active {
   color: var(--cc-accent);
   background: var(--cc-accent-bg-soft);

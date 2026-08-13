@@ -104,12 +104,13 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
       }
       openLabel="Open folder on origin"
       onClose={onClose}
-      onExclude={
-        typeof onExclude === 'function' && d.path && d.path !== ROOT_PATH
-          ? () => onExclude(d)
-          : undefined
-      }
+      onExclude={typeof onExclude === 'function' ? () => onExclude(d) : undefined}
       excludeTitle="Exclude this road from the city"
+      excludeDisabledReason={
+        d.path && d.path !== ROOT_PATH
+          ? undefined
+          : 'Excluding the project root would leave nothing to look at'
+      }
       bodyClass={`street-body${inTimeline ? ' has-stale-note' : ''}`}
       footerSlot={<PaneStats items={directoryStatItems(d)} />}
     >
