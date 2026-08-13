@@ -42,26 +42,27 @@
   margin: var(--cc-space-0);
   padding: var(--cc-pane-inset) 0; /* rows supply the matching horizontal inset */
 }
-/* A real <button> (native keyboard + role); reset its chrome to the plain row. */
+/* A real <button> (native keyboard + role) wearing .row, which carries the
+   height, inset and hover every list row in the app shares. Only the button
+   reset and the type are left here.
+
+   Type matches a tree row's label, not SourceRow's sub-line: a result is the
+   row's identity, and xs/secondary is the recipe for a caption underneath one.
+   Mono because it's a path, like every other path the app prints. */
 .search-result {
   appearance: none;
-  display: block;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
-  min-height: var(--cc-tap-min);
-  padding: var(--cc-space-2) var(--cc-pane-inset);
-  cursor: pointer;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .search-result:hover {
-  background: var(--cc-overlay-bg-soft);
   color: var(--cc-text-strong);
 }
 .search-result:focus-visible {

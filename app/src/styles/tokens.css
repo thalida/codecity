@@ -167,6 +167,12 @@
   /* Floor for anything pressable. One size for both pointers: a cursor doesn't
      notice the extra, a thumb can't hit anything less. */
   --cc-tap-min: 32px;
+  /* Floor for a list row, which the coarse-pointer block below raises to the
+     platform's 44px. Rows earn the exception: they're the only controls you aim
+     at stacked against their neighbours, where missing means hitting a
+     different file rather than nothing. Buttons stay at --cc-tap-min for both
+     pointers, since the chrome bars derive their geometry from it. */
+  --cc-row-min-h: var(--cc-tap-min);
   /* How far a .btn-icon glyph sits inside its own tap target. A row that ends in
      one has this much optical inset already, so its own trailing padding has to
      account for it or the glyph reads as further from the edge than the text. */
@@ -247,6 +253,14 @@
    @supports because relative color syntax has no per-declaration fallback: a
    custom property holding an unparseable value fails at substitution, which
    would leave every border at currentColor rather than at the value above. */
+/* COARSE_POINTER_QUERY (constants/breakpoints.ts), whose own comment says it:
+   24px controls are half a thumb. */
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --cc-row-min-h: 44px;
+  }
+}
+
 @supports (color: oklch(from white l c h)) {
   :root {
     --cc-border-subtle: oklch(from var(--cc-bg-sidebar) calc(l + 0.068) calc(c * 1.58) h);

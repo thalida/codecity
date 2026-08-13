@@ -16,7 +16,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-2); /* default gap; --tight overrides to a tighter one */
-  min-height: var(--cc-tap-min);
+  min-height: var(--cc-row-min-h);
   padding: var(--cc-space-2) var(--cc-pane-inset);
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
