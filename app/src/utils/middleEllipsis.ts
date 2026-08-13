@@ -14,17 +14,12 @@
 interface ApplyMiddleEllipsisOpts {
   /** CSS class applied to the inserted `…` placeholder span. */
   ellipsisClass: string;
-  /** The element whose width the content has to fit. Defaults to the container.
-   *  Pass an ancestor when the container hugs its own content: a box sized by
-   *  what's inside it can't overflow, so it would report a fit at any width and
-   *  push whatever follows it out of the row. */
-  budget?: HTMLElement | null;
 }
 
 /** The leaf can shrink, so a row that stopped overflowing may have managed it
  *  by cutting the one segment that has to go last. Both must hold. */
-function _fits(box: HTMLElement, leaf: HTMLElement | undefined): boolean {
-  if (box.scrollWidth > box.clientWidth) return false;
+function _fits(container: HTMLElement, leaf: HTMLElement | undefined): boolean {
+  if (container.scrollWidth > container.clientWidth) return false;
   // +1: scrollWidth/clientWidth are rounded, so a sub-pixel width reads as cut.
   return !leaf || leaf.scrollWidth <= leaf.clientWidth + 1;
 }
@@ -83,10 +78,9 @@ export function applyMiddleEllipsis(
   });
   _removeEllipsis(container, opts.ellipsisClass);
 
-  const box = opts.budget ?? container;
   const last = segments.length - 1;
   const leaf = segments[last];
-  if (_fits(box, leaf)) return;
+  if (_fits(container, leaf)) return;
 
   const mid = Math.floor(segments.length / 2);
 
@@ -105,7 +99,7 @@ export function applyMiddleEllipsis(
       _syncSeparators(segments, separators);
       _ensureEllipsisAt(container, segments, hiddenStart, hiddenEnd, opts.ellipsisClass);
 
-      if (_fits(box, leaf)) return;
+      if (_fits(container, leaf)) return;
     }
   }
 

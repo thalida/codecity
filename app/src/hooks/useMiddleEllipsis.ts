@@ -35,15 +35,14 @@ export function useMiddleEllipsis<T extends HTMLElement = HTMLDivElement>(
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Watched for resizes: the caller's box, else the container's parent.
+    // Watched for resizes only: the fit is measured on the container, which is
+    // the box the truncation can actually change. An ancestor is no good for
+    // that — .text-pane-title clips, so the crumbs' overflow never reaches it.
     const target = observeRef?.current ?? el.parentElement;
     const run = () => {
       const segs = Array.from(el.querySelectorAll<HTMLElement>(`.${segmentClass}`));
       const seps = Array.from(el.querySelectorAll<HTMLElement>(`.${separatorClass}`));
-      // Fit against the caller's box only when it named one. Callers that don't
-      // are containers with a width of their own, and measuring their parent
-      // instead would change what they've always done.
-      applyMiddleEllipsis(el, segs, seps, { ellipsisClass, budget: observeRef?.current });
+      applyMiddleEllipsis(el, segs, seps, { ellipsisClass });
     };
     run();
 
