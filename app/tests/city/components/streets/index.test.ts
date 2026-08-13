@@ -68,9 +68,8 @@ function cameraRight(x: number): THREE.PerspectiveCamera {
   return cam;
 }
 
-// The component renders sidewalks (pickable, userData.type === Directory), ONE
-// merged asphalt mesh (name 'city-asphalt'), and labels (userData.type === Label)
-// as direct children of its group. Read them off the live tree.
+// Sidewalks, one merged asphalt mesh and the labels are all direct children of
+// the component's group, so the helpers below read them off the live tree.
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 function asphaltMeshOf(s: ReturnType<typeof createStreets>): FlatMesh | null {
   return (s.group.children.find((c) => c.name === 'city-asphalt') as FlatMesh) ?? null;
@@ -320,6 +319,30 @@ describe('createStreets()', () => {
     // Clearly positive → un-flips.
     streets.tick(0, { dt: 0, time: 0, camera: cameraRight(1) });
     expect(label.userData.flipped).toBe(false);
+  });
+
+  // Labels set matrixAutoUpdate = false, so a flip that writes rotation.y and
+  // stops there would render at the old angle however right userData looks.
+  it('tick() bakes the flip into the label matrix, not just rotation.y', () => {
+    const { ctx } = makePickableSceneContext();
+    streets = createStreets(ctx);
+    streets.rebuild(singleStreetLayout());
+    const label = labelsOf(streets)[0];
+
+    streets.tick(0, { dt: 0, time: 0, camera: cameraRight(1) });
+    const unflipped = label.matrix.clone();
+
+    streets.tick(0, { dt: 0, time: 0, camera: cameraRight(-1) });
+    expect(label.matrix.equals(unflipped)).toBe(false);
+    expect(
+      label.matrix.equals(
+        new THREE.Matrix4().compose(
+          label.position,
+          new THREE.Quaternion().setFromEuler(label.rotation),
+          label.scale
+        )
+      )
+    ).toBe(true);
   });
 
   // dispose()

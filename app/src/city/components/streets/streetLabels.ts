@@ -1,19 +1,7 @@
-// city/components/streets/streetLabels.ts — Flat text painted on the road, aligned with the
-// street's long axis (like labels on a map). Longer streets repeat the
-// label so you always have one nearby. Each label is a plane lifted a
-// tiny amount above the asphalt so it doesn't z-fight with the road,
-// and it participates in normal depth testing so buildings occlude it
-// correctly — no clipping through them.
-//
-// Fit policy: labels would otherwise size purely from street width and
-// the text's aspect ratio, so a long directory name on a narrow/short
-// street overflows past the road ends. We shrink uniformly to fit, and
-// once we'd have to go below LABEL_MIN_SCALE we truncate the text with an
-// ellipsis instead — readability over geometric correctness.
-//
-// Each returned Group wraps one label plane and exposes its orientation
-// via userData so the render loop can flip it 180° around scene-Y when
-// the camera orbits to the "upside-down" side.
+// city/components/streets/streetLabels.ts — road-name text painted flat along a
+// street's long axis, repeated so one is always nearby. Sizing prefers
+// readability over geometry: shrink to fit, and past LABEL_MIN_SCALE truncate
+// with an ellipsis rather than shrink further.
 
 import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
@@ -42,9 +30,8 @@ function _buildLabelTexture(
   text: string,
   maxAspect?: number
 ): { texture: THREE.CanvasTexture; aspect: number; text: string } {
-  // High source resolution so close-zoom doesn't reveal bilinear blur.
-  // The world-space plane size is unchanged — we're just packing more
-  // texels into the same footprint.
+  // High source resolution so close-zoom doesn't reveal bilinear blur; the
+  // world-space plane size is unchanged.
   const streets = STREETS.value;
   const fontSpec = `${LABEL_FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${LABEL_FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
@@ -83,9 +70,8 @@ function _buildLabelTexture(
   return { texture: tex, aspect: canvas.width / canvas.height, text: renderText };
 }
 
-// Binary-search the longest prefix of `text` whose canvas-measured width,
-// plus a trailing ellipsis, fits within `maxTextWidthPx`. Returns "…" if
-// even a single character would overflow.
+// Longest prefix that still fits once the ellipsis is added; "…" alone when
+// even one character overflows.
 function _truncateToFit(
   text: string,
   maxTextWidthPx: number,
@@ -111,18 +97,14 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   const streets = STREETS.value;
   const orders = RENDER_ORDERS;
 
-  // Usable road length: the rectangular label sits along the flat middle of
-  // the asphalt pill, between the two rounded caps. asphaltDims gives the
-  // concentric-cap asphalt length (street length minus the two sidewalk
-  // strips); we further subtract the asphalt cap diameter so the label's
-  // corners don't poke out where the pill rounds off.
+  // Subtract the cap diameter too: the label is rectangular and would poke its
+  // corners out where the asphalt pill rounds off.
   const { asphaltWidth, asphaltLength } = asphaltDims(street);
   const usableLength = Math.max(0, asphaltLength - asphaltWidth);
   if (usableLength <= 0) return [];
 
-  // Natural sizing: height scales with street width, width follows from the
-  // text's aspect ratio. Then fit to usableLength: shrink uniformly down to
-  // LABEL_MIN_SCALE; below that, truncate with an ellipsis instead.
+  // Height scales with street width and width follows the text's aspect, then
+  // the whole thing is fit to usableLength.
   const naturalHeight = street.width * streets.LABEL_HEIGHT_FRAC;
   let info = _buildLabelTexture(text);
   let worldH = naturalHeight;
@@ -136,9 +118,8 @@ export function createStreetLabels(street: Street): THREE.Group[] {
       worldW = usableLength;
     } else {
       worldH = naturalHeight * minScale;
-      // At this fixed worldH, the texture aspect must satisfy
-      //   aspect ≤ usableLength / worldH
-      // so the rebuilt canvas (with truncated text) fits exactly.
+      // worldH is pinned now, so the rebuilt canvas has to come in at or under
+      // this aspect to fit.
       const maxAspect = usableLength / worldH;
       info.texture.dispose();
       info = _buildLabelTexture(text, maxAspect);
@@ -146,10 +127,8 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     }
   }
 
-  // Repetition: spacing scales with the label's own rendered width so long
-  // names ("codecity") don't pile up on wide streets while short names
-  // ("src") still repeat often enough to always have one near the viewport.
-  // A minimum floor keeps tiny labels from repeating every few units.
+  // Spacing scales with rendered width so long names don't pile up, with a
+  // floor so short ones don't repeat every few units.
   const spacing = Math.max(worldW * LABEL_SPACING_MULT, LABEL_SPACING_FLOOR);
   const count = Math.max(1, Math.floor(street.length / spacing));
 
@@ -165,10 +144,8 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     const mat = new THREE.MeshBasicMaterial({
       map: info.texture,
       transparent: true,
-      // Don't write depth — otherwise the plane's transparent canvas pixels
-      // z-block the neon path running underneath, leaving a visible
-      // bbox-shaped hole. With depthWrite off, opaque glyph pixels still
-      // alpha-blend over the path, but letter loops (O, D, P) reveal it.
+      // Writing depth would z-block the neon path underneath, punching a
+      // bbox-shaped hole around the text.
       depthWrite: false,
     });
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), mat);
@@ -194,11 +171,15 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;
     group.userData.origHeightFrac = streets.LABEL_HEIGHT_FRAC;
-    // The street's NATURAL label height (before any shrink-to-fit), used by the
-    // streets component's per-frame visibility LOD to estimate on-screen size.
-    // Natural (not the shrunk worldH) so a long directory name on a narrow street
-    // isn't culled just for being text-shrunk — visibility tracks street size.
+    // Natural, not the shrunk worldH: the visibility LOD tracks street size, so
+    // a text-shrunk label shouldn't cull earlier than its neighbours.
     group.userData.worldH = naturalHeight;
+    // Both transforms are final until a camera flip rotates the group or a
+    // STREETS Save rescales the plane; those two sites updateMatrix by hand.
+    plane.matrixAutoUpdate = false;
+    plane.updateMatrix();
+    group.matrixAutoUpdate = false;
+    group.updateMatrix();
     labels.push(group);
   }
   return labels;
