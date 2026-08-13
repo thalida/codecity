@@ -20,7 +20,13 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
 
-const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
+// Coplanar with the city, because it IS the ground the city stands on. This was
+// -2 to keep the island's top out of a z-fight with the sidewalks, asphalt and
+// footprint slab at y=0, which suspended every building and tree two units in
+// the air: trunks ended above the grass and the skirt read as a slab hovering
+// over the island. The depth contest is the material's job, and islandShader
+// already gives it polygonOffset for exactly this.
+const ISLAND_TOP_Y = 0;
 
 export interface Island extends SceneComponent {
   /** Rebuild geometry and reposition group to fit the given bounds. */

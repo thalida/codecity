@@ -23,9 +23,11 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
     side: THREE.FrontSide,
     toneMapped: true,
     // Bias the island AWAY from the camera in the depth buffer so city
-    // surfaces (sidewalks, asphalt, footprint slab) at y≈0 always win the
-    // depth contest against the island top (~y=-2). Factor/units bumped
-    // 1→4 because at city-scale (thousands of wu wide) the depth
+    // surfaces (sidewalks, asphalt, footprint slab) always win the depth
+    // contest against the island top. They're exactly coplanar at y=0, so this
+    // is the ONLY thing separating them: the island used to be dropped to y=-2
+    // as well, which grounded nothing and floated everything. Factor/units
+    // bumped 1→4 because at city-scale (thousands of wu wide) the depth
     // precision near far-clip degrades and 1/1 wasn't enough margin.
     polygonOffset: true,
     polygonOffsetFactor: 4,
