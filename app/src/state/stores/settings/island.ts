@@ -85,7 +85,7 @@ const ISLAND_FIELDS = {
   GRASS_TEXTURE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.1,
+    default: 0.05,
     min: 0,
     max: 1,
     step: 0.01,
