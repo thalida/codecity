@@ -1,9 +1,6 @@
 .app-header-crumbs {
   flex: 0 1 auto;
   min-width: 0;
-  /* Clear separation from the extension badge that precedes it (the pane title's
-     own gap is only 2px, too tight against the chip). */
-  margin-left: var(--cc-space-4);
   display: flex;
   align-items: center;
   gap: var(--cc-space-1);

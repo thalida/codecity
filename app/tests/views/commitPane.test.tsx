@@ -275,11 +275,13 @@ describe('CommitPane', () => {
 
   // ── Pane header title ─────────────────────────────────────────────────────
 
-  it('sets the pane header title to "Commit <short-sha>"', async () => {
+  it('titles the pane with the kind badge and the short sha', async () => {
     mount();
     await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
     const title = container.querySelector('.text-pane-title') as HTMLElement;
-    expect(title.textContent).toContain('Commit');
+    // The badge names the kind, the way a file title's does — not a word in a
+    // sentence, and the same shape the chip shows when this pane is closed.
+    expect(title.querySelector('.path-badge')!.textContent).toBe('commit');
     expect(title.querySelector('.commit-sha')!.textContent).toBe(COMMIT.sha.slice(0, 7));
   });
 

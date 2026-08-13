@@ -16,9 +16,11 @@
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
+import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
 import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { KindBadge } from '@/components/Badge/Badge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
@@ -151,9 +153,13 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
   const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
   const primaryAuthor = (commit.authors ?? [])[0] || '(unknown)';
 
+  // Badge then identifier, the shape a file or directory title takes (and the
+  // one its own chip takes): the kind is a label on the thing, not a word in a
+  // sentence about it.
   const titleSlot = (
     <>
-      Commit <span class="commit-sha">{shortSha}</span>
+      <KindBadge kind={NodeKind.Commit} />
+      <span class="commit-sha">{shortSha}</span>
       <span class="commit-title-author"> · {primaryAuthor}</span>
     </>
   );

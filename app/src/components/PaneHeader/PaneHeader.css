@@ -100,3 +100,10 @@
 .text-pane-title.is-mono {
   font-family: var(--cc-font-mono);
 }
+
+/* A title that leads with a kind badge needs more air after it than the 2px
+   segment gap. Here rather than on what follows, so a breadcrumb and a short
+   sha are spaced off it alike without either restating the value. */
+.text-pane-title > .path-badge {
+  margin-inline-end: var(--cc-space-4);
+}
