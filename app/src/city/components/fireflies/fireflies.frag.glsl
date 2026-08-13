@@ -18,13 +18,13 @@ varying vec3 vInstanceColor;
 #include <hash_glsl_inline>
 
 void main() {
-  // Round soft-glow footprint inside the point square: bright core,
-  // feathered rim (replaces the old icosphere silhouette).
+  // Round footprint inside the point square: a solid core with a thin
+  // feathered rim, matching the crispness of the icosphere orbs this
+  // replaced (a wide feather reads as blur at firefly sizes).
   vec2 pc = gl_PointCoord * 2.0 - 1.0;
   float r2 = dot(pc, pc);
   if (r2 > 1.0) discard;
-  float glow = 1.0 - r2;
-  glow *= glow;
+  float glow = 1.0 - smoothstep(0.72, 1.0, sqrt(r2));
 
   // Flicker: hold each random value for ~1/8 second so the brain reads
   // it as flicker rather than integrating to a steady average. Above
