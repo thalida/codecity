@@ -45,6 +45,21 @@ export function getIconAtlas(): IconAtlas | null {
   return _atlas;
 }
 
+/** Mirrors _sharedMaterial.transparent so the setter can skip a no-op
+ *  needsUpdate — the owners call it per sweep and per scrub frame. */
+let _translucent = false;
+
+/** Opaque buildings sort front-to-back, so early-z skips the ~620-line facade
+ *  shader on hidden fragments; iFade.x is the only alpha, so a fade needs this. */
+export function setBuildingsTranslucent(on: boolean): void {
+  if (on === _translucent) return;
+  _translucent = on;
+  if (_sharedMaterial) {
+    _sharedMaterial.transparent = on;
+    _sharedMaterial.needsUpdate = true;
+  }
+}
+
 // Grime is age-scaled: a [newest, oldest] range the shader lerps per-building by
 // createdAge, written into a Vector2 uniform (both 0 when disabled → mix → 0).
 function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
@@ -63,8 +78,8 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
   _sharedMaterial = new THREE.ShaderMaterial({
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
-    // transparent: true so iFade.x can fade buildings.
-    transparent: true,
+    // Opaque unless something is mid-fade — see setBuildingsTranslucent.
+    transparent: _translucent,
     uniforms: {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
       // refreshBuildingMaterial() on Save.

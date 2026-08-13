@@ -7,6 +7,7 @@ import type { Building } from '@/types';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { BuildingIndex } from './buildingIndex';
 import { BuildingLane, type BuildingScrubState } from './scrubState';
+import { setBuildingsTranslucent } from './material';
 
 export interface BuildingScrubApplyCtx {
   getBuildingIndex(): BuildingIndex | null;
@@ -31,6 +32,10 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
   const _meshes = new Set<THREE.InstancedMesh>();
   const _colors = new Set<THREE.InstancedMesh>();
   const _attrs = new Set<THREE.BufferAttribute>();
+
+  // Absent never counts: scaled to nothing, so it rasterizes no fragments and
+  // its bodyOp can't need blending. See setBuildingsTranslucent.
+  let _anyTranslucent = false;
 
   function writeOne(b: Building, s: BuildingScrubState): void {
     const resolved = ctx.getMeshForBuilding(b);
@@ -59,6 +64,7 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
     if (iFade) {
       iFade.setXYZ(slot, s.bodyOp, s.silhouette, s.outlineOp);
       _attrs.add(iFade);
+      if (s.lane !== BuildingLane.Absent && s.bodyOp < 1) _anyTranslucent = true;
     }
 
     // Already faded to 0, so its shape and colour buffers stay as they are.
@@ -96,6 +102,7 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
     _meshes.clear();
     _colors.clear();
     _attrs.clear();
+    _anyTranslucent = false;
 
     const index = ctx.getBuildingIndex();
     if (index) {
@@ -110,6 +117,8 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     for (const a of _attrs) a.needsUpdate = true;
+
+    setBuildingsTranslucent(_anyTranslucent);
 
     // 0, not null: Live's fader reads null as leave-untouched, which would
     // strand an undriven panel at its shown default.

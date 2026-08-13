@@ -20,6 +20,7 @@ import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';
+import { setBuildingsTranslucent } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -62,6 +63,10 @@ export function createBuildingFader({
     // applyBuildingFades' per-slot callback to avoid an O(N²) tree-walk.
     const bodyOpacityByPath = new Map<string, number>();
 
+    // Idle resolves every tier to full opacity, so the common case (nothing
+    // selected or hovered) leaves the city in the opaque queue.
+    let anyTranslucent = false;
+
     // Iterate CellTile.detailMesh instances and write per-slot iFade values.
     const cells = world.getCells();
     for (const cell of cells.values()) {
@@ -88,10 +93,13 @@ export function createBuildingFader({
 
         iFadeAttr.setXYZ(slot, opacity, silhouette, outlineOpacity);
         bodyOpacityByPath.set(building.file.path, opacity);
+        if (opacity < 1) anyTranslucent = true;
       }
 
       iFadeAttr.needsUpdate = true;
     }
+
+    setBuildingsTranslucent(anyTranslucent);
 
     // Mirror the body opacity onto the facade panel mesh: each media
     // building's 4 panel instances pick up the same opacity tier as the

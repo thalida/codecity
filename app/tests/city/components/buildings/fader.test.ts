@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
+import { getBuildingMaterial } from '@/city/components/buildings/material';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
@@ -117,7 +118,7 @@ function makeFader(opts: {
     };
   }
 
-  return { fader, readFor };
+  return { fader, readFor, picker };
 }
 
 /** Set distinctive opacity values per tier so each assertion pins down
@@ -353,5 +354,84 @@ describe('buildingFader 5-tier cascade', () => {
     });
 
     expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.5);
+  });
+});
+
+// Too late and a dimmed building reads as solid; too eager and the whole city
+// goes back through the transparent queue it was moved out of.
+describe('buildingFader → material transparency', () => {
+  beforeEach(setKnownFade);
+
+  it('turns blending on only while the cascade is dimming something', () => {
+    const a = makeFile('src/foo/a.ts');
+    const far = makeFile('other/deep/x.ts');
+    const selBuilding = makeBuilding(a);
+    const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
+
+    const { picker } = makeFader({
+      buildings: [selBuilding, makeBuilding(far)],
+      selection: null,
+      streetByDir,
+    });
+
+    // Idle: every tier resolves to DEFAULT_BODY_OPACITY 1.0, nothing to blend.
+    expect(getBuildingMaterial().transparent).toBe(false);
+
+    // Selecting drops the far building to L4 (0.2), which only reads correctly
+    // with blending on.
+    picker.selection.value = {
+      kind: NodeKind.File,
+      mesh: new THREE.Object3D() as unknown as THREE.Mesh,
+      data: selBuilding,
+      file: a,
+    } as unknown as PickTarget;
+    expect(getBuildingMaterial().transparent).toBe(true);
+
+    // ...and back to opaque when the selection clears.
+    picker.selection.value = null;
+    expect(getBuildingMaterial().transparent).toBe(false);
+  });
+
+  it('stays opaque for a cascade whose tiers are all fully opaque', () => {
+    BUILDINGS.value = {
+      ..._originalFade,
+      DEFAULT_DETAIL: FadeDetail.Full,
+      DEFAULT_BODY_OPACITY: 1.0,
+      DEFAULT_OUTLINE: false,
+      DEFAULT_OUTLINE_OPACITY: 0.0,
+      LEVEL1_DETAIL: FadeDetail.Full,
+      LEVEL1_BODY_OPACITY: 1.0,
+      LEVEL1_OUTLINE: false,
+      LEVEL1_OUTLINE_OPACITY: 0.0,
+      LEVEL2_DETAIL: FadeDetail.Full,
+      LEVEL2_BODY_OPACITY: 1.0,
+      LEVEL2_OUTLINE: false,
+      LEVEL2_OUTLINE_OPACITY: 0.0,
+      LEVEL3_DETAIL: FadeDetail.Full,
+      LEVEL3_BODY_OPACITY: 1.0,
+      LEVEL3_OUTLINE: false,
+      LEVEL3_OUTLINE_OPACITY: 0.0,
+      LEVEL4_DETAIL: FadeDetail.Full,
+      LEVEL4_BODY_OPACITY: 1.0,
+      LEVEL4_OUTLINE: false,
+      LEVEL4_OUTLINE_OPACITY: 0.0,
+    };
+
+    const a = makeFile('src/foo/a.ts');
+    const far = makeFile('other/deep/x.ts');
+    const selBuilding = makeBuilding(a);
+
+    makeFader({
+      buildings: [selBuilding, makeBuilding(far)],
+      selection: {
+        kind: NodeKind.File,
+        mesh: new THREE.Object3D() as unknown as THREE.Mesh,
+        data: selBuilding,
+        file: a,
+      } as unknown as PickTarget,
+      streetByDir: new Map([['src/foo', { dir: makeDir('src/foo') }]]),
+    });
+
+    expect(getBuildingMaterial().transparent).toBe(false);
   });
 });
