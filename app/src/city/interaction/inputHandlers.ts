@@ -21,6 +21,7 @@ const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/ui';
+import { focusSelection } from '@/state/stores/scene';
 import { NodeKind } from '@/types';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import type { PickTarget } from '@/types';
@@ -237,16 +238,10 @@ export function createInputHandlers({
       // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
-      const sel = picker.selection.value;
-      if (!sel) return;
-      if (sel.kind === NodeKind.File) {
-        rig.focusBuilding(sel.mesh, sel.data);
-      } else if (sel.kind === NodeKind.Directory) {
-        rig.focusStreet(sel.street, null);
-      } else if (sel.kind === NodeKind.Commit) {
-        rig.focusTree(sel.commit.sha);
-      }
-      // Gem isn't selectable, so no Gem branch — clicking it resets the view.
+      // The same command the panes' Focus buttons call: it dispatches on the
+      // selected kind and clears the panel out of the way. Gem isn't selectable,
+      // so there's no Gem case — clicking it resets the view.
+      focusSelection();
     }
   });
 

@@ -33,12 +33,13 @@ effect(() => {
   openSelectionPane();
 });
 
-/** Phone: both drawers cover the city, so a camera move behind them is one you
- *  can't see. Every focus command clears the way, so they all behave alike. */
+/** Asking to focus something is asking to look at it, so every focus command
+ *  clears what's in the way and leaves the chip standing in for the details.
+ *  The left drawer only covers the city on a phone; the panel crowds it
+ *  everywhere. */
 function revealCity(): void {
-  if (!IS_PHONE.peek()) return;
   dismissSelectionPane();
-  SIDEBAR_COLLAPSED.value = true;
+  if (IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
 }
 
 // ── Scene commands ───────────────────────────────────────────────────
@@ -80,6 +81,18 @@ export function focusPath(path: string): void {
 /** Focus the camera on a commit's tree by sha. */
 export function focusCommit(sha: string): void {
   SCENE_HANDLE.peek()?.rig.focusTree(sha);
+  revealCity();
+}
+
+/** Focus the camera on whatever is selected, whichever kind it is (the F key).
+ *  Here rather than in the key handler so it clears the way like every other
+ *  focus command: a keystroke and a Focus button are the same request. */
+export function focusSelection(): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  const sel = handle.picker.selection.peek();
+  if (!sel) return; // nothing to look at, so nothing to clear out of the way
+  handle.rig.focusSelection(sel);
   revealCity();
 }
 

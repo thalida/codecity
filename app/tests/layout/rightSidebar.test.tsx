@@ -81,6 +81,7 @@ function makeSceneHandle() {
         return null;
       },
     },
+    focusByPath() {},
     picker: {
       selection,
       hover,
@@ -358,6 +359,23 @@ describe('RightSidebar', () => {
       await selectFile({ ...FILE_NODE });
 
       expect(isOpen()).toBe(false);
+    });
+
+    // Focusing is asking to look at the thing, which the pane is in front of.
+    // Desktop too: this used to clear the way only on a phone.
+    it('the Focus button puts the pane away and keeps the selection', async () => {
+      setManifest(manifestWithFile(FILE_NODE));
+      await selectFile(FILE_NODE);
+      expect(isOpen()).toBe(true);
+
+      act(() =>
+        container.querySelector<HTMLButtonElement>('button[title^="Focus the camera"]')!.click()
+      );
+      await flush();
+
+      expect(isOpen()).toBe(false);
+      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      expect(handle.picker.selection.value).not.toBeNull();
     });
 
     it('stays shut for no selection at all', async () => {
