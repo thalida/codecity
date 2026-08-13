@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
@@ -56,13 +57,14 @@ export function createFireflyRenderer(
   const uHoveredCommit = { value: -1.0 };
   const uSelectedCommit = { value: -1.0 };
   const uScrubCommit = { value: -1.0 };
-  // canvas.height = drawing-buffer device pixels, gl_PointSize's unit.
-  // Refreshed per frame in setTime; the fallback covers headless tests.
-  const uHalfViewportHeight = { value: (canvas?.height ?? 2048) / 2 };
+  // canvas.height = drawing-buffer device pixels, gl_PointSize's unit,
+  // refreshed per frame in setTime. The fallback only applies without a canvas.
+  const HEADLESS_VIEWPORT_PX = 2048;
+  const uHalfViewportHeight = { value: (canvas?.height ?? HEADLESS_VIEWPORT_PX) / 2 };
 
   const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(orbs.length * 3);
-  const colors = new Float32Array(orbs.length * 3);
+  const positions = new Float32Array(orbs.length * VEC3_COMPONENTS);
+  const colors = new Float32Array(orbs.length * VEC3_COMPONENTS);
   const phaseArray = new Float32Array(orbs.length);
   const pulsePhaseArray = new Float32Array(orbs.length);
   const orbitRadiusArray = new Float32Array(orbs.length);
@@ -74,14 +76,15 @@ export function createFireflyRenderer(
   let maxScale = 0;
   for (let i = 0; i < orbs.length; i++) {
     const o = orbs[i];
-    positions[i * 3] = o.treeX;
-    positions[i * 3 + 1] = o.height;
-    positions[i * 3 + 2] = o.treeZ;
+    const v = i * VEC3_COMPONENTS;
+    positions[v] = o.treeX;
+    positions[v + 1] = o.height;
+    positions[v + 2] = o.treeZ;
     // rgb values from FireflyPlacement are already linear-RGB (0..1) — the
     // shader consumes them raw, no color-space conversion.
-    colors[i * 3] = o.rgb[0];
-    colors[i * 3 + 1] = o.rgb[1];
-    colors[i * 3 + 2] = o.rgb[2];
+    colors[v] = o.rgb[0];
+    colors[v + 1] = o.rgb[1];
+    colors[v + 2] = o.rgb[2];
     phaseArray[i] = o.phase;
     pulsePhaseArray[i] = o.pulsePhase;
     orbitRadiusArray[i] = o.orbitRadius;
@@ -92,8 +95,8 @@ export function createFireflyRenderer(
     if (o.orbitRadius > maxWorldOrbit) maxWorldOrbit = o.orbitRadius;
     if (o.scale > maxScale) maxScale = o.scale;
   }
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, VEC3_COMPONENTS));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, VEC3_COMPONENTS));
   geometry.setAttribute('aPhase', new THREE.BufferAttribute(phaseArray, 1));
   geometry.setAttribute('aPulsePhase', new THREE.BufferAttribute(pulsePhaseArray, 1));
   geometry.setAttribute('aOrbitRadius', new THREE.BufferAttribute(orbitRadiusArray, 1));

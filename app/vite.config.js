@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
-import { appendFileSync } from 'node:fs';
 import preact from '@preact/preset-vite';
 
 // Vite root is this directory; ./dist/ is what the Dockerfile copies into
@@ -8,39 +7,10 @@ import preact from '@preact/preset-vite';
 
 const appDir = import.meta.dirname;
 
-// Dev-only sink for deviceDebugLog: phones over a tunnel have no reachable
-// console, so telemetry POSTs here and lands in a tailable NDJSON file.
-const deviceDebugLogPlugin = {
-  name: 'device-debug-log',
-  configureServer(server) {
-    const logFile = resolve(appDir, '.local-debuglog.ndjson');
-    server.middlewares.use('/__debuglog', (req, res) => {
-      if (req.method !== 'POST') {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      let body = '';
-      req.on('data', (chunk) => {
-        body += chunk;
-      });
-      req.on('end', () => {
-        try {
-          appendFileSync(logFile, body.endsWith('\n') ? body : `${body}\n`);
-        } catch {
-          // Diagnostic sink only — never fail a request over it.
-        }
-        res.statusCode = 204;
-        res.end();
-      });
-    });
-  },
-};
-
 export default defineConfig({
   root: appDir,
   base: './',
-  plugins: [preact(), deviceDebugLogPlugin],
+  plugins: [preact()],
   resolve: {
     // Mirrored in tsconfig.json paths + vitest.config.js so the editor and
     // test runner resolve `@/` identically.

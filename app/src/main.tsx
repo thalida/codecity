@@ -8,11 +8,7 @@ import './styles/index.css';
 // no flash (persistedSignal hydrates synchronously).
 import '@/state/stores/settings/theme';
 import { openBootPickerIfNeeded } from '@/state/bootView';
-import { installDeviceDebugLog } from '@/utils/deviceDebugLog';
 import { App } from '@/layout/App/App';
-
-// Dev-only telemetry, so phone sessions over a tunnel are debuggable.
-installDeviceDebugLog();
 
 // Decide the cold-boot picker BEFORE the first render so the full-page landing
 // covers the chrome from frame one (no chrome flash).

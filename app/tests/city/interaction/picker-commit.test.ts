@@ -1,76 +1,34 @@
-// picker-commit.test.ts — verifies interpretHit produces a CommitTarget
-// for merged tree-chunk hits, and that selection-key derivation +
-// re-resolution work through the Commit branch.
+// picker-commit.test.ts — the Commit branch of the picker, driven by the REAL
+// tree renderer: its meshes, its meshKind stamp, its face→commit mapping. A
+// stub here would just restate the contract and pass while the two drifted.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
-
-const SERIES = commitSeries(3);
+import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
+import type { Trees } from '@/city/components/trees/treeRenderer';
+import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
-import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
+import type { PickerWorld, CommitTarget } from '@/types';
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
+const BUSY = { avg: 1, busy: 1 };
 
-function makeChunkMesh(): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
-  m.userData.meshKind = 'trees';
-  return m;
+/** Three commits, three trees, one real renderer. */
+function makeTrees(count = 3): { trees: Trees; commits: ReturnType<typeof commitSeries> } {
+  const commits = commitSeries(count);
+  const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
+  return { trees: renderTrees(placements, commits, BUSY), commits };
 }
 
-interface FakeTrees {
-  group: THREE.Group;
-  commitForFace: (
-    mesh: THREE.Object3D,
-    faceIndex: number | null | undefined
-  ) => { commit: CommitEntry; placementIndex: number } | null;
-  findTreeBySha: (sha: string) => {
-    mesh: THREE.Mesh;
-    instanceId: number;
-    commit: CommitEntry;
-  } | null;
-  getInstanceTransform: (sha: string, out: THREE.Matrix4) => boolean;
-  colorForSha: (sha: string) => string | null;
-  isScrubHidden: (placementIndex: number) => boolean;
-}
-
-// Fake merged renderer: face f is tree f (the real face→range math is
-// pinned by treeRenderer.test's commitForFace coverage).
-function makeFakeTrees(chunk: THREE.Mesh, commits: CommitEntry[]): FakeTrees {
-  const group = new THREE.Group();
-  group.add(chunk);
-  return {
-    group,
-    commitForFace(mesh, faceIndex) {
-      if (mesh !== chunk || faceIndex == null) return null;
-      const commit = commits[faceIndex];
-      return commit ? { commit, placementIndex: faceIndex } : null;
-    },
-    findTreeBySha(sha) {
-      const idx = commits.findIndex((c) => c.sha === sha);
-      if (idx === -1) return null;
-      return { mesh: chunk, instanceId: idx, commit: commits[idx] };
-    },
-    getInstanceTransform(sha, _out) {
-      const idx = commits.findIndex((c) => c.sha === sha);
-      return idx !== -1;
-    },
-    colorForSha(sha) {
-      const idx = commits.findIndex((c) => c.sha === sha);
-      return idx === -1 ? null : '#abcdef';
-    },
-    isScrubHidden: () => false,
-  };
-}
-
-function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
+function makeWorld(initialTrees: Trees | null): PickerWorld & {
   cityState: ReturnType<typeof createCityState>;
   triggerRebuild(): void;
   triggerDecoration(): void;
-  setTrees(t: FakeTrees | null): void;
+  setTrees(t: Trees | null): void;
 } {
   // A city rebuild bumps cityRevision; the deferred trees-attach bumps
   // decorationRevision. The picker reacts to both.
@@ -94,16 +52,17 @@ function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
     triggerDecoration() {
       cityState.decorationRevision.value++;
     },
-    setTrees(t: FakeTrees | null) {
+    setTrees(t: Trees | null) {
       currentTrees = t;
     },
   });
 }
 
-function treeHit(mesh: THREE.Object3D, faceIndex: number): THREE.Intersection<THREE.Object3D> {
+/** A hit shaped like the raycaster's, on the chunk that renders `placement`. */
+function treeHit(trees: Trees, placement: number): THREE.Intersection<THREE.Object3D> {
   return {
-    object: mesh,
-    faceIndex,
+    object: treeSlot(trees, placement).mesh,
+    faceIndex: treeFaceIndex(trees, placement),
     distance: 1,
     point: new THREE.Vector3(),
   } as unknown as THREE.Intersection<THREE.Object3D>;
@@ -118,66 +77,66 @@ beforeEach(() => {
 });
 
 describe('picker: tree commit picking', () => {
-  it('interpretHit on a merged tree chunk returns a CommitTarget', () => {
-    const chunk = makeChunkMesh();
-    const commits = [SERIES[0], SERIES[1], SERIES[2]];
-    const trees = makeFakeTrees(chunk, commits);
+  it('interpretHit on a tree chunk returns the commit that grew that tree', () => {
+    const { trees, commits } = makeTrees();
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    const target = p.interpretHit(treeHit(chunk, 1)) as CommitTarget | null;
+    const target = p.interpretHit(treeHit(trees, 1)) as CommitTarget | null;
     expect(target).not.toBeNull();
     expect(target!.kind).toBe(NodeKind.Commit);
-    expect(target!.mesh).toBe(chunk);
+    expect(target!.mesh).toBe(treeSlot(trees, 1).mesh);
     expect(target!.instanceId).toBe(1);
     expect(target!.commit).toEqual(commits[1]);
+    trees.dispose();
     p.dispose();
   });
 
   it('interpretHit returns null when the trees handle is null', () => {
+    const { trees } = makeTrees();
     const world = makeWorld(null);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-    expect(p.interpretHit(treeHit(makeChunkMesh(), 0))).toBeNull();
+    expect(p.interpretHit(treeHit(trees, 0))).toBeNull();
+    trees.dispose();
     p.dispose();
   });
 
-  it('interpretHit returns null when commitForFace returns null for a stale face', () => {
-    const chunk = makeChunkMesh();
-    const commits = [SERIES[0], SERIES[1], SERIES[2]];
-    const trees = makeFakeTrees(chunk, commits);
+  it('interpretHit returns null for a face past the last tree', () => {
+    const BEYOND_LAST_TREE = 99; // tree slots this test never renders
+    const { trees } = makeTrees();
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    // makeFakeTrees.commitForFace returns null past commits.length.
-    expect(p.interpretHit(treeHit(chunk, 99))).toBeNull();
+    const { mesh } = treeSlot(trees, 0);
+    const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
+    const beyond = {
+      object: mesh,
+      faceIndex: (perTree * BEYOND_LAST_TREE) / VERTS_PER_TRIANGLE,
+      distance: 1,
+      point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+    expect(p.interpretHit(beyond)).toBeNull();
+    trees.dispose();
     p.dispose();
   });
 
   it('setSelection on a CommitTarget writes a Commit selection key', () => {
-    const chunk = makeChunkMesh();
-    const commits = [SERIES[0], SERIES[1]];
-    const trees = makeFakeTrees(chunk, commits);
+    const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    p.setSelection({
-      kind: NodeKind.Commit,
-      mesh: chunk,
-      instanceId: 1,
-      commit: commits[1],
-    });
+    p.setSelection(p.interpretHit(treeHit(trees, 1)));
 
     expect(PICKER_SELECTION_KEY.value).toEqual({
       kind: NodeKind.Commit,
       sha: commits[1].sha,
     });
+    trees.dispose();
     p.dispose();
   });
 
   it('hydrating a Commit key re-resolves the selection via findTreeBySha', () => {
-    const chunk = makeChunkMesh();
-    const commits = [SERIES[0], SERIES[1]];
-    const trees = makeFakeTrees(chunk, commits);
+    const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
@@ -187,69 +146,53 @@ describe('picker: tree commit picking', () => {
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
-    expect(sel!.mesh).toBe(chunk);
+    expect(sel!.mesh).toBe(treeSlot(trees, 1).mesh);
+    trees.dispose();
     p.dispose();
   });
 
-  it('world rebuild re-resolves a Commit selection to the fresh trees', () => {
-    const chunkA = makeChunkMesh();
-    const commits = [SERIES[0], SERIES[1]];
-    const treesA = makeFakeTrees(chunkA, commits);
+  it('world rebuild re-resolves a Commit selection onto the fresh meshes', () => {
+    const { trees: treesA, commits } = makeTrees(2);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    p.setSelection(p.interpretHit(treeHit(treesA, 1)));
 
-    // Pick the second commit from the first world snapshot.
-    p.setSelection({
-      kind: NodeKind.Commit,
-      mesh: chunkA,
-      instanceId: 1,
-      commit: commits[1],
-    });
-
-    // World rebuild: fresh chunk mesh, same commits list (so the selected
-    // SHA is still resolvable to a tree on the new mesh).
-    const chunkB = makeChunkMesh();
-    const treesB = makeFakeTrees(chunkB, commits);
+    // Same commits, freshly rendered: the sha still resolves, to new meshes.
+    const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
+    const treesB = renderTrees(placements, commits, BUSY);
     world.setTrees(treesB);
     world.triggerRebuild();
 
     const sel = p.selection.value as CommitTarget | null;
-    expect(sel).not.toBeNull();
-    expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
-    // After rebuild, the mesh handle must be the fresh chunk, not the stale one.
-    expect(sel!.mesh).toBe(chunkB);
+    expect(sel!.mesh).toBe(treeSlot(treesB, 1).mesh);
+    expect(sel!.mesh).not.toBe(treeSlot(treesA, 1).mesh);
+    treesA.dispose();
+    treesB.dispose();
     p.dispose();
   });
 
-  it('refreshes pickables when trees attach asynchronously after world rebuild', () => {
-    const chunkA = makeChunkMesh();
-    const commits = [SERIES[0]];
-    const treesA = makeFakeTrees(chunkA, commits);
+  it('refreshes pickables when trees attach asynchronously after a rebuild', () => {
+    const { trees: treesA, commits } = makeTrees(1);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    // Rebuild with trees absent: the window between street/building rebuild
-    // and async placement completing.
+    // The window between street/building rebuild and async placement finishing.
     world.setTrees(null);
     world.triggerRebuild();
-    // Now trees arrive asynchronously and the world bumps decorationRevision.
-    const chunkB = makeChunkMesh();
-    const treesB = makeFakeTrees(chunkB, commits);
+    const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
+    const treesB = renderTrees(placements, commits, BUSY);
     world.setTrees(treesB);
     world.triggerDecoration();
 
-    // Picking the new chunk should produce a CommitTarget — proving
-    // pickables refreshed.
-    const target = p.interpretHit(treeHit(chunkB, 0));
-    expect(target).not.toBeNull();
+    expect(p.interpretHit(treeHit(treesB, 0))).not.toBeNull();
+    treesA.dispose();
+    treesB.dispose();
     p.dispose();
   });
 
   it('hydrating a Commit key for a missing sha clears the selection + key', () => {
-    const chunk = makeChunkMesh();
-    const commits = [SERIES[0]];
-    const trees = makeFakeTrees(chunk, commits);
+    const { trees } = makeTrees(1);
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
@@ -257,6 +200,7 @@ describe('picker: tree commit picking', () => {
 
     expect(p.selection.value).toBeNull();
     expect(PICKER_SELECTION_KEY.value).toBeNull();
+    trees.dispose();
     p.dispose();
   });
 });

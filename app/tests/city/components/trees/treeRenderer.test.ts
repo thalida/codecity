@@ -5,6 +5,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../../_helpers/commits';
 import { renderTrees } from '../../../_helpers/renderTrees';
 
@@ -74,7 +75,7 @@ function findTreeSlot(
 /** First face index of a tree's vertex range — for commitForFace round-trips. */
 function firstFaceOf(mesh: THREE.Mesh, slot: number): number {
   const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
-  return (slot * perTree) / 3;
+  return (slot * perTree) / VERTS_PER_TRIANGLE;
 }
 
 /** Min/max of one merged tree's vertex positions on an axis, split by part. */

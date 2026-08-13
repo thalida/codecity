@@ -11,6 +11,7 @@ import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry'
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { getBuildingTilt, composeShearMatrix } from './tilt';
@@ -81,10 +82,8 @@ export function createOutlineRenderer({
   selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
   const _selectedEdgesGeo = new SafeLineSegmentsGeometry();
   _selectedEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-  // LineSegmentsGeometry stores start+end RGB (6 floats) per cube edge.
   const CUBE_EDGE_COUNT = 12;
-  const COLOR_FLOATS_PER_EDGE = 6; // start RGB + end RGB
-  const _selectedColors = new Float32Array(CUBE_EDGE_COUNT * COLOR_FLOATS_PER_EDGE);
+  const _selectedColors = new Float32Array(CUBE_EDGE_COUNT * FLOATS_PER_SEGMENT);
   for (let ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
   _selectedEdgesGeo.setColors(_selectedColors);
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
@@ -146,7 +145,7 @@ export function createOutlineRenderer({
     fracStart: number,
     fracEnd: number
   ): void {
-    const k = segIdx * 6;
+    const k = segIdx * FLOATS_PER_SEGMENT;
     // Start RGB — consume the scratch tuple before the next call overwrites it.
     const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart);
     _selectedColors[k] = r0;

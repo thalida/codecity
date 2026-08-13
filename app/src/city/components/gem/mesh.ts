@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
+import { BYTE_MAX } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
@@ -44,19 +45,23 @@ function _glowAlphaAt(t: number): number {
 let _glowTexture: THREE.DataTexture | null = null;
 function _makeGlowTexture(): THREE.DataTexture {
   if (_glowTexture) return _glowTexture;
+  // Texture is square, RGBA, and sized so the falloff has room to read smooth
+  // at the halo's on-screen size.
   const SIZE = 256;
-  const data = new Uint8Array(SIZE * SIZE * 4);
+  const RGBA_CHANNELS = 4;
+  const data = new Uint8Array(SIZE * SIZE * RGBA_CHANNELS);
   const center = (SIZE - 1) / 2;
+  const radius = SIZE / 2;
   for (let y = 0; y < SIZE; y++) {
     for (let x = 0; x < SIZE; x++) {
-      const t = Math.hypot(x - center, y - center) / (SIZE / 2);
-      const alpha = Math.round(_glowAlphaAt(Math.min(t, 1)) * 255);
-      const i = (y * SIZE + x) * 4;
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      // Quantized-to-zero rim: anything that would round below 1/255 IS
-      // zero, so the quad's edges can never glow the sky.
+      const t = Math.hypot(x - center, y - center) / radius;
+      const alpha = Math.round(_glowAlphaAt(Math.min(t, 1)) * BYTE_MAX);
+      const i = (y * SIZE + x) * RGBA_CHANNELS;
+      data[i] = BYTE_MAX;
+      data[i + 1] = BYTE_MAX;
+      data[i + 2] = BYTE_MAX;
+      // Quantized-to-zero rim: anything rounding below one step IS zero, so
+      // the quad's edges can never glow the sky.
       data[i + 3] = alpha;
     }
   }

@@ -19,7 +19,8 @@ import {
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
+import { TREES_PER_CHUNK } from '@/city/utils/instanceChunkSize';
+import { BYTE_MAX, VEC3_COMPONENTS, VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
@@ -128,7 +129,7 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
   const pos = geom.getAttribute('position');
   const nrm = geom.getAttribute('normal');
   const count = pos.count;
-  const colors = new Float32Array(count * 3);
+  const colors = new Float32Array(count * VEC3_COMPONENTS);
 
   for (let i = 0; i < count; i++) {
     const y = pos.getY(i);
@@ -143,11 +144,12 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
     }
 
     const c = heightShade * faceShade;
-    colors[i * 3 + 0] = c;
-    colors[i * 3 + 1] = c;
-    colors[i * 3 + 2] = c;
+    const o = i * VEC3_COMPONENTS;
+    colors[o] = c;
+    colors[o + 1] = c;
+    colors[o + 2] = c;
   }
-  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, VEC3_COMPONENTS));
 }
 
 export function createTreeRenderer(
@@ -252,16 +254,18 @@ export function createTreeRenderer(
 
   // SPATIAL chunk membership (coarse grid tiles): compact chunks make
   // per-chunk frustum culling actually drop off-screen forest.
-  const chunkSize = instanceChunkSize();
-  const SPATIAL_TILE = 256;
+  const chunkSize = TREES_PER_CHUNK;
+  // Grid tile the sort buckets by, in world units: coarse enough that a tile
+  // holds many trees, fine enough that a chunk stays compact for culling.
+  const SPATIAL_TILE_WORLD_UNITS = 256;
   const spatialOrder = new Array<number>(totalTrees);
   for (let i = 0; i < totalTrees; i++) spatialOrder[i] = i;
   spatialOrder.sort((a, b) => {
-    const az = Math.floor(placements[a].y / SPATIAL_TILE);
-    const bz = Math.floor(placements[b].y / SPATIAL_TILE);
+    const az = Math.floor(placements[a].y / SPATIAL_TILE_WORLD_UNITS);
+    const bz = Math.floor(placements[b].y / SPATIAL_TILE_WORLD_UNITS);
     if (az !== bz) return az - bz;
-    const ax = Math.floor(placements[a].x / SPATIAL_TILE);
-    const bx = Math.floor(placements[b].x / SPATIAL_TILE);
+    const ax = Math.floor(placements[a].x / SPATIAL_TILE_WORLD_UNITS);
+    const bx = Math.floor(placements[b].x / SPATIAL_TILE_WORLD_UNITS);
     if (ax !== bx) return ax - bx;
     return a - b;
   });
@@ -277,16 +281,16 @@ export function createTreeRenderer(
     }
     const base = slot * PER_TREE_VERTS;
     for (let v = 0; v < CANOPY_VERTS; v++) {
-      const o = (base + v) * 3;
-      colors[o] = Math.round(canopyShade.getX(v) * tmpColor.r * 255);
-      colors[o + 1] = Math.round(canopyShade.getY(v) * tmpColor.g * 255);
-      colors[o + 2] = Math.round(canopyShade.getZ(v) * tmpColor.b * 255);
+      const o = (base + v) * VEC3_COMPONENTS;
+      colors[o] = Math.round(canopyShade.getX(v) * tmpColor.r * BYTE_MAX);
+      colors[o + 1] = Math.round(canopyShade.getY(v) * tmpColor.g * BYTE_MAX);
+      colors[o + 2] = Math.round(canopyShade.getZ(v) * tmpColor.b * BYTE_MAX);
     }
-    const tr = Math.round(_trunkColor.r * 255);
-    const tg = Math.round(_trunkColor.g * 255);
-    const tb = Math.round(_trunkColor.b * 255);
+    const tr = Math.round(_trunkColor.r * BYTE_MAX);
+    const tg = Math.round(_trunkColor.g * BYTE_MAX);
+    const tb = Math.round(_trunkColor.b * BYTE_MAX);
     for (let v = 0; v < TRUNK_VERTS; v++) {
-      const o = (base + CANOPY_VERTS + v) * 3;
+      const o = (base + CANOPY_VERTS + v) * VEC3_COMPONENTS;
       colors[o] = tr;
       colors[o + 1] = tg;
       colors[o + 2] = tb;
@@ -295,10 +299,10 @@ export function createTreeRenderer(
 
   /** Bake one chunk's trees into a single world-space triangle list. */
   function buildMergedChunk(placementOrder: number[]): THREE.Mesh {
-    const positions = new Float32Array(placementOrder.length * PER_TREE_VERTS * 3);
+    const positions = new Float32Array(placementOrder.length * PER_TREE_VERTS * VEC3_COMPONENTS);
     // Byte colors (normalized in the shader): identical rendered color at a
     // third of the float footprint.
-    const colors = new Uint8Array(placementOrder.length * PER_TREE_VERTS * 3);
+    const colors = new Uint8Array(placementOrder.length * PER_TREE_VERTS * VEC3_COMPONENTS);
     const commitIdx = new Float32Array(placementOrder.length * PER_TREE_VERTS);
     const geo = new THREE.BufferGeometry();
     const mesh = new THREE.Mesh(geo, mergedMaterial);
@@ -314,13 +318,13 @@ export function createTreeRenderer(
       const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
       const base = slot * PER_TREE_VERTS;
       for (let v = 0; v < CANOPY_VERTS; v++) {
-        const o = (base + v) * 3;
+        const o = (base + v) * VEC3_COMPONENTS;
         positions[o] = p.x + canopyPos.getX(v) * r;
         positions[o + 1] = canopyBaseY + canopyPos.getY(v) * h;
         positions[o + 2] = p.y + canopyPos.getZ(v) * r;
       }
       for (let v = 0; v < TRUNK_VERTS; v++) {
-        const o = (base + CANOPY_VERTS + v) * 3;
+        const o = (base + CANOPY_VERTS + v) * VEC3_COMPONENTS;
         positions[o] = p.x + trunkPos.getX(v) * trunkR;
         positions[o + 1] = trunkPos.getY(v) * trunkH;
         positions[o + 2] = p.y + trunkPos.getZ(v) * trunkR;
@@ -328,8 +332,8 @@ export function createTreeRenderer(
       writeTreeColors(mesh, colors, slot, i);
       commitIdx.fill(placements[i].commitIndex, base, base + PER_TREE_VERTS);
     }
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, VEC3_COMPONENTS));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, VEC3_COMPONENTS, true));
     geo.setAttribute('aCommitIndex', new THREE.BufferAttribute(commitIdx, 1));
     mesh.name = 'trees-chunk';
     mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
@@ -407,7 +411,7 @@ export function createTreeRenderer(
     if (!order || mesh.userData?.meshKind !== 'trees') return null;
     // Non-indexed list: face f spans vertices [3f, 3f+3); every tree owns
     // PER_TREE_VERTS consecutive vertices.
-    const slot = Math.floor((faceIndex * 3) / PER_TREE_VERTS);
+    const slot = Math.floor((faceIndex * VERTS_PER_TRIANGLE) / PER_TREE_VERTS);
     if (slot < 0 || slot >= order.length) return null;
     const placementIndex = order[slot];
     if (isScrubHidden(placementIndex)) return null;

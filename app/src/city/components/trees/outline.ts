@@ -10,6 +10,7 @@ import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry'
 import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
@@ -132,7 +133,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     const segCount = startAttr.count;
     if (segCount === _selSegCount && _selColorBuf) return;
     _selSegCount = segCount;
-    _selColorBuf = new Float32Array(segCount * 6);
+    _selColorBuf = new Float32Array(segCount * FLOATS_PER_SEGMENT);
     for (let i = 0; i < _selColorBuf.length; i++) _selColorBuf[i] = 1;
     geom.setColors(_selColorBuf);
   }
@@ -142,7 +143,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
       const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount);
-      const k = i * 6;
+      const k = i * FLOATS_PER_SEGMENT;
       _selColorBuf[k] = r;
       _selColorBuf[k + 1] = g;
       _selColorBuf[k + 2] = b;

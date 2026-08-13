@@ -8,7 +8,6 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
@@ -34,10 +33,9 @@ import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
-import { createPostFx, createDirectFx } from './render/postFx';
+import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
-import { debugLog } from '@/utils/deviceDebugLog';
 
 export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
@@ -54,34 +52,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     powerPreference: 'high-performance',
   });
   // Cap at 2x (desktop-retina parity): phone 3–3.5x DPRs cube the fp16
-  // buffers past what their GPUs sustain. ?dpr=<n> overrides (diagnostic).
-  const dprOverride = Number(
-    new URLSearchParams(window.location.search).get(URL_PARAMS.DPR) ?? NaN
-  );
-  const pixelRatio =
-    Number.isFinite(dprOverride) && dprOverride > 0
-      ? dprOverride
-      : Math.min(window.devicePixelRatio || 1, 2);
-  renderer.setPixelRatio(pixelRatio);
+  // composer buffers past what their GPUs sustain.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
-
-  // Dev-only telemetry: GPU identity + context-loss events. Feature-guarded
-  // because the test harness's mocked context has no getExtension.
-  const _gl = renderer.getContext();
-  if (typeof _gl.getExtension === 'function') {
-    const _dbgExt = _gl.getExtension('WEBGL_debug_renderer_info');
-    const _gpu = _dbgExt
-      ? String(_gl.getParameter(_dbgExt.UNMASKED_RENDERER_WEBGL))
-      : String(_gl.getParameter(_gl.RENDERER));
-    debugLog('gl', {
-      gpu: _gpu,
-      pixelRatio,
-      drawingBuffer: `${_gl.drawingBufferWidth}x${_gl.drawingBufferHeight}`,
-    });
-  }
-  canvas.addEventListener?.('webglcontextlost', () => debugLog('context-lost'));
-  canvas.addEventListener?.('webglcontextrestored', () => debugLog('context-restored'));
 
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
@@ -126,29 +100,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   ];
   for (const c of components) scene.add(c.group);
 
-  // ?hide=<name,...> — diagnostic: blank listed components (groups stay in the
-  // scene and tick; they just don't render). Names match this map.
-  const componentsByName: Record<string, SceneComponent> = {
-    fireflies,
-    repoLabel,
-    buildings,
-    trees,
-    pathLine,
-    streets,
-    gem,
-    island,
-    footprint,
-    sky,
-  };
-  const hideList = (new URLSearchParams(window.location.search).get(URL_PARAMS.HIDE) ?? '')
-    .split(',')
-    .filter(Boolean);
-  for (const name of hideList) {
-    const target = componentsByName[name];
-    if (target) target.group.visible = false;
-  }
-  if (hideList.length) debugLog('hide', { hidden: hideList.join(',') });
-
   // Boot apply — AFTER renderer + registerFacadePanelRenderer (the facade-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
@@ -175,13 +126,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     }
   });
 
-  // ?fx=off|ldr — diagnostic pipeline overrides (see constants/urlParams.ts).
-  const fxMode = new URLSearchParams(window.location.search).get(URL_PARAMS.FX);
-  debugLog('fx-mode', { mode: fxMode ?? 'hdr' });
-  const postFx =
-    fxMode === 'off'
-      ? createDirectFx(renderer, scene, rig.camera)
-      : createPostFx(renderer, scene, rig.camera, { ldr: fxMode === 'ldr' });
+  const postFx = createPostFx(renderer, scene, rig.camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
   const picker = createPicker({
@@ -219,7 +164,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       if (cw === _lastResizeW && ch === _lastResizeH) return;
       _lastResizeW = cw;
       _lastResizeH = ch;
-      debugLog('resize', { cw, ch });
       postFx.setSize(cw, ch);
       for (const c of components) c.onResize?.(cw, ch);
       // Synchronous paint so the canvas doesn't flash blank between resize and
@@ -234,9 +178,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
-  // Telemetry scratch: previous frame's camera position, for jump detection.
-  const _prevCamPos = new THREE.Vector3();
-  let _prevCamPosValid = false;
   // Last size the resize handler acted on — its no-op jitter guard.
   let _lastResizeW = 0;
   let _lastResizeH = 0;
@@ -246,25 +187,13 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
-    before(f) {
-      // Telemetry: frame stalls + single-frame camera teleports, the two
-      // frame-level anomalies that would explain transient corruption.
-      if (f.dt > 0.25) debugLog('dt-spike', { ms: Math.round(f.dt * 1000) });
-      if (_prevCamPosValid && rig.camera.position.distanceTo(_prevCamPos) > 200) {
-        debugLog('camera-jump', {
-          from: _prevCamPos.toArray().map((v) => Math.round(v)),
-          to: rig.camera.position.toArray().map((v) => Math.round(v)),
-        });
-      }
-      _prevCamPos.copy(rig.camera.position);
-      _prevCamPosValid = true;
+    before() {
       // Idempotent per-frame size guard — resyncs renderer + composer to the
       // canvas whenever they diverge (ResizeObserver miss); cheap no-op else.
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       renderer.getSize(renderSize);
       if (cw > 0 && ch > 0 && (renderSize.x !== cw || renderSize.y !== ch)) {
-        debugLog('size-resync', { cw, ch, was: `${renderSize.x}x${renderSize.y}` });
         renderer.setSize(cw, ch, false);
         rig.camera.aspect = cw / Math.max(1, ch);
         rig.camera.updateProjectionMatrix();

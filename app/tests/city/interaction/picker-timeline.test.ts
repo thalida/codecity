@@ -10,10 +10,11 @@ import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
+import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Building, CommitEntry, PickerWorld, Street } from '@/types';
+import type { Building, PickerWorld, Street } from '@/types';
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
@@ -156,17 +157,13 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 });
 
 describe('picker: Timeline scrub-hidden guard — trees', () => {
-  function makeChunkMesh(): THREE.Mesh {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
-    m.userData.meshKind = 'trees';
-    return m;
-  }
-
-  // Mock merged renderer: face f is tree f, and the threshold hides higher
-  // commit indices like the real commitForFace/isScrubHidden pair.
-  function makeWorld(chunk: THREE.Mesh, commits: CommitEntry[], scrubMax: number | null) {
+  // Real renderer: its own setScrubCommit decides what is hidden, and its own
+  // commitForFace/isScrubHidden answer the picker. A stub would restate both.
+  function setup(count = 2) {
+    const commits = commitSeries(count);
+    const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
+    const trees = renderTrees(placements, commits, { avg: 1, busy: 1 });
     const cityState = makeCityState();
-    const hidden = (i: number) => scrubMax !== null && i > scrubMax;
     const api: PickerWorld = {
       getStreetPickables: () => [],
       getRootGem: () => null,
@@ -175,63 +172,60 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       getStreetByDir: () => null,
       getBuildingIndex: () => null,
       getCells: () => new Map(),
-      getTrees: () => ({
-        group: new THREE.Group(),
-        commitForFace: (mesh, faceIndex) => {
-          if (mesh !== chunk || faceIndex == null || hidden(faceIndex)) return null;
-          const commit = commits[faceIndex];
-          return commit ? { commit, placementIndex: faceIndex } : null;
-        },
-        findTreeBySha: () => null,
-        getInstanceTransform: () => false,
-        colorForSha: () => null,
-        isScrubHidden: hidden,
-      }),
+      getTrees: () => trees,
     };
-    return Object.assign(api, { cityState });
+    const picker = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world: api,
+      cityState,
+    });
+    return { trees, commits, picker };
   }
 
-  function treeHit(mesh: THREE.Object3D, faceIndex: number): THREE.Intersection<THREE.Object3D> {
+  function hitTree(trees: ReturnType<typeof renderTrees>, placement: number) {
     return {
-      object: mesh,
-      faceIndex,
+      object: treeSlot(trees, placement).mesh,
+      faceIndex: treeFaceIndex(trees, placement),
       distance: 1,
       point: new THREE.Vector3(),
     } as unknown as THREE.Intersection<THREE.Object3D>;
   }
 
-  it('a scrub-hidden (future-commit) tree is not pickable', () => {
-    const chunk = makeChunkMesh();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    const world = makeWorld(chunk, commits, 0);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+  it('a tree the scrub has hidden is not pickable', () => {
+    const { trees, picker } = setup();
     TIMELINE_MODE.value = true;
+    trees.setScrubCommit(0); // hides commitIndex 1
 
-    expect(picker.interpretHit(treeHit(chunk, 1))).toBeNull();
+    expect(picker.interpretHit(hitTree(trees, 1))).toBeNull();
+    expect(picker.interpretHit(hitTree(trees, 0))?.kind).toBe(NodeKind.Commit);
+    trees.dispose();
     picker.dispose();
   });
 
-  it('a tree at or below the scrub threshold resolves normally in Timeline mode', () => {
-    const chunk = makeChunkMesh();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    const world = makeWorld(chunk, commits, 1);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+  it('pruneScrubHiddenSelection drops a selection the scrub removes', () => {
+    const { trees, picker } = setup();
     TIMELINE_MODE.value = true;
+    picker.setSelection(picker.interpretHit(hitTree(trees, 1)));
+    expect(picker.selection.value?.kind).toBe(NodeKind.Commit);
 
-    const t = picker.interpretHit(treeHit(chunk, 1));
-    expect(t?.kind).toBe(NodeKind.Commit);
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).not.toBeNull();
+
+    trees.setScrubCommit(0);
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).toBeNull();
+    trees.dispose();
     picker.dispose();
   });
 
-  it('live mode (no scrub threshold) picks every tree — guard is a no-op', () => {
-    const chunk = makeChunkMesh();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    const world = makeWorld(chunk, commits, null);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+  it('live mode (no scrub threshold) picks every tree', () => {
+    const { trees, picker } = setup();
     TIMELINE_MODE.value = false;
+    trees.setScrubCommit(null);
 
-    const t = picker.interpretHit(treeHit(chunk, 1));
-    expect(t?.kind).toBe(NodeKind.Commit);
+    expect(picker.interpretHit(hitTree(trees, 1))?.kind).toBe(NodeKind.Commit);
+    trees.dispose();
     picker.dispose();
   });
 });

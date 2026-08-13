@@ -17,27 +17,10 @@ export interface PostFx {
   dispose(): void;
 }
 
-/** ?fx=off — render straight to the canvas (no composer/targets/bloom), to
- *  isolate driver corruption in the pipeline vs base scene rendering. */
-export function createDirectFx(
-  renderer: THREE.WebGLRenderer,
-  scene: THREE.Scene,
-  camera: THREE.PerspectiveCamera
-): PostFx {
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  return {
-    render: () => renderer.render(scene, camera),
-    setSize: () => {},
-    dispose: () => {},
-  };
-}
-
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
-  camera: THREE.PerspectiveCamera,
-  opts: { ldr?: boolean } = {}
+  camera: THREE.PerspectiveCamera
 ): PostFx {
   const bloomCfg = BLOOM.value;
   // ACES squashes >1.0 back into display range: walls (already [0,1]) are
@@ -45,11 +28,9 @@ export function createPostFx(
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
-  // HalfFloat preserves the shader's >1.0 emission (LDR would clip it and
-  // erase the bloom gradient); ?fx=ldr forces the clip for driver tests.
-  const hdrTarget = new THREE.WebGLRenderTarget(1, 1, {
-    type: opts.ldr ? THREE.UnsignedByteType : THREE.HalfFloatType,
-  });
+  // HalfFloat preserves the shader's >1.0 emission; an LDR target would clip
+  // it and erase the per-pixel bloom gradient.
+  const hdrTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, hdrTarget);
   composer.addPass(new RenderPass(scene, camera));
 
