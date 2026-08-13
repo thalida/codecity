@@ -415,6 +415,85 @@ describe('createTreeRenderer()', () => {
     });
   });
 
+  describe('setScrubNow()', () => {
+    // A tree's size follows the age of its commit, so a scrub into the past has
+    // to find it smaller: the vertices are baked once, at the scan date, and the
+    // shader rescales them from this uniform.
+    const scrubbed = (trees: Trees) => {
+      const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
+      return material.uniforms.uNowDay.value as number;
+    };
+
+    it('starts on the day the heights were baked, so Live is untouched', () => {
+      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
+      // Epoch days, the same scale treeEncoding bakes against.
+      expect(scrubbed(trees)).toBe(Math.floor(Date.parse('2024-06-01') / 86_400_000));
+    });
+
+    it('moves the day to the scrubbed date and back', () => {
+      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
+      const baked = scrubbed(trees);
+      trees.setScrubNow(Date.parse('2024-03-01'));
+      expect(scrubbed(trees)).toBeCloseTo(Date.parse('2024-03-01') / 86_400_000, 5);
+      trees.setScrubNow(null);
+      expect(scrubbed(trees)).toBe(baked);
+    });
+
+    it('publishes each tree its own commit day and baked height to grow from', () => {
+      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
+      const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
+      const texel = material.uniforms.uGrowth.value.image.data as Float32Array;
+      const { mesh, slot } = findTreeSlot(trees.group, 1);
+      const trunk = treeExtent(mesh, slot, 'trunk', 1);
+      const canopy = treeExtent(mesh, slot, 'canopy', 1);
+
+      // Tree 1 is the newer commit: day, orbit center, and the height the
+      // vertices above were baked at.
+      expect(texel[4]).toBe(Math.floor(Date.parse('2024-06-01') / 86_400_000));
+      expect(texel[5]).toBe(40);
+      expect(texel[6]).toBe(0);
+      expect(texel[7]).toBeGreaterThan(0);
+      expect(trunk.min).toBe(0);
+      expect(canopy.max).toBeGreaterThan(texel[7] * 0.5);
+    });
+
+    it('shrinks a tree that has had less time to grow, and its canopy with it', () => {
+      // Two commits a year apart, so the older one is meaningfully taller.
+      const history = buildCommits({ date: '2023-06-01' }, { date: '2024-06-01' });
+      // Width follows height once the age attenuation is on.
+      TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.2 };
+      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
+
+      const atHead = trees.getTreeBoundsBySha(history[0].sha)!;
+      trees.setScrubNow(Date.parse('2023-08-01'));
+      const young = trees.getTreeBoundsBySha(history[0].sha)!;
+
+      expect(young.height).toBeLessThan(atHead.height);
+      expect(young.radius).toBeLessThan(atHead.radius);
+      expect(young.x).toBe(atHead.x);
+      expect(young.y).toBe(0);
+
+      trees.setScrubNow(null);
+      expect(trees.getTreeBoundsBySha(history[0].sha)!.height).toBe(atHead.height);
+    });
+
+    it('marks a placement with no commit behind it as one that cannot grow', () => {
+      const history = buildCommits({ date: '2024-06-01' });
+      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 9)], history, BUSY);
+      const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
+      const texel = material.uniforms.uGrowth.value.image.data as Float32Array;
+
+      // No commit means no date to age from: treeHeight gave it the midpoint of
+      // the height range, and a negative day tells the shader to leave it there.
+      const { min, max } = { min: TREES.value.MIN_HEIGHT, max: TREES.value.MAX_HEIGHT };
+      expect(texel[4]).toBe(-1);
+      expect(texel[7]).toBeCloseTo((min + max) * 0.5, 5);
+    });
+  });
+
   // The picker's half of the handle: face → commit, and sha → tree.
   describe('commit lookups', () => {
     const seeded = (seed: number, commitIndex: number) =>

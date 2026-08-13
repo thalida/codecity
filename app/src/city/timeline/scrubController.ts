@@ -16,6 +16,9 @@ import { createScrubPass, type ScrubStates } from './scrubPass';
  *  this and nothing more. */
 export interface ScrubGate {
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The scrubbed date, for anything sized by how long ago its commit was.
+   *  Optional: a gate that only appears and disappears doesn't need it. */
+  setScrubNow?(nowMs: number | null): void;
 }
 
 export interface ScrubControllerDeps {
@@ -66,7 +69,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
     });
 
     const gatePos = Math.floor(frame.pos);
-    for (const gate of deps.scrubGates) gate.setScrubCommit(gatePos);
+    for (const gate of deps.scrubGates) {
+      gate.setScrubCommit(gatePos);
+      gate.setScrubNow?.(frame.nowMs);
+    }
 
     const states = pass.run(frame);
     deps.buildings.applyScrub(states.buildings);

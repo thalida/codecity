@@ -236,7 +236,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         scannedAt: cityState.manifest.peek()?.scanned_at,
         streetsByDir: cityState.streetsByDirMap.peek(),
         scrubGates: [
-          { setScrubCommit: (i) => trees.setScrubCommit(i) },
+          {
+            setScrubCommit: (i) => trees.setScrubCommit(i),
+            setScrubNow: (ms) => trees.setScrubNow(ms),
+          },
           { setScrubCommit: (i) => fireflies.setScrubCommit(i) },
         ],
       });

@@ -19,6 +19,8 @@ import {
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+
+const DAY_MS = 86_400_000;
 import { TREES_PER_CHUNK } from '@/city/utils/instanceChunkSize';
 import { BYTE_MAX, VEC3_COMPONENTS, VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
@@ -62,6 +64,8 @@ export interface Trees {
   /** Timeline scrub gate: hides trees whose commitIndex exceeds the value
    *  (rendering via shader uniform, picking via isScrubHidden); null = all. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The scrubbed date, so each tree is the size it was then. */
+  setScrubNow(nowMs: number | null): void;
   /** True when the scrub currently hides the tree at `placementIndex`. */
   isScrubHidden(placementIndex: number): boolean;
 }
@@ -190,6 +194,20 @@ export function createTreeRenderer(
 
   function perTreeRadius(i: number): number {
     return treeRadius(commitForPlacement(i), ageRange, sizeRange, cfg);
+  }
+
+  // The day the scrub sits on, or null in Live. The shader regrows what it
+  // draws; CPU readers ask the same formulas, so a focus frames what's shown.
+  let _scrubDay: number | null = null;
+
+  function sizeAt(i: number): { height: number; radius: number } {
+    if (_scrubDay === null) return { height: heights[i], radius: radii[i] };
+    const commit = commitForPlacement(i);
+    const scrubbed: AgeRange = { ...ageRange, scanned: _scrubDay };
+    return {
+      height: treeHeight(commit, scrubbed, cfg),
+      radius: treeRadius(commit, scrubbed, sizeRange, cfg),
+    };
   }
 
   // COLOR follows COMMITS-PER-DAY between the SOLO/BUSY endpoints (same-date
@@ -356,6 +374,42 @@ export function createTreeRenderer(
     mergedMeshes.push(buildMergedChunk(placementOrder));
   }
 
+  // One texel per tree for the vertex shader to regrow it from. Whole epoch
+  // days like treeEncoding's dateToDays, so Live comes out a ratio of 1.
+  const growthWidth = Math.min(1024, Math.max(1, totalTrees));
+  const growthHeight = Math.ceil(totalTrees / growthWidth);
+  const growthData = new Float32Array(growthWidth * growthHeight * 4);
+  for (let i = 0; i < totalTrees; i++) {
+    const commit = commits?.[placements[i].commitIndex];
+    const o = i * 4;
+    // -1 marks a placement with no commit behind it: treeHeight gave it the
+    // midpoint, so there is no age for the shader to scrub through. An
+    // unreadable date falls to day 0, matching dateToDays.
+    const commitMs = commit ? Date.parse(commit.date) : NaN;
+    growthData[o] = !commit ? -1 : Number.isNaN(commitMs) ? 0 : Math.floor(commitMs / DAY_MS);
+    growthData[o + 1] = placements[i].x;
+    growthData[o + 2] = placements[i].y;
+    growthData[o + 3] = heights[i];
+  }
+  const growthTex = new THREE.DataTexture(
+    growthData,
+    growthWidth,
+    growthHeight,
+    THREE.RGBAFormat,
+    THREE.FloatType
+  );
+  growthTex.needsUpdate = true;
+
+  mergedMaterial.uniforms.uGrowth = { value: growthTex };
+  mergedMaterial.uniforms.uGrowthSize = { value: new THREE.Vector2(growthWidth, growthHeight) };
+  mergedMaterial.uniforms.uHalfLifeDays = { value: Math.max(1, cfg.HALF_LIFE_DAYS) };
+  mergedMaterial.uniforms.uMinHeight = { value: cfg.MIN_HEIGHT };
+  mergedMaterial.uniforms.uMaxHeight = { value: cfg.MAX_HEIGHT };
+  mergedMaterial.uniforms.uWidthAgeFloor = { value: Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR)) };
+  // The day the heights were baked against: Live leaves the geometry untouched,
+  // Timeline moves it to the scrubbed day.
+  mergedMaterial.uniforms.uNowDay = { value: ageRange.scanned };
+
   const group = new THREE.Group();
   group.name = 'trees';
   group.userData.cyberpunkValley = 'trees';
@@ -437,8 +491,7 @@ export function createTreeRenderer(
     if (!idx) return false;
     const i = idx.instanceId;
     const p = placements[i];
-    const h = heights[i];
-    const r = radii[i];
+    const { height: h, radius: r } = sizeAt(i);
     const canopyBaseY = h * trunkHeightFrac * (1 - canopyOverlapFrac);
     _tmpPos.set(p.x, canopyBaseY, p.y);
     _tmpScale.set(r, h, r);
@@ -461,13 +514,23 @@ export function createTreeRenderer(
     const hit = _treeIndexBySha.get(sha);
     if (!hit) return null;
     const p = placements[hit.instanceId];
+    const size = sizeAt(hit.instanceId);
     return {
       x: p.x,
       y: 0,
       z: p.y,
-      height: heights[hit.instanceId],
-      radius: radii[hit.instanceId],
+      height: size.height,
+      radius: size.radius,
     };
+  }
+
+  /** The day the scrub sits on, so every tree is the size it was then. Null
+   *  (Live) restores the scan date, where the ratio is 1. */
+  function setScrubNow(nowMs: number | null): void {
+    const day = nowMs === null ? ageRange.scanned : nowMs / DAY_MS;
+    if (day === mergedMaterial.uniforms.uNowDay.value) return;
+    _scrubDay = nowMs === null ? null : day;
+    mergedMaterial.uniforms.uNowDay.value = day;
   }
 
   function setScrubCommit(maxCommitIndex: number | null): void {
@@ -486,6 +549,7 @@ export function createTreeRenderer(
     colorForSha,
     getTreeBoundsBySha,
     setScrubCommit,
+    setScrubNow,
     isScrubHidden,
   };
 }

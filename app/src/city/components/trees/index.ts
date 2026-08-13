@@ -54,6 +54,8 @@ export interface TreesComponent extends SceneComponent {
   /** Timeline scrub gate — forwards to the inner renderer; no-op pre-rebuild
    *  (nothing to gate yet). See treeRenderer.ts Trees.setScrubCommit. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The scrubbed date, so each tree is the size it was then. */
+  setScrubNow(nowMs: number | null): void;
 }
 
 export function createTrees(ctx: SceneContext): TreesComponent {
@@ -214,5 +216,6 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     onResize,
     dispose,
     setScrubCommit: (maxCommitIndex) => _inner?.setScrubCommit(maxCommitIndex),
+    setScrubNow: (nowMs) => _inner?.setScrubNow(nowMs),
   };
 }
