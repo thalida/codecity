@@ -4,7 +4,7 @@
   /* Row geometry the indent guide is derived from — single-sourced so the guide
      stays centered on the chevron if any of these change. */
   --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
-  --tree-glyph: 14px; /* file/folder icon column width (matches .file-icon) */
+  --tree-glyph: var(--cc-node-icon); /* icon column width, for the indent guides */
   --tree-guide: 1px; /* indent-guide line width */
 }
 

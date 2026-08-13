@@ -6,8 +6,8 @@
  * margin-right adds breathing room before the label without widening
  * the tight chevron→icon gap that the row's flex `gap` provides. */
 .file-icon {
-  width: 14px;
-  height: 14px;
+  width: var(--cc-node-icon);
+  height: var(--cc-node-icon);
   flex-shrink: 0;
   display: inline-block;
   vertical-align: middle;

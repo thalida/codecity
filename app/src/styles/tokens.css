@@ -178,6 +178,10 @@
      account for it or the glyph reads as further from the edge than the text. */
   --cc-icon-bearing: calc((var(--cc-tap-min) - var(--cc-font-md)) / 2);
   --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
+  /* File/folder icon in a tree row. The tree's indent math needs the same value
+     to line a row's guide up with its icon, so both read it here instead of
+     restating it and promising to agree. */
+  --cc-node-icon: 16px;
   /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
      and its scrim start — four rules that have to agree. */
   --cc-rail-w: 44px;
