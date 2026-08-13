@@ -16,16 +16,19 @@ varying float vCommitIndex;
 // picks per pixel and the overlap stipples. This gives each tree a fixed place
 // in the queue instead: same commit, same nudge, same winner every frame.
 //
-// Tiny on purpose. It only has to clear the depth buffer's resolution, and it
-// pulls toward the camera, so anything larger would start hiding the tree's own
-// outline (drawn from separate line geometry at the true depth).
-const float DEPTH_NUDGE = 1e-4;
+// In EYE space, in world units. The same nudge in clip space is a constant in
+// NDC, and NDC z is nowhere near linear: far from the camera it buys a huge
+// distance, enough to pull a distant tree in front of whatever should hide it,
+// so trees popped into view while orbiting. Here it's the same small step at
+// any distance. Well under a trunk's width, so it can't reorder trees that are
+// genuinely apart, and it only has to beat the depth buffer's resolution.
+const float DEPTH_NUDGE = 0.05;
 
 void main() {
   vColor = color;
   vCommitIndex = aCommitIndex;
-  vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  // Scaled by w so it's a constant offset in NDC at any distance.
-  clip.z -= hash11(aCommitIndex) * DEPTH_NUDGE * clip.w;
-  gl_Position = clip;
+  vec4 eye = modelViewMatrix * vec4(position, 1.0);
+  // The camera looks down -Z in eye space, so +Z is a step toward it.
+  eye.z += hash11(aCommitIndex) * DEPTH_NUDGE;
+  gl_Position = projectionMatrix * eye;
 }
