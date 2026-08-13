@@ -161,6 +161,10 @@
   /* Floor for anything pressable. One size for both pointers: a cursor doesn't
      notice the extra, a thumb can't hit anything less. */
   --cc-tap-min: 32px;
+  /* How far a .btn-icon glyph sits inside its own tap target. A row that ends in
+     one has this much optical inset already, so its own trailing padding has to
+     account for it or the glyph reads as further from the edge than the text. */
+  --cc-icon-bearing: calc((var(--cc-tap-min) - var(--cc-font-md)) / 2);
   --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
   /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
      and its scrim start — four rules that have to agree. */
