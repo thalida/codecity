@@ -2,8 +2,7 @@
 
 #left-sidebar {
   position: relative;
-  /* Shrinkable for the same reason as the right sidebar: see its comment. */
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
      handle never fights an inline style. min/max below clamp a dragged width. */
   width: var(--sidebar-width, var(--cc-sidebar-w));

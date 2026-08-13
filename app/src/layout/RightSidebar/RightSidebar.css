@@ -2,12 +2,10 @@
 
 #right-sidebar {
   position: relative;
-  /* Shrinkable: two open sidebars can ask for more than the row has (600px
-     left + 70vw right overflows a 1400px window), and the center pane bottoms
-     out at zero long before that. Unshrinkable, the overflow pushed this panel
-     and its right-aligned actions off the screen edge. The min-width below is
-     the real floor. */
-  flex: 0 1 auto;
+  /* Rigid: a drag stops when it reaches the other panel rather than pushing it
+     narrower (the handle caps itself against the room the row has left, see
+     Sidebar.tsx). */
+  flex: 0 0 auto;
   /* Closed by default — width 0, opened by the .open rule below. The dragged
      width lives on a CSS variable so the resize handle can mutate it without
      the rules here restating a width. Open and close are instant: the panel

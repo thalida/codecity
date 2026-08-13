@@ -26,6 +26,20 @@ function _measureWidth(side: SidebarSide, e: PointerEvent): number {
   return side === SidebarSide.Left ? e.clientX : window.innerWidth - e.clientX;
 }
 
+// How wide this panel can get before the row runs out: everything the row has,
+// minus what the other panels hold. The canvas between them can surrender all
+// of its width, so it isn't subtracted — but the other sidebar is a wall, and
+// dragging into it stops rather than pushing it narrower.
+function _maxWidth(el: HTMLElement): number {
+  const row = el.parentElement;
+  if (!row) return Number.POSITIVE_INFINITY;
+  let others = 0;
+  for (const sibling of Array.from(row.querySelectorAll(':scope > aside'))) {
+    if (sibling !== el) others += (sibling as HTMLElement).offsetWidth;
+  }
+  return Math.max(0, row.clientWidth - others);
+}
+
 // Both sidebars drive a `--sidebar-width` CSS var; CSS owns the actual `width`
 // (`width: var(--sidebar-width, <default>)`), so a drag never fights the width
 // the open/collapsed rules resolve.
@@ -52,9 +66,11 @@ function ResizeHandle({ side, targetRef }: ResizeHandleProps) {
   };
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
-    // Feed the raw measured width to the var; CSS min-width/max-width clamp the
-    // rendered result (so the handle stops at the bounds without JS knowing them).
-    _applyWidth(targetRef.current, _measureWidth(side, e));
+    // CSS min-width/max-width clamp the rendered result, so the handle stops at
+    // those bounds without JS knowing them. The one bound CSS can't express is
+    // the room the OTHER panel is holding, so cap for that here.
+    const el = targetRef.current;
+    _applyWidth(el, Math.min(_measureWidth(side, e), _maxWidth(el)));
   };
   const onPointerUp = (e: PointerEvent) => {
     if (!dragging.current) return;
