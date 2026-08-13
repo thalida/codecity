@@ -11,20 +11,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { BLOOM } from '@/state/stores/settings/effects';
 
-// Bloom's mip chain is sized as a fraction of the DRAWING BUFFER, not of the
-// CSS box. UnrealBloomPass halves whatever it is given before its first mip,
-// so 0.5 here means mip 0 is a quarter of the drawing buffer on every display.
-//
-// Why it is pinned to the drawing buffer: EffectComposer.setSize already
-// scales every pass by the renderer's pixel ratio, so passing CSS pixels made
-// bloom's cost depend on DPR. A DPR-2 display got a chain at a quarter of its
-// scene resolution; a DPR-1 display got one at full scene resolution, i.e. 4x
-// the bloom per scene pixel — on the low-DPR integrated-GPU machines least
-// able to pay it. 0.5 reproduces the DPR-2 sizing exactly and gives DPR-1 the
-// same discount.
-//
-// The blur kernel radii are fixed in UnrealBloomPass, so lowering this widens
-// the glow as well as cheapening it.
+// Fraction of the DRAWING BUFFER, not the CSS box: composer.setSize already
+// applies the pixel ratio, so CSS sizing cost DPR-1 displays 4x per scene pixel.
 const BLOOM_RESOLUTION_SCALE = 0.5;
 
 export interface PostFx {
@@ -77,10 +65,8 @@ export function createPostFx(
   return {
     render: () => composer.render(),
     setSize: (w, h) => {
-      // composer.setSize takes CSS pixels and scales them by the pixel ratio
-      // internally — including for the bloom pass, whose size we then override
-      // with our own fraction of the resulting drawing buffer. Order matters:
-      // this must come second or the composer's DPR-scaled value wins.
+      // Order matters: composer.setSize sizes every pass, bloom included, so
+      // the deliberate override below has to come second or it is overwritten.
       composer.setSize(w, h);
       renderer.getDrawingBufferSize(_drawingBuffer);
       bloom.setSize(
