@@ -39,12 +39,15 @@ export interface GemTarget {
   mesh: THREE.Object3D;
 }
 
-/** Hovered/selected tree: `mesh` is its merged chunk, `instanceId` the
- *  placement index. */
+/** Hovered/selected commit. `mesh` is the tree's merged chunk and `instanceId`
+ *  its placement index, both absent when the city drew no tree for the commit:
+ *  the forest is capped and placement rejects positions that don't fit the
+ *  island, so a repo can name a commit that has nowhere to stand. It is still
+ *  selectable, and the pane reads the entry rather than the mesh. */
 export interface CommitTarget {
   kind: NodeKind.Commit;
-  mesh: THREE.Mesh;
-  instanceId: number;
+  mesh?: THREE.Mesh;
+  instanceId?: number;
   commit: CommitEntry;
 }
 
