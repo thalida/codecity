@@ -9,16 +9,17 @@ import { useLayoutEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import { SCENE_HANDLE, clearSelection } from '@/state/stores/scene';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/ui';
-import { ExtensionBadge } from '@/components/Badge/Badge';
+import { KindBadge } from '@/components/Badge/Badge';
 
 /** Holds the panel's width for the one frame the collapse starts from. */
 const COLLAPSING_CLASS = 'is-collapsing';
 
-/** What the chip names: the node's own label, plus the extension/dir badge the
- *  pane header would have carried. Commits get no badge, same as their pane. */
+/** What the chip names: the node's own label, plus the kind badge its pane
+ *  header would have carried. */
 interface ChipSelection {
   label: string;
-  badge: { extension?: string; isDir: boolean } | null;
+  kind: NodeKind;
+  extension?: string | null;
 }
 
 /** The selected node as the chip shows it, or null when nothing is selected. */
@@ -26,9 +27,10 @@ function useChipSelection() {
   return useComputed<ChipSelection | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind === NodeKind.File)
-      return { label: sel.file.name, badge: { extension: sel.file.extension, isDir: false } };
-    if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, badge: { isDir: true } };
-    if (sel?.kind === NodeKind.Commit) return { label: sel.commit.sha.slice(0, 7), badge: null };
+      return { label: sel.file.name, kind: NodeKind.File, extension: sel.file.extension };
+    if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, kind: NodeKind.Directory };
+    if (sel?.kind === NodeKind.Commit)
+      return { label: sel.commit.sha.slice(0, 7), kind: NodeKind.Commit };
     return null;
   });
 }
@@ -71,7 +73,7 @@ export function SelectionChip() {
 
   if (!showing) return null;
 
-  const { badge } = selection.value as ChipSelection;
+  const { kind, extension } = selection.value as ChipSelection;
 
   return (
     <div ref={ref} class="selection-chip surface-glass">
@@ -81,7 +83,7 @@ export function SelectionChip() {
         title="Show details"
         onClick={openSelectionPane}
       >
-        {badge && <ExtensionBadge extension={badge.extension ?? null} isDir={badge.isDir} />}
+        <KindBadge kind={kind} extension={extension} />
         <span class="selection-chip-name">{label}</span>
       </button>
       <button

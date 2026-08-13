@@ -61,7 +61,7 @@ export function getHue(extension: string, palette: Record<string, number>): numb
 
 /**
  * The badge/chip fill color for a file extension: the extension's hue at the
- * ExtensionBadge's fixed saturation/lightness (`hsl(hue, 60%, 35%)`, matching
+ * KindBadge's fixed saturation/lightness (`hsl(hue, 60%, 35%)`, matching
  * its CSS `hsl(var(--badge-hue), 60%, 35%)`). Used wherever an ext is painted
  * as a solid swatch — badges, composition bars, legend chips — so they all
  * track one another. `null`/'' (extensionless) hues off '' like the dir chip.

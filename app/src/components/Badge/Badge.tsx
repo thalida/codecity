@@ -20,6 +20,7 @@ import {
   FILE_TAG_SATURATION,
   FILE_TAG_LIGHTNESS,
 } from '@/utils/colors';
+import { NodeKind } from '@/types';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { STREETS } from '@/state/stores/settings/streets';
 
@@ -33,9 +34,11 @@ const DEFAULT_FILE_BADGE_LIGHTNESS = FILE_TAG_LIGHTNESS / 100;
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
-export interface ExtensionBadgeProps {
-  extension: string | null | undefined;
-  isDir: boolean;
+export interface KindBadgeProps {
+  /** Which of the three selectable things this names. */
+  kind: NodeKind;
+  /** Files only: drives both the label and the hue. */
+  extension?: string | null;
   /** Label color used on bright backgrounds. */
   textDark?: string;
   /** Label color used on dark backgrounds. */
@@ -48,14 +51,14 @@ export interface ExtensionBadgeProps {
 
 // ── Preact component ────────────────────────────────────────────────────────
 
-export function ExtensionBadge({
+export function KindBadge({
+  kind,
   extension,
-  isDir,
   textDark = DEFAULT_TEXT_DARK,
   textLight = DEFAULT_TEXT_LIGHT,
   fileBadgeSaturation = DEFAULT_FILE_BADGE_SATURATION,
   fileBadgeLightness = DEFAULT_FILE_BADGE_LIGHTNESS,
-}: ExtensionBadgeProps) {
+}: KindBadgeProps) {
   // Read the live theme directly so callers don't have to thread these through —
   // the city's extension→hue palette and the dir badge's asphalt color.
   const huePalette = BUILDINGS.value.HUE_EXT_MAP;
@@ -63,7 +66,13 @@ export function ExtensionBadge({
   const contrastingText = (rgb: [number, number, number] | null): string =>
     pickContrastingText(rgb, textDark, textLight);
 
-  if (isDir) {
+  if (kind === NodeKind.Commit) {
+    // No scene color: a commit's tree interpolates between two near-black
+    // foliage tones, which paint a label chip as a black rectangle. The other
+    // two badges borrow their object's color because that color is legible.
+    return <span class="path-badge is-commit">commit</span>;
+  }
+  if (kind === NodeKind.Directory) {
     return (
       <span
         class="path-badge is-dir"

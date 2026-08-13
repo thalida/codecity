@@ -118,7 +118,7 @@ describe('SelectionChip', () => {
     expect(chip()!.textContent).toContain('styles');
   });
 
-  it('leaves a commit unbadged, like its pane', async () => {
+  it('names the kind for a commit, whose label is only a hash', async () => {
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
     handle.picker.selection.value = {
       kind: NodeKind.Commit,
@@ -129,7 +129,7 @@ describe('SelectionChip', () => {
     await flush();
     await dismiss();
 
-    expect(chip()!.querySelector('.path-badge')).toBeNull();
+    expect(chip()!.querySelector('.path-badge')!.textContent).toBe('commit');
     expect(chip()!.textContent).toContain('abc1234');
   });
 

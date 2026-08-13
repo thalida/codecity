@@ -4,7 +4,7 @@
 // header). The HSL→RGB and luminance formulas are CSS/WCAG standard
 // math; they don't belong inside any single component.
 
-/** The extension "file tag" color: the same hue → HSL the ExtensionBadge paints
+/** The extension "file tag" color: the same hue → HSL the KindBadge paints
  *  (Badge.css: hsl(var(--badge-hue), 60%, 35%)), so hue previews match the badge
  *  users actually see. Saturation/lightness are percentages. */
 export const FILE_TAG_SATURATION = 60;

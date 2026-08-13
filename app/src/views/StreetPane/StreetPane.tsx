@@ -10,12 +10,13 @@
 
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
+import { NodeKind } from '@/types';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange } from 'lucide-preact';
-import { ExtensionBadge } from '@/components/Badge/Badge';
+import { KindBadge } from '@/components/Badge/Badge';
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
@@ -152,7 +153,7 @@ function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
   const share = extShareLabel(s.count, total);
   return (
     <div class="street-ext-row">
-      <ExtensionBadge extension={s.ext} isDir={false} />
+      <KindBadge kind={NodeKind.File} extension={s.ext} />
       <div class="street-ext-track" title={extTypeLabel(s.ext)}>
         <span
           class="street-ext-fill"

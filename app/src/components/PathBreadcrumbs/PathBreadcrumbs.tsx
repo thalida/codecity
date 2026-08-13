@@ -7,7 +7,8 @@
 
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
-import { ExtensionBadge } from '@/components/Badge/Badge';
+import { NodeKind } from '@/types';
+import { KindBadge } from '@/components/Badge/Badge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
@@ -44,7 +45,10 @@ export function PathBreadcrumbs({
 
   return (
     <>
-      <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />
+      <KindBadge
+        kind={isFileSel ? NodeKind.File : NodeKind.Directory}
+        extension={isFileSel ? extension : null}
+      />
       <div
         ref={crumbsRef}
         class="app-header-crumbs"
