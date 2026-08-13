@@ -49,6 +49,12 @@
   --cc-track-hover: oklch(0.355 0.042 276.7);
   --cc-border-base: var(--cc-border-subtle);
 
+  /* The commit kind-badge's fill. Its own value, not an alias: the other two
+     badges are painted from the color their object has in the city, and a
+     commit's tree is too dark to read as a label, so this stands in for that
+     object color and must not move when an interaction color does. */
+  --cc-badge-commit-bg: oklch(0.355 0.042 276.7);
+
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
   --cc-text-strong: oklch(0.921 0.023 275.3); /* emphasis / hover / active / titles */
   --cc-text-primary: oklch(0.823 0.028 276.8); /* default body copy */
@@ -249,5 +255,6 @@
     --cc-border-tooltip: oklch(from var(--cc-bg-sidebar) calc(l + 0.139) calc(c * 3.05) h);
     --cc-track: oklch(from var(--cc-bg-sidebar) calc(l + 0.049) calc(c * 1.21) h);
     --cc-track-hover: oklch(from var(--cc-bg-sidebar) calc(l + 0.174) calc(c * 2.21) h);
+    --cc-badge-commit-bg: oklch(from var(--cc-bg-sidebar) calc(l + 0.174) calc(c * 2.21) h);
   }
 }

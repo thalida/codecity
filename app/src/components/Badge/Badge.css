@@ -27,6 +27,6 @@
    hole, its edge disappears, and the gap to the identifier then looks wider than
    a file badge's by the badge's own padding. */
 .path-badge.is-commit {
-  background: var(--cc-track-hover);
+  background: var(--cc-badge-commit-bg);
   color: var(--cc-text-strong);
 }

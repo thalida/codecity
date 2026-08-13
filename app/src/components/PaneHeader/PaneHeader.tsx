@@ -6,8 +6,10 @@
 
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Focus, X, EyeOff, ExternalLink } from 'lucide-preact';
+import { Focus, X, EyeOff, ExternalLink, PanelLeftClose, PanelRightClose } from 'lucide-preact';
+import { useContext } from 'preact/hooks';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
+import { SidebarSide, SidebarSideContext } from '@/components/Sidebar/Sidebar';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -129,10 +131,18 @@ export interface PaneCloseButtonProps {
   title?: string;
 }
 
-/** The pane's × close button. Shared by the default header and by panes that
+/** The pane's close button. Shared by the default header and by panes that
  *  compose their own header (e.g. InfoPane's tab strip). Plain .btn-icon so it
- *  matches the icon-only buttons in the app header. */
+ *  matches the icon-only buttons in the app header.
+ *
+ *  It puts a panel away rather than closing anything — a right-sidebar pane
+ *  keeps its selection — so it draws the panel collapsing toward its own edge.
+ *  An × would promise the thing is gone. Outside a sidebar there's no edge to
+ *  collapse toward, and × is right again. */
 export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseButtonProps) {
+  const side = useContext(SidebarSideContext);
+  const Icon =
+    side === SidebarSide.Right ? PanelRightClose : side === SidebarSide.Left ? PanelLeftClose : X;
   return (
     <button
       type="button"
@@ -141,7 +151,7 @@ export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseBu
       aria-label={title}
       onClick={() => onClose()}
     >
-      <X class="icon" />
+      <Icon class="icon" />
     </button>
   );
 }

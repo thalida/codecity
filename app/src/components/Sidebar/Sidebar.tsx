@@ -3,7 +3,7 @@
 // and state class; the resize mechanics live here once so the two can't drift.
 
 import './Sidebar.css';
-import type { ComponentChildren } from 'preact';
+import { createContext, type ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 /** Which screen edge the sidebar docks to. Determines the resize handle's edge
@@ -12,6 +12,12 @@ export enum SidebarSide {
   Left = 'left',
   Right = 'right',
 }
+
+/** Which edge the surrounding sidebar docks to, for descendants whose rendering
+ *  depends on it (the close button's panel icon). Null outside a sidebar, e.g. a
+ *  pane header in a modal. Context rather than a prop: every pane would have to
+ *  forward it, and a pane can't be in the sidebar it isn't rendered by. */
+export const SidebarSideContext = createContext<SidebarSide | null>(null);
 
 // A drag's pointer X → raw sidebar width. The left sidebar grows rightward from
 // the screen's left edge (width = clientX); the right sidebar grows leftward
@@ -104,7 +110,7 @@ export function Sidebar({ id, side, class: cls, ariaLabel, open, children }: Sid
       class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}
       aria-label={ariaLabel}
     >
-      {children}
+      <SidebarSideContext.Provider value={side}>{children}</SidebarSideContext.Provider>
       <ResizeHandle side={side} targetRef={ref} />
     </aside>
   );

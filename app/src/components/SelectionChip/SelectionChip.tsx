@@ -3,7 +3,7 @@
 // and absent on a phone.
 
 import './SelectionChip.css';
-import { X } from 'lucide-preact';
+import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { useLayoutEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
@@ -79,21 +79,24 @@ export function SelectionChip() {
     <div ref={ref} class="selection-chip surface-glass">
       <button
         type="button"
-        class="selection-chip-label"
-        title="Show details"
-        onClick={openSelectionPane}
-      >
-        <KindBadge kind={kind} extension={extension} />
-        <span class="selection-chip-name">{label}</span>
-      </button>
-      <button
-        type="button"
         class="selection-chip-clear"
         title="Clear selection"
         aria-label={`Clear selection: ${label}`}
         onClick={clearSelection}
       >
         <X class="icon" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="selection-chip-label"
+        title="Show details"
+        onClick={openSelectionPane}
+      >
+        <KindBadge kind={kind} extension={extension} />
+        <span class="selection-chip-name">{label}</span>
+        {/* The inverse of the header button that put the panel away, so the way
+            back is drawn as the move it undoes. */}
+        <PanelRightOpen class="icon selection-chip-reopen" aria-hidden="true" />
       </button>
     </div>
   );

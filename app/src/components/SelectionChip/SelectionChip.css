@@ -36,7 +36,7 @@
   gap: var(--cc-space-3);
   min-width: 0;
   min-height: var(--cc-tap-min);
-  padding: 0 var(--cc-space-3) 0 var(--cc-space-4);
+  padding: 0 var(--cc-space-4) 0 var(--cc-space-3);
   background: none;
   border: 0;
   color: var(--cc-text-strong);
@@ -59,6 +59,20 @@
   color: var(--cc-accent);
 }
 
+/* The pill's own action, and it lands on the trailing edge the header's close
+   button just left: same glyph, mirrored. Sized off the row's icon buttons
+   rather than the label's smaller type so it reads as that glyph rather than as
+   punctuation, and full-strength so the destructive ✕ isn't the loud one. */
+.selection-chip-reopen {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-strong);
+}
+
+.selection-chip-label:hover .selection-chip-reopen {
+  color: var(--cc-accent);
+}
+
 .selection-chip-clear {
   flex: 0 0 auto;
   display: inline-flex;
@@ -69,9 +83,9 @@
   padding: 0;
   background: none;
   border: 0;
-  border-start-end-radius: var(--cc-radius-pill);
-  border-end-end-radius: var(--cc-radius-pill);
-  color: var(--cc-text-strong);
+  border-start-start-radius: var(--cc-radius-pill);
+  border-end-start-radius: var(--cc-radius-pill);
+  color: var(--cc-text-muted);
   cursor: pointer;
 }
 
