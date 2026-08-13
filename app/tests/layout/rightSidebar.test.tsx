@@ -303,52 +303,10 @@ describe('RightSidebar', () => {
       expect(isOpen()).toBe(true);
     });
 
-    it('picking a different node reopens it', async () => {
-      const other: FileNode = { ...FILE_NODE, name: 'other.ts', path: 'src/other.ts' };
-      setManifest(manifestWithFile(FILE_NODE));
-      await selectFile(FILE_NODE);
-      close();
-      await flush();
-      expect(isOpen()).toBe(false);
-
-      setManifest(manifestWithFile(other));
-      await selectFile(other);
-
-      expect(isOpen()).toBe(true);
-    });
-
-    it('re-picking a node after deselecting reopens it', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
-      await selectFile(FILE_NODE);
-      close();
-      await flush();
-
-      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
-      act(() => handle.picker.clearSelection());
-      await flush();
-
-      await selectFile(FILE_NODE);
-
-      expect(isOpen()).toBe(true);
-    });
-
-    it('coming back to a node whose pane you closed earlier reopens it', async () => {
-      const other: FileNode = { ...FILE_NODE, name: 'other.ts', path: 'src/other.ts' };
-      setManifest(manifestWithFile(FILE_NODE));
-      await selectFile(FILE_NODE);
-      close();
-      await flush();
-
-      setManifest(manifestWithFile(other));
-      await selectFile(other);
-      expect(isOpen()).toBe(true);
-
-      setManifest(manifestWithFile(FILE_NODE));
-      await selectFile(FILE_NODE);
-
-      expect(isOpen()).toBe(true);
-    });
-
+    // Which selection changes reopen the pane is the picking side's call, and is
+    // covered against the real handler in city/interaction/inputHandlersPick.
+    // Here the point is the opposite: a selection landing on its own moves
+    // nothing, so a rebuild can't reopen a pane the user put away.
     it('stays shut when a rebuild re-resolves the same node to a fresh target', async () => {
       setManifest(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);

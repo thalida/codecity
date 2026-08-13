@@ -145,6 +145,9 @@ export function createInputHandlers({
       return;
     }
     picker.setSelection(next);
+    // Picking a node is asking what it is, so a pane put away for the last one
+    // comes back for this one.
+    openSelectionPane();
   }
 
   // ── Bindings ───────────────────────────────────────────────────────

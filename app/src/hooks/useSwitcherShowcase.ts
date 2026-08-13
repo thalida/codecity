@@ -1,7 +1,8 @@
 // hooks/useSwitcherShowcase.ts — turns the live city into a backdrop while the
 // project switcher is open over it. On open: snapshot the user's camera pose +
-// selection, clear the selection, and drive the camera into a slow
-// auto-rotating hero shot. On dismiss: restore all of it verbatim.
+// selection (and whether its pane was minimised to the chip), clear the
+// selection, and drive the camera into a slow auto-rotating hero shot. On
+// dismiss: restore all of it verbatim.
 //
 // Hiding the chrome is NOT this hook's job: the landing covers the app in both
 // of its modes, so App keys that off PROJECTS_VIEW directly.
@@ -12,7 +13,12 @@
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
-import { SWITCHER_SHOWCASE } from '@/state/stores/ui';
+import {
+  SWITCHER_SHOWCASE,
+  SELECTION_PANE_DISMISSED,
+  dismissSelectionPane,
+  openSelectionPane,
+} from '@/state/stores/ui';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -31,10 +37,18 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function restoreSelection(handle: SceneHandle, key: PickerSelectionKey | null): void {
+/** Put the selection back, and with it whether its details were showing: a pane
+ *  minimised to its chip must not reopen just from being restored. */
+function restoreSelection(
+  handle: SceneHandle,
+  key: PickerSelectionKey | null,
+  dismissed: boolean
+): void {
   if (!key) return;
   if (key.kind === NodeKind.Commit) handle.picker.selectByCommit(key.sha);
   else handle.picker.selectByPath(key.path);
+  if (dismissed) dismissSelectionPane();
+  else openSelectionPane();
 }
 
 export function useSwitcherShowcase(): void {
@@ -42,6 +56,7 @@ export function useSwitcherShowcase(): void {
     let active = false;
     let savedPose: CameraPose | null = null;
     let savedSelKey: PickerSelectionKey | null = null;
+    let savedSelDismissed = false;
     let savedSourceKey: string | null = null;
     // The backdrop is always plain live, so Timeline is parked on open and put
     // back on dismiss.
@@ -59,6 +74,7 @@ export function useSwitcherShowcase(): void {
         savedSourceKey = CURRENT_SOURCE_KEY.peek();
         savedPose = handle.rig.getPose();
         savedSelKey = handle.picker.selectionKey.peek();
+        savedSelDismissed = SELECTION_PANE_DISMISSED.peek();
         const bundle = TIMELINE_BUNDLE.peek();
         if (TIMELINE_MODE.peek() && bundle) {
           savedTimeline = { bundle, scrubPos: SCRUB_POS.peek() };
@@ -74,7 +90,7 @@ export function useSwitcherShowcase(): void {
           // framing (and App already cleared the selection on commit).
           if (CURRENT_SOURCE_KEY.peek() === savedSourceKey) {
             if (savedPose) handle.rig.applyPose(savedPose);
-            restoreSelection(handle, savedSelKey);
+            restoreSelection(handle, savedSelKey, savedSelDismissed);
             if (savedTimeline) {
               // Re-pack from the saved bundle rather than refetching it, and only
               // enter once it is packed. A switcher reopened meanwhile owns the mode.
@@ -88,6 +104,7 @@ export function useSwitcherShowcase(): void {
         }
         savedPose = null;
         savedSelKey = null;
+        savedSelDismissed = false;
         savedSourceKey = null;
         savedTimeline = null;
       }

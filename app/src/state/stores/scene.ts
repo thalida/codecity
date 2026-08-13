@@ -3,9 +3,8 @@
 // that need world / picker / rig read SCENE_HANDLE.value?.world etc.
 // Null until CenterPane's useEffect resolves.
 
-import { computed, effect, signal } from '@preact/signals';
+import { signal } from '@preact/signals';
 import type { createCity } from '../../city';
-import { NodeKind } from '@/types';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './ui';
 import { IS_PHONE } from './viewport';
 
@@ -13,22 +12,9 @@ export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
 
-/** Identity of what's selected. The picker hands back a fresh target object on
- *  every world rebuild, and a new object is not a new selection. */
-export const SELECTION_KEY = computed<string | null>(() => {
-  const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-  if (sel?.kind === NodeKind.File) return `f:${sel.file.path}`;
-  if (sel?.kind === NodeKind.Directory) return `d:${sel.dir.path}`;
-  if (sel?.kind === NodeKind.Commit) return `c:${sel.commit.sha}`;
-  return null;
-});
-
-// A dismissal belongs to the selection standing when you closed the pane, so
-// any change of selection ends it. A rebuild keeps the key, so it survives one.
-effect(() => {
-  void SELECTION_KEY.value;
-  openSelectionPane();
-});
+// Whoever changes the selection also says whether the details show. An effect
+// watching it would fire on the picker's own bookkeeping too (a showcase
+// save/restore round trip), and could only be beaten by write ordering.
 
 /** Phone: the left drawer covers the city, so a camera move behind it is one you
  *  can't see. It's the whole screen there and a column everywhere else. */
