@@ -12,7 +12,7 @@ import { renderTrees } from '../../../_helpers/renderTrees';
 function resetStores() {
   TREES.value = {
     ENABLED: true,
-    CITY_CLEARANCE: 32,
+    CITY_CLEARANCE_PERCENT: 5,
     DENSITY_FALLOFF: 0,
     EDGE_INSET_PERCENT: 1,
     MIN_HEIGHT: 48,
@@ -425,14 +425,20 @@ describe('createTreeRenderer()', () => {
     };
 
     it('starts on the day the heights were baked, so Live is untouched', () => {
-      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      const history = buildCommits(
+        { date: '2024-01-01', files: 1 },
+        { date: '2024-06-01', files: 1 }
+      );
       trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
       // Epoch days, the same scale treeEncoding bakes against.
       expect(scrubbed(trees)).toBe(Math.floor(Date.parse('2024-06-01') / 86_400_000));
     });
 
     it('moves the day to the scrubbed date and back', () => {
-      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      const history = buildCommits(
+        { date: '2024-01-01', files: 1 },
+        { date: '2024-06-01', files: 1 }
+      );
       trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
       const baked = scrubbed(trees);
       trees.setScrubNow(Date.parse('2024-03-01'));
@@ -442,7 +448,10 @@ describe('createTreeRenderer()', () => {
     });
 
     it('publishes each tree its own commit day and baked height to grow from', () => {
-      const history = buildCommits({ date: '2024-01-01' }, { date: '2024-06-01' });
+      const history = buildCommits(
+        { date: '2024-01-01', files: 1 },
+        { date: '2024-06-01', files: 1 }
+      );
       trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
       const texel = material.uniforms.uGrowth.value.image.data as Float32Array;
@@ -462,7 +471,10 @@ describe('createTreeRenderer()', () => {
 
     it('shrinks a tree that has had less time to grow, and its canopy with it', () => {
       // Two commits a year apart, so the older one is meaningfully taller.
-      const history = buildCommits({ date: '2023-06-01' }, { date: '2024-06-01' });
+      const history = buildCommits(
+        { date: '2023-06-01', files: 1 },
+        { date: '2024-06-01', files: 1 }
+      );
       // Width follows height once the age attenuation is on.
       TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.2 };
       trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
@@ -481,7 +493,7 @@ describe('createTreeRenderer()', () => {
     });
 
     it('marks a placement with no commit behind it as one that cannot grow', () => {
-      const history = buildCommits({ date: '2024-06-01' });
+      const history = buildCommits({ date: '2024-06-01', files: 1 });
       trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 9)], history, BUSY);
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
       const texel = material.uniforms.uGrowth.value.image.data as Float32Array;

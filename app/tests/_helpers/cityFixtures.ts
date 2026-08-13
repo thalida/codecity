@@ -141,7 +141,7 @@ export function mkDir(name: string, children: any[]): any {
 export function resetTreesConfig(): void {
   TREES.value = {
     ENABLED: true,
-    CITY_CLEARANCE: 2,
+    CITY_CLEARANCE_PERCENT: 1,
     DENSITY_FALLOFF: 0,
     EDGE_INSET_PERCENT: 1,
     MIN_HEIGHT: 48,

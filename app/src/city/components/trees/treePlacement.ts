@@ -181,9 +181,6 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  // Stacks with the halo the rects are already inflated by.
-  const halfFoot = Math.max(0, cfg.CITY_CLEARANCE);
-
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
@@ -211,6 +208,15 @@ export function placeTrees(
   const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
   const sampleHalfW = bounds.halfWidth * polygonScale;
   const sampleHalfD = bounds.halfDepth * polygonScale;
+
+  // Clearance from the city, as a share of the island rather than a distance in
+  // world units: the island is sized from the city, so a fixed gap that leaves a
+  // comfortable park around a big repo is most of the ground on a small one, and
+  // a one-commit repo ends up with nowhere its tree is allowed to stand. Off the
+  // narrower half-extent, so a long thin island doesn't take a gap sized by its
+  // long axis. Stacks with the halo the rects are already inflated by.
+  const halfFoot =
+    Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100);
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible

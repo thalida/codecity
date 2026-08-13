@@ -28,15 +28,15 @@ const TREES_FIELDS = {
     tip: 'Master toggle. When off, every tree canopy and trunk is hidden.',
   },
 
-  CITY_CLEARANCE: {
+  CITY_CLEARANCE_PERCENT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 96,
+    default: 4,
     min: 0,
-    max: 200,
-    step: 2,
-    label: 'Distance from city',
-    tip: 'Minimum gap from any building or street.',
+    max: 50,
+    step: 1,
+    label: 'Distance from city (% of island)',
+    tip: 'Minimum gap from any building or street, as a share of the island, so the gap suits a small repo as well as a large one.',
   },
   DENSITY_FALLOFF: {
     route: ChangeRoute.Rebuild,
