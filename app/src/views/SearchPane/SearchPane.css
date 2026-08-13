@@ -58,6 +58,12 @@
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
   color: var(--cc-text-base);
+}
+
+/* The truncation belongs to the text, not the row: .row lays its children out
+   in a flex line, where an ellipsis set on the container never reaches them. */
+.search-result-path {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

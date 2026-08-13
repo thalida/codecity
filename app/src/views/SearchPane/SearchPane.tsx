@@ -24,6 +24,7 @@ import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
+import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;
@@ -151,6 +152,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
                     if (onSelect && file.path) onSelect(file.path);
                   }}
                 >
+                  <NodeIcon node={file} />
                   <span class="search-result-path">
                     {_highlightJsx(file.path, match.positions)}
                   </span>

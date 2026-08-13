@@ -132,6 +132,17 @@ describe('SearchPane', () => {
     expect(results[0].querySelectorAll('mark').length).toBeGreaterThan(0);
   });
 
+  // Same icon the tree draws, keyed off the same file: the two lists show the
+  // same things, so a result is recognisable by the shape the tree taught you.
+  it('draws each result with its file icon', async () => {
+    mount();
+    await typeQuery('coord');
+
+    const icon = container.querySelector<HTMLImageElement>('.search-result .file-icon');
+    expect(icon).not.toBeNull();
+    expect(icon!.getAttribute('data-icon-for')).toBe('coordinator.ts');
+  });
+
   it('treats ".png" as a contiguous substring (not per-character fuzzy)', async () => {
     mount();
     await typeQuery('.png');
