@@ -159,8 +159,21 @@ export function createBuildingTweens(deps: TweenDeps) {
   const _tmpPos = new THREE.Vector3();
   const _tmpScale = new THREE.Vector3();
 
+  // Meshes whose cull sphere is currently a lie. A cell's sphere covers the cell,
+  // but a building that MOVED tweens across the gap between its old cell and its
+  // new one, so it renders outside both until it lands.
+  const unculled = new Set<THREE.InstancedMesh>();
+
+  function restoreCulling(mesh: THREE.InstancedMesh): void {
+    mesh.frustumCulled = true;
+    unculled.delete(mesh);
+  }
+
   function update(_dtMs: number): void {
-    if (tweens.length === 0) return;
+    if (tweens.length === 0) {
+      for (const mesh of [...unculled]) restoreCulling(mesh);
+      return;
+    }
     const now = performance.now();
     // Flagged once per mesh after all its tweens, not once per tween, or the
     // same buffer re-uploads several times a frame.
@@ -206,11 +219,20 @@ export function createBuildingTweens(deps: TweenDeps) {
     // Flush: one needsUpdate per dirty mesh, not per tween.
     for (const mesh of dirtyMeshes) {
       mesh.instanceMatrix.needsUpdate = true;
+      if (!unculled.has(mesh)) {
+        mesh.frustumCulled = false;
+        unculled.add(mesh);
+      }
+    }
+    // Nothing moved it this frame, so it is back inside its cell.
+    for (const mesh of [...unculled]) {
+      if (!dirtyMeshes.has(mesh)) restoreCulling(mesh);
     }
   }
 
   function clear() {
     tweens.length = 0;
+    for (const mesh of [...unculled]) restoreCulling(mesh);
   }
 
   return { onDiff, update, clear };

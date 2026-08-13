@@ -75,14 +75,16 @@ export class SpatialGrid {
   }
 
   /**
-   * Bounding sphere over the cell footprint, with a fixed vertical
-   * extent to cover the tallest expected building. Diagonal of the
-   * XZ footprint is the lower bound on radius.
+   * Bounding sphere over the cell footprint, tall enough for the tallest
+   * building it holds. `overhang` widens the footprint by the furthest a
+   * building's own width/depth reaches past the cell edge it sits against —
+   * a cell holds building CENTERS, so their slabs spill over it.
    */
-  cellBoundsSphere(cellId: number, maxBuildingHeight = 20): THREE.Sphere {
+  cellBoundsSphere(cellId: number, maxBuildingHeight = 20, overhang = 0): THREE.Sphere {
     const center = this.cellCenter(cellId);
     center.y = maxBuildingHeight / 2;
-    const halfDiag = Math.sqrt((this.cellSize / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2);
+    const half = this.cellSize / 2 + overhang;
+    const halfDiag = Math.sqrt(half ** 2 * 2 + (maxBuildingHeight / 2) ** 2);
     return new THREE.Sphere(center, halfDiag);
   }
 }

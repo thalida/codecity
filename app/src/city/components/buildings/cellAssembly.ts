@@ -52,18 +52,26 @@ export function buildCellsFromLayout(
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
 
-  // ---- Sparse pass: count buildings per occupied cell ----
+  // ---- Sparse pass: count buildings per occupied cell, and measure how far
+  // each cell's contents reach, so its cull sphere covers them. ----
   const cellCounts = new Map<number, number>();
+  const cellExtents = new Map<number, { maxHeight: number; overhang: number }>();
   for (const b of buildings) {
     const { cellId } = grid.worldToCell(b.x, b.y);
     cellCounts.set(cellId, (cellCounts.get(cellId) ?? 0) + 1);
+    const prev = cellExtents.get(cellId);
+    // A building tweens to b.h on a rebuild and is scrubbed no taller, so its
+    // final size is the ceiling for every state the cell renders.
+    const maxHeight = Math.max(prev?.maxHeight ?? 0, b.h);
+    const overhang = Math.max(prev?.overhang ?? 0, b.w / 2, b.d / 2);
+    cellExtents.set(cellId, { maxHeight, overhang });
   }
 
   // ---- Sparse allocation: each cell sized to its OWN load (a global average
   // over-fills sparse cells and overflows dense ones, e.g. a monorepo subtree). ----
   const cells = new Map<number, CellTile>();
   for (const [id, count] of cellCounts) {
-    const cell = createEmptyCellTile(grid, id, cellCapacityFor(count));
+    const cell = createEmptyCellTile(grid, id, cellCapacityFor(count), cellExtents.get(id));
     attachBuildingMeshToCell(cell);
     cells.set(id, cell);
   }
