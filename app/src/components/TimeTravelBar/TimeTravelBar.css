@@ -18,6 +18,10 @@
 .time-travel-scrubber {
   display: flex;
   align-items: center;
+  /* The playhead overhangs the track by this much top and bottom, so the row
+     gap alone leaves the dates clearing the track but not the handle. Same
+     token the overhang uses, so the two can't drift apart. */
+  margin-bottom: var(--cc-space-3);
 }
 
 /* The axis under the track: the history's two ends, and between them the date

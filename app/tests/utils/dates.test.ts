@@ -58,4 +58,3 @@ describe('humanSpan', () => {
     expect(humanSpan('nope', '2026-05-24')).toBe('');
   });
 });
-
