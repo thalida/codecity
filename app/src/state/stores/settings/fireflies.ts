@@ -25,9 +25,9 @@ const FIREFLIES_FIELDS = {
   SCALE_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 0.5,
+    default: 2.0,
     min: 0.1,
-    max: 2.0,
+    max: 5.0,
     step: 0.05,
     label: 'Scale min',
     tip: 'Size multiplier for the author with the fewest commits.',
@@ -35,9 +35,9 @@ const FIREFLIES_FIELDS = {
   SCALE_MAX: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 2.5,
+    default: 5.0,
     min: 0.5,
-    max: 5.0,
+    max: 10.0,
     step: 0.05,
     label: 'Scale max',
     tip: 'Size multiplier for the author with the most commits.',
