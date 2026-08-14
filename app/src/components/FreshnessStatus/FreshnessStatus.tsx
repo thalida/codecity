@@ -1,6 +1,5 @@
 // components/FreshnessStatus/FreshnessStatus.tsx — how fresh the loaded city is.
 // One dot, two channels: colour = rebuild state, animation = live state.
-//
 // Hook and markup are split because the scan menu's trigger needs the same
 // derived state for its accessible name, and two 1s ticks would drift apart.
 
@@ -114,9 +113,8 @@ export function useFreshness(): Freshness {
   };
 }
 
-/** The dot and its detail line. No role and no title: it renders inside the
- *  scan menu's trigger, which owns both the accessible name and the live
- *  region that announces changes. */
+/** No role and no title: it renders inside the scan menu's trigger, which owns
+ *  both the accessible name and the live region that announces changes. */
 export function FreshnessStatus({ freshness }: { freshness: Freshness }) {
   return (
     <span class={`freshness-status ${freshness.stateClass}`}>

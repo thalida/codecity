@@ -48,9 +48,7 @@ function timelineStageTail(p: TimelineProgress): string | null {
 }
 
 // `inPlace` is the already-in-Timeline refetch: it holds the scrub and stays in
-// Timeline on error, there being no Live scene under it to fall back to. It
-// takes the screen over only when the user asked for it (`overlay`); an exclude
-// edit refetches underneath the city it is already showing.
+// Timeline on error. `overlay` is whether it takes the screen while it runs.
 export async function loadTimelineScene({
   inPlace = false,
   noCache = false,
@@ -65,10 +63,8 @@ export async function loadTimelineScene({
   let cancelled = false;
   let committed = false;
 
-  // With no overlay over it the freshness readout is this refetch's only
-  // progress surface: say so now, and the stage tails below land beside it.
-  // Under an overlay the readout is out of sight, and leaving the status alone
-  // means a cancel has nothing to unwind.
+  // Unoverlaid, the readout is the only progress surface: say so now, and the
+  // stage tails land beside it. Overlaid, a cancel has nothing to unwind.
   if (inPlace && !overlay) markRebuilding();
   if (overlay) {
     // Cancelling keeps whatever is on screen: nothing is touched until the pack

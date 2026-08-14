@@ -1,8 +1,7 @@
 // components/LoadingProgress/LoadingProgress.tsx — the shared loading column:
 // repo label + spinner + current-step status + the stepped progress list.
 // Rendered by both the app-level LoadingOverlay (deep-link cold boot) and
-// ProjectsView's inline progress (every in-app switch), so the phase→step
-// state mapping has exactly one definition and the two surfaces never drift.
+// ProjectsView's inline progress, so the phase→step mapping has one definition.
 
 import './LoadingProgress.css';
 
@@ -56,9 +55,8 @@ export function LoadingProgress({
       </div>
       <ol class="loading-steps">
         {steps.map((step) => {
-          // A step this source kind never runs (a local path's resolve, clone
-          // or history fetch) keeps its row in the DOM, hidden, so the list
-          // height doesn't jump when the flow starts.
+          // A step this kind never runs keeps its row in the DOM, hidden, so
+          // the list height doesn't jump when the flow starts.
           if (!stepRuns(step, kind)) {
             return (
               <li

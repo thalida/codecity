@@ -39,9 +39,8 @@ export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
 
-/** Live progress beside "rebuilding…" in the freshness readout: how far along a
- *  refetch that runs with no loading overlay over it is. Every status
- *  transition clears it, so it can only ever describe the state it is under. */
+/** Live progress beside "rebuilding…" in the freshness readout, for a refetch
+ *  with no overlay. Every transition clears it: it can't outlive its state. */
 export const REBUILD_DETAIL = signal<string | null>(null);
 
 /** Epoch millis of the most recent finished apply, in whichever mode: a live

@@ -20,10 +20,7 @@ export enum LoadingStep {
 }
 
 // Display order. 'skeleton' paints placeholders while the server resolves
-// per-file metadata; 'building' tweens in the real heights. Building is the
-// last row in both lists: the overlay lifts on the city's first painted frame,
-// and the decoration pass that follows runs on a city you can already see (the
-// freshness readout is what reports it).
+// per-file metadata; 'building' tweens in the real heights and ends every list.
 export const LOADING_STEPS: readonly LoadingStep[] = [
   LoadingStep.Resolving,
   LoadingStep.Cloning,

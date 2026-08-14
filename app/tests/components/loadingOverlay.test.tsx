@@ -15,10 +15,8 @@ import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 
-// The overlay is now a signal-driven Preact component (App.tsx mounts a
-// single <LoadingOverlay/>); state is driven by the uiState helpers that
-// the manifest-stream consumer calls. These tests render the component and
-// poke those helpers, flushing Preact's microtask re-render before asserting.
+// The overlay is signal-driven, so these tests render the component and poke
+// the ui-store helpers, flushing Preact's re-render before asserting.
 
 let container: HTMLDivElement;
 
@@ -48,10 +46,8 @@ describe('LoadingOverlay', () => {
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });
 
-  // <ProjectsView> is the loading surface for any switch it initiates; this
-  // overlay's narrow remaining job is a deep-link cold boot with no view
-  // open. Two full-viewport surfaces stacking would leave the overlay's
-  // no-controls backdrop on top of the view's Cancel button.
+  // Two full-viewport surfaces stacking would leave this overlay's no-controls
+  // backdrop on top of the projects view's Cancel button.
   it('stays hidden while the projects view is open, even mid-load', async () => {
     showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();

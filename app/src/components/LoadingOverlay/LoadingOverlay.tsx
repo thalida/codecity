@@ -1,13 +1,7 @@
-// components/LoadingOverlay.tsx — Full-viewport centered progress shown for a
-// deep-link cold boot (no page open yet). Mounted once by App.tsx and driven by
-// the LOADING_OVERLAY signal (fed by the SCAN_PROGRESS reaction, and by
-// Timeline entry for its own list). The inner column — repo label, spinner,
-// current step, and stepped list — is the shared <LoadingProgress>, which
-// ProjectsView also renders for in-app switches.
-//
-// Narrow role by design: a load driven from <ProjectsView> renders its OWN
-// inline progress and this overlay suppresses itself (below), so two
-// full-viewport surfaces never stack.
+// components/LoadingOverlay.tsx — Full-viewport centered progress, mounted once
+// by App.tsx and driven by the LOADING_OVERLAY signal. Narrow role by design: a
+// load driven from <ProjectsView> renders its OWN inline progress and this
+// suppresses itself (below), so two full-viewport surfaces never stack.
 
 import './LoadingOverlay.css';
 import { LOADING_OVERLAY, PROJECTS_VIEW } from '@/state/stores/ui';
