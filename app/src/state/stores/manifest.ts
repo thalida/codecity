@@ -36,6 +36,10 @@ export enum RebuildStatus {
 
 export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 
+/** The manifest the city on screen was built from. Idle doesn't say WHOSE city
+ *  landed (the empty boot city settles into it too), so read this instead. */
+export const BUILT_MANIFEST = signal<ManifestValue>(EMPTY_MANIFEST);
+
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
 
@@ -59,10 +63,12 @@ export function markRebuilding(): void {
 export function markDecorating(): void {
   REBUILD_STATUS.value = RebuildStatus.Decorating;
   REBUILD_DETAIL.value = null;
+  BUILT_MANIFEST.value = MANIFEST.peek();
 }
 
 export function markIdle(): void {
   REBUILD_STATUS.value = RebuildStatus.Idle;
+  BUILT_MANIFEST.value = MANIFEST.peek();
   LAST_REBUILD_ERROR.value = null;
   REBUILD_DETAIL.value = null;
   LAST_UPDATED_AT.value = Date.now();

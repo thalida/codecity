@@ -8,7 +8,7 @@ import { signal, effect, type Signal } from '@preact/signals';
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM, SELECTION_KIND_PARAMS } from '@/constants/urlParams';
 import { readBootView, type BootView } from '@/state/bootView';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { BUILT_MANIFEST } from '@/state/stores/manifest';
 import { showPath, showCommit } from '@/state/stores/scene';
 import {
   TIMELINE_MODE,
@@ -59,12 +59,6 @@ function reflectViewToUrl(): void {
 
 // ── Restore ──────────────────────────────────────────────────────────
 
-/** Whether a built city is on screen. Decorating counts: the city is drawn and
- *  only its deferred pass (trees) is still in flight. */
-function cityOnScreen(status: RebuildStatus): boolean {
-  return status === RebuildStatus.Idle || status === RebuildStatus.Decorating;
-}
-
 // ?mode and ?commit are the boot load's inputs, so only the selection is left.
 // Every kind restores alike: picked out, details open, camera untouched.
 function restoreSelection(selection: PickerSelectionKey): void {
@@ -81,20 +75,10 @@ function installRestore(boot: BootView, restored: Signal<boolean>): () => void {
   }
 
   let claimed = false;
-  // Idle alone is not a city to restore into: the empty boot city settles into
-  // it before any source lands. Only an apply we watched start counts.
-  let rebuilding = false;
   return effect(() => {
     const source = CURRENT_SOURCE.value;
-    const manifest = MANIFEST.value;
-    const status = REBUILD_STATUS.value;
-    if (claimed) return;
-    if (!source || isEmptyManifest(manifest)) return;
-    if (status === RebuildStatus.Rebuilding) {
-      rebuilding = true;
-      return;
-    }
-    if (!rebuilding || !cityOnScreen(status)) return;
+    // A built city for a committed source: there is something to select in.
+    if (claimed || !source || isEmptyManifest(BUILT_MANIFEST.value)) return;
     claimed = true;
     // A different repo got here first (a deep link that failed, then a hand
     // pick): the saved view described the URL's repo, so let it go.

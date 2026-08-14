@@ -7,14 +7,7 @@ vi.mock('@/state/stores/scene', () => ({ showPath: vi.fn(), showCommit: vi.fn() 
 import { attachViewUrlReactions } from '@/state/viewUrl';
 import { showPath, showCommit } from '@/state/stores/scene';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
-import {
-  MANIFEST,
-  REBUILD_STATUS,
-  RebuildStatus,
-  markRebuilding,
-  markDecorating,
-  markIdle,
-} from '@/state/stores/manifest';
+import { MANIFEST, BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/manifest';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import {
   TIMELINE_MODE,
@@ -39,12 +32,11 @@ const LOADED = {
 
 const params = (): URLSearchParams => new URLSearchParams(window.location.search);
 
-/** A source loading, through the real commit point and the real rebuild
- *  transitions: whatever they come to write, this test follows. */
+/** A source loaded and its city built, each through the function that really
+ *  does it. */
 function commitWorld(src = SRC): void {
   commitSource(src, undefined, LOADED);
-  markRebuilding(); // City applies the committed manifest
-  markIdle(); // ...and the city it built lands
+  markIdle();
 }
 
 describe('view URL', () => {
@@ -60,7 +52,7 @@ describe('view URL', () => {
     history.replaceState(null, '', '/');
     CURRENT_SOURCE.value = null;
     MANIFEST.value = EMPTY_MANIFEST;
-    REBUILD_STATUS.value = RebuildStatus.Pending;
+    BUILT_MANIFEST.value = EMPTY_MANIFEST;
     PICKER_SELECTION_KEY.value = null;
     resetTimelineMode();
   });
@@ -218,8 +210,7 @@ describe('view URL', () => {
       expect(showPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
-      markRebuilding();
-      markDecorating();
+      markDecorating(); // the committed manifest's city lands
       await flush();
       expect(showPath).toHaveBeenCalledWith('app/src/main.tsx');
     });
