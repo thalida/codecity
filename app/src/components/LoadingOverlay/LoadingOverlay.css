@@ -22,8 +22,16 @@
   align-items: center;
   gap: var(--cc-space-7);
   padding: var(--cc-space-8) var(--cc-space-9);
-  /* Fixed, not min-width: every row's text changes as the load runs, and a card
-     that sizes to its widest one resizes under the reader the whole way. */
-  width: 380px;
-  max-width: calc(100vw - var(--cc-space-8) * 2);
+  /* Bound to the VIEWPORT, never to the rows: their text changes all through a
+     load, and a content-sized card resizes under the reader the whole way. */
+  width: clamp(17.5rem, 90vw, 26rem);
+  max-width: calc(100vw - 2 * var(--cc-chrome-inset));
+}
+
+/* A phone spends its width on the rows, not the card's margins: the long tails
+   ("106009/106009 files") wrap below that, and a wrapped row changes height. */
+@media (max-width: 640px) {
+  .loading-card {
+    padding: var(--cc-space-7) var(--cc-space-6);
+  }
 }
