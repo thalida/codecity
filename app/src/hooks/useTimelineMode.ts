@@ -29,6 +29,7 @@ import {
   LoadingStep,
   TIMELINE_LOADING_STEPS,
   stepForTimelineStage,
+  transferTail,
 } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
 import {
@@ -53,7 +54,7 @@ import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
 function timelineStageTail(p: TimelineProgress): string | null {
-  if (p.stage === TimelineStage.Fetch) return p.percent != null ? `${p.percent}%` : null;
+  if (p.stage === TimelineStage.Fetch) return transferTail(p);
   if (p.stage === TimelineStage.History) {
     return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
   }

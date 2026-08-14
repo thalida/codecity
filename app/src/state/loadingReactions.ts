@@ -18,7 +18,13 @@ import {
   setLoadingStepTail,
 } from '@/state/stores/ui';
 import { ScanPhase } from '@/api/manifest';
-import { LoadingStep, LOADING_STEPS, firstStepFor, stepForPhase } from '@/constants/loadingSteps';
+import {
+  LoadingStep,
+  LOADING_STEPS,
+  firstStepFor,
+  stepForPhase,
+  transferTail,
+} from '@/constants/loadingSteps';
 import { buildStageTail } from '@/constants/buildStages';
 
 export function attachLoadingReactions(): () => void {
@@ -90,14 +96,9 @@ function attachScanReaction(): () => void {
     }
     advance(stepForPhase(p.phase, p.kind));
     if (p.phase === ScanPhase.CloneProgress) {
-      // A normal tick shows "{percent}% ({stage})"; a heartbeat during the
-      // silent promisor blob fetch shows the working tree growing on disk.
-      let tail: string | null = null;
-      if (p.percent !== undefined) {
-        tail = `${p.percent}%${p.stage ? ` (${p.stage})` : ''}`;
-      } else if (p.mbOnDisk !== undefined) {
-        tail = `${p.mbOnDisk} MB`;
-      }
+      // A heartbeat during the silent promisor blob fetch has no percent at
+      // all, and shows the working tree growing on disk instead.
+      const tail = transferTail(p) ?? (p.mbOnDisk !== undefined ? `${p.mbOnDisk} MB` : null);
       setLoadingStepTail(LoadingStep.Cloning, tail);
     } else if (p.phase === ScanPhase.ScanProgress) {
       setLoadingStepTail(

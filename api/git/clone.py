@@ -22,7 +22,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, NamedTuple
 
 from api.config import CACHE_ROOT, quiet
 
@@ -88,21 +88,43 @@ CLONE_PROGRESS_THROTTLE_S = 0.25
 
 _CLONE_PROGRESS_RE = re.compile(
     r"^(Receiving|Resolving|Counting|Updating) (?:objects|deltas|files):\s*(\d+)%"
+    r"(?:\s*\((\d+)/(\d+)\))?"  # object counts, absent on some lines
+    r"(?:,\s*([\d.]+)\s*(KiB|MiB|GiB))?"  # bytes received, receiving only
 )
 
+_MIB = {"KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0}
 
-def _parse_clone_progress_line(line: str) -> tuple[str, int] | None:
+
+class CloneProgress(NamedTuple):
+    """One parsed line of git's progress. Indexable as (stage, percent) for the
+    callers that only want those two."""
+
+    stage: str
+    percent: int
+    # Git holds a percent for minutes on a big fetch while these climb, so they
+    # are the part worth showing: 9% is the same 9% for 400k objects.
+    objects: int | None = None
+    objects_total: int | None = None
+    mib: int | None = None
+
+
+def _parse_clone_progress_line(line: str) -> CloneProgress | None:
     """Parse one line of ``git clone --progress`` stderr output.
 
-    Returns ``(stage, percent)`` for matchable progress lines, else None.
-    Stage is lowercase: ``'receiving' | 'resolving' | 'counting' | 'updating'``
+    Returns the parsed progress for matchable lines, else None. Stage is
+    lowercase: ``'receiving' | 'resolving' | 'counting' | 'updating'``
     ('updating' = the checkout phase, ``Updating files: N%``)."""
     m = _CLONE_PROGRESS_RE.match(line.strip())
     if m is None:
         return None
-    stage = m.group(1).lower()
-    percent = int(m.group(2))
-    return stage, percent
+    size, unit = m.group(5), m.group(6)
+    return CloneProgress(
+        stage=m.group(1).lower(),
+        percent=int(m.group(2)),
+        objects=int(m.group(3)) if m.group(3) else None,
+        objects_total=int(m.group(4)) if m.group(4) else None,
+        mib=round(float(size) * _MIB[unit]) if size and unit else None,
+    )
 
 
 _BRANCH_NOT_FOUND_PATTERNS = (
@@ -278,7 +300,7 @@ def _run_git_streaming(
     *args: str,
     cwd: Path | None = None,
     progress_dir: Path | None = None,
-    on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
     on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> str:
@@ -317,8 +339,8 @@ def _run_git_streaming(
     # gets flushed rather than dropped inside the window, which would leave the
     # UI frozen at whatever percent happened to pass.
     last_progress_at = [0.0]
-    last_emitted_payload: list[tuple[str, int] | None] = [None]
-    last_seen_payload: list[tuple[str, int] | None] = [None]
+    last_emitted_payload: list[CloneProgress | None] = [None]
+    last_seen_payload: list[CloneProgress | None] = [None]
     proc_done = threading.Event()
 
     def _maybe_emit_progress(line: str) -> None:
@@ -329,7 +351,7 @@ def _run_git_streaming(
             return
         now = time.monotonic()
         prev = last_emitted_payload[0]
-        same_stage = prev is not None and prev[0] == parsed[0]
+        same_stage = prev is not None and prev.stage == parsed.stage
         # Stage change: flush the previous stage's terminal value first
         # so the UI sees e.g. "resolving 100%" before "receiving 1%".
         if not same_stage and prev is not None:
@@ -721,7 +743,7 @@ def _fresh_clone(
     branch: str | None,
     target: Path,
     *,
-    on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
     on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> Path:
@@ -766,14 +788,14 @@ def ensure_clone(
     url: str,
     branch: str | None = None,
     *,
-    on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
     on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> Path:
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
 
-    ``on_progress`` receives ``(stage, percent)`` tuples parsed from git's
+    ``on_progress`` receives the CloneProgress parsed from git's
     ``--progress`` stderr, throttled to ~250ms.
 
     Self-healing: when the update path of an existing clone fails with anything
@@ -857,7 +879,7 @@ def _hydrated_marker(target: Path) -> Path:
 def hydrate_blobs(
     target: Path,
     *,
-    on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
     on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> bool:

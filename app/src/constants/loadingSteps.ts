@@ -66,6 +66,23 @@ const REMOTE_ONLY_STEPS: ReadonlySet<LoadingStep> = new Set([
   LoadingStep.TimelineFetch,
 ]);
 
+/** Git's transfer as the rows show it. It sits on one percent for minutes of a
+ *  big fetch, so the counts beside it are what say the transfer is alive. */
+export function transferTail(p: {
+  percent?: number;
+  objects?: number;
+  objectsTotal?: number;
+  mib?: number;
+}): string | null {
+  const parts: string[] = [];
+  if (p.percent !== undefined) parts.push(`${p.percent}%`);
+  if (p.objects !== undefined && p.objectsTotal !== undefined) {
+    parts.push(`${p.objects.toLocaleString()}/${p.objectsTotal.toLocaleString()}`);
+  }
+  if (p.mib !== undefined) parts.push(`${p.mib.toLocaleString()} MiB`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 /** Whether a step runs at all for this source kind. */
 export function stepRuns(step: LoadingStep, kind: SourceKind | null): boolean {
   return kind !== SourceKind.Local || !REMOTE_ONLY_STEPS.has(step);

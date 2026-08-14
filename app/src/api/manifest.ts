@@ -1,19 +1,7 @@
 // api/manifest.ts — Server-Sent Events reader for /api/manifest responses. The
-// server emits named SSE events (`event: <name>\ndata: <json>\n\n`); we bridge
-// EventSource's push model to an async iterable of ScanStreamEvents.
-//
-// Event variants (server emits in roughly this order):
-//   cloning  — first event for git sources, sent BEFORE the clone
-//              subprocess runs. Carries a server-computed `label` so the UI can
-//              show a "{label} (pending)" header / document title from the moment
-//              the request starts, not from when the manifest finally arrives.
-//              The UI also uses it to light up its "Cloning" step from real
-//              state instead of a wall-clock timer.
-//   scanning — first event for local sources (and the second event for
-//              git sources). Same `label` payload, same UI role.
-//   skeleton — first paint manifest with placeholder building heights.
-//   final    — populated manifest ready for the final tween.
-//   error    — fatal mid-stream failure; client should surface and stop.
+// server emits named SSE events; this bridges EventSource's push model to an
+// async iterable of ScanStreamEvents. The events carry a server-computed
+// `label` so the UI can name the project before any manifest arrives.
 
 import type { Manifest } from '@/types/manifest';
 import type { components } from '@/types/manifest.generated';
@@ -21,11 +9,9 @@ import { URL_PARAMS } from '@/constants/urlParams';
 import { apiUrl } from '@/api/apiUrl';
 
 // ── Endpoint URL builders ────────────────────────────────────────────────
-//
-// Both builders address an EXPLICIT (src, branch) rather than the page URL: a
-// switch hasn't reached the page URL yet at submit time, and the live-update
-// poll targets the committed CURRENT_SOURCE — never the page URL, which lags a
-// load and would make the poll fetch the wrong source mid-switch.
+
+// Both take an EXPLICIT (src, branch), never the page URL: it lags a switch,
+// so the poll would fetch the wrong source mid-load.
 
 /** URL for the manifest stream of an explicit source. */
 export function manifestUrlFor(opts: {
@@ -56,11 +42,8 @@ export function signatureUrlFor(src: string, branch?: string, exclude?: string[]
 
 // ── SSE streaming reader ─────────────────────────────────────────────────
 
-// The phases the SSE scan stream advances through. String values are the wire
-// form the server emits (the SSE event name) and describe what each event
-// delivers — progress vs a manifest at a completeness level — not its position
-// in the sequence. (Distinct from constants/loadingSteps' LoadingStep, which is
-// the user-facing UI step vocabulary.)
+// The phases the stream advances through; values are the wire form. Distinct
+// from LoadingStep, which is the user-facing row vocabulary.
 export enum ScanPhase {
   CloneProgress = 'clone-progress',
   ScanProgress = 'scan-progress',
@@ -69,9 +52,8 @@ export enum ScanPhase {
   Error = 'error',
 }
 
-// git clone sub-phases reported in a CloneProgress event's `stage` field.
-// Values are git's own progress labels (the wire form): Receiving/Resolving/
-// Counting are fetch phases; Updating is the working-tree checkout.
+// git's own progress labels: Receiving/Resolving/Counting are fetch phases,
+// Updating is the working-tree checkout.
 export enum CloneStage {
   Receiving = 'receiving',
   Resolving = 'resolving',
@@ -87,6 +69,11 @@ export type ScanStreamEvent =
       label?: string;
       stage?: CloneStage;
       percent?: number;
+      // Git's own counts. It holds a percent for minutes on a big fetch while
+      // these climb, so they are what shows the transfer is alive.
+      objects?: number;
+      objects_total?: number;
+      mib?: number;
       // Heartbeat during the silent promisor blob fetch: working-tree size on
       // disk (no stage/percent), so the UI shows materialization, not a freeze.
       mb_on_disk?: number;
@@ -96,14 +83,12 @@ export type ScanStreamEvent =
   | { phase: ScanPhase.CompleteManifest; manifest: Manifest }
   | { phase: ScanPhase.Error; error: string; code?: ScanErrorCode };
 
-/** Machine-readable reason on a terminal error, for the cases the UI answers
- *  differently. Keyed on, never on the message text: the wording is the
- *  server's to change. */
+/** Machine-readable reason on a terminal error. Keyed on, never on the message
+ *  text: the wording is the server's to change. */
 export type ScanErrorCode = components['schemas']['ErrorCode'];
 
-/** A stream failure that carries the server's code through the throw, so the
- *  catch that writes SOURCE_ERROR can pass it on. A plain Error would flatten
- *  it back to a string. */
+/** A stream failure carrying the server's code through the throw: a plain
+ *  Error would flatten it back to a string. */
 export class ScanError extends Error {
   readonly code?: ScanErrorCode;
   constructor(message: string, code?: ScanErrorCode) {
@@ -120,19 +105,8 @@ export type ScanProgressEvent = Extract<
   { phase: ScanPhase.CloneProgress | ScanPhase.ScanProgress }
 >;
 
-/**
- * Stream the manifest scan as Server-Sent Events, surfaced as an async
- * iterable of {@link ScanStreamEvent} (same contract the NDJSON reader had,
- * so `pumpManifestStream`/`loadSource`/`setupLiveUpdates` are untouched).
- *
- * EventSource auto-reconnects, so we `es.close()` on `final`/`error` to avoid
- * a reconnect storm once the stream legitimately ends. Server-describable
- * failures arrive as a named `error` event (the server never relies on a 4xx
- * body — EventSource can't read those); a transport drop rejects the stream.
- *
- * The EventSource constructor is injectable for testing (defaults to the
- * browser global).
- */
+/** Stream the manifest scan as an async iterable of {@link ScanStreamEvent}.
+ *  EventSource auto-reconnects, so the stream is closed on final/error. */
 export function streamManifest(
   url: string,
   opts: { signal?: AbortSignal; EventSourceImpl?: typeof EventSource } = {}
@@ -176,17 +150,15 @@ export function streamManifest(
         }
       };
 
-      // Abort: close the stream cleanly (done, not error) so the consumer's
-      // for-await exits without a manifest. loadSource treats signal.aborted as
-      // a user cancel, not a failure.
+      // Closed cleanly (done, not error) so the consumer's for-await exits
+      // without a manifest: loadSource reads signal.aborted as a user cancel.
       if (opts.signal) {
         if (opts.signal.aborted) finish();
         else opts.signal.addEventListener('abort', () => finish(), { once: true });
       }
 
-      // Parse an event's JSON data, ending the stream with an error (rather
-      // than throwing into the swallowed event listener, which would leave the
-      // iterator hanging forever) if the payload is malformed/truncated.
+      // Ends the stream on bad JSON rather than throwing into the listener,
+      // where the throw is swallowed and the iterator hangs forever.
       const parseData = (raw: string): Record<string, unknown> | null => {
         try {
           return JSON.parse(raw) as Record<string, unknown>;
@@ -207,9 +179,8 @@ export function streamManifest(
       on('manifest-partial', ScanPhase.PartialManifest);
       on('manifest-complete', ScanPhase.CompleteManifest);
 
-      // The server's terminal `error` event and EventSource's transport-error
-      // event share the 'error' name. A server event carries a JSON `data`
-      // string; a transport drop is a bare Event with no data.
+      // The server's terminal error and a transport drop share the 'error'
+      // name; only the server's carries a JSON `data` string.
       es.addEventListener('error', (e) => {
         const data = (e as MessageEvent).data;
         if (typeof data === 'string') {

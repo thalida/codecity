@@ -22,12 +22,14 @@ export interface ScanProgress {
   /** Working-tree size on disk (MB) during the silent promisor blob fetch —
    *  a clone-progress heartbeat with no stage/percent. */
   mbOnDisk?: number;
+  /** Git's own counts for the clone, where its line carried them. */
+  objects?: number;
+  objectsTotal?: number;
+  mib?: number;
   /** Files scanned so far when phase === Scanning. */
   filesScanned?: number;
-  /** `pending` of the manifest most recently APPLIED this load (set after the
-   *  apply is kicked off, so REBUILD_STATUS already reflects it). Absent until
-   *  the load's first manifest event — which is what makes it per-load: a
-   *  previous repo's finished manifest can't leak in. */
+  /** `pending` of the manifest most recently APPLIED this load. Absent until
+   *  its first manifest event, so a previous repo's can't leak in. */
   appliedPending?: Manifest['pending'];
 }
 

@@ -45,6 +45,7 @@ from api.cache import (
 )
 from api.git import (
     BranchNotFoundError,
+    CloneProgress,
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
@@ -158,14 +159,17 @@ async def timeline(
                 data["percent"] = payload.get("percent")
             _put(_sse(TimelineEvent.PROGRESS, data))
 
-        def _on_hydrate(payload: tuple[str, int]) -> None:
-            # git fetch (stage, percent) → the "downloading history" tick.
+        def _on_hydrate(p: CloneProgress) -> None:
+            # git fetch → the "downloading history" tick, counts and all.
             _put(
                 _sse(
                     TimelineEvent.PROGRESS,
                     {
                         "stage": TimelineStage.FETCH,
-                        "percent": payload[1],
+                        "percent": p.percent,
+                        "objects": p.objects,
+                        "objectsTotal": p.objects_total,
+                        "mib": p.mib,
                         "label": pending_label,
                     },
                 )
@@ -348,15 +352,17 @@ async def manifest(
         def _put(item: dict[str, Any] | None) -> None:
             loop.call_soon_threadsafe(q.put_nowait, item)
 
-        def _on_clone(payload: tuple[str, int]) -> None:
-            stage, percent = payload
+        def _on_clone(p: CloneProgress) -> None:
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
                         "label": pending_label,
-                        "stage": stage,
-                        "percent": percent,
+                        "stage": p.stage,
+                        "percent": p.percent,
+                        "objects": p.objects,
+                        "objects_total": p.objects_total,
+                        "mib": p.mib,
                     },
                 )
             )
