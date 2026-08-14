@@ -3,7 +3,7 @@
 // that need world / picker / rig read SCENE_HANDLE.value?.world etc.
 // Null until CenterPane's useEffect resolves.
 
-import { signal } from '@preact/signals';
+import { signal, effect } from '@preact/signals';
 import type { createCity } from '../../city';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './ui';
 import { IS_PHONE } from './viewport';
@@ -11,6 +11,21 @@ import { IS_PHONE } from './viewport';
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
+
+/** Resolves once the city exists. A boot load can outrun createCity, and a load
+ *  that finds no handle has nowhere to put its city. */
+export function whenSceneHandle(): Promise<SceneHandle> {
+  const ready = SCENE_HANDLE.peek();
+  if (ready) return Promise.resolve(ready);
+  return new Promise((resolve) => {
+    const stop = effect(() => {
+      const handle = SCENE_HANDLE.value;
+      if (!handle) return;
+      resolve(handle);
+      queueMicrotask(() => stop());
+    });
+  });
+}
 
 /** Phone: the left drawer covers the city, so a camera move behind it is one you
  *  can't see. It's the whole screen there and a column everywhere else. */
@@ -100,6 +115,15 @@ export function showCommit(sha: string): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByCommit(sha);
+  openSelectionPane();
+}
+
+/** showCommit for a file or directory: pick it out and open its details without
+ *  moving the camera, for a selection restored from the URL rather than asked for. */
+export function showPath(path: string): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByPath(path);
   openSelectionPane();
 }
 

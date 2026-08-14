@@ -5,8 +5,8 @@
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE, SOURCE_INFO } from '@/state/stores/source';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource } from '@/state/stores/source';
+import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/scene';
 import { markError, markRebuilding, setRebuildDetail } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
@@ -26,14 +26,20 @@ import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
   SCRUB_POS,
+  SCRUB_MAX,
   resetTimelineMode,
-  enterTimelineMode,
+  beginTimelineMode,
   setScrubPos,
 } from '@/state/stores/timeline';
-import { loadSource, cancelLoad, setTimelineRefreshHandler } from '@/hooks/useManifestSource';
+import {
+  loadSource,
+  cancelLoad,
+  setTimelineRefreshHandler,
+  setTimelineBootHandler,
+} from '@/hooks/useManifestSource';
 import { activeExcludePathsFor } from '@/state/stores/excludes';
 import { TimelineStage } from '@/types';
-import type { Manifest, TimelineProgress } from '@/types';
+import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
@@ -48,18 +54,23 @@ function timelineStageTail(p: TimelineProgress): string | null {
   return null;
 }
 
-// `inPlace` is the already-in-Timeline refetch: it holds the scrub and stays in
-// Timeline on error. `overlay` is whether it takes the screen while it runs.
-export async function loadTimelineScene({
+/** Load a source in Timeline: its own call and manifest, committed the way Live
+ *  commits its scan. `inPlace` is the refetch that holds the scrub. */
+export async function loadTimelineSource({
+  src,
+  branch,
+  commit,
   inPlace = false,
   noCache = false,
   overlay = !inPlace,
-} = {}): Promise<void> {
-  const cur = CURRENT_SOURCE.peek();
-  if (!cur) return;
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-
+}: {
+  src: string;
+  branch?: string;
+  commit?: string;
+  inPlace?: boolean;
+  noCache?: boolean;
+  overlay?: boolean;
+}): Promise<void> {
   const abort = new AbortController();
   let cancelled = false;
   let committed = false;
@@ -70,17 +81,21 @@ export async function loadTimelineScene({
   if (overlay) {
     // Cancelling keeps whatever is on screen: nothing is touched until the pack
     // below sets `committed`.
-    PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
-    showLoadingOverlay(
-      { kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS },
-      () => {
-        if (committed) return;
-        cancelled = true;
-        abort.abort();
-        hideLoadingOverlay();
-      }
-    );
+    PENDING_SOURCE_LABEL.value =
+      SOURCE_INFO.peek().label || RECENTS.peek().find((r) => r.src === src)?.label || null;
+    showLoadingOverlay({ kind: srcKind(src), branch, steps: TIMELINE_LOADING_STEPS }, () => {
+      if (committed) return;
+      cancelled = true;
+      abort.abort();
+      hideLoadingOverlay();
+    });
   }
+
+  // A cold boot can outrun the city it packs into; a refetch can't, so no handle
+  // there means nothing to refetch and waiting would hang the overlay.
+  if (inPlace && !SCENE_HANDLE.peek()) return;
+  const handle = await whenSceneHandle();
+  if (cancelled) return;
 
   // One row per server stage, so a stall is attributable to the stage it is in
   // and the rows below say what is still to come.
@@ -96,9 +111,9 @@ export async function loadTimelineScene({
   };
 
   try {
-    const bundle = await fetchTimelineBundle(cur.src, cur.branch, onProgress, {
+    const bundle = await fetchTimelineBundle(src, branch, onProgress, {
       signal: abort.signal,
-      exclude: activeExcludePathsFor(cur.src),
+      exclude: activeExcludePathsFor(src),
       noCache,
     });
     if (cancelled) return; // user backed out during the fetch — live view stands
@@ -106,15 +121,22 @@ export async function loadTimelineScene({
     TIMELINE_BUNDLE.value = bundle;
     const timelines = buildPathTimelines(bundle);
     if (overlay) setLoadingStep(LoadingStep.Building);
-    // unionManifest is the generated Manifest; the packer reads it structurally.
-    await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
+    markRebuilding();
+    // Before the manifest: the mode is what tells the scene layer whose city to
+    // pack, and the commit below would otherwise land as a live one.
+    beginTimelineMode();
+    // The bundle's union manifest is a Manifest like any other — repo info,
+    // commits, signals — so the panes, header and tree read Timeline's own.
+    const manifest = bundle.unionManifest as unknown as Manifest;
+    commitSource(src, branch, manifest);
+    await handle.applyManifest(manifest);
     // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);
     handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
-    // An in-place refetch holds position (self-clamping if the bundle shrank);
-    // a fresh enter starts at the present.
-    enterTimelineMode(inPlace ? SCRUB_POS.peek() : undefined);
+    // A refetch holds position (self-clamping if the bundle shrank), a named
+    // commit rests on it, and anything else opens at the present.
+    setScrubPos(scrubTarget(bundle, commit, inPlace));
     if (overlay) {
       // Hold the overlay through the union city's first painted frame, then reveal.
       requestAnimationFrame(() => {
@@ -140,16 +162,44 @@ export async function loadTimelineScene({
   }
 }
 
+/** Where the scrubber lands. An unknown sha falls through to the present rather
+ *  than erroring: the union cap can drop one, and a link can go stale. */
+function scrubTarget(bundle: TimelineBundle, commit: string | undefined, inPlace: boolean): number {
+  if (commit) {
+    const idx = bundle.commits.findIndex((c) => c.sha === commit);
+    if (idx >= 0) return idx;
+  }
+  return inPlace ? SCRUB_POS.peek() : SCRUB_MAX.peek();
+}
+
+/** Enter Timeline for the source already open. */
+export function loadTimelineScene(
+  opts: {
+    inPlace?: boolean;
+    noCache?: boolean;
+    overlay?: boolean;
+    commit?: string;
+  } = {}
+): Promise<void> {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return Promise.resolve();
+  return loadTimelineSource({ src: cur.src, branch: cur.branch, ...opts });
+}
+
 // A refresh in Timeline → refetch the bundle, not a HEAD re-scan. A callback
 // because a direct import was a cycle; registered before the mode can turn on.
 setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }));
+
+// The boot path, for the same reason. `?mode=timeline` loads the bundle and
+// nothing else: Live's scan is a different view's load, and it can wait for one.
+setTimelineBootHandler((payload) => loadTimelineSource(payload));
 
 // Enter Timeline if it isn't on, then scrub to the commit. No-op if the sha
 // isn't in the bundle (the union cap can drop one) or the mode failed to engage.
 export async function viewCommitInTimeline(sha: string): Promise<void> {
   if (!TIMELINE_MODE.peek()) {
-    await loadTimelineScene();
-    if (!TIMELINE_MODE.peek()) return; // enter failed; the error is surfaced already
+    await loadTimelineScene({ commit: sha });
+    return; // the load rests on the commit itself; a failure is surfaced already
   }
   const bundle = TIMELINE_BUNDLE.peek();
   if (!bundle) return;

@@ -15,7 +15,8 @@ import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
   SCRUB_POS,
-  enterTimelineMode,
+  beginTimelineMode,
+  setScrubPos,
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
@@ -89,7 +90,9 @@ export function useSwitcherShowcase(): void {
               const { bundle, scrubPos } = savedTimeline;
               TIMELINE_BUNDLE.value = bundle;
               void reapplyTimelineScene().then(() => {
-                if (!active) enterTimelineMode(scrubPos);
+                if (active) return; // a switcher reopened meanwhile owns the mode
+                beginTimelineMode();
+                setScrubPos(scrubPos);
               });
             }
           }

@@ -16,7 +16,7 @@ import {
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
+import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
@@ -25,7 +25,7 @@ import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { URL_PARAMS } from '@/constants/urlParams';
+import { readBootView, type BootView } from '@/state/bootView';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
@@ -94,6 +94,16 @@ export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
   timelineRefresh = fn;
 }
 
+/** The Timeline boot: `?mode=timeline` loads the history bundle instead of a
+ *  HEAD scan, and commits its own manifest. Injected for the same cycle reason. */
+type TimelineBoot = (payload: { src: string; branch?: string; commit?: string }) => Promise<void>;
+
+let timelineBoot: TimelineBoot | null = null;
+
+export function setTimelineBootHandler(fn: TimelineBoot | null): void {
+  timelineBoot = fn;
+}
+
 // ── Single-writer generation guard ───────────────────────────────────
 
 // Every write is gated on "am I still the current generation?", so a newer load
@@ -155,10 +165,8 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       setManifest(prevManifest);
       return;
     }
-    // Before the final manifest: the camera-reframe reaction reads
-    // CURRENT_SOURCE at apply-start, and only the final apply may reframe.
-    setCurrentSource(payload.src, branch, manifest);
-    setManifest(manifest);
+    // One commit point, whichever view loaded it: source, recents, manifest.
+    commitSource(payload.src, branch, manifest);
   } catch (err) {
     if (myGen !== loadGeneration) return; // superseded — its error isn't current
     if (controller.signal.aborted) {
@@ -330,6 +338,18 @@ export function setupLiveUpdates(): () => void {
   };
 }
 
+/** The boot load, in the mode the URL asks for. A Timeline boot that fails to
+ *  engage falls through to Live, so the page lands on a working city. */
+export async function bootLoad(boot: BootView): Promise<void> {
+  const src = boot.src;
+  if (!src) return;
+  if (boot.timeline && timelineBoot) {
+    await timelineBoot({ src, branch: boot.branch, commit: boot.commit ?? undefined });
+    if (TIMELINE_MODE.peek()) return;
+  }
+  await loadSource({ src, branch: boot.branch });
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────
 
 /** Boot the fetch pipeline on mount, and hand App the submit/refresh/cancel
@@ -350,14 +370,10 @@ export function useManifestSource(): {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
     (async () => {
-      const qp = new URLSearchParams(window.location.search);
-      const bootSrc = qp.get(URL_PARAMS.SRC);
-      const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
       // No ?branch is not an incomplete request: the server resolves origin's
       // default branch when none is pinned.
-      if (bootSrc) {
-        await loadSource({ src: bootSrc, branch: bootBranch });
-      }
+      const boot = readBootView();
+      if (boot.src) await bootLoad(boot);
       if (cancelled) return;
 
       // Independent boot reads, so they go out together rather than making the

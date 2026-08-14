@@ -50,6 +50,9 @@ export function City() {
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
+        // Live's bridge from manifest to scene; Timeline packs its own union
+        // city. Peeked, so leaving the mode doesn't repack what it committed.
+        if (TIMELINE_MODE.peek()) return;
         markRebuilding();
         void handle.applyManifest(m).catch(markError);
       });

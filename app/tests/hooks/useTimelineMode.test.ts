@@ -26,9 +26,13 @@ import { fetchTimelineBundle } from '@/api/timeline';
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
+// repo, like the server's union manifest carries: Timeline commits this as the
+// manifest the header and panes read, so a bare tree is not a fixture of one.
+const UNION_REPO = { branch: 'main', remote_url: null, head_sha: 'c', dirty: false };
+
 const BUNDLE = {
   commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
-  unionManifest: { tree: { name: 'r' }, stats: {} },
+  unionManifest: { tree: { name: 'r' }, stats: {}, repo: UNION_REPO },
   deltas: [],
   blobLines: {},
   blobSizes: {},
@@ -357,7 +361,7 @@ describe('loadTimelineScene inPlace refetch', () => {
   it('refetches the bundle with the current excludes, re-packs, and holds SCRUB_POS', async () => {
     const NEXT = {
       ...BUNDLE,
-      unionManifest: { tree: { name: 'r2' }, stats: {} },
+      unionManifest: { tree: { name: 'r2' }, stats: {}, repo: UNION_REPO },
     } as unknown as TimelineBundle;
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
     const f = fakeHandle();

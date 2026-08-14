@@ -79,13 +79,12 @@ effect(() => {
   });
 });
 
-// Every entry path, called only once the union city is packed: flipping the mode
-// before that leaves Timeline pointed at live geometry. `pos` defaults to the present.
-export function enterTimelineMode(pos?: number): void {
+// Called BEFORE the union city is packed: the mode tells the scene layer whose
+// city to pack. The position follows, once its bundle is loaded.
+export function beginTimelineMode(): void {
   batch(() => {
     TIMELINE_MODE.value = true;
     _todayMs.value = Date.now();
-    setScrubPos(pos ?? SCRUB_MAX.peek());
   });
 }
 

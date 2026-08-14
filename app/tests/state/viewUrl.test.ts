@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// The restore commands, stubbed: what is asserted is which one the boot view
-// asks for, not what a real city does with it.
-vi.mock('@/hooks/useTimelineMode', () => ({
-  loadTimelineScene: vi.fn().mockResolvedValue(undefined),
-  viewCommitInTimeline: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('@/state/stores/scene', () => ({ goToPath: vi.fn(), goToCommit: vi.fn() }));
+// The restore commands, stubbed: what is asserted is that the URL's selection
+// is put back, not what a real city does with it.
+vi.mock('@/state/stores/scene', () => ({ showPath: vi.fn(), showCommit: vi.fn() }));
 
 import { attachViewUrlReactions } from '@/state/viewUrl';
-import { loadTimelineScene, viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { goToPath, goToCommit } from '@/state/stores/scene';
+import { showPath, showCommit } from '@/state/stores/scene';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
@@ -178,57 +173,26 @@ describe('view URL', () => {
   describe('restore', () => {
     it('selects the file the URL names, once the city is built', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
-      expect(goToPath).not.toHaveBeenCalled(); // no city yet — nothing to select in
+      expect(showPath).not.toHaveBeenCalled(); // no city yet — nothing to select in
 
       commitWorld();
       await flush();
-      expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx');
+      expect(showPath).toHaveBeenCalledWith('app/src/main.tsx');
     });
 
     it('goes to the commit a commit selection names', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
       commitWorld();
       await flush();
-      expect(goToCommit).toHaveBeenCalledWith('abc123');
-    });
-
-    it('enters Timeline at the commit the URL pins', async () => {
-      attach('?src=%2Frepos%2Fcodecity&mode=timeline&commit=abc123');
-      commitWorld();
-      await flush();
-      expect(viewCommitInTimeline).toHaveBeenCalledWith('abc123');
-      expect(loadTimelineScene).not.toHaveBeenCalled();
-    });
-
-    it('enters Timeline at the present when the URL pins no commit', async () => {
-      attach('?src=%2Frepos%2Fcodecity&mode=timeline');
-      commitWorld();
-      await flush();
-      expect(loadTimelineScene).toHaveBeenCalled();
-      expect(viewCommitInTimeline).not.toHaveBeenCalled();
-    });
-
-    it('restores the selection after the Timeline entry that repacks the city', async () => {
-      const order: string[] = [];
-      vi.mocked(viewCommitInTimeline).mockImplementation(async () => {
-        order.push('timeline');
-      });
-      vi.mocked(goToPath).mockImplementation(() => {
-        order.push('selection');
-      });
-
-      attach('?src=%2Frepos%2Fcodecity&mode=timeline&commit=abc123&sel=file:a.ts');
-      commitWorld();
-      await flush();
-      expect(order).toEqual(['timeline', 'selection']);
+      expect(showCommit).toHaveBeenCalledWith('abc123');
     });
 
     it('ignores a selection it cannot read, and drops it from the URL', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=nonsense');
       commitWorld();
       await flush();
-      expect(goToPath).not.toHaveBeenCalled();
-      expect(goToCommit).not.toHaveBeenCalled();
+      expect(showPath).not.toHaveBeenCalled();
+      expect(showCommit).not.toHaveBeenCalled();
       expect(params().has('sel')).toBe(false);
     });
 
@@ -236,7 +200,7 @@ describe('view URL', () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
       commitWorld('/repos/somewhere-else');
       await flush();
-      expect(goToPath).not.toHaveBeenCalled();
+      expect(showPath).not.toHaveBeenCalled();
       expect(params().has('sel')).toBe(false);
     });
 
@@ -248,51 +212,27 @@ describe('view URL', () => {
       CURRENT_SOURCE.value = { src: SRC, branch: undefined };
       MANIFEST.value = LOADED;
       await flush();
-      expect(goToPath).not.toHaveBeenCalled();
+      expect(showPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
       REBUILD_STATUS.value = RebuildStatus.Rebuilding;
       REBUILD_STATUS.value = RebuildStatus.Decorating;
       await flush();
-      expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx');
+      expect(showPath).toHaveBeenCalledWith('app/src/main.tsx');
     });
 
     // A remount is not a boot: re-entering Timeline on the city already
     // restored into refetches the history bundle and repacks it for nothing.
     it('does not restore a second time when the app remounts', async () => {
-      vi.mocked(loadTimelineScene).mockImplementation(async () => {
-        TIMELINE_MODE.value = true;
-      });
-      attach('?src=%2Frepos%2Fcodecity&mode=timeline');
+      attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
       commitWorld();
       await flush();
-      expect(loadTimelineScene).toHaveBeenCalledTimes(1);
-      expect(params().get('mode')).toBe('timeline');
+      expect(showPath).toHaveBeenCalledTimes(1);
 
       dispose?.();
       dispose = attachViewUrlReactions();
       await flush();
-      expect(loadTimelineScene).toHaveBeenCalledTimes(1);
-    });
-
-    it('holds its own params until the restore lands', async () => {
-      let release: () => void = () => {};
-      vi.mocked(loadTimelineScene).mockImplementation(
-        () => new Promise<void>((r) => (release = r))
-      );
-
-      attach('?src=%2Frepos%2Fcodecity&mode=timeline&sel=file:app/src/main.tsx');
-      commitWorld();
-      await flush();
-      // Mid-restore the live city is still on screen with nothing selected;
-      // reflecting that would erase the view being restored.
-      expect(params().get('mode')).toBe('timeline');
-      expect(params().get('sel')).toBe('file:app/src/main.tsx');
-
-      release();
-      await flush();
-      // Restore done: the URL now says what is actually on screen.
-      expect(params().has('mode')).toBe(false);
+      expect(showPath).toHaveBeenCalledTimes(1);
     });
   });
 });
