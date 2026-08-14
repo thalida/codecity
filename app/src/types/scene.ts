@@ -69,10 +69,3 @@ export interface StayingBuilding {
   oldPosY?: number;
   oldPosZ?: number;
 }
-
-/** What the showcase orbit's radius is a multiple of. */
-export enum ShowcaseAnchor {
-  Gem = 'gem',
-  Island = 'island',
-  City = 'city',
-}

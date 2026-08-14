@@ -27,13 +27,12 @@ import { SHOWCASE } from '@/state/stores/settings/showcase';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { showcaseRadius } from './showcaseRadius';
-import { ShowcaseAnchor } from '@/types';
 
 // The showcase fields that PLACE the camera. Rotation speed is out: dragging it
 // mid-spin should change the speed, not yank the orbit back to its start azimuth.
 const SHOWCASE_POSE = computed(() => {
   const s = SHOWCASE.value;
-  return `${s.ELEVATION}|${s.AZIMUTH}|${s.ANCHOR}|${s.DISTANCE}`;
+  return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
 });
 
 /** A snapshot of the user's camera, restored verbatim on switcher dismiss. */
@@ -541,19 +540,18 @@ export function createCameraRig({
     _snapTo(pose.target, pose.position, pose.up);
   }
 
-  /** The radius the showcase orbits the gem at: the configured multiple of
-   *  whatever it is measured around (see showcaseRadius). */
-  function _showcaseRadius(anchor: ShowcaseAnchor, distance: number): number {
+  /** Where the showcase orbit sits, 0 (on the gem) to 1 (the whole city). */
+  function _showcaseRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
-    return showcaseRadius(anchor, distance, controls.minDistance, {
+    return showcaseRadius(distance, controls, {
       gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, GEM_SIZING.value) : null,
       worldBounds: cityState.latestWorldBounds.value,
       sceneBbox: cityState.sceneBbox.value,
     });
   }
 
-  /** A ground-level orbit circling the root gem, at a multiple of the city's
-   *  own geometry: every project is framed in proportion to its size. */
+  /** A ground-level orbit circling the root gem, sized from the city's own
+   *  geometry so every project is framed in proportion. */
   function enterShowcase({ autoRotate }: { autoRotate: boolean }): void {
     showcaseMode = { autoRotate };
     // Off across the snap: _snapTo ends in controls.update(), which would advance
@@ -570,7 +568,7 @@ export function createCameraRig({
       const target = gem.clone();
       _snapTo(
         target,
-        target.clone().addScaledVector(dir, _showcaseRadius(showcase.ANCHOR, showcase.DISTANCE)),
+        target.clone().addScaledVector(dir, _showcaseRadius(showcase.DISTANCE)),
         new THREE.Vector3(0, 1, 0)
       );
     }

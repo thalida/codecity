@@ -22,7 +22,6 @@ export const VIEW_SECTION: SectionNode = {
       children: [
         field(SHOWCASE, 'ELEVATION'),
         field(SHOWCASE, 'AZIMUTH'),
-        field(SHOWCASE, 'ANCHOR'),
         field(SHOWCASE, 'DISTANCE'),
         field(SHOWCASE, 'ROTATE_SPEED'),
       ],

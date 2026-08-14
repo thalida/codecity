@@ -2,7 +2,6 @@
 // featured city drive the world into: a ground-level orbit circling the root
 // gem. All Live-routed: no rebuild reaction, the rig drives the update itself.
 
-import { ShowcaseAnchor } from '@/types';
 import {
   settingSignal,
   FieldKind,
@@ -10,12 +9,6 @@ import {
   type ConfigOf,
   type FieldMap,
 } from '@/state/settingsSchema';
-
-const ANCHOR_OPTIONS = [
-  { value: ShowcaseAnchor.Gem, label: 'Gem' },
-  { value: ShowcaseAnchor.Island, label: 'Island edge' },
-  { value: ShowcaseAnchor.City, label: 'City extent' },
-];
 
 const SHOWCASE_FIELDS = {
   ELEVATION: {
@@ -38,23 +31,15 @@ const SHOWCASE_FIELDS = {
     label: 'Azimuth',
     tip: 'Where the orbit starts out, off the main street axis. Auto-rotate carries it around from there.',
   },
-  ANCHOR: {
-    route: ChangeRoute.Live,
-    kind: FieldKind.Select,
-    default: ShowcaseAnchor.Island,
-    options: ANCHOR_OPTIONS,
-    label: 'Measured against',
-    tip: 'What one unit of orbit radius is worth: the gem itself, the island edge, or the whole built extent.',
-  },
   DISTANCE: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
     default: 1,
-    min: 0.1,
-    max: 3,
+    min: 0,
+    max: 2,
     step: 0.05,
     label: 'Orbit radius',
-    tip: 'Multiples of what the radius is measured against, so every project is framed in proportion to its own size.',
+    tip: 'How far out the turntable circles the gem: 0 sits on the gem itself, 1 frames the whole city, 2 pulls back twice that. In proportion to the project, so it means the same thing on any repo, and capped by how far the world lets you pull back.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,

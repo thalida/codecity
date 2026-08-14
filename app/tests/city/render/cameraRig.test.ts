@@ -8,7 +8,6 @@ import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
 import type { CityState } from '@/city/state';
-import { ShowcaseAnchor } from '@/types';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { SHOWCASE } from '@/state/stores/settings/showcase';
@@ -18,8 +17,21 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
-// The rig frames off cityState, so seed a real bbox + root street. X/Z lengths
-// matter to the showcase: the island anchor is the shorter half-extent.
+// The slider's arithmetic over the city under test: gem at 0, city edge at 1.
+function showcaseEnds(
+  cs: CityState,
+  rig: { controls: { minDistance: number; maxDistance: number } },
+  t: number
+): number {
+  const street = cs.rootStreet.value as { width: number };
+  const bbox = cs.sceneBbox.value as { width: number; depth: number };
+  const near = gemRadiusFor(street.width, GEM_SIZING.value);
+  const far = Math.max(bbox.width, bbox.depth) / 2;
+  const radius = near + (far - near) * t;
+  return Math.min(Math.max(radius, rig.controls.minDistance), rig.controls.maxDistance);
+}
+
+// The rig frames off cityState, so seed a real bbox and root street.
 function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CityState {
   const cs = makeCityState();
   cs.layout.value = {
@@ -225,64 +237,61 @@ describe('cameraRig showcase orbit', () => {
     SHOWCASE.value = { ...getDefault(SHOWCASE) };
   });
 
-  it('circles the gem at the configured elevation, a multiple out', () => {
+  it('circles the gem at the configured elevation, part way out', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    SHOWCASE.value = {
-      ...SHOWCASE.value,
-      ELEVATION: 12,
-      ANCHOR: ShowcaseAnchor.Island,
-      DISTANCE: 0.5,
-    };
+    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: 0.5 };
 
     rig.enterShowcase({ autoRotate: false });
 
-    const bounds = cs.latestWorldBounds.value as { halfWidth: number; halfDepth: number };
-    const island = Math.min(bounds.halfWidth, bounds.halfDepth);
     // The pivot is the gem itself (ground level), not a point up the skyline.
     expect(rig.controls.target.distanceTo(gem)).toBeCloseTo(0, 5);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(island * 0.5, 3);
+    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(showcaseEnds(cs, rig, 0.5), 3);
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(12, 3);
   });
 
-  // The widest circle a rectangular floor contains is its SHORTER half-extent,
-  // so a long thin island orbits by its width or the camera leaves the land.
-  it('measures the island by its shorter half-extent', () => {
+  // The two ends of the one slider: on the gem, and out at the city's own edge.
+  it('runs from the gem itself out to the whole city', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    const bounds = cs.latestWorldBounds.value as { halfWidth: number; halfDepth: number };
-    // The fixture has to be lopsided, or the assertion below is vacuous.
-    expect(bounds.halfWidth).toBeLessThan(bounds.halfDepth);
-    SHOWCASE.value = { ...SHOWCASE.value, ANCHOR: ShowcaseAnchor.Island, DISTANCE: 1 };
-
-    rig.enterShowcase({ autoRotate: false });
-
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(bounds.halfWidth, 3);
-  });
-
-  // The same multiple on the same city, measured around different things: the
-  // city extent clears the whole build, the gem is a close hero shot.
-  it('orbits the city extent and the gem itself at their own scales', () => {
-    const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
-    const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const street = cs.rootStreet.value as { width: number };
     const bbox = cs.sceneBbox.value as { width: number; depth: number };
 
-    SHOWCASE.value = { ...SHOWCASE.value, ANCHOR: ShowcaseAnchor.City, DISTANCE: 1 };
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 0 };
     rig.enterShowcase({ autoRotate: false });
-    const cityRadius = Math.max(bbox.width, bbox.depth) / 2;
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(cityRadius, 3);
-
-    SHOWCASE.value = { ...SHOWCASE.value, ANCHOR: ShowcaseAnchor.Gem, DISTANCE: 2 };
-    rig.enterShowcase({ autoRotate: false });
-    const street = cs.rootStreet.value as { width: number };
     const gemRadius = gemRadiusFor(street.width, GEM_SIZING.value);
     expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(
-      Math.max(gemRadius * 2, rig.controls.minDistance),
+      Math.max(gemRadius, rig.controls.minDistance),
       3
     );
+
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 1 };
+    rig.enterShowcase({ autoRotate: false });
+    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(
+      Math.max(bbox.width, bbox.depth) / 2,
+      3
+    );
+  });
+
+  // Past 1 pulls back beyond the city, but no further than a hand-driven camera
+  // could: the world's own zoom-out limit still holds.
+  it('goes past the city, and no further than the world allows', () => {
+    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+    const rig = makeRig(cs);
+    const gem = cs.gemWorldPos.value as THREE.Vector3;
+
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 1 };
+    rig.enterShowcase({ autoRotate: false });
+    const framed = rig.camera.position.distanceTo(gem);
+
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 2 };
+    rig.enterShowcase({ autoRotate: false });
+    const pulledBack = rig.camera.position.distanceTo(gem);
+
+    expect(pulledBack).toBeGreaterThan(framed);
+    expect(pulledBack).toBeLessThanOrEqual(rig.controls.maxDistance + 1e-6);
   });
 
   it('re-frames live when a pose slider is dragged mid-showcase', () => {
@@ -291,17 +300,10 @@ describe('cameraRig showcase orbit', () => {
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     rig.enterShowcase({ autoRotate: false });
 
-    SHOWCASE.value = {
-      ...SHOWCASE.value,
-      ELEVATION: 45,
-      ANCHOR: ShowcaseAnchor.Island,
-      DISTANCE: 0.75,
-    };
+    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 0.75 };
 
-    const bounds = cs.latestWorldBounds.value as { halfWidth: number; halfDepth: number };
-    const island = Math.min(bounds.halfWidth, bounds.halfDepth);
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(island * 0.75, 3);
+    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(showcaseEnds(cs, rig, 0.75), 3);
   });
 
   it('leaves the camera alone when a slider moves outside the showcase', () => {

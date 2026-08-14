@@ -1,46 +1,41 @@
 // city/render/showcaseRadius.ts — how far the showcase orbit sits from the gem.
-// A multiple of whatever it is measured around, so every project is framed in
-// proportion to its own size rather than at one absolute distance that suits
-// only the repo it was tuned on.
+// One number off the city's own geometry rather than an absolute distance, so
+// the same setting means the same thing on a ten-file repo and a ten-thousand
+// -file one, and no project is framed by accident.
 
-import { ShowcaseAnchor } from '@/types';
 import type { WorldBounds } from '@/city/utils/floorBounds';
 import type { CityBbox } from '@/types';
 
-export interface ShowcaseAnchorGeometry {
+export interface ShowcaseGeometry {
   /** The gem's own radius, from the layout. */
   gemRadius: number | null;
-  /** The island floor the city stands on. */
+  /** The island floor, standing in before a city is built. */
   worldBounds: WorldBounds | null;
-  /** The built city's own extent. */
+  /** The built city's extent. */
   sceneBbox: CityBbox | null;
 }
 
-/** The radius one multiple of `anchor` is worth, or null when the geometry it
- *  measures isn't built yet. */
-export function anchorRadius(
-  anchor: ShowcaseAnchor,
-  geometry: ShowcaseAnchorGeometry
-): number | null {
-  if (anchor === ShowcaseAnchor.Gem) return geometry.gemRadius;
-  if (anchor === ShowcaseAnchor.Island) {
-    const b = geometry.worldBounds;
-    // The widest circle a rectangular floor contains is its shorter half-extent.
-    return b ? Math.min(b.halfWidth, b.halfDepth) : null;
-  }
+/** The radius at 0 (on the gem) and at 1 (the city's own edge). */
+function _ends(geometry: ShowcaseGeometry): { near: number; far: number } | null {
   const bbox = geometry.sceneBbox;
-  // The circle that clears the whole city, so one multiple always contains it.
-  return bbox ? Math.max(bbox.width, bbox.depth) / 2 : null;
+  const bounds = geometry.worldBounds;
+  const far = bbox
+    ? Math.max(bbox.width, bbox.depth) / 2
+    : bounds
+      ? Math.max(bounds.halfWidth, bounds.halfDepth)
+      : null;
+  return far === null ? null : { near: geometry.gemRadius ?? far, far };
 }
 
-/** `distance` multiples of the anchor, never closer than the controls allow.
- *  With no geometry to scale, the floor stands in, so the orbit is never zero. */
+/** `t` from 0 (on the gem) through 1 (the whole city) and past it, held inside
+ *  the same limits a hand-driven camera has. */
 export function showcaseRadius(
-  anchor: ShowcaseAnchor,
-  distance: number,
-  minDistance: number,
-  geometry: ShowcaseAnchorGeometry
+  t: number,
+  limits: { minDistance: number; maxDistance: number },
+  geometry: ShowcaseGeometry
 ): number {
-  const base = anchorRadius(anchor, geometry);
-  return Math.max(base === null ? minDistance : base * distance, minDistance);
+  const ends = _ends(geometry);
+  if (!ends) return limits.minDistance;
+  const radius = ends.near + (ends.far - ends.near) * Math.max(t, 0);
+  return Math.min(Math.max(radius, limits.minDistance), limits.maxDistance);
 }
