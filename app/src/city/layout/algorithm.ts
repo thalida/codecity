@@ -281,7 +281,10 @@ function _layoutDir(
    *  (covering the parent's full road body, not just the extent at this
    *  recursion's start). Undefined at the top-level call where no parent
    *  body exists. */
-  parentFinalAlongReach?: number
+  parentFinalAlongReach?: number,
+  /** Ticked once per committed child, at every depth — the packer's only
+   *  progress signal. See layoutCity. */
+  onPlaced?: () => void
 ): void {
   // ----- Tunables (one .value per call) -----
   const streetLayout = STREET_LAYOUT.value;
@@ -470,7 +473,8 @@ function _layoutDir(
         localOccupancy,
         reachCache,
         trace,
-        myReaches?.alongReach
+        myReaches?.alongReach,
+        onPlaced
       );
 
       // Build child-local rect list from the subtree result. These are the
@@ -578,6 +582,9 @@ function _layoutDir(
       const boundaryHigh = placed.stem + childResult.alongReach;
       if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
     }
+    // One tick per child, whichever branch placed it. A subdir's own tick comes
+    // after its subtree's, so the count only ever climbs.
+    onPlaced?.();
   }
 
   // ----- Emit own main street -----
@@ -628,8 +635,10 @@ function _layoutDir(
 //
 // `color` starts as null — the renderer must call getBuildingColor before drawing.
 // -----------------------------------------------------------------------------
-export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
-  return _layoutCityInternal(manifest, undefined).layout;
+/** @param onPlaced Called once per node as the packer commits it, so a caller
+ *  that knows the node count can turn the pack into a percent. */
+export function layoutCity(manifest: ManifestLike | DirLike, onPlaced?: () => void): CityLayout {
+  return _layoutCityInternal(manifest, undefined, onPlaced).layout;
 }
 
 // layoutCityWithTrace — same layout output, plus a StemPlacementTrace
@@ -644,7 +653,8 @@ export function layoutCityWithTrace(manifest: ManifestLike | DirLike): {
 
 function _layoutCityInternal(
   manifest: ManifestLike | DirLike,
-  trace: StemPlacementTrace | undefined
+  trace: StemPlacementTrace | undefined,
+  onPlaced?: () => void
 ): { layout: CityLayout; trace: StemPlacementTrace } {
   const tree = ((manifest as { tree?: DirLike }).tree ?? manifest) as DirLike;
   const result: CityLayout = {
@@ -685,7 +695,9 @@ function _layoutCityInternal(
     stats.bytes,
     occupancy,
     reachCache,
-    trace
+    trace,
+    undefined,
+    onPlaced
   );
   _profEnd('phase.layoutDir', _tPlace);
 

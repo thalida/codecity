@@ -16,9 +16,12 @@
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/manifest';
+import { BuildStage } from '@/constants/buildStages';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
+import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
@@ -255,20 +258,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     // below; the layout reuse decision uses layout_signature instead (backend-
     // computed, also mixes in per-file size/dims).
     const treeSig = newManifest.structure_signature ?? '';
-
-    // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
-    // when treeSig changes (settings re-applies skip). Must run BEFORE the layout
-    // signal fires the reactive buildings rebuild, so the cells bake the right UVs.
-    if (treeSig !== lastAtlasTreeSig) {
-      try {
-        const atlas = await buildIconAtlas(newManifest);
-        if (myGeneration !== generation) return; // superseded mid-build
-        lastAtlasTreeSig = treeSig;
-        setIconAtlas(atlas);
-      } catch (err) {
-        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
-      }
-    }
+    const buildsAtlas = treeSig !== lastAtlasTreeSig;
 
     // Reuse the packed layout only when the packer's own inputs (structure +
     // per-file size, per the backend-computed layout_signature) are unchanged
@@ -282,17 +272,50 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     const shouldReuse =
       !invalidated && prevLayoutSig !== '' && newManifest.layout_signature === prevLayoutSig;
     invalidated = false;
+
+    // The readout's denominator, decided before the first stage starts: a
+    // fixed count would promise a stage this apply is not going to run.
+    beginBuild([
+      ...(buildsAtlas ? [BuildStage.Icons] : []),
+      BuildStage.Layout,
+      BuildStage.Assemble,
+    ]);
+
+    // Ahead of the layout signal firing the reactive buildings rebuild, so the
+    // cells bake the right roof UVs.
+    if (buildsAtlas) {
+      try {
+        const atlas = await buildIconAtlas(newManifest);
+        if (myGeneration !== generation) return; // superseded mid-build
+        lastAtlasTreeSig = treeSig;
+        setIconAtlas(atlas);
+      } catch (err) {
+        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+      }
+    }
+
+    enterBuildStage(BuildStage.Layout);
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
     // Full envelope, not `.tree` — the layout code unwraps it and the worker
     // contract stays typed against Manifest. 'superseded' = a newer apply took
     // over; return silently and let it own the swap.
     try {
-      newLayout = await layoutClient.compute(newManifest, reusedLayout);
+      newLayout = await layoutClient.compute(newManifest, reusedLayout, (percent) => {
+        // A superseded apply's worker keeps posting until it is told to stop;
+        // its percent must not walk over the live build's readout.
+        if (myGeneration === generation) setBuildStagePercent(percent);
+      });
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
+    if (myGeneration !== generation) return;
+
+    // The batch below holds the main thread for seconds on a big repo: hand the
+    // browser a frame first, so the row naming that work paints before it.
+    enterBuildStage(BuildStage.Assemble);
+    await nextPaint();
     if (myGeneration !== generation) return;
 
     // One batch so the reactive consumers settle on a single change. manifest +

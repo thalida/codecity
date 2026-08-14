@@ -28,4 +28,7 @@ export interface LayoutRequest {
 
 export type LayoutResponse =
   | { type: 'layout-result'; id: number; layout: CityLayout }
-  | { type: 'layout-error'; id: number; message: string };
+  | { type: 'layout-error'; id: number; message: string }
+  // Sent mid-pack, at most once per whole percent (see createPackReporter):
+  // the longest stretch of a build, and the only one that can measure itself.
+  | { type: 'layout-progress'; id: number; percent: number };

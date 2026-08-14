@@ -29,6 +29,7 @@ import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;
   reject: (err: Error) => void;
+  onProgress?: (percent: number) => void;
 }
 
 interface ConfigSnapshot {
@@ -50,8 +51,16 @@ export interface LayoutClient {
    * cheap in-JS layout that reuses that prior layout's positions and recomputes
    * per-file metadata from the new manifest. The caller must ensure the
    * packer's inputs are unchanged (same layout_signature).
+   *
+   * `onProgress` receives whole percents as the pack advances. Only the worker
+   * path reports: the reuse and sync-fallback paths hold the thread for their
+   * whole (much shorter) run, so nothing could render a tick from them anyway.
    */
-  compute(manifest: Manifest, reuseLayoutFrom?: CityLayout | null): Promise<CityLayout>;
+  compute(
+    manifest: Manifest,
+    reuseLayoutFrom?: CityLayout | null,
+    onProgress?: (percent: number) => void
+  ): Promise<CityLayout>;
   /** Tear down the worker and reject every pending request. */
   dispose(): void;
 }
@@ -143,6 +152,10 @@ export function createLayoutClient(): LayoutClient {
       const data = event.data as LayoutResponse;
       const entry = pending.get(data.id);
       if (!entry) return; // already superseded
+      if (data.type === 'layout-progress') {
+        entry.onProgress?.(data.percent);
+        return; // the request is still running
+      }
       pending.delete(data.id);
       if (data.type === 'layout-result') {
         entry.resolve(data.layout);
@@ -193,7 +206,8 @@ export function createLayoutClient(): LayoutClient {
 
   function compute(
     manifest: Manifest,
-    reuseLayoutFrom: CityLayout | null = null
+    reuseLayoutFrom: CityLayout | null = null,
+    onProgress?: (percent: number) => void
   ): Promise<CityLayout> {
     if (disposed) {
       return Promise.reject(new Error('layoutClient disposed'));
@@ -222,7 +236,7 @@ export function createLayoutClient(): LayoutClient {
     const id = nextId++;
     _supersedeAll();
     return new Promise<CityLayout>((resolve, reject) => {
-      pending.set(id, { resolve, reject });
+      pending.set(id, { resolve, reject, onProgress });
       const w = _ensureWorker();
       if (!w) {
         _computeSync(id, manifest, resolve, reject);

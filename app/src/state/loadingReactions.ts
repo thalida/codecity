@@ -1,12 +1,18 @@
-// state/loadingReactions.ts — Maps the canonical SCAN_PROGRESS signal to the
-// LOADING_OVERLAY store. Mounted once from <App />. Replaces the fetch layer's
-// direct overlay pokes — the fetch layer now only writes SCAN_PROGRESS. The
-// "loading {project}" header is owned separately by PENDING_SOURCE_LABEL (set by
-// the stream pump, read directly by LoadingOverlay) — NOT set here.
+// state/loadingReactions.ts — Maps the canonical progress signals to the
+// LOADING_OVERLAY store: SCAN_PROGRESS for the stream's rows, BUILD_PROGRESS for
+// what runs inside the last one. Mounted once from <App />. Replaces the fetch
+// layer's direct overlay pokes — the fetch layer now only writes SCAN_PROGRESS.
+// The "loading {project}" header is owned separately by PENDING_SOURCE_LABEL (set
+// by the stream pump, read directly by LoadingOverlay) — NOT set here.
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import {
+  BUILD_PROGRESS,
+  REBUILD_STATUS,
+  RebuildStatus,
+  setRebuildDetail,
+} from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -15,8 +21,24 @@ import {
 } from '@/state/stores/ui';
 import { ScanPhase } from '@/api/manifest';
 import { LoadingStep, stepForPhase } from '@/constants/loadingSteps';
+import { buildStageTail } from '@/constants/buildStages';
 
 export function attachLoadingReactions(): () => void {
+  const stops = [attachScanReaction(), attachBuildReaction()];
+  return () => stops.forEach((stop) => stop());
+}
+
+// The build's stage tail onto BOTH surfaces that report a build — the overlay's
+// row and the inline freshness readout — so the two can never drift apart.
+function attachBuildReaction(): () => void {
+  return effect(() => {
+    const tail = buildStageTail(BUILD_PROGRESS.value);
+    setLoadingStepTail(LoadingStep.Building, tail);
+    setRebuildDetail(tail);
+  });
+}
+
+function attachScanReaction(): () => void {
   let overlayUp = false;
   return effect(() => {
     const p = SCAN_PROGRESS.value;
