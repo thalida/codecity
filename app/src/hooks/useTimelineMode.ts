@@ -7,8 +7,15 @@ import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource } from '@/state/stores/source';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/scene';
-import { beginBuild, markError, markRebuilding, setRebuildDetail } from '@/state/stores/manifest';
-import { BuildStage } from '@/constants/buildStages';
+import {
+  beginBuild,
+  enterBuildStage,
+  setBuildStagePercent,
+  markError,
+  markRebuilding,
+  setRebuildDetail,
+} from '@/state/stores/manifest';
+import { BuildStage, PACK_STAGES } from '@/constants/buildStages';
 import { nextPaint } from '@/city/utils/nextPaint';
 import {
   showLoadingOverlay,
@@ -46,11 +53,7 @@ import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
 function timelineStageTail(p: TimelineProgress): string | null {
-  // Fetch and the server's union assembly both report a plain percent; assembly
-  // shares the Building row with the local stages that take it over after.
-  if (p.stage === TimelineStage.Fetch || p.stage === TimelineStage.Assemble) {
-    return p.percent != null ? `${p.percent}%` : null;
-  }
+  if (p.stage === TimelineStage.Fetch) return p.percent != null ? `${p.percent}%` : null;
   if (p.stage === TimelineStage.History) {
     return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
   }
@@ -103,9 +106,29 @@ export async function loadTimelineSource({
   const handle = await whenSceneHandle();
   if (cancelled) return;
 
+  // The plan the whole Building row counts over, opened when the server starts
+  // assembling and reopened identically below so the bundle can't reset it.
+  const buildPlan = (clientStages: readonly BuildStage[]): BuildStage[] => [
+    BuildStage.Assembling,
+    BuildStage.Replay,
+    ...clientStages,
+  ];
+
   // One row per server stage, so a stall is attributable to the stage it is in
   // and the rows below say what is still to come.
+  let assemblyOpen = false;
   const onProgress = (p: TimelineProgress): void => {
+    if (p.stage === TimelineStage.Assemble) {
+      // The server's wait, but the same wait as the build after it: one readout.
+
+      if (!assemblyOpen) {
+        assemblyOpen = true;
+        beginBuild(buildPlan(PACK_STAGES));
+      }
+      if (p.percent != null) setBuildStagePercent(p.percent);
+      if (overlay) setLoadingStep(LoadingStep.Building);
+      return;
+    }
     const tail = timelineStageTail(p);
     if (!overlay) {
       setRebuildDetail(tail);
@@ -131,15 +154,16 @@ export async function loadTimelineSource({
     // commits, signals — so the panes, header and tree read Timeline's own.
     const manifest = bundle.unionManifest as unknown as Manifest;
     // The replay and the fan-out below run before the apply that would name
-    // them: open the whole plan here, and paint it before the thread goes under.
-    beginBuild([BuildStage.Replay, ...handle.buildStagesFor(manifest)]);
+    // them: open the same plan the assembly did, and paint before the freeze.
+    beginBuild(buildPlan(handle.buildStagesFor(manifest)));
+    enterBuildStage(BuildStage.Replay);
     await nextPaint();
     const timelines = buildPathTimelines(bundle);
     // Before the manifest: the mode is what tells the scene layer whose city to
     // pack, and the commit below would otherwise land as a live one.
     beginTimelineMode();
     commitSource(src, branch, manifest);
-    await handle.applyManifest(manifest, [BuildStage.Replay]);
+    await handle.applyManifest(manifest, [BuildStage.Assembling, BuildStage.Replay]);
     // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);

@@ -79,7 +79,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
 
     // Decoration is the last stage and the trees component enters it, so the
     // walk here stops one short of the plan.
-    expect(tails).toEqual(['icons 1/4', 'layout 2/4', 'buildings 3/4']);
+    expect(tails).toEqual(['0% icons', '25% layout', '50% buildings']);
   });
 
   it('counts against a shorter plan when the apply has less to do', async () => {
@@ -89,17 +89,17 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     // that stage never runs and must not be promised.
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
-    expect(tails).toEqual(['layout 1/3', 'buildings 2/3']);
+    expect(tails).toEqual(['0% layout', '33% buildings']);
   });
 
   it('carries the packer percent while it packs', async () => {
     const state = createCityState(fakeLayoutClient([7, 61]) as never);
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
-    expect(tails).toContain('layout 7% (2/4)');
-    expect(tails).toContain('layout 61% (2/4)');
+    expect(tails).toContain('27% layout');
+    expect(tails).toContain('40% layout');
     // The percent belongs to the stage that measured it, not to the next one.
-    expect(tails[tails.length - 1]).toBe('buildings 3/4');
+    expect(tails[tails.length - 1]).toBe('50% buildings');
   });
 
   it('ignores a superseded apply still posting its percent', async () => {

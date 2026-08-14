@@ -12,23 +12,32 @@ describe('buildStageTail', () => {
     expect(buildStageTail(null)).toBeNull();
   });
 
-  it('names the stage and its place in the plan', () => {
-    expect(buildStageTail({ stages: FULL, index: 1, percent: null })).toBe('layout 2/3');
+  it('spreads one percent over the whole plan, and names the part', () => {
+    expect(buildStageTail({ stages: FULL, index: 1, percent: null })).toBe('33% layout');
   });
 
-  it('counts against the stages THIS build runs, not a constant', () => {
+  it('measures against the stages THIS build runs, not a constant', () => {
     // The same stage, one apply reusing the packed layout and skipping the
-    // atlas: it is the first of two here, the second of three above.
-    expect(buildStageTail({ stages: REUSE, index: 0, percent: null })).toBe('layout 1/2');
+    // atlas: it opens that build rather than sitting a third of the way in.
+    expect(buildStageTail({ stages: REUSE, index: 0, percent: null })).toBe('0% layout');
   });
 
-  it('leads with the percent where a stage can measure itself', () => {
-    expect(buildStageTail({ stages: FULL, index: 1, percent: 43 })).toBe('layout 43% (2/3)');
+  it('fills in a stage that measures itself, within its own share', () => {
+    // Second of three, 43% through: a third of the bar plus 43% of the next.
+    expect(buildStageTail({ stages: FULL, index: 1, percent: 43 })).toBe('48% layout');
   });
 
-  it('has a label for every stage', () => {
+  it('only ever climbs as the plan advances', () => {
+    const seen = FULL.map((_, index) =>
+      Number(buildStageTail({ stages: FULL, index, percent: null })!.split('%')[0])
+    );
+    expect(seen).toEqual([...seen].sort((a, b) => a - b));
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  it('has a word for every stage', () => {
     for (const [index] of FULL.entries()) {
-      expect(buildStageTail({ stages: FULL, index, percent: null })).toMatch(/^[a-z].+ \d\/3$/);
+      expect(buildStageTail({ stages: FULL, index, percent: null })).toMatch(/^\d+% [a-z]+$/);
     }
   });
 });

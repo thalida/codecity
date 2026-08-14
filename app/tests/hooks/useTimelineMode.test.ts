@@ -6,7 +6,13 @@ import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { MANIFEST, REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL } from '@/state/stores/manifest';
+import {
+  MANIFEST,
+  REBUILD_STATUS,
+  RebuildStatus,
+  REBUILD_DETAIL,
+  BUILD_PROGRESS,
+} from '@/state/stores/manifest';
 import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { BuildStage } from '@/constants/buildStages';
@@ -102,7 +108,10 @@ describe('loadTimelineScene', () => {
     );
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
     // The replay ran before the apply, and counts in the build's readout.
-    expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest, [BuildStage.Replay]);
+    expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest, [
+      BuildStage.Assembling,
+      BuildStage.Replay,
+    ]);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
     expect(f.setFootprintsTransparent).toHaveBeenCalledWith(true);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
@@ -179,11 +188,12 @@ describe('loadTimelineScene', () => {
     // Each stage keeps its own tail, so a finished row still says what it found.
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
 
-    // Union assembly is the server's longest silent stretch, and it reports a
-    // percent onto the build row rather than freezing 'Resolving files' at 100%.
+    // Union assembly opens the build's own readout rather than a tail beside it,
+    // so the row counts one percent from here through to the painted city.
     onProgress({ stage: TimelineStage.Assemble, percent: 62 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('62%');
+    expect(BUILD_PROGRESS.value?.stages[0]).toBe(BuildStage.Assembling);
+    expect(BUILD_PROGRESS.value?.percent).toBe(62);
 
     resolveFetch(BUNDLE);
     await entering;
@@ -388,7 +398,10 @@ describe('loadTimelineScene inPlace refetch', () => {
       expect.objectContaining({ exclude: expect.any(Array) })
     );
     expect(TIMELINE_BUNDLE.value).toBe(NEXT);
-    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest, [BuildStage.Replay]);
+    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest, [
+      BuildStage.Assembling,
+      BuildStage.Replay,
+    ]);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
     expect(SCRUB_POS.value).toBe(2); // held at present, not reset
   });
