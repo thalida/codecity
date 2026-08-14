@@ -138,7 +138,7 @@ class TimelineProgressEvent(BaseModel):
     progress. The `fetch` stage carries `percent`; `history` carries `commits`;
     `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
     the batch blob lookup, so that stage reports two ticks, not a live stream);
-    `assemble` carries nothing but its own start, and runs until the bundle
+    `assemble` carries `step`/`steps`/`detail` and runs until the bundle
     lands."""
 
     stage: _TimelineStage
@@ -146,6 +146,11 @@ class TimelineProgressEvent(BaseModel):
     commits: OptionalInt = None
     blobsDone: OptionalInt = None
     blobsTotal: OptionalInt = None
+    # `assemble` counts itself out: which of its steps is running, out of how
+    # many, and the server's name for it.
+    step: OptionalInt = None
+    steps: OptionalInt = None
+    detail: OptionalStr = None
     # Server-computed display label — see CloneProgressEvent.label.
     label: OptionalStr = None
 

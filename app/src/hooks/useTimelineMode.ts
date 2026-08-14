@@ -7,7 +7,9 @@ import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource } from '@/state/stores/source';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/scene';
-import { markError, markRebuilding, setRebuildDetail } from '@/state/stores/manifest';
+import { beginBuild, markError, markRebuilding, setRebuildDetail } from '@/state/stores/manifest';
+import { BuildStage } from '@/constants/buildStages';
+import { nextPaint } from '@/city/utils/nextPaint';
 import {
   showLoadingOverlay,
   setLoadingStep,
@@ -47,6 +49,11 @@ function timelineStageTail(p: TimelineProgress): string | null {
   if (p.stage === TimelineStage.Fetch) return p.percent != null ? `${p.percent}%` : null;
   if (p.stage === TimelineStage.History) {
     return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
+  }
+  // The server's assembly, counted out like the local build's own stages. They
+  // share the Building row, and take it over when the bundle lands.
+  if (p.stage === TimelineStage.Assemble) {
+    return p.step != null && p.steps != null ? `${p.detail} ${p.step}/${p.steps}` : null;
   }
   if (p.blobsDone !== undefined && p.blobsTotal !== undefined) {
     return `${p.blobsDone}/${p.blobsTotal} files`;
@@ -119,17 +126,21 @@ export async function loadTimelineSource({
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
     TIMELINE_BUNDLE.value = bundle;
-    const timelines = buildPathTimelines(bundle);
     if (overlay) setLoadingStep(LoadingStep.Building);
     markRebuilding();
-    // Before the manifest: the mode is what tells the scene layer whose city to
-    // pack, and the commit below would otherwise land as a live one.
-    beginTimelineMode();
     // The bundle's union manifest is a Manifest like any other — repo info,
     // commits, signals — so the panes, header and tree read Timeline's own.
     const manifest = bundle.unionManifest as unknown as Manifest;
+    // The replay and the fan-out below run before the apply that would name
+    // them: open the whole plan here, and paint it before the thread goes under.
+    beginBuild([BuildStage.Replay, ...handle.buildStagesFor(manifest)]);
+    await nextPaint();
+    const timelines = buildPathTimelines(bundle);
+    // Before the manifest: the mode is what tells the scene layer whose city to
+    // pack, and the commit below would otherwise land as a live one.
+    beginTimelineMode();
     commitSource(src, branch, manifest);
-    await handle.applyManifest(manifest);
+    await handle.applyManifest(manifest, [BuildStage.Replay]);
     // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);

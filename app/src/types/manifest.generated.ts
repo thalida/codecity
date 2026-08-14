@@ -774,7 +774,7 @@ export interface components {
      *     progress. The `fetch` stage carries `percent`; `history` carries `commits`;
      *     `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
      *     the batch blob lookup, so that stage reports two ticks, not a live stream);
-     *     `assemble` carries nothing but its own start, and runs until the bundle
+     *     `assemble` carries `step`/`steps`/`detail` and runs until the bundle
      *     lands.
      */
     TimelineProgressEvent: {
@@ -788,6 +788,12 @@ export interface components {
       blobsDone?: number;
       /** Blobstotal */
       blobsTotal?: number;
+      /** Step */
+      step?: number;
+      /** Steps */
+      steps?: number;
+      /** Detail */
+      detail?: string;
       /** Label */
       label?: string;
     };

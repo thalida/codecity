@@ -9,6 +9,7 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL } from '@/state/stores/manifest';
 import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
+import { BuildStage } from '@/constants/buildStages';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -40,12 +41,16 @@ const BUNDLE = {
 
 function fakeHandle() {
   const applyManifest = vi.fn().mockResolvedValue(undefined);
+  // The hook opens the build's readout on the stages the apply will run, so a
+  // handle without this can't be driven through a load.
+  const buildStagesFor = vi.fn().mockReturnValue([BuildStage.Layout, BuildStage.Assemble]);
   const installScrubController = vi.fn();
   const uninstallScrubController = vi.fn();
   const setStreetsTransparent = vi.fn();
   const setFootprintsTransparent = vi.fn();
   const handle = {
     applyManifest,
+    buildStagesFor,
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
@@ -59,6 +64,7 @@ function fakeHandle() {
   return {
     handle,
     applyManifest,
+    buildStagesFor,
     installScrubController,
     uninstallScrubController,
     setStreetsTransparent,
@@ -95,7 +101,8 @@ describe('loadTimelineScene', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal), exclude: expect.any(Array) })
     );
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
-    expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest);
+    // The replay ran before the apply, and counts in the build's readout.
+    expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest, [BuildStage.Replay]);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
     expect(f.setFootprintsTransparent).toHaveBeenCalledWith(true);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
@@ -118,6 +125,13 @@ describe('loadTimelineScene', () => {
     );
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
+    // The reveal is one frame behind the pack, and the pack is now several
+    // frames long: sample the overlay at the step right after it instead of
+    // racing jsdom's frame clock from out here.
+    let visibleAfterPack: boolean | null = null;
+    f.installScrubController.mockImplementation(() => {
+      visibleAfterPack = LOADING_OVERLAY.value.visible;
+    });
 
     const entering = loadTimelineScene();
     await flush();
@@ -130,8 +144,7 @@ describe('loadTimelineScene', () => {
     resolveFetch(BUNDLE);
     await entering;
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    // Not hidden yet — reveal waits for the first painted frame.
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
+    expect(visibleAfterPack, 'reveal waits for the first painted frame').toBe(true);
 
     await nextFrame();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -168,9 +181,11 @@ describe('loadTimelineScene', () => {
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
 
     // Union assembly is the server's longest silent stretch and lands on the
-    // build row, rather than leaving 'Resolving files' sitting at 100%.
-    onProgress({ stage: TimelineStage.Assemble });
+    // build row, rather than leaving 'Resolving files' sitting at 100%. It
+    // counts its own steps out, so the row moves instead of freezing on a label.
+    onProgress({ stage: TimelineStage.Assemble, step: 2, steps: 4, detail: 'line ranges' });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('line ranges 2/4');
 
     resolveFetch(BUNDLE);
     await entering;
@@ -375,7 +390,7 @@ describe('loadTimelineScene inPlace refetch', () => {
       expect.objectContaining({ exclude: expect.any(Array) })
     );
     expect(TIMELINE_BUNDLE.value).toBe(NEXT);
-    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest);
+    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest, [BuildStage.Replay]);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
     expect(SCRUB_POS.value).toBe(2); // held at present, not reset
   });

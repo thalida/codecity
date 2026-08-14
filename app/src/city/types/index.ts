@@ -8,6 +8,7 @@ import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { Manifest, RangeStat } from '@/types';
+import type { BuildStage } from '@/constants/buildStages';
 
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */
@@ -65,7 +66,9 @@ export interface City {
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;
-  applyManifest(m: Manifest): Promise<void>;
+  applyManifest(m: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
+  /** The stages that apply would run, for a caller whose own work comes first. */
+  buildStagesFor(m: Manifest): BuildStage[];
   invalidateLayoutCache(): void;
   focusByPath(path: string): void;
   world: CityWorld;

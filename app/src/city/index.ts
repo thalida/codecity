@@ -68,7 +68,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const cityState = createCityState(layoutClient);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
-  const { applyManifest, invalidateLayoutCache } = cityState;
+  const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
 
   // picker is backfilled below (built after the components it reads);
   // armOnFirstTick defers picker-dependent setup, so the null cast is safe.
@@ -284,6 +284,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     picker,
     rig,
     applyManifest,
+    buildStagesFor,
     invalidateLayoutCache,
     /** Focus the camera on the node at `path`: resolve via the picker, dispatch
      *  to the rig. */

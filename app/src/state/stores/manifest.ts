@@ -4,7 +4,7 @@
 
 import { signal } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
-import type { BuildProgress, BuildStage } from '@/constants/buildStages';
+import { BuildStage, type BuildProgress } from '@/constants/buildStages';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 
 // ── Canonical manifest signal ────────────────────────────────────────
@@ -66,10 +66,11 @@ export function markRebuilding(): void {
   BUILD_PROGRESS.value = null;
 }
 
+// Decoration is the build's last stage, not the end of it: Timeline's overlay
+// stays up through the tree pass, so the readout has to carry on into it.
 export function markDecorating(): void {
   REBUILD_STATUS.value = RebuildStatus.Decorating;
-  REBUILD_DETAIL.value = null;
-  BUILD_PROGRESS.value = null;
+  enterBuildStage(BuildStage.Decorate);
   BUILT_MANIFEST.value = MANIFEST.peek();
 }
 

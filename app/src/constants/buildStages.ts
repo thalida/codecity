@@ -4,12 +4,18 @@
 // single "Building city" row once the stream has handed over.
 
 export enum BuildStage {
+  /** Timeline only: the bundle replayed into per-path timelines, ahead of the
+   *  pack. Declared by the caller that runs it, not by the apply. */
+  Replay = 'replay',
   /** The roof-icon atlas, rebuilt only when the structure signature changed. */
   Icons = 'icons',
   /** The packer: the worker on a structure change, a cheap in-JS reuse otherwise. */
   Layout = 'layout',
   /** The batch that swaps manifest + layout, and the mesh rebuilds it fires. */
   Assemble = 'assemble',
+  /** The deferred pass: tree placement off-thread, then its meshes. Runs with
+   *  the city already up, and outlives the overlay in Live. */
+  Decorate = 'decorate',
 }
 
 /** How far one build has got. The stage list is per-build (see buildStageTail). */
@@ -25,9 +31,11 @@ export interface BuildProgress {
 
 // Lowercase: these render as a tail after the row's own "Building city".
 export const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
+  [BuildStage.Replay]: 'replaying history',
   [BuildStage.Icons]: 'loading icons',
   [BuildStage.Layout]: 'packing layout',
   [BuildStage.Assemble]: 'raising buildings',
+  [BuildStage.Decorate]: 'planting trees',
 };
 
 /** The Building row's tail: the running stage, and how far through the plan it

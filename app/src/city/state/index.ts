@@ -16,6 +16,7 @@
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { TREES } from '@/state/stores/settings/trees';
 import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/manifest';
 import { BuildStage } from '@/constants/buildStages';
 import { StreetAxis } from '@/types';
@@ -74,7 +75,12 @@ export interface CityState {
   decorationRevision: Signal<number>;
   // The async manifest pipeline cityState owns: compute the layout off-thread,
   // then set the source signals (every component rebuilds reactively off them).
-  applyManifest(newManifest: Manifest): Promise<void>;
+  // leadingStages are stages the CALLER ran before handing over, so the build's
+  // readout counts them too (Timeline's replay).
+  applyManifest(newManifest: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
+  // The stages applyManifest would run for this manifest. For a caller that
+  // opens the readout on work of its own first.
+  buildStagesFor(newManifest: Manifest): BuildStage[];
   // Forces the next apply onto the non-reuse path (rebuild for the same layout signature).
   invalidateLayoutCache(): void;
 }
@@ -250,7 +256,24 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   let invalidated = false;
   let generation = 0;
 
-  async function applyManifest(newManifest: Manifest): Promise<void> {
+  // The stages an apply of this manifest would run, so a caller doing work of
+  // its own beforehand can show the whole plan rather than a growing one.
+  function buildStagesFor(newManifest: Manifest): BuildStage[] {
+    const buildsAtlas = (newManifest.structure_signature ?? '') !== lastAtlasTreeSig;
+    return [
+      ...(buildsAtlas ? [BuildStage.Icons] : []),
+      BuildStage.Layout,
+      BuildStage.Assemble,
+      // The trees component ends a build: enabled, it decorates; off, it settles
+      // straight to idle and this stage never comes.
+      ...(TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
+    ];
+  }
+
+  async function applyManifest(
+    newManifest: Manifest,
+    leadingStages: readonly BuildStage[] = []
+  ): Promise<void> {
     const myGeneration = ++generation;
 
     // Structure-only structure_signature (paths + nesting, NO mtime/size — stable
@@ -275,11 +298,13 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
 
     // The readout's denominator, decided before the first stage starts: a
     // fixed count would promise a stage this apply is not going to run.
-    beginBuild([
-      ...(buildsAtlas ? [BuildStage.Icons] : []),
-      BuildStage.Layout,
-      BuildStage.Assemble,
-    ]);
+    const own = buildStagesFor(newManifest);
+    beginBuild([...leadingStages, ...own]);
+    enterBuildStage(own[0]);
+    // The manifest fan-out and the atlas walk below run before anything can
+    // repaint, so the row would name them only once they were over.
+    await nextPaint();
+    if (myGeneration !== generation) return;
 
     // Ahead of the layout signal firing the reactive buildings rebuild, so the
     // cells bake the right roof UVs.
@@ -355,6 +380,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     cityRevision,
     decorationRevision,
     applyManifest,
+    buildStagesFor,
     invalidateLayoutCache,
   };
 }

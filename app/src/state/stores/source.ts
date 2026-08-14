@@ -124,9 +124,12 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
 /** Commit a loaded source: CURRENT_SOURCE, its recents entry, and the manifest
  *  the UI reads. Every mode ends its load here, with its own manifest. */
 export function commitSource(src: string, branch: string | undefined, manifest: Manifest): void {
+  // ONE identity for the load, used by both writes below. Deriving it twice is
+  // what listed a repo twice (#185): see the test for the two rows it produced.
+  const checkout = resolveBranch(manifest, branch);
   // A local source carries no branch: its checkout is dynamic, so identity omits
   // it. The header still shows it, read off the manifest — display, not identity.
-  const idBranch = identityBranch(src, branch);
+  const idBranch = identityBranch(src, checkout);
   // Source before manifest: the camera-reframe reaction reads CURRENT_SOURCE at
   // apply-start, and the apply is kicked off by the manifest write.
   CURRENT_SOURCE.value = { src, branch: idBranch };
@@ -135,8 +138,8 @@ export function commitSource(src: string, branch: string | undefined, manifest: 
     src,
     // tree.name is the canonical owner/repo; a worktree's basename is its folder.
     label: manifest.tree?.name || src,
-    branch: identityBranch(src, resolveBranch(manifest, branch)),
-    checkout: resolveBranch(manifest, branch),
+    branch: idBranch,
+    checkout,
   });
 }
 

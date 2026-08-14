@@ -11,6 +11,7 @@ import {
   enterBuildStage,
   setBuildStagePercent,
   markDecorating,
+  markIdle,
 } from '@/state/stores/manifest';
 import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
@@ -188,9 +189,20 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
   });
 
-  it('clears both when the build hands over to the decoration pass', () => {
-    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+  it('carries on into the decoration pass rather than going blank', () => {
+    // Timeline's overlay outlives the pack: it stays up through the tree pass
+    // and the scrub install, so the row would sit empty for exactly the wait
+    // that needed a readout.
+    beginBuild([BuildStage.Layout, BuildStage.Assemble, BuildStage.Decorate]);
     markDecorating();
+
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('planting trees 3/3');
+    expect(REBUILD_DETAIL.value).toBe('planting trees 3/3');
+  });
+
+  it('clears both when the build finishes', () => {
+    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    markIdle();
 
     expect(BUILD_PROGRESS.value).toBeNull();
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBeNull();

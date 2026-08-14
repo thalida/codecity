@@ -39,6 +39,27 @@ OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
 
+# Assembly's own steps, counted out so the client's last row isn't a frozen
+# label for the minutes this takes. The last one is the router's: serialising
+# the bundle and putting it on the wire is the step nothing else can report.
+ASSEMBLE_STEPS = 4
+
+
+def assemble_tick(
+    on_progress: OnTimelineProgress | None, step: int, detail: str
+) -> None:
+    """Report entering assembly step `step` of ASSEMBLE_STEPS."""
+    if on_progress is None:
+        return
+    on_progress(
+        {
+            "stage": TimelineStage.ASSEMBLE,
+            "step": step,
+            "steps": ASSEMBLE_STEPS,
+            "detail": detail,
+        }
+    )
+
 
 class CommitDelta(NamedTuple):
     sha: str
@@ -433,9 +454,8 @@ def build_timeline_bundle(
                 blob_lines.setdefault(sha, 0)
                 blob_sizes.setdefault(sha, 0)
     # Everything below is assembly over the whole union: minutes on a big repo,
-    # and the client can only show a row for it if we say it started.
-    if on_progress is not None:
-        on_progress({"stage": TimelineStage.ASSEMBLE})
+    # and the only progress the client can show for it is what we count out.
+    assemble_tick(on_progress, 1, "union city")
     union_manifest = build_union_manifest(
         root_path,
         deltas,
@@ -446,7 +466,9 @@ def build_timeline_bundle(
         history.created,
         history.modified,
     )
+    assemble_tick(on_progress, 2, "line ranges")
     commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
+    assemble_tick(on_progress, 3, "date ranges")
     commit_date_ranges = compute_commit_date_ranges(
         deltas, commits, history.created, history.modified
     )
