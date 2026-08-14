@@ -158,9 +158,10 @@ _PROGRESS_NOISE_RE = re.compile(
 )
 
 
-# GitHub serves git over HTTP/2, whose stream multiplexing intermittently RSTs
-# the pack transfer on very large repos ("curl 92 … CANCEL" → early EOF).
-# Throughput is equivalent for a one-pack clone. Must precede the subcommand.
+# What a retry falls back to. GitHub's HTTP/2 multiplexing intermittently RSTs
+# the pack transfer on very large repos ("curl 92 … CANCEL" → early EOF), and
+# HTTP/1.1 rides that out at equivalent throughput for a one-pack clone. First
+# attempts stay on git's own default. Must precede the subcommand.
 _HTTP1_1 = ("-c", "http.version=HTTP/1.1")
 # git ends a clone/fetch with a DETACHED `maintenance run --auto` (older git:
 # `gc --auto`) that keeps writing into the repo, racing whoever reads or deletes it next.
@@ -478,12 +479,13 @@ def _run_net_git(
     """_run_git_streaming for the big network ops, hardened against the flaky
     transfers that plague very large repos:
 
-      - HTTP/1.1, because GitHub's HTTP/2 multiplexing RSTs the pack
-        mid-download — the `curl 92 … CANCEL` → `early EOF` failures;
       - no detached auto-maintenance, which would outlive the call and keep
         writing into the repo;
       - retries with backoff. `before_retry` runs between attempts, e.g. to
-        remove a half-written clone, which `git clone` can't resume into.
+        remove a half-written clone, which `git clone` can't resume into;
+      - HTTP/1.1 from the second attempt on. The first rides git's own
+        default (HTTP/2 against GitHub), and drops back only once that has
+        actually failed, rather than giving up multiplexing for every repo.
 
     Only network drops retry; auth and not-found re-raise on the first try.
     """
@@ -491,7 +493,7 @@ def _run_net_git(
     for attempt in range(_NET_RETRY_ATTEMPTS):
         try:
             return _run_git_streaming(
-                *_HTTP1_1,
+                *(() if attempt == 0 else _HTTP1_1),
                 *_NO_AUTO_MAINTENANCE,
                 *args,
                 cancel_event=cancel_event,

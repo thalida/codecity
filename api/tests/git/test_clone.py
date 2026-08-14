@@ -292,8 +292,10 @@ def test_clone_errors_share_a_base(exc):
 
 
 class NetGitRetryTests(unittest.TestCase):
-    def test_retryable_over_http1_1_then_succeeds(self) -> None:
-        # A transient network drop retries (forcing HTTP/1.1) and then succeeds.
+    def test_retryable_falls_back_to_http1_1_then_succeeds(self) -> None:
+        # A transient network drop retries and then succeeds. The first attempt
+        # rides git's own default (HTTP/2 against GitHub); only the retry drops
+        # to HTTP/1.1, so a healthy transfer keeps its multiplexing.
         calls: list[tuple[str, ...]] = []
 
         def fake(*args: str, **kw: object) -> str:
@@ -309,7 +311,8 @@ class NetGitRetryTests(unittest.TestCase):
             out = clone_mod._run_net_git("clone", "--", "url", "t")
         self.assertEqual(out, "ok")
         self.assertEqual(len(calls), 2)  # one retry
-        self.assertIn("http.version=HTTP/1.1", calls[0])  # forced on every attempt
+        self.assertNotIn("http.version=HTTP/1.1", calls[0])
+        self.assertIn("http.version=HTTP/1.1", calls[1])
 
     def test_net_git_disables_background_maintenance(self) -> None:
         # Otherwise git's detached post-fetch maintenance keeps writing into the
