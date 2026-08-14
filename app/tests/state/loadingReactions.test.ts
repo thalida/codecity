@@ -2,11 +2,21 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import {
+  REBUILD_STATUS,
+  RebuildStatus,
+  REBUILD_DETAIL,
+  BUILD_PROGRESS,
+  beginBuild,
+  enterBuildStage,
+  setBuildStagePercent,
+  markDecorating,
+} from '@/state/stores/manifest';
 import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';
+import { BuildStage } from '@/constants/buildStages';
 
 describe('loadingReactions', () => {
   let dispose: () => void;
@@ -18,12 +28,11 @@ describe('loadingReactions', () => {
     dispose();
     SCAN_PROGRESS.value = null;
     REBUILD_STATUS.value = RebuildStatus.Idle;
+    BUILD_PROGRESS.value = null;
   });
 
-  // The scan streams structure, then per-file metadata, then git history.
-  // History is minutes on a big repo and only feeds decorations, so the
-  // overlay lifts once the applied manifest's pending no longer lists
-  // metadata — the pump records that as appliedPending.
+  // The scan streams structure, then per-file metadata, then git history. History
+  // is minutes and only feeds decorations, so the overlay lifts at metadata.
 
   it('keeps the overlay up while per-file metadata is still pending', () => {
     SCAN_PROGRESS.value = {
@@ -156,5 +165,35 @@ describe('loadingReactions', () => {
     // status, not the loading overlay.
     REBUILD_STATUS.value = RebuildStatus.Rebuilding;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  // A build reports on two surfaces — the overlay's row and the inline
+  // freshness detail — and one reaction writes both, so they can't drift (#185).
+
+  it('puts the build stage on the Building row and beside the freshness dot', () => {
+    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('packing layout 1/2');
+    expect(REBUILD_DETAIL.value).toBe('packing layout 1/2');
+  });
+
+  it('keeps the two in step through the whole build', () => {
+    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    setBuildStagePercent(30);
+    expect(REBUILD_DETAIL.value).toBe('packing layout 30% (1/2)');
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
+
+    enterBuildStage(BuildStage.Assemble);
+    expect(REBUILD_DETAIL.value).toBe('raising buildings 2/2');
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
+  });
+
+  it('clears both when the build hands over to the decoration pass', () => {
+    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    markDecorating();
+
+    expect(BUILD_PROGRESS.value).toBeNull();
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBeNull();
+    expect(REBUILD_DETAIL.value).toBeNull();
   });
 });
