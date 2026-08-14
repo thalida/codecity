@@ -778,10 +778,7 @@ export interface components {
      *     lands.
      */
     TimelineProgressEvent: {
-      /**
-       * Stage
-       * @enum {string}
-       */
+      /** @enum {string} */
       stage: 'fetch' | 'history' | 'blobs' | 'assemble';
       /** Percent */
       percent?: number;
@@ -794,6 +791,14 @@ export interface components {
       /** Label */
       label?: string;
     };
+    /**
+     * TimelineStage
+     * @description Which part of the timeline build a progress tick is reporting — the wire
+     *     contract the frontend matches verbatim. Members are used everywhere instead
+     *     of literals, like ScanEvent's.
+     * @enum {string}
+     */
+    TimelineStage: 'fetch' | 'history' | 'blobs' | 'assemble';
     /** ValidationError */
     ValidationError: {
       /** Location */

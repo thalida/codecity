@@ -13,6 +13,7 @@ import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
+import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
@@ -149,15 +150,15 @@ describe('loadTimelineScene', () => {
     const entering = loadTimelineScene();
     await flush();
 
-    onProgress({ stage: 'fetch', percent: 40 });
+    onProgress({ stage: TimelineStage.Fetch, percent: 40 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineFetch);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineFetch]).toBe('40%');
 
-    onProgress({ stage: 'history', commits: 12000 });
+    onProgress({ stage: TimelineStage.History, commits: 12000 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
 
-    onProgress({ stage: 'blobs', blobsDone: 5, blobsTotal: 10 });
+    onProgress({ stage: TimelineStage.Blobs, blobsDone: 5, blobsTotal: 10 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineBlobs);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineBlobs]).toBe('5/10 files');
     // Each stage keeps its own tail, so a finished row still says what it found.
@@ -165,7 +166,7 @@ describe('loadTimelineScene', () => {
 
     // Union assembly is the server's longest silent stretch and lands on the
     // build row, rather than leaving 'Resolving files' sitting at 100%.
-    onProgress({ stage: 'assemble' });
+    onProgress({ stage: TimelineStage.Assemble });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
     resolveFetch(BUNDLE);
@@ -402,9 +403,9 @@ describe('loadTimelineScene inPlace refetch', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
 
-    onProgress({ stage: 'history', commits: 12000 });
+    onProgress({ stage: TimelineStage.History, commits: 12000 });
     expect(REBUILD_DETAIL.value).toBe('12,000 commits');
-    onProgress({ stage: 'blobs', blobsDone: 5, blobsTotal: 10 });
+    onProgress({ stage: TimelineStage.Blobs, blobsDone: 5, blobsTotal: 10 });
     expect(REBUILD_DETAIL.value).toBe('5/10 files');
 
     resolveFetch(BUNDLE);
@@ -432,7 +433,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
 
-    onProgress({ stage: 'history', commits: 12000 });
+    onProgress({ stage: TimelineStage.History, commits: 12000 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
     expect(REBUILD_DETAIL.value).toBeNull(); // the overlay is saying it; the readout is behind it

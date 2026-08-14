@@ -113,6 +113,25 @@ class TimelineEvent(StrEnum):
     ERROR = "error"
 
 
+class TimelineStage(StrEnum):
+    """Which part of the timeline build a progress tick is reporting — the wire
+    contract the frontend matches verbatim. Members are used everywhere instead
+    of literals, like ScanEvent's."""
+
+    FETCH = "fetch"
+    HISTORY = "history"
+    BLOBS = "blobs"
+    ASSEMBLE = "assemble"
+
+
+# Inline in the schema rather than a $ref'd component, matching _CLONE_STAGES:
+# the generated TS then reads as a plain union of the wire strings.
+_TimelineStage = Annotated[
+    TimelineStage,
+    WithJsonSchema({"enum": [s.value for s in TimelineStage], "type": "string"}),
+]
+
+
 class TimelineProgressEvent(BaseModel):
     """`timeline-progress` — the history walk, blob-table resolution, union
     assembly, or (for a blobless remote clone) the up-front blob backfill is in
@@ -122,7 +141,7 @@ class TimelineProgressEvent(BaseModel):
     `assemble` carries nothing but its own start, and runs until the bundle
     lands."""
 
-    stage: Literal["fetch", "history", "blobs", "assemble"]
+    stage: _TimelineStage
     percent: OptionalInt = None
     commits: OptionalInt = None
     blobsDone: OptionalInt = None

@@ -21,6 +21,7 @@ from api.manifest_types import (
     TimelineBundle,
 )
 from api.media import media_kind
+from api.models.events import TimelineStage
 from api.scan.filemeta import basename, extension
 from api.git.meta import collect_git_history, is_git_repo, reconstructed_repo_info
 from api.scan.manifest import wrap_manifest
@@ -32,10 +33,8 @@ from api.scan.treebuild import build_file_node, build_tree, dir_children_from_pa
 
 _UNION_FILE_CAP = 50000  # union files above this window to the most recent commits
 
-# Progress payload shape: {"stage": "history", "commits": int} while walking
-# git log, or {"stage": "blobs", "done": int, "total": int} while resolving
-# blob tables. The router (api/routers/manifest.py) translates this into the
-# wire-facing TimelineProgressEvent.
+# Progress payload: a TimelineStage plus that stage's counters (commits, or
+# done/total). The router translates it into the wire TimelineProgressEvent.
 OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
@@ -99,7 +98,9 @@ def walk_deltas(
                     if on_progress is not None:
                         now = time.monotonic()
                         if now - last_emit >= SCAN_PROGRESS_THROTTLE_S:
-                            on_progress({"stage": "history", "commits": commits})
+                            on_progress(
+                                {"stage": TimelineStage.HISTORY, "commits": commits}
+                            )
                             last_emit = now
                 continue
             if not line.startswith(":") or cur is None:
@@ -126,7 +127,9 @@ def walk_deltas(
         proc.wait()
     log(f"  done — {commits:,} commits walked")
     if on_progress is not None:
-        on_progress({"stage": "history", "commits": commits})  # final, unthrottled
+        on_progress(
+            {"stage": TimelineStage.HISTORY, "commits": commits}
+        )  # final, unthrottled
     newest_first.reverse()
     return newest_first
 
@@ -156,7 +159,9 @@ def _collect_blob_tables(
     misses = [s for s in shas if s not in cached]
     log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
     if on_progress is not None:
-        on_progress({"stage": "blobs", "done": total - len(misses), "total": total})
+        on_progress(
+            {"stage": TimelineStage.BLOBS, "done": total - len(misses), "total": total}
+        )
     fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
     for sha, st in fresh.items():
         cached[sha] = blob_entry(st)
@@ -172,7 +177,7 @@ def _collect_blob_tables(
             sizes[s] = entry["size"]
     blob_stats = {s: cached[s] for s in shas if s in cached}
     if on_progress is not None:
-        on_progress({"stage": "blobs", "done": total, "total": total})
+        on_progress({"stage": TimelineStage.BLOBS, "done": total, "total": total})
     return lines, sizes, blob_stats
 
 
@@ -430,7 +435,7 @@ def build_timeline_bundle(
     # Everything below is assembly over the whole union: minutes on a big repo,
     # and the client can only show a row for it if we say it started.
     if on_progress is not None:
-        on_progress({"stage": "assemble"})
+        on_progress({"stage": TimelineStage.ASSEMBLE})
     union_manifest = build_union_manifest(
         root_path,
         deltas,

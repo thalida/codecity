@@ -4,7 +4,7 @@
 
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
-import type { TimelineProgress } from '@/types';
+import { TimelineStage } from '@/types';
 
 export enum LoadingStep {
   Resolving = 'resolving',
@@ -96,16 +96,16 @@ export function stepForPhase(phase: ScanPhase | null, kind: SourceKind): Loading
 
 // A Record, not a switch: a stage added to the wire contract fails to compile
 // here rather than silently falling through to the wrong row.
-const TIMELINE_STAGE_STEPS: Record<TimelineProgress['stage'], LoadingStep> = {
-  fetch: LoadingStep.TimelineFetch,
-  history: LoadingStep.TimelineHistory,
-  blobs: LoadingStep.TimelineBlobs,
+const TIMELINE_STAGE_STEPS: Record<TimelineStage, LoadingStep> = {
+  [TimelineStage.Fetch]: LoadingStep.TimelineFetch,
+  [TimelineStage.History]: LoadingStep.TimelineHistory,
+  [TimelineStage.Blobs]: LoadingStep.TimelineBlobs,
   // Union assembly, the bundle's trip down the wire, and the pack that follows
   // are one wait with no way to tell them apart: they share the build row.
-  assemble: LoadingStep.Building,
+  [TimelineStage.Assemble]: LoadingStep.Building,
 };
 
 /** Timeline stream stage to step. stepForPhase's counterpart for the other stream. */
-export function stepForTimelineStage(stage: TimelineProgress['stage']): LoadingStep {
+export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
   return TIMELINE_STAGE_STEPS[stage];
 }
