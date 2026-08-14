@@ -1,11 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Empty state
-   ═══════════════════════════════════════════════════════════════════════════
-   Empty-state centered card — icon + title + subtitle stacked vertically.
-   Default sizing fits the search pane's empty-hint / no-matches state.
-   Modifiers:
-     .empty-state--lg — larger gap + padding + icon for file-preview
-       and info-pane states, where the panel has more vertical room.
+   LAYER-2 COMPONENTS — Empty state: centered icon + title + subtitle.
+   Default sizing suits the search pane; --lg suits panels with more room.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .empty-state {
