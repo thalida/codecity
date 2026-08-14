@@ -12,9 +12,6 @@ export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
 
-// Whoever changes the selection also says whether the details show: an effect
-// watching it fires on the picker's own bookkeeping too, and can't be ordered.
-
 /** Phone: the left drawer covers the city, so a camera move behind it is one you
  *  can't see. It's the whole screen there and a column everywhere else. */
 function collapseDrawerOnPhone(): void {
