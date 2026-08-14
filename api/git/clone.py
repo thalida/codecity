@@ -843,6 +843,17 @@ def ensure_clone(
 _HYDRATE_BLOB_LIMIT = "50m"
 
 
+# Written only once the backfill has actually landed. The widened filter can't
+# say that: it has to be in place for the refetch, so a cancel or a network drop
+# mid-fetch left the clone looking hydrated with its history still missing —
+# every later timeline then read those blobs as 0 lines, 0 bytes.
+_HYDRATED_MARKER = "codecity-hydrated"
+
+
+def _hydrated_marker(target: Path) -> Path:
+    return target / ".git" / _HYDRATED_MARKER
+
+
 def hydrate_blobs(
     target: Path,
     *,
@@ -856,8 +867,11 @@ def hydrate_blobs(
     repo; one `--refetch` pulls them in a single packfile.
 
     Widening the filter before refetching leaves the clone at the wider one, so
-    later fetches stay hydrated and the next timeline skips this entirely."""
-    if _partial_clone_filter(target) != "blob:none":
+    later fetches stay hydrated; the marker written after is what says the
+    backfill finished."""
+    if _partial_clone_filter(target) is None:
+        return False  # a full clone already has every blob
+    if _hydrated_marker(target).exists():
         return False
     _run_git(
         "config",
@@ -878,6 +892,7 @@ def hydrate_blobs(
         on_heartbeat=on_heartbeat,
         cancel_event=cancel_event,
     )
+    _hydrated_marker(target).touch()
     _log("hydrate complete")
     return True
 

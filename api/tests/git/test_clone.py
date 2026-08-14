@@ -469,7 +469,42 @@ class HydrateBlobsTests(unittest.TestCase):
         self.assertTrue(_partial_clone_filter(clone).startswith("blob:limit"))
         self.assertTrue(self._blob_present(clone, v1_blob))  # now local
 
-        self.assertFalse(hydrate_blobs(clone))  # idempotent: no longer blob:none
+        self.assertFalse(hydrate_blobs(clone))  # idempotent: the marker is down
+
+    def test_hydrate_retries_when_a_previous_attempt_did_not_finish(self) -> None:
+        # The widened filter has to be in place for the refetch, so it cannot
+        # double as "finished": a cancel mid-fetch used to leave the clone
+        # looking hydrated with its history still missing, and every later
+        # timeline read those blobs as 0 lines and 0 bytes.
+        bare = self._multi_commit_remote()
+        clone = self.tmp_path / "clone"
+        _run(
+            "git",
+            "clone",
+            "-q",
+            "--filter=blob:none",
+            f"file://{bare}",
+            str(clone),
+            cwd=self.tmp_path,
+        )
+        v1_blob = subprocess.run(
+            ["git", "-C", str(clone), "rev-parse", "HEAD~1:file.txt"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        with mock.patch.object(
+            clone_mod, "_run_net_git", side_effect=ScanCancelledError()
+        ):
+            with self.assertRaises(ScanCancelledError):
+                hydrate_blobs(clone)
+        # Marked wide by the attempt, but the history never landed.
+        self.assertTrue(_partial_clone_filter(clone).startswith("blob:limit"))
+        self.assertFalse(self._blob_present(clone, v1_blob))
+
+        self.assertTrue(hydrate_blobs(clone), "an unfinished hydrate must retry")
+        self.assertTrue(self._blob_present(clone, v1_blob))
 
     def test_hydrate_noop_on_full_clone(self) -> None:
         # A plain (non-partial) repo has no filter → nothing to backfill.
