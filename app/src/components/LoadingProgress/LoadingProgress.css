@@ -10,15 +10,27 @@
   justify-content: center;
   gap: var(--cc-space-3);
   min-height: calc(var(--cc-font-lg) * 1.4);
+  /* Stretched, not content-sized: the column centres its children, so a header
+     sized to its own text runs past the card's padding instead of ellipsizing. */
+  align-self: stretch;
+  min-width: 0;
 }
+/* One line, always: a name breaks at its own slash otherwise, and the row it
+   wraps onto undoes the steady height the card is holding. */
 .loading-pending-label {
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-/* The flex gap spaces the pill; drop its header-context margin. */
+/* The flex gap spaces the pill; drop its header-context margin. The branch is
+   short and fixed, so the name is what gives way. */
 .loading-header .app-header-branch-pill {
   margin-left: 0;
+  flex: none;
 }
 
 .loading-spinner {

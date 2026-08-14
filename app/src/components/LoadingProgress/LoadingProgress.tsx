@@ -45,7 +45,9 @@ export function LoadingProgress({
       {/* Always rendered: the label lands a beat after the overlay does, and a
           row appearing under it would jog everything below. */}
       <div class="loading-header">
-        <span class="loading-pending-label">{pendingLabel}</span>
+        <span class="loading-pending-label" title={pendingLabel ?? undefined}>
+          {pendingLabel}
+        </span>
         {branch && <span class="app-header-branch-pill">@{branch}</span>}
       </div>
       <div class="loading-spinner" />
