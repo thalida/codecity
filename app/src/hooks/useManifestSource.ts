@@ -1,27 +1,7 @@
 // hooks/useManifestSource.ts — The FETCH layer of the city's manifest pipeline.
-//
-// SCENE-FREE by contract: it never touches the Three.js world. It streams
-// manifests (cold-boot from ?src, user-submitted source switches, and the
-// background live-update poll) and WRITES them via setManifest. The render
-// layer (the City component, in CenterPane) is a CONSUMER of MANIFEST — it applies
-// whatever this layer publishes to the scene and OWNS the rebuild status for
-// the apply (Rebuilding/Decorating/Idle + render-apply Error).
-//
-// This module consumes the PURE fetch primitives in @/api/manifest
-// (streamManifest/urls) and drives the session stores: it WRITES the canonical
-// SCAN_PROGRESS signal while a source loads (the loading overlay is a REACTION to
-// it — see state/loadingReactions; this layer never pokes LOADING_OVERLAY). On a
-// successful load it commits the source via setCurrentSource (CURRENT_SOURCE +
-// recents) — this layer never writes CURRENT_SOURCE directly. The header chip
-// (SOURCE_INFO) is a computed off CURRENT_SOURCE + MANIFEST — this layer never
-// writes it. It writes REBUILD_STATUS=Error only for a live-update FETCH/network
-// failure — a distinct concern from the render layer's apply error.
-//
-// Shape of the file, top to bottom:
-//   1. pumpManifestStream — the helper shared by the stream entry points
-//   2. loadSource         — the one canonical load (cold boot + user switch)
-//   3. setupLiveUpdates   — the background poll loop + its ENABLED gate
-//   4. useManifestSource  — wire it all together on mount
+// Scene-free by contract: it streams manifests and publishes canonical signals
+// (MANIFEST, SCAN_PROGRESS, CURRENT_SOURCE via setCurrentSource, SOURCE_ERROR).
+// The render layer consumes them and owns the apply's rebuild status.
 
 import { useEffect, useCallback } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -52,15 +32,8 @@ import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
-/**
- * Consume a manifest stream, writing the canonical SCAN_PROGRESS signal per
- * event (the loading overlay is a REACTION to it — see state/loadingReactions)
- * — throw on an error event, set the pending-title once, publish cloning/scanning
- * progress, and write a skeleton/final SCAN_PROGRESS — then invoke onManifest for
- * each skeleton/final manifest event so the caller can do its phase-specific
- * publish work. Returns the final manifest; throws if the stream ends without
- * yielding one.
- */
+/** Consume a manifest stream, publishing SCAN_PROGRESS per event and handing
+ *  each skeleton/final to onManifest. Returns the final; throws without one. */
 async function pumpManifestStream(
   url: string,
   meta: { kind: SourceKind; branch?: string },
@@ -71,20 +44,16 @@ async function pumpManifestStream(
   signal?: AbortSignal
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
-  // `pending` of the manifest most recently handed to onManifest's apply.
-  // Only partial manifests are applied inside the pump (the final is applied
-  // by the caller after the stream), so the complete event carries this
-  // forward instead of claiming its own pending as applied.
+  // Only partials are applied in here, so the complete event carries the last
+  // applied `pending` forward rather than claiming its own as applied.
   let appliedPending: Manifest['pending'] | undefined;
 
   for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
 
     if ('label' in event && event.label) {
-      // The canonical "label of the source being loaded" — computed server-side
-      // and read by BOTH the document title (useDocumentTitle) and the loading
-      // overlay's header, so the project name isn't derived client-side. Idempotent:
-      // @preact/signals dedupes same-value writes and the label is stable per load.
+      // Server-side, so the document title and the overlay header name the
+      // project the same way instead of each deriving it from the src.
       PENDING_SOURCE_LABEL.value = event.label;
     }
 
@@ -100,18 +69,14 @@ async function pumpManifestStream(
       continue;
     }
 
-    // Skeleton or final.
-    // Once a manifest lands, its tree.name is the canonical repo name (the
-    // remote's owner/repo), better than the src basename — which for a
-    // local working tree is the folder name (e.g. a git-worktree dir).
+    // tree.name beats the src basename, which for a working tree is whatever
+    // the folder is called (e.g. a git-worktree dir).
     if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
     if (event.phase === ScanPhase.PartialManifest) appliedPending = event.manifest.pending;
-    // Written AFTER onManifest: appliedPending describes the manifest now in
-    // the city's hands, and the apply marks REBUILD_STATUS synchronously — so
-    // the overlay reaction can never see "heights final" ahead of the paint
-    // that shows them.
+    // After onManifest, so the overlay reaction can never see "heights final"
+    // ahead of the paint that shows them.
     SCAN_PROGRESS.value = { ...meta, phase: event.phase, appliedPending };
   }
 
@@ -121,22 +86,18 @@ async function pumpManifestStream(
 
 // Injected, not imported (importing useTimelineMode back was a cycle); it
 // registers before TIMELINE_MODE can turn on.
-let timelineRefresh: (() => Promise<void>) | null = null;
+type TimelineRefresh = (opts?: { noCache?: boolean }) => Promise<void>;
 
-export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {
+let timelineRefresh: TimelineRefresh | null = null;
+
+export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
   timelineRefresh = fn;
 }
 
 // ── Single-writer generation guard ───────────────────────────────────
-// MANIFEST has many would-be writers — the cold-boot load, each user switch,
-// and the background live-update poll — all targeting one signal. A monotonic
-// generation token makes the NEWEST load authoritative: every write (skeleton,
-// final, the source commit, the overlay teardown, a surfaced error) is gated on
-// "am I still the current generation?". A foreground load bumps it, which
-// silently drops any older in-flight load AND any in-flight poll write, so an
-// update firing mid-load cannot clobber the world being loaded with the
-// previous source's manifest. Mirrors the generation guard cityState's
-// applyManifest uses one layer down.
+
+// Every write is gated on "am I still the current generation?", so a newer load
+// silently drops an older one and any in-flight poll write with it.
 let loadGeneration = 0;
 
 // The AbortController for the current foreground load, so the UI can cancel a
@@ -144,35 +105,29 @@ let loadGeneration = 0;
 let loadController: AbortController | null = null;
 
 // ── Canonical source load (cold-boot + user switch) ──────────────────
-// The one way to load a source: claim the generation → overlay → stream
-// skeleton+final into MANIFEST → on success commit the source (CURRENT_SOURCE +
-// recents) → on failure write SOURCE_ERROR. Scene-free + UI-free: it publishes
-// canonical signals only; the render layer applies MANIFEST and resets the
-// camera, App coordinates the picker off SOURCE_ERROR. (The live-update poll
-// below is a SEPARATE op — a background refresh of the current source that
-// shares only the MANIFEST sink, and yields to a foreground load via the gen.)
+
+// The one way to load a source. The poll below is a separate op that shares
+// only the MANIFEST sink and yields to this via the generation.
 export async function loadSource(payload: SourcePayload): Promise<void> {
-  // A source switch always exits Timeline mode; the city-layer effect reacts to the flip and tears down the scene.
+  // A source switch always exits Timeline; the city layer reacts to the flip.
   if (TIMELINE_MODE.peek()) resetTimelineMode();
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();
   loadController = controller;
-  // A local source has no branch axis — drop any branch (a stale deep-link or a
-  // legacy recent could carry one) so the fetch URL, overlay, committed source,
-  // and prefill all stay branch-less. The checked-out branch is display-only.
+  // A local source has no branch axis, so a stale deep-link's branch is dropped
+  // rather than carried into the URL, the overlay and the committed source.
   const branch = identityBranch(payload.src, payload.branch);
-  // Seed the overlay header from recents: the server's label arrives with the
-  // first stream event, which is after the overlay is already on screen.
+  // The server's label arrives with the first stream event, by which time the
+  // overlay is already up; recents cover the gap.
   PENDING_SOURCE_LABEL.value = RECENTS.peek().find((r) => r.src === payload.src)?.label ?? null;
   const meta = {
     kind: srcKind(payload.src),
     branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
-  // Snapshot the applied manifest so a cancel that lands after a skeleton was
-  // streamed into MANIFEST can roll it back — otherwise the canceled repo's
-  // partial geometry lingers under the unchanged CURRENT_SOURCE's header.
+  // A cancel that lands after a skeleton rolls back to this, or the canceled
+  // repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
 
   try {
@@ -182,8 +137,8 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       noCache: !!payload.skipCache,
       exclude: activeExcludePathsFor(payload.src),
     });
-    // Publish the skeleton as it streams (early structure, behind the overlay);
-    // the final is published below, AFTER committing the source.
+    // Skeleton streams out here; the final is published below, after the
+    // source is committed.
     const manifest = await pumpManifestStream(
       url,
       meta,
@@ -194,17 +149,14 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     );
     // A newer load superseded this one: it owns MANIFEST now, don't touch.
     if (myGen !== loadGeneration) return;
-    // Canceled after a skeleton: the aborted stream ends as done (not a throw),
-    // so we got the partial manifest back. Don't commit it — roll MANIFEST back
-    // to the pre-load snapshot so the canceled repo's skeleton doesn't linger.
+    // An aborted stream ends as done, not a throw, so a cancel arrives here
+    // holding the partial. Roll back rather than commit it.
     if (controller.signal.aborted) {
       setManifest(prevManifest);
       return;
     }
-    // Commit the source BEFORE publishing the final manifest. The render layer's
-    // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
-    // the new key must be live for the FINAL apply (the one to frame on) and NOT
-    // for the preceding skeleton apply (which must not reframe).
+    // Before the final manifest: the camera-reframe reaction reads
+    // CURRENT_SOURCE at apply-start, and only the final apply may reframe.
     setCurrentSource(payload.src, branch, manifest);
     setManifest(manifest);
   } catch (err) {
@@ -219,8 +171,8 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       prefill: { src: payload.src, branch },
     };
   } finally {
-    // Only the authoritative load tears down the overlay; a superseded one must
-    // not clear it out from under the newer load that's still streaming.
+    // Only the authoritative load tears the overlay down, or a superseded one
+    // clears it out from under the load still streaming.
     if (myGen === loadGeneration) {
       SCAN_PROGRESS.value = null;
       if (loadController === controller) loadController = null;
@@ -228,20 +180,28 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   }
 }
 
-/**
- * Abort the in-flight foreground load, if any. Exposed to the UI (a cancel
- * button on the loading overlay) via the hook's return; the abort is treated
- * as a clean user cancel, not a failure — see the `catch` branch above.
- */
+/** Abort the in-flight foreground load. Treated as a clean user cancel, not a
+ *  failure: see the `catch` branch above. */
 export function cancelLoad(): void {
   loadController?.abort();
 }
 
+/** Re-read the source already open, in whichever mode it is being viewed:
+ *  Timeline refetches its bundle in place rather than dropping to live HEAD. */
+export function refreshCurrentSource(skipCache = false): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return;
+  if (TIMELINE_MODE.peek() && timelineRefresh) {
+    void timelineRefresh({ noCache: skipCache });
+    return;
+  }
+  void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
+}
+
 // ── Live-update poll loop ────────────────────────────────────────────
 
-// Hard bounds for the user-set poll interval. 1s floor — the server does a real
-// filesystem walk per poll, so tighter just burns CPU. 60s ceiling — beyond
-// that "live" stops feeling live.
+// Floor: the server walks the filesystem per poll, so tighter burns CPU.
+// Ceiling: past a minute "live" stops feeling live.
 const POLL_SECONDS_MIN = 1;
 const POLL_SECONDS_MAX = 60;
 
@@ -256,23 +216,8 @@ interface SignatureResponse {
   content_signature: string;
 }
 
-/**
- * Start the live-update poll loop. Two-stage poll: each tick hits the cheap
- * /signature endpoint for the committed CURRENT_SOURCE and only fetches the full
- * manifest when it differs from the currently-applied manifest's content_signature (both
- * read from canonical signals — no private mirror). On the final event of a
- * fetch it WRITES MANIFEST; the render effect applies it and owns
- * Rebuilding/Decorating/Idle. A live-update FETCH/network failure is surfaced via
- * REBUILD_STATUS=Error + LAST_REBUILD_ERROR (distinct from the render-owned apply
- * error). The loop no-ops until a source is loaded and yields (via loadGeneration
- * + the SCAN_PROGRESS gate) while a foreground load is in flight, so an update
- * firing mid-load can't clobber the world being loaded. Returns a dispose fn
- * (stop timer + tear down the ENABLED effect + the exclude-refresh reaction).
- * The poll loop itself is gated on LIVE_UPDATES_ACTIVE, but the exclude-refresh
- * reaction below is NOT — it's the only trigger for an exclude edit and must run
- * regardless of the live-update toggle or the source kind. Exported so the exclude-refresh reaction
- * is directly testable.
- */
+/** Start the live-update poll loop and the exclude-refresh reaction, returning
+ *  a dispose for both. Exported so the reaction is directly testable. */
 export function setupLiveUpdates(): () => void {
   let timer: number | null = null;
   let inFlight = false;
@@ -284,9 +229,8 @@ export function setupLiveUpdates(): () => void {
         manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
       )) {
         if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
-        // Live-update path: skip skeleton. The city is already drawn; applying
-        // a skeleton would animate every building to placeholder heights and
-        // back on every save. Only the final tweens into the new state.
+        // Skip the skeleton: the city is already drawn, and applying one would
+        // animate every building to placeholder heights and back on each save.
         if (event.phase !== ScanPhase.CompleteManifest) continue;
         if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
         const m = event.manifest;
@@ -298,10 +242,8 @@ export function setupLiveUpdates(): () => void {
     }
   }
 
-  // Poll tick: cheap signature first, full manifest only when it differs from
-  // the applied manifest's content_signature. Targets the committed CURRENT_SOURCE (not
-  // the page URL, which lags a switch) and yields while a foreground load owns
-  // the overlay, so the poll never probes/applies a source that's mid-load.
+  // Cheap signature first, full manifest only when it differs. Targets the
+  // committed CURRENT_SOURCE, not the page URL, which lags a switch.
   async function tick(): Promise<void> {
     if (inFlight) return;
     if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
@@ -347,11 +289,8 @@ export function setupLiveUpdates(): () => void {
     else stop();
   });
 
-  // Re-fetch the loaded source in place when ITS exclude set changes. The poll
-  // is gated by LIVE_UPDATES_ACTIVE, so excludes need their own
-  // trigger. Uses fetchAndApply (final-only, no overlay/skeleton) for a smooth
-  // in-place update. Key-guarded: ACTIVE_EXCLUDES also recomputes on a source
-  // switch (repo key changes) — only a same-repo list change refreshes.
+  // Excludes need their own trigger, since the poll is gated on
+  // LIVE_UPDATES_ACTIVE. Key-guarded so a source switch isn't read as an edit.
   let lastExcludeKey: string | null = null;
   const disposeExcludeRefresh = effect(() => {
     const serialized = ACTIVE_EXCLUDES.value.join('\n');
@@ -369,12 +308,12 @@ export function setupLiveUpdates(): () => void {
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
     // Timeline owns the scene: excludes change the union data, so refetch its bundle
-    // + re-pack (it owns its own rebuilding footer). Live: in-place re-scan.
+    // + re-pack (it marks rebuilding itself). Live: in-place re-scan.
     let refresh: Promise<void>;
     if (TIMELINE_MODE.peek() && timelineRefresh) {
       refresh = timelineRefresh();
     } else {
-      markRebuilding(); // flip the footer now, not after the re-scan streams back
+      markRebuilding(); // say so now, not after the re-scan streams back
       refresh = fetchAndApply(cur.src, cur.branch);
     }
     void refresh.finally(() => {
@@ -391,24 +330,18 @@ export function setupLiveUpdates(): () => void {
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-/**
- * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
- * ?src into MANIFEST, fetch the server config, and start live updates.
- * Scene-free — the render layer (the City component) consumes MANIFEST and paints the
- * scene. UI-free too: it never opens/closes ProjectsView; on a load failure
- * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
- * coordinate ProjectsView. A user-initiated cancel (`cancelLoad`) aborts the
- * in-flight stream but is NOT surfaced as a load failure — no SOURCE_ERROR write.
- * RETURNS the submit handler and a cancel handler so App can pass
- * them down to <ProjectsView>/the loading overlay as props (no global
- * register/invoke channel).
- */
+/** Boot the fetch pipeline on mount, and hand App the submit/refresh/cancel
+ *  handlers to pass down as props rather than a global invoke channel. */
 export function useManifestSource(): {
   submitSource: (payload: SourcePayload) => void;
+  refreshSource: (skipCache: boolean) => void;
   cancelLoad: () => void;
 } {
   const submitSource = useCallback((payload: SourcePayload) => {
     void loadSource(payload);
+  }, []);
+  const refreshSource = useCallback((skipCache: boolean) => {
+    refreshCurrentSource(skipCache);
   }, []);
 
   useEffect(() => {
@@ -425,17 +358,15 @@ export function useManifestSource(): {
       }
       if (cancelled) return;
 
-      // Both are one-shot boot reads with no dependency on each other, so they
-      // go out together rather than making the landing wait for two round
-      // trips in series.
+      // Independent boot reads, so they go out together rather than making the
+      // landing wait for two round trips in series.
       const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
       if (cancelled) return;
       SERVER_CONFIG.value = serverConfig;
       DISCOVER.value = discover;
 
-      // One poll loop for the app's lifetime; no-ops until a source is loaded,
-      // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers
-      // boot + every switch).
+      // One loop for the app's lifetime: it re-reads the canonical signals per
+      // tick, so boot and every switch are covered without restarting it.
       disposeLiveUpdates = setupLiveUpdates();
       // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();
@@ -445,5 +376,5 @@ export function useManifestSource(): {
     };
   }, []);
 
-  return { submitSource, cancelLoad };
+  return { submitSource, refreshSource, cancelLoad };
 }

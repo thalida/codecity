@@ -1,13 +1,6 @@
-// city/components/buildings/spatialGrid.ts — Maps the layout world plane (XZ) onto a
-// fixed-cell-size 2D grid. Cells are the rendering primitive: each
-// owns a detail InstancedMesh. Grid math is pure: worldToCell,
-// cellBoundsSphere, cellCenter.
-//
-// MIN_CELL_SIZE: the minimum grid resolution (12 world units). For
-// small repos this is also the actual cell size. For large
-// repos (Linux-scale 86k×127k), computeOptimalCellSize() scales the
-// cell size up so the grid stays at ~256 occupied cells regardless of
-// layout extent.
+// city/components/buildings/spatialGrid.ts — maps the layout's XZ plane onto a
+// 2D grid whose cells are the rendering primitive, each owning one InstancedMesh.
+// Cell size scales with extent, so a Linux-scale repo still lands near 256 cells.
 
 import * as THREE from 'three';
 
@@ -44,11 +37,8 @@ export class SpatialGrid {
     this.cellCount = this.gridW * this.gridH;
   }
 
-  /**
-   * Compute a cell size that targets ~`targetCells` total grid cells for
-   * the given bounds. Returns at least MIN_CELL_SIZE so small repos keep
-   * fine-grained grids.
-   */
+  /** A cell size targeting ~`targetCells` for these bounds, floored at
+   *  MIN_CELL_SIZE so small repos keep a fine-grained grid. */
   static computeOptimalCellSize(bounds: WorldBounds, targetCells = 256): number {
     const w = Math.max(1, bounds.maxX - bounds.minX);
     const h = Math.max(1, bounds.maxZ - bounds.minZ);
@@ -74,15 +64,13 @@ export class SpatialGrid {
     );
   }
 
-  /**
-   * Bounding sphere over the cell footprint, with a fixed vertical
-   * extent to cover the tallest expected building. Diagonal of the
-   * XZ footprint is the lower bound on radius.
-   */
-  cellBoundsSphere(cellId: number, maxBuildingHeight = 20): THREE.Sphere {
+  /** Sphere over the cell footprint, tall enough for its tallest building.
+   *  A cell holds building CENTRES, so `overhang` covers the slabs' spill. */
+  cellBoundsSphere(cellId: number, maxBuildingHeight = 20, overhang = 0): THREE.Sphere {
     const center = this.cellCenter(cellId);
     center.y = maxBuildingHeight / 2;
-    const halfDiag = Math.sqrt((this.cellSize / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2);
+    const half = this.cellSize / 2 + overhang;
+    const halfDiag = Math.sqrt(half ** 2 * 2 + (maxBuildingHeight / 2) ** 2);
     return new THREE.Sphere(center, halfDiag);
   }
 }

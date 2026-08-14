@@ -21,12 +21,12 @@
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
 
-/* A file gone at this commit reads as deleted at a glance, rather than as a
-   generic empty state. */
-.file-deleted-state .icon {
+/* A file with no contents at this commit reads as its own state at a glance,
+   rather than as a generic empty one. */
+.file-absent-state .icon {
   color: var(--cc-error);
 }
-.file-deleted-state .text-card-title {
+.file-absent-state .text-card-title {
   color: var(--cc-error-light);
 }
 

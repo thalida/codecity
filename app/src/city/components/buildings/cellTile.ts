@@ -21,12 +21,17 @@ export interface CellTile {
   buildings: (Building | null)[];
 }
 
-/** Every slot starts scale-zero, and the geometry is a placeholder the
- *  cell-aware builders swap out once the cell is attached. */
-export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity: number): CellTile {
+/** Slots start scale-zero on placeholder geometry the cell-aware builders swap
+ *  out; `extent` sizes the cull sphere to what this cell will hold. */
+export function createEmptyCellTile(
+  grid: SpatialGrid,
+  cellId: number,
+  capacity: number,
+  extent: { maxHeight: number; overhang: number } = { maxHeight: 20, overhang: 0 }
+): CellTile {
   const cx = cellId % grid.gridW;
   const cz = Math.floor(cellId / grid.gridW);
-  const boundsSphere = grid.cellBoundsSphere(cellId);
+  const boundsSphere = grid.cellBoundsSphere(cellId, extent.maxHeight, extent.overhang);
 
   // Placeholder unit-cube geometry — the cell-aware builders swap this
   // for the real shared geometry. We allocate now so capacity is known.
@@ -38,6 +43,9 @@ export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity:
   // so recomposing its identity matrix every frame is pure cost.
   detailMesh.matrixAutoUpdate = false;
   detailMesh.frustumCulled = true;
+  // Ours, not three's: left to itself it caches a sphere off the first frustum
+  // test, so later writes cull against where the buildings USED to be.
+  detailMesh.boundingSphere = boundsSphere;
   detailMesh.userData = { cellId, meshKind: 'detail' };
   zeroAllInstances(detailMesh);
 

@@ -1,12 +1,6 @@
-// views/FilePreviewPane.tsx — body content for the right sidebar.
-// Renders a file preview (image, video, audio, pdf, or syntax-highlighted
-// code) for whatever file is selected via the state signal. Falls back to
-// an empty-state hint when no file is selected (or when a directory is
-// selected — directories aren't previewable here).
-//
-// The pane renders a `.editor-body` body declaratively via JSX. It owns
-// nothing about the sidebar shell (resize, open/close, persisted width) —
-// that's layout/RightSidebar.tsx.
+// views/FilePreviewPane.tsx — body content for the right sidebar: an image,
+// video, audio, pdf or highlighted-code preview of the selected file. Owns
+// nothing about the sidebar shell itself, which is layout/RightSidebar.tsx.
 
 import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
@@ -14,11 +8,8 @@ import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
 import type { FileNode } from '@/types';
 
-/**
- * What kind of preview a file gets in the right sidebar. Decided by
- * extension; 'text' is the catch-all (rendered with syntax highlighting,
- * or "Binary file" if the bytes don't decode as UTF-8).
- */
+/** Which preview a file gets, by extension. Text is the catch-all, and falls
+ *  back to a binary notice when the bytes don't decode as UTF-8. */
 export enum PreviewKind {
   Image = 'image',
   Video = 'video',
@@ -43,19 +34,12 @@ import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/binaryKind';
 
-// Auto-load images/video/audio/PDF (browser handles streaming + memory).
-// Auto-load text up to the server's own ceiling — kept in sync with
-// MAX_FILE_BYTES in api/server.py so any file the API can serve, the
-// preview can render. Above that, the server itself rejects the fetch
-// and the preview shows the resulting error in the empty/error state.
+// In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
+// render. Past that the server rejects the fetch and the error state shows it.
 const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;
 
-// Big files render in graceful-degradation tiers so the browser stays
-// responsive: above HIGHLIGHT_MAX_BYTES we skip highlight.js (plain
-// text via {text}, no HTML-parse cost), above GUTTER_MAX_BYTES we
-// also skip the per-line gutter (the O(n) DOM cost of one <span> per
-// line is what hangs the page on multi-MB files). Tuned to keep
-// main-thread blocking under ~250ms on commodity hardware.
+// Degradation tiers, tuned to hold main-thread blocking near 250ms: drop
+// highlighting first, then the gutter, whose span-per-line is what hangs.
 const HIGHLIGHT_MAX_BYTES = 512 * 1024;
 const GUTTER_MAX_BYTES = 1 * 1024 * 1024;
 
@@ -69,11 +53,9 @@ export interface FilePreviewPaneState {
   /** Repo remote URL + branch, for the header open-on-origin link. */
   remoteUrl?: string | null;
   branch?: string;
-  /** In Timeline mode the preview reads HEAD (the checkout), not the scrubbed
-   *  commit — show a note saying so. */
-  /** The file is deleted at HEAD (not in the checked-out tree), so /api/file
-   *  would 404 — show a deleted state instead of fetching. */
-  isDeleted?: boolean;
+  /** No content at the commit being shown, in either direction in time, so
+   *  /api/file would 404. Show the unavailable state instead of fetching. */
+  isAbsent?: boolean;
 }
 
 export interface FilePreviewPaneProps {
@@ -114,12 +96,8 @@ interface FileTextPreviewProps {
   file: FileNode;
 }
 
-/**
- * Async-fetches a file's bytes and renders the code editor (or an error
- * state) inside a `.preview-shell`. Built this way (instead of mounting an
- * empty editor scaffold up-front) so the line-number gutter and
- * <pre><code> never linger empty next to an error message.
- */
+/** Fetches the bytes, then renders the editor or an error. Built this way so
+ *  the gutter and <pre> never linger empty beside an error message. */
 function FileTextPreview({ file }: FileTextPreviewProps) {
   const [textState, setTextState] = useState<TextState>({ kind: TextStateKind.Loading });
 
@@ -142,9 +120,8 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     return () => {
       cancelled = true;
     };
-    // Also key on modified (mtime): a live-update poll yields a fresh FileNode
-    // with the same path but a newer mtime when the file was edited, so the
-    // still-selected preview re-fetches instead of waiting for a re-select.
+    // Keyed on mtime too, so an edit picked up by the poll re-fetches instead
+    // of waiting for the user to re-select the file.
   }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
   return (
@@ -170,16 +147,14 @@ interface CodeEditorProps {
 }
 
 function CodeEditor({ text, file }: CodeEditorProps) {
-  // Byte count for tier selection. file.size is the authoritative byte
-  // count from the manifest; fall back to text.length (UTF-16 code
-  // units, close enough for ASCII-heavy source) when missing.
+  // file.size is authoritative; text.length is UTF-16 units, close enough for
+  // ASCII-heavy source when the manifest has no size.
   const sizeBytes = typeof file.size === 'number' ? file.size : text.length;
   const skipHighlight = sizeBytes > HIGHLIGHT_MAX_BYTES;
   const skipGutter = sizeBytes > GUTTER_MAX_BYTES;
 
-  // Line-number gutter: one <span> per source line. Counted off the raw
-  // text (NOT the highlighted HTML — newlines are preserved through the
-  // highlighter).
+  // Counted off the raw text, not the highlighted HTML, which preserves
+  // newlines anyway.
   const lineCount = skipGutter
     ? 0
     : text.length === 0
@@ -257,19 +232,15 @@ type FontState =
   | { kind: FontStateKind.Ready }
   | { kind: FontStateKind.Error; message: string };
 
-// Specimen content. The Preview block is a Google-Fonts-style waterfall
-// (uppercase, lowercase, digits, then a pangram); the Repertoire block is a
-// Font-Book-style grid of every glyph we render.
+// Specimen content: a waterfall (cases, digits, pangram), then a Font-Book
+// style grid of every glyph we render.
 const SPECIMEN_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const SPECIMEN_LOWER = 'abcdefghijklmnopqrstuvwxyz';
 const SPECIMEN_DIGITS = '1234567890';
 const SPECIMEN_PANGRAM = 'The quick brown fox jumps over the lazy dog';
 
-// Repertoire: printable ASCII (skip 0x20 space — it's a blank cell) plus a
-// curated run of common Latin-1 / extended glyphs, ligatures, and punctuation,
-// mirroring a Font Book character grid. Glyphs the face lacks fall back to the
-// browser's default font rather than being hidden — detecting true coverage
-// needs font-table parsing this preview intentionally avoids.
+// Printable ASCII (space skipped, it is a blank cell) plus a curated extended
+// run. Missing glyphs fall back rather than hide: real coverage needs parsing.
 const REPERTOIRE: string[] = [
   ...Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) => String.fromCharCode(0x21 + i)),
   ...'¡¿€£¥¢©®™°±×÷§¶†‡–—…«»‹›“”‘’·•',
@@ -282,11 +253,8 @@ const REPERTOIRE: string[] = [
 // two files with the same basename must not collide on one document-level face.
 let fontFamilySeq = 0;
 
-// sfnt / WOFF signatures (first 4 bytes, big-endian) for the formats a browser
-// can render via FontFace. We sniff these before handing bytes to FontFace so a
-// non-font (a Git LFS pointer, a text file with a .ttf name) never reaches the
-// decoder, which would otherwise log "Failed to decode downloaded font" to the
-// console for every attempt.
+// Sniffed before FontFace sees the bytes, so an LFS pointer or a mis-named text
+// file can't make the decoder log a failure for every attempt.
 const FONT_SIGNATURES = new Set([
   0x00010000, // TrueType outlines
   0x4f54544f, // 'OTTO' — OpenType with CFF outlines
@@ -297,12 +265,8 @@ const FONT_SIGNATURES = new Set([
   0x774f4632, // 'wOF2' — WOFF2
 ]);
 
-/**
- * Decide whether a file's bytes are a font we can render. Returns null when
- * they are; otherwise a human-readable reason for the fallback notice. Catches
- * the common "font stored via Git LFS, not smudged on clone" case with a
- * specific message.
- */
+/** Null when the bytes are a font we can render, else the reason for the
+ *  fallback notice. Names the LFS-pointer case specifically. */
 function fontRejectReason(buf: ArrayBuffer): string | null {
   if (buf.byteLength < 4) return 'This file is empty or too small to be a font.';
   const signature = new DataView(buf).getUint32(0, false);
@@ -319,13 +283,8 @@ interface FontPreviewProps {
   file: FileNode;
 }
 
-/**
- * Loads a font file through the FontFace API and renders a live specimen in
- * that face. The face is registered on document.fonts for the component's
- * lifetime and removed on unmount / file change, so switching files never
- * leaves orphaned faces behind. Parse failures fall back to a graceful notice
- * rather than dumping the binary bytes.
- */
+/** Renders a live specimen through the FontFace API. The face is removed on
+ *  unmount and on a file change, so switching never orphans one. */
 function FontPreview({ file }: FontPreviewProps) {
   const [family] = useState(() => `cc-font-specimen-${(fontFamilySeq += 1)}`);
   const [fontState, setFontState] = useState<FontState>({ kind: FontStateKind.Loading });
@@ -433,12 +392,8 @@ type FpState =
   | { kind: FpStateKind.Ready; b64: string }
   | { kind: FpStateKind.Error };
 
-/**
- * A binary file has no readable text, so instead of dumping garbled bytes we
- * show a data card: detected type, size, dates, and the same byte-pattern
- * fingerprint the building facade wears (so the two match). The fingerprint is
- * fetched from the server (head-only) — raw binary bytes never reach the client.
- */
+/** A data card instead of garbled bytes: type, size, dates, and the same
+ *  fingerprint the building wears. Raw bytes never reach the client. */
 function BinaryDataCard({ file }: { file: FileNode }) {
   const [fp, setFp] = useState<FpState>({ kind: FpStateKind.Loading });
 
@@ -530,9 +485,7 @@ function _previewBody(file: FileNode | null) {
     return <FontPreview key={file.fullPath} file={file} />;
   }
 
-  // A binary file with no dedicated viewer above (image/pdf/font already
-  // returned) → a data card, not a garbled text dump. isDataBuilding's media
-  // exclusion covers the rare media file whose extension missed those lists.
+  // Binary with no dedicated viewer above: a data card, not a text dump.
   if (isDataBuilding(file)) {
     return <BinaryDataCard key={file.fullPath} file={file} />;
   }
@@ -556,9 +509,9 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isDeleted } = state.value;
+  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isAbsent } = state.value;
   const path = file?.path ?? '';
-  const deleted = Boolean(file && isDeleted);
+  const absent = Boolean(file && isAbsent);
 
   return (
     <Pane
@@ -579,21 +532,18 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       copyText={file ? path || rootPath : undefined}
       copyLabel="Copy path"
-      openUrl={file && !deleted && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
+      openUrl={file && !absent && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
       openLabel="Open file on origin"
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
-      footerSlot={file && !deleted ? <PaneStats items={fileStatItems(file)} /> : null}
+      footerSlot={file && !absent ? <PaneStats items={fileStatItems(file)} /> : null}
     >
-      {deleted ? (
-        <div class="empty-state empty-state--lg file-deleted-state">
+      {absent ? (
+        <div class="empty-state empty-state--lg file-absent-state">
           <FileX class="icon" aria-hidden="true" />
-          <p class="text-card-title">This file was deleted</p>
-          <p class="text-card-sub">
-            It no longer exists in the repo, so there&rsquo;s nothing to preview.
-          </p>
+          <p class="text-card-title">File not available</p>
         </div>
       ) : (
         _previewBody(file)

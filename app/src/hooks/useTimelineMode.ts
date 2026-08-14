@@ -1,10 +1,7 @@
-// hooks/useTimelineMode.ts — enter/exit the explicit Timeline mode.
-//
-// Enter: fetch the history bundle, pack the union city ONCE, install the scrub
-// controller (which owns each building's scaleY + iFade and its street's opacity
-// per frame), and flip TIMELINE_MODE so the live poll + fader stand down. Exit:
-// tear the controller down and reload live HEAD. Called by the header toggle.
-// teardownTimelineMode only flips TIMELINE_MODE; the city-layer effect (city/index.ts) does the actual scene teardown for every exit path.
+// hooks/useTimelineMode.ts — enter/exit the explicit Timeline mode. Enter packs
+// the union city once and installs the scrub controller; exit reloads live HEAD.
+// Every exit path only flips TIMELINE_MODE: the city layer (city/index.ts)
+// reacts to that and does the scene teardown itself.
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
@@ -33,9 +30,8 @@ import { loadSource, cancelLoad, setTimelineRefreshHandler } from '@/hooks/useMa
 import { activeExcludePathsFor } from '@/state/stores/excludes';
 import type { Manifest, TimelineProgress } from '@/types';
 
-/** Progress tail for the "Loading history" step: download % while backfilling a
- *  blobless clone, commit count during the history walk, done/total during blob
- *  resolution. */
+/** Progress tail for the "Loading history" step: a download %, a commit count,
+ *  or blobs done/total, depending on which stage the server is in. */
 function timelineLoadingTail(p: TimelineProgress): string | null {
   if (p.stage === 'fetch') {
     return p.percent != null ? `downloading ${p.percent}%` : 'downloading history';
@@ -49,15 +45,9 @@ function timelineLoadingTail(p: TimelineProgress): string | null {
   return 'resolving files';
 }
 
-// Fetch the union bundle for the current source + excludes, pack the union city,
-// and install the scrub controller. Two modes:
-//   - fresh enter (from Live): full overlay + cancel-back-to-Live, scrub at present.
-//   - inPlace (already in Timeline — an exclude edit changed the union DATA, so the
-//     warm bundle is stale and must be refetched): footer "rebuilding" instead of the
-//     overlay, hold the scrub position, and stay in Timeline on error (no Live scene
-//     to fall back to). Settings changes don't come here — they re-pack the warm
-//     bundle via reapplyTimelineScene with no refetch.
-export async function loadTimelineScene({ inPlace = false } = {}): Promise<void> {
+// `inPlace` is the already-in-Timeline refetch: it holds the scrub and stays in
+// Timeline on error, there being no Live scene under it to fall back to.
+export async function loadTimelineScene({ inPlace = false, noCache = false } = {}): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
   const handle = SCENE_HANDLE.peek();
@@ -68,11 +58,10 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
   let committed = false;
 
   if (inPlace) {
-    markRebuilding(); // footer status; the trees decoration pass clears it after the pack
+    markRebuilding(); // freshness readout; the trees decoration pass clears it after the pack
   } else {
-    // Full overlay, repo-name header included (PENDING_SOURCE_LABEL, the same signal
-    // the live load sets), with a cancel that aborts the history fetch and stays on
-    // the live city — nothing is touched until the pack below (committed).
+    // Cancelling stays on the live city: nothing is touched until the pack
+    // below sets `committed`.
     PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
     showLoadingOverlay(
       { kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS },
@@ -93,7 +82,7 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
       inPlace
         ? undefined
         : (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
-      { signal: abort.signal, exclude: activeExcludePathsFor(cur.src) }
+      { signal: abort.signal, exclude: activeExcludePathsFor(cur.src), noCache }
     );
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
@@ -120,9 +109,8 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
     }
   } catch (err) {
     if (cancelled) return; // user cancel already aborted the fetch + restored live
-    // Fresh enter reverts to live and tears the half-set scene down (a failure may
-    // predate the controller install, so the effect wouldn't fire); best-effort so
-    // its own throw can't bury `err`. An in-place refetch stays in Timeline.
+    // A failure can predate the controller install, so the effect wouldn't
+    // fire: tear down here, best-effort so its own throw can't bury `err`.
     if (!inPlace) {
       try {
         resetTimelineMode();
@@ -138,14 +126,12 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
   }
 }
 
-// Excludes change in Timeline → refetch the bundle, not a HEAD re-scan. A
-// callback because a direct import was a cycle; registered before the mode can turn on.
-setTimelineRefreshHandler(() => loadTimelineScene({ inPlace: true }));
+// A refresh in Timeline → refetch the bundle, not a HEAD re-scan. A callback
+// because a direct import was a cycle; registered before the mode can turn on.
+setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }));
 
-// Enter Timeline mode if it isn't already on, then scrub to the given commit.
-// Called by the commit pane's "view in timeline" button — in Live mode it enters
-// first, in Timeline mode it just jumps. No-op if the sha isn't in the bundle
-// (e.g. a commit the union cap dropped) or the mode failed to engage.
+// Enter Timeline if it isn't on, then scrub to the commit. No-op if the sha
+// isn't in the bundle (the union cap can drop one) or the mode failed to engage.
 export async function viewCommitInTimeline(sha: string): Promise<void> {
   if (!TIMELINE_MODE.peek()) {
     await loadTimelineScene();
@@ -157,9 +143,8 @@ export async function viewCommitInTimeline(sha: string): Promise<void> {
   if (idx >= 0) setScrubPos(idx);
 }
 
-// Re-pack the union city + re-install the scrub controller from the warm bundle
-// (no re-fetch), holding SCRUB_POS — so a Timeline-mode settings Save stays in
-// Timeline instead of dropping to live HEAD.
+// Re-pack from the warm bundle, holding SCRUB_POS, so a settings Save in
+// Timeline stays in Timeline instead of dropping to live HEAD.
 export async function reapplyTimelineScene(): Promise<void> {
   const handle = SCENE_HANDLE.peek();
   const bundle = TIMELINE_BUNDLE.peek();
@@ -181,10 +166,8 @@ export function exitTimelineMode(): void {
   const scrubPos = SCRUB_POS.peek(); // remember where the scrubber was
   teardownTimelineMode();
   if (!cur) return;
-  // Reloading live HEAD behind the overlay. Cancelling it re-enters Timeline
-  // where you were (the bundle is warm-cached) rather than dumping you on the
-  // project switcher. Registered before loadSource so its reaction's overlay
-  // (shown without a cancel) leaves this in place.
+  // Cancelling the reload re-enters Timeline where you were rather than dumping
+  // you on the switcher. Registered first, so loadSource's overlay keeps it.
   setLoadingCancel(() => {
     cancelLoad();
     void loadTimelineScene().then(() => {
