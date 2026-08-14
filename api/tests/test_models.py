@@ -219,3 +219,20 @@ class ResponseModelTests(unittest.TestCase):
             ),
             {"error": "boom", "code": "repo-not-found"},
         )
+
+    def test_sse_drops_nulls_so_the_client_never_sees_one(self) -> None:
+        # Progress payloads are built as plain dicts, and git's own lines carry
+        # different fields ("Counting objects: 12%" has no object counts). A
+        # null reaching the client is a crash there, not a missing value.
+        import json
+
+        from api.models.events import ScanEvent
+        from api.routers.manifest import _sse
+
+        event = _sse(
+            ScanEvent.CLONE_PROGRESS,
+            {"stage": "counting", "percent": 12, "objects": None, "mib": None},
+        )
+        self.assertEqual(
+            json.loads(event["data"]), {"stage": "counting", "percent": 12}
+        )

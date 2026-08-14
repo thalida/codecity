@@ -74,12 +74,14 @@ export function transferTail(p: {
   objectsTotal?: number;
   mib?: number;
 }): string | null {
+  // != null, not !== undefined: these cross the wire, where the type is a
+  // promise rather than a guarantee.
   const parts: string[] = [];
-  if (p.percent !== undefined) parts.push(`${p.percent}%`);
-  if (p.objects !== undefined && p.objectsTotal !== undefined) {
+  if (p.percent != null) parts.push(`${p.percent}%`);
+  if (p.objects != null && p.objectsTotal != null) {
     parts.push(`${p.objects.toLocaleString()}/${p.objectsTotal.toLocaleString()}`);
   }
-  if (p.mib !== undefined) parts.push(`${p.mib.toLocaleString()} MiB`);
+  if (p.mib != null) parts.push(`${p.mib.toLocaleString()} MiB`);
   return parts.length ? parts.join(' · ') : null;
 }
 

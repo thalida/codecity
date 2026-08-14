@@ -261,8 +261,15 @@ async def timeline(
 def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:
     """sse-starlette event dict: {'event': name, 'data': json-string}. Both
     StrEnums serialize to their wire string ('manifest-complete', 'timeline-
-    progress', …)."""
-    return {"event": event, "data": json.dumps(payload)}
+    progress', …).
+
+    None values are dropped, so every event matches what its model documents:
+    absent-or-value, never null. A progress line that carries no object count
+    would otherwise ship `"objects": null` for the client to special-case."""
+    return {
+        "event": event,
+        "data": json.dumps({k: v for k, v in payload.items() if v is not None}),
+    }
 
 
 def _sse_error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
