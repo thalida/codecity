@@ -13,19 +13,17 @@ describe('buildStageTail', () => {
   });
 
   it('names the stage and its place in the plan', () => {
-    expect(buildStageTail({ stages: FULL, index: 1, percent: null })).toBe('packing layout 2/3');
+    expect(buildStageTail({ stages: FULL, index: 1, percent: null })).toBe('layout 2/3');
   });
 
   it('counts against the stages THIS build runs, not a constant', () => {
     // The same stage, one apply reusing the packed layout and skipping the
     // atlas: it is the first of two here, the second of three above.
-    expect(buildStageTail({ stages: REUSE, index: 0, percent: null })).toBe('packing layout 1/2');
+    expect(buildStageTail({ stages: REUSE, index: 0, percent: null })).toBe('layout 1/2');
   });
 
   it('leads with the percent where a stage can measure itself', () => {
-    expect(buildStageTail({ stages: FULL, index: 1, percent: 43 })).toBe(
-      'packing layout 43% (2/3)'
-    );
+    expect(buildStageTail({ stages: FULL, index: 1, percent: 43 })).toBe('layout 43% (2/3)');
   });
 
   it('has a label for every stage', () => {

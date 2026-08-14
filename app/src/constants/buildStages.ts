@@ -29,13 +29,14 @@ export interface BuildProgress {
   percent: number | null;
 }
 
-// Lowercase: these render as a tail after the row's own "Building city".
+// One word each, naming what the stage makes: they render as a tail after the
+// row's own "Building city", and a slow one is the only one you read.
 export const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
-  [BuildStage.Replay]: 'replaying history',
-  [BuildStage.Icons]: 'loading icons',
-  [BuildStage.Layout]: 'packing layout',
-  [BuildStage.Assemble]: 'raising buildings',
-  [BuildStage.Decorate]: 'planting trees',
+  [BuildStage.Replay]: 'history',
+  [BuildStage.Icons]: 'icons',
+  [BuildStage.Layout]: 'layout',
+  [BuildStage.Assemble]: 'buildings',
+  [BuildStage.Decorate]: 'trees',
 };
 
 /** The Building row's tail: the running stage, and how far through the plan it

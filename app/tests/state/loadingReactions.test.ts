@@ -232,18 +232,18 @@ describe('loadingReactions', () => {
   it('puts the build stage on the Building row and beside the freshness dot', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble]);
 
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('packing layout 1/2');
-    expect(REBUILD_DETAIL.value).toBe('packing layout 1/2');
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('layout 1/2');
+    expect(REBUILD_DETAIL.value).toBe('layout 1/2');
   });
 
   it('keeps the two in step through the whole build', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble]);
     setBuildStagePercent(30);
-    expect(REBUILD_DETAIL.value).toBe('packing layout 30% (1/2)');
+    expect(REBUILD_DETAIL.value).toBe('layout 30% (1/2)');
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
 
     enterBuildStage(BuildStage.Assemble);
-    expect(REBUILD_DETAIL.value).toBe('raising buildings 2/2');
+    expect(REBUILD_DETAIL.value).toBe('buildings 2/2');
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
   });
 
@@ -253,8 +253,8 @@ describe('loadingReactions', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble, BuildStage.Decorate]);
     markDecorating();
 
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('planting trees 3/3');
-    expect(REBUILD_DETAIL.value).toBe('planting trees 3/3');
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('trees 3/3');
+    expect(REBUILD_DETAIL.value).toBe('trees 3/3');
   });
 
   it('clears both when the build finishes', () => {
