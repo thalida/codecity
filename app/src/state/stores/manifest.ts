@@ -13,7 +13,6 @@ import type { Manifest, DirNode } from '@/types';
 import { setLoadingStep } from '@/state/stores/ui';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { isEmptyManifest } from '@/utils/manifest';
 
 // ── Canonical manifest signal ────────────────────────────────────────
 // Source of truth written by the fetch layer (useManifestSource). The scene
@@ -57,7 +56,8 @@ export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
 
-/** Epoch millis of the most recent manifest apply (initial or via poll). */
+/** Epoch millis of the most recent finished apply, in whichever mode: a live
+ *  scan or Timeline's history bundle both land here via markIdle. */
 export const LAST_UPDATED_AT = signal<number>(0);
 
 // ── Status transitions (single owner of each state + its coupled writes) ──
@@ -78,6 +78,7 @@ export function markDecorating(): void {
 export function markIdle(): void {
   REBUILD_STATUS.value = RebuildStatus.Idle;
   LAST_REBUILD_ERROR.value = null;
+  LAST_UPDATED_AT.value = Date.now();
 }
 
 export function markError(err: unknown): void {
@@ -90,13 +91,5 @@ export function markError(err: unknown): void {
 effect(() => {
   if (REBUILD_STATUS.value === RebuildStatus.Decorating) {
     setLoadingStep(LoadingStep.Decorating);
-  }
-});
-
-// Record when a (non-empty) manifest is applied — drives the freshness
-// readout's "last updated". Derived from the canonical MANIFEST signal.
-effect(() => {
-  if (!isEmptyManifest(MANIFEST.value)) {
-    LAST_UPDATED_AT.value = Date.now();
   }
 });
