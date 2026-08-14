@@ -46,14 +46,13 @@ import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
 function timelineStageTail(p: TimelineProgress): string | null {
-  if (p.stage === TimelineStage.Fetch) return p.percent != null ? `${p.percent}%` : null;
+  // Fetch and the server's union assembly both report a plain percent; assembly
+  // shares the Building row with the local stages that take it over after.
+  if (p.stage === TimelineStage.Fetch || p.stage === TimelineStage.Assemble) {
+    return p.percent != null ? `${p.percent}%` : null;
+  }
   if (p.stage === TimelineStage.History) {
     return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
-  }
-  // The server's assembly, counted out like the local build's own stages. They
-  // share the Building row, and take it over when the bundle lands.
-  if (p.stage === TimelineStage.Assemble) {
-    return p.step != null && p.steps != null ? `${p.detail} ${p.step}/${p.steps}` : null;
   }
   if (p.blobsDone !== undefined && p.blobsTotal !== undefined) {
     return `${p.blobsDone}/${p.blobsTotal} files`;

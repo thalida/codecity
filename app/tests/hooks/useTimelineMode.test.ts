@@ -125,9 +125,8 @@ describe('loadTimelineScene', () => {
     );
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
-    // The reveal is one frame behind the pack, and the pack is now several
-    // frames long: sample the overlay at the step right after it instead of
-    // racing jsdom's frame clock from out here.
+    // The pack is several frames long now, so sample the overlay at the step
+    // right after it instead of racing jsdom's frame clock from out here.
     let visibleAfterPack: boolean | null = null;
     f.installScrubController.mockImplementation(() => {
       visibleAfterPack = LOADING_OVERLAY.value.visible;
@@ -180,12 +179,11 @@ describe('loadTimelineScene', () => {
     // Each stage keeps its own tail, so a finished row still says what it found.
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
 
-    // Union assembly is the server's longest silent stretch and lands on the
-    // build row, rather than leaving 'Resolving files' sitting at 100%. It
-    // counts its own steps out, so the row moves instead of freezing on a label.
-    onProgress({ stage: TimelineStage.Assemble, step: 2, steps: 4, detail: 'line ranges' });
+    // Union assembly is the server's longest silent stretch, and it reports a
+    // percent onto the build row rather than freezing 'Resolving files' at 100%.
+    onProgress({ stage: TimelineStage.Assemble, percent: 62 });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('line ranges 2/4');
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('62%');
 
     resolveFetch(BUNDLE);
     await entering;

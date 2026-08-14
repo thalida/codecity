@@ -155,9 +155,7 @@ async def timeline(
                 data["blobsDone"] = payload.get("done")
                 data["blobsTotal"] = payload.get("total")
             elif stage == TimelineStage.ASSEMBLE:
-                data["step"] = payload.get("step")
-                data["steps"] = payload.get("steps")
-                data["detail"] = payload.get("detail")
+                data["percent"] = payload.get("percent")
             _put(_sse(TimelineEvent.PROGRESS, data))
 
         def _on_hydrate(payload: tuple[str, int]) -> None:
@@ -205,7 +203,7 @@ async def timeline(
                 # Serialising the bundle and putting it on the wire is its own
                 # wait on a big history, and the client is blind to it: the row
                 # would otherwise sit on the last computed step throughout.
-                assemble_tick(_on_progress, ASSEMBLE_STEPS, "sending")
+                assemble_tick(_on_progress, ASSEMBLE_STEPS)
                 _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
             except ScanCancelledError:
                 pass  # client disconnected mid-hydrate; nothing to report
