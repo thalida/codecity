@@ -7,7 +7,7 @@ import { signal, computed, effect } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
-import { URL_PARAMS } from '@/constants/urlParams';
+import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
@@ -51,6 +51,16 @@ export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>((
 export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
+
+/** Drop the load from the URL, view params included: a cancel with nothing to
+ *  fall back to must not leave a reload re-running the load it called off. */
+export function clearSourceUrl(): void {
+  const url = new URL(window.location.href);
+  for (const key of [...Object.values(URL_PARAMS), ...Object.values(VIEW_PARAMS)]) {
+    url.searchParams.delete(key);
+  }
+  history.replaceState(null, '', url.toString());
+}
 
 // Reflect the applied source in the URL so reload/share reopens it. No-ops
 // while null, so a cold boot can't clobber the ?src it is loading from.

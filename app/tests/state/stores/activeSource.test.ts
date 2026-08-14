@@ -4,6 +4,7 @@ import {
   CURRENT_SOURCE,
   SOURCE_INFO,
   commitSource,
+  clearSourceUrl,
   RECENTS,
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
@@ -71,6 +72,32 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
     CURRENT_SOURCE.value = { src: '/Users/me/proj' };
     setManifest({ tree: { name: 'proj' }, repo: {} } as unknown as Manifest);
     expect(SOURCE_INFO.value.sourceUrl).toBeUndefined();
+  });
+});
+
+describe('clearSourceUrl', () => {
+  afterEach(() => history.replaceState(null, '', '/'));
+
+  it('drops the load AND what was being viewed of it', () => {
+    // A cancel with no city to fall back to leaves the switcher open over
+    // nothing: a reload must not re-run the load that was just called off.
+    history.replaceState(
+      null,
+      '',
+      '/?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
+    );
+    clearSourceUrl();
+
+    expect(new URL(window.location.href).search).toBe('');
+  });
+
+  it('leaves anything it does not own alone', () => {
+    history.replaceState(null, '', '/?src=/proj&utm_source=x');
+    clearSourceUrl();
+
+    const params = new URL(window.location.href).searchParams;
+    expect(params.has('src')).toBe(false);
+    expect(params.get('utm_source')).toBe('x');
   });
 });
 
