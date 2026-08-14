@@ -43,8 +43,8 @@ const SHOWCASE_FIELDS = {
     kind: FieldKind.Select,
     default: ShowcaseAnchor.Island,
     options: ANCHOR_OPTIONS,
-    label: 'Orbit around',
-    tip: "What the orbit radius is measured against. Gem is the gem's own radius, for a close hero shot. Island is the floor it stands on, the widest circle that stays on land. City is the built extent, which can carry the camera out over the water.",
+    label: 'Measured against',
+    tip: 'What one unit of orbit radius is worth: the gem itself, the island edge, or the whole built extent.',
   },
   DISTANCE: {
     route: ChangeRoute.Live,
@@ -54,7 +54,7 @@ const SHOWCASE_FIELDS = {
     max: 3,
     step: 0.05,
     label: 'Orbit radius',
-    tip: 'How far out the orbit circles the gem, as a multiple of what it is measured around. Every project orbits in proportion to its own size, so a small repo is framed as closely as a big one.',
+    tip: 'Multiples of what the radius is measured against, so every project is framed in proportion to its own size.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,
