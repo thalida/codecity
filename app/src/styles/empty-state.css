@@ -1,11 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Empty state
-   ═══════════════════════════════════════════════════════════════════════════
-   Empty-state centered card — icon + title + subtitle stacked vertically.
-   Default sizing fits the search pane's empty-hint / no-matches state.
-   Modifiers:
-     .empty-state--lg — larger gap + padding + icon for file-preview
-       and info-pane states, where the panel has more vertical room.
+   LAYER-2 COMPONENTS — Empty state: centered icon + title + subtitle.
+   Default sizing suits the search pane; --lg suits panels with more room.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .empty-state {
@@ -45,4 +40,13 @@
 }
 .empty-state--lg .text-card-sub {
   max-width: 280px;
+}
+
+/* A node the scrub point doesn't have. Its own state at a glance, rather than a
+   generic empty one: the pane is blank BECAUSE the thing is gone. */
+.empty-state--absent .icon {
+  color: var(--cc-error);
+}
+.empty-state--absent .text-card-title {
+  color: var(--cc-error-light);
 }

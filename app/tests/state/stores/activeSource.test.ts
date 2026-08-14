@@ -3,7 +3,7 @@ import {
   CURRENT_SOURCE_KEY,
   CURRENT_SOURCE,
   SOURCE_INFO,
-  setCurrentSource,
+  commitSource,
   RECENTS,
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
@@ -74,7 +74,7 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
   });
 });
 
-describe('setCurrentSource', () => {
+describe('commitSource', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
     RECENTS.value = [];
@@ -82,7 +82,7 @@ describe('setCurrentSource', () => {
   });
 
   it('sets CURRENT_SOURCE and records a recent with the resolved branch', () => {
-    setCurrentSource('https://github.com/o/r', undefined, {
+    commitSource('https://github.com/o/r', undefined, {
       tree: { name: 'r' },
       repo: { branch: 'main' },
     } as unknown as Manifest);
@@ -93,7 +93,7 @@ describe('setCurrentSource', () => {
   });
 
   it('records an explicitly-requested branch', () => {
-    setCurrentSource('https://github.com/o/r', 'dev', {
+    commitSource('https://github.com/o/r', 'dev', {
       tree: { name: 'r' },
       repo: { branch: 'dev' },
     } as unknown as Manifest);
@@ -104,7 +104,7 @@ describe('setCurrentSource', () => {
   it('records a local source with no branch (branch is not part of its identity)', () => {
     // A local worktree scans whatever is checked out; storing that branch would
     // be a lie (it changes on disk), so the recent and CURRENT_SOURCE omit it.
-    setCurrentSource('/Users/me/worktrees/feat-x', undefined, {
+    commitSource('/Users/me/worktrees/feat-x', undefined, {
       tree: { name: 'owner/codecity' },
       repo: { branch: 'feat/issue-77' },
     } as unknown as Manifest);
@@ -115,11 +115,11 @@ describe('setCurrentSource', () => {
   it('dedupes a local path across checkouts into one recent', () => {
     // Opening the same local path at two different checkouts must not spawn a
     // second row: both commits store branch: undefined, so they dedupe by src.
-    setCurrentSource('/proj', undefined, {
+    commitSource('/proj', undefined, {
       tree: { name: 'proj' },
       repo: { branch: 'main' },
     } as unknown as Manifest);
-    setCurrentSource('/proj', undefined, {
+    commitSource('/proj', undefined, {
       tree: { name: 'proj' },
       repo: { branch: 'feat/x' },
     } as unknown as Manifest);
@@ -130,7 +130,7 @@ describe('setCurrentSource', () => {
   it('drops the branch from CURRENT_SOURCE + the URL for a local source', () => {
     // Even if a stale branch is passed in (old deep-link, recents onOpen), a
     // local source never carries it: CURRENT_SOURCE and the page URL stay clean.
-    setCurrentSource('/Users/me/proj', 'stale-branch', {
+    commitSource('/Users/me/proj', 'stale-branch', {
       tree: { name: 'proj' },
       repo: { branch: 'main' },
     } as unknown as Manifest);

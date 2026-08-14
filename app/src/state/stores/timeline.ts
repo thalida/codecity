@@ -64,18 +64,27 @@ export const SCRUB_DRAGGING = signal(false);
 // The commit content fetches key on: follows the scrub but holds still mid-drag,
 // so dragging across a long history doesn't refetch once per commit crossed.
 export const SETTLED_COMMIT = signal(0);
+
+// The same rest point as a position. SETTLED_COMMIT caps at the newest commit,
+// so it can't tell that stop from the today stop past it; this can.
+export const SETTLED_POS = signal(0);
+
 effect(() => {
   const commit = SCRUB_COMMIT.value;
-  if (!SCRUB_DRAGGING.value) SETTLED_COMMIT.value = commit;
+  const pos = SCRUB_POS.value;
+  if (SCRUB_DRAGGING.value) return;
+  batch(() => {
+    SETTLED_COMMIT.value = commit;
+    SETTLED_POS.value = pos;
+  });
 });
 
-// Every entry path, called only once the union city is packed: flipping the mode
-// before that leaves Timeline pointed at live geometry. `pos` defaults to the present.
-export function enterTimelineMode(pos?: number): void {
+// Called BEFORE the union city is packed: the mode tells the scene layer whose
+// city to pack. The position follows, once its bundle is loaded.
+export function beginTimelineMode(): void {
   batch(() => {
     TIMELINE_MODE.value = true;
     _todayMs.value = Date.now();
-    setScrubPos(pos ?? SCRUB_MAX.peek());
   });
 }
 

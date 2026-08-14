@@ -1,16 +1,7 @@
-// state/stores/settings/gem.ts — Root-of-repo gem + its repo-label hologram.
-//
-// Three stores, all in the Gem panel section:
-//   GEM        — the gem's VISUAL config (shape/appearance/face palette/
-//                animation/glow), one flat store; the glow sub-feature is
-//                prefixed GLOW_*.
-//   GEM_SIZING — LAYOUT sizing (radius), kept separate because it's threaded
-//                into the layout worker (lean snapshot), same as WORLD.
-//   REPO_LABEL — the floating holographic repo-name banner; its own feature
-//                with its own component (repoLabel.ts), kept separate.
-//
-// Schema-driven (see state/schema). Non-tunable layout constants
-// (gem hover-lift, gem clearance) were evicted to their consumers.
+// state/stores/settings/gem.ts — root-of-repo gem + its repo-label hologram, in
+// three stores: GEM (visual, GLOW_* sub-feature), GEM_SIZING (radius, threaded
+// into the layout worker, so separate like WORLD), and REPO_LABEL (the banner,
+// its own component). Non-tunable constants live with their consumers.
 
 import {
   settingSignal,
@@ -29,10 +20,8 @@ const FACE_C = 0.22;
 const faceHex = (i: number): string => oklchToHex(FACE_L, FACE_C, (i / 8) * 360);
 
 const GEM_FIELDS = {
-  // ── Shape ──
-  // Options + tip derive from the canonical GEM_SIDES vocabulary
-  // (constants/gem.ts) — the same key set the gem component's geometry
-  // table (city/components/gem/shapes.ts) is compile-checked against.
+  // Options + tip derive from GEM_SIDES, the key set the gem's geometry table
+  // is compile-checked against.
   SIDES: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Select,
@@ -292,7 +281,7 @@ const REPO_LABEL_FIELDS = {
   FONT_SIZE: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 128,
+    default: 192,
     min: 10,
     max: 300,
     step: 1,

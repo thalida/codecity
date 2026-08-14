@@ -5,7 +5,10 @@ import {
   setupLiveUpdates,
   refreshCurrentSource,
   setTimelineRefreshHandler,
+  setTimelineBootHandler,
+  bootLoad,
 } from '@/hooks/useManifestSource';
+import { readBootView } from '@/state/bootView';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -13,8 +16,7 @@ import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
-
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+import { flush } from '../_helpers/preact';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;
@@ -306,5 +308,71 @@ describe('exclude-driven re-fetch', () => {
     // The switch alone must NOT refetch — the load owns sending s2's excludes.
     expect(StubEventSource.instances.length).toBe(before);
     dispose();
+  });
+});
+
+// Each mode has its own call and manifest, so the boot picks one: a Timeline
+// URL loads the bundle and never scans HEAD for a city it won't show.
+describe('the boot load runs the mode the URL asks for', () => {
+  let restoreEventSource: () => void;
+
+  beforeEach(() => {
+    restoreEventSource = installEventSource();
+    StubEventSource.instances = [];
+    SOURCE_ERROR.value = null;
+    TIMELINE_MODE.value = false;
+    history.replaceState(null, '', '/');
+  });
+
+  afterEach(() => {
+    restoreEventSource();
+    setTimelineBootHandler(null);
+    TIMELINE_MODE.value = false;
+    history.replaceState(null, '', '/');
+  });
+
+  const boot = (search: string): Promise<void> => {
+    history.replaceState(null, '', `/${search}`);
+    return bootLoad(readBootView());
+  };
+
+  it('hands a ?mode=timeline boot the bundle load, with no live scan', async () => {
+    const loads: unknown[] = [];
+    setTimelineBootHandler(async (payload) => {
+      loads.push(payload);
+      TIMELINE_MODE.value = true;
+    });
+
+    await boot('?src=%2Frepos%2Fcodecity&mode=timeline&commit=abc123');
+
+    expect(loads).toEqual([{ src: '/repos/codecity', branch: undefined, commit: 'abc123' }]);
+    expect(StubEventSource.instances).toHaveLength(0); // nothing scanned HEAD
+  });
+
+  it('scans HEAD when the URL names no mode', async () => {
+    let timelineLoads = 0;
+    setTimelineBootHandler(async () => {
+      timelineLoads++;
+    });
+
+    const p = boot('?src=%2Frepos%2Fcodecity');
+    expect(StubEventSource.instances).toHaveLength(1);
+    expect(timelineLoads).toBe(0);
+    cancelLoad();
+    await p;
+  });
+
+  // A history bundle that won't load leaves you on a working city, not an
+  // empty one: the other mode still has a city to show.
+  it('falls back to a live load when the timeline boot fails to engage', async () => {
+    setTimelineBootHandler(async () => {
+      /* fetch failed; mode never turned on */
+    });
+
+    const p = boot('?src=%2Frepos%2Fcodecity&mode=timeline');
+    await flush();
+    expect(StubEventSource.instances).toHaveLength(1);
+    cancelLoad();
+    await p;
   });
 });

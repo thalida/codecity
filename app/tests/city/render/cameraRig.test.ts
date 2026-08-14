@@ -15,15 +15,7 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
-// The rig reads its world-framing inputs (bbox / gemWorldPos / rootStreet /
-// tallestBuilding) from cityState computeds, not from deps — so seed a layout
-// that produces a non-empty bbox + a root street. Two crossing 1000-long streets
-// span XZ to ±500 and a 200-tall building gives the Y extent: bbox =
-// (-500,0,-500)..(500,200,500). Exact magnitudes don't drive the focus
-// assertions (they key off the focused node + a sub-distance clamp), only that
-// framing captures at all.
-// The showcase tests do care: X/Z street lengths drive the island's two
-// half-extents apart, and the orbit radius clamps to the shorter one.
+// The rig frames off cityState, so seed a real bbox and root street.
 function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CityState {
   const cs = makeCityState();
   cs.layout.value = {
@@ -229,34 +221,61 @@ describe('cameraRig showcase orbit', () => {
     SHOWCASE.value = { ...getDefault(SHOWCASE) };
   });
 
-  it('circles the gem at the configured elevation and radius', () => {
+  it('circles the gem at the configured elevation, part way out', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: 900 };
+    const at = (t: number): number => {
+      SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: t };
+      rig.enterShowcase({ autoRotate: false });
+      return rig.camera.position.distanceTo(gem);
+    };
 
-    rig.enterShowcase({ autoRotate: false });
-
+    // Linear in the slider: halfway between two stops is halfway along. Read
+    // above 1, where neither the near floor nor the far cap is in play.
+    const one = at(1);
+    const two = at(2);
+    expect(at(1.5)).toBeCloseTo((one + two) / 2, 3);
     // The pivot is the gem itself (ground level), not a point up the skyline.
     expect(rig.controls.target.distanceTo(gem)).toBeCloseTo(0, 5);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(900, 3);
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(12, 3);
   });
 
-  it("pulls the radius in to the island's shorter half-extent", () => {
-    // 448 wide × 8048 deep: the orbit has to clamp to the width, not the depth.
+  // The two ends of the one slider: on the gem, and out at the city's own edge.
+  it('runs from the gem itself out to the whole city', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    const bounds = cs.latestWorldBounds.value as { halfWidth: number; halfDepth: number };
-    const islandRadius = Math.min(bounds.halfWidth, bounds.halfDepth);
-    // The fixture has to actually reach the clamp, or the assertion below is vacuous.
-    expect(islandRadius).toBeLessThan(SHOWCASE.value.DISTANCE);
-    expect(bounds.halfDepth).toBeGreaterThan(SHOWCASE.value.DISTANCE);
+    const bbox = cs.sceneBbox.value as { width: number; depth: number };
+    const at = (t: number): number => {
+      SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: t };
+      rig.enterShowcase({ autoRotate: false });
+      return rig.camera.position.distanceTo(gem);
+    };
 
+    // 0 is as close as the camera may ever sit, and nowhere near the city.
+    expect(at(0)).toBeCloseTo(rig.controls.minDistance, 6);
+    // 1 has to have the whole city in front of it, however the city is shaped.
+    expect(at(1)).toBeGreaterThanOrEqual(Math.max(bbox.width, bbox.depth) / 2);
+  });
+
+  // Past 1 pulls back beyond the city, but no further than a hand-driven camera
+  // could: the world's own zoom-out limit still holds.
+  it('goes past the city, and no further than the world allows', () => {
+    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+    const rig = makeRig(cs);
+    const gem = cs.gemWorldPos.value as THREE.Vector3;
+
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 1 };
     rig.enterShowcase({ autoRotate: false });
+    const framed = rig.camera.position.distanceTo(gem);
 
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(islandRadius, 3);
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 2 };
+    rig.enterShowcase({ autoRotate: false });
+    const pulledBack = rig.camera.position.distanceTo(gem);
+
+    expect(pulledBack).toBeGreaterThan(framed);
+    expect(pulledBack).toBeLessThanOrEqual(rig.controls.maxDistance + 1e-6);
   });
 
   it('re-frames live when a pose slider is dragged mid-showcase', () => {
@@ -265,10 +284,11 @@ describe('cameraRig showcase orbit', () => {
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     rig.enterShowcase({ autoRotate: false });
 
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 1200 };
+    const before = rig.camera.position.distanceTo(gem);
+    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 0.25 };
 
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(1200, 3);
+    expect(rig.camera.position.distanceTo(gem)).toBeLessThan(before);
   });
 
   it('leaves the camera alone when a slider moves outside the showcase', () => {
@@ -307,9 +327,8 @@ describe('cameraRig showcase orbit', () => {
 });
 
 describe('cameraRig start framing', () => {
-  // Issue #62: the label's width (from the text aspect, which settles on web-font
-  // load) must not affect framing — only its top-edge height. A tall label drives
-  // heightDist; widening it 100× must not move the camera.
+  // Issue #62: only the label's top-edge height may affect framing, never its
+  // width, which settles on web-font load.
   function labelDeps(halfWidth: number) {
     return makeStubWorld({
       getRepoLabelBounds: () => ({

@@ -1,21 +1,14 @@
-// state/stores/source.ts — Everything about *which source is loaded*: the
-// current source's stable key + display info and the recently-opened list. The
-// pure source-identity helpers (sourceKey/sourceIdentity/sameSourceIdentity)
-// live in utils/sources; this module owns the signals and persistence built on
-// them.
-//
-// CURRENT_SOURCE is session-scoped (set on every successful source apply);
-// CURRENT_SOURCE_KEY + SOURCE_INFO derive from it (the latter also from
-// MANIFEST). Persistence happens *keyed by* CURRENT_SOURCE_KEY rather than
-// re-hydrating these. RECENTS is persisted — but that's an implementation
-// detail of one field on the same topic, not a separate concern.
+// state/stores/source.ts — which source is loaded: its key, its display info,
+// and the recently-opened list. The pure identity helpers live in utils/sources;
+// this owns the signals built on them. Persistence is keyed BY
+// CURRENT_SOURCE_KEY rather than rehydrating it — the source is session state.
 
 import { signal, computed, effect } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
-import { MANIFEST } from '@/state/stores/manifest';
+import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
   SourceKind,
@@ -31,17 +24,12 @@ import type { Manifest } from '@/types';
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
-/** The applied source ({src, branch}) or null when nothing is loaded
- *  (cold boot / picker open). Single writer: the fetch hook (useManifestSource),
- *  on boot from ?src and on each successful new-source apply. */
+/** The applied source, or null when none is (cold boot / picker open). Written
+ *  only by commitSource below, so it means "a load succeeded". */
 export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(null);
 
-/**
- * The last source-LOAD failure (cold-boot or user submit), or null when none.
- * A canonical fetch outcome written by useManifestSource; App reacts to it to
- * open the source picker (the hook does NOT manage the picker). App clears it
- * when the user acts on the picker (submit/close).
- */
+/** The last load failure, or null. A fetch outcome, not a UI command: App
+ *  reacts by opening the picker, and clears it when the user acts. */
 export const SOURCE_ERROR = signal<{
   error: string;
   /** The server's machine-readable reason, where it gave one. The view keys
@@ -50,12 +38,8 @@ export const SOURCE_ERROR = signal<{
   prefill?: { src: string; branch?: string };
 } | null>(null);
 
-/**
- * The source whose city is on screen right now: the project you opened, or the
- * featured repo the landing renders when you haven't opened one. Lists mark
- * their rows against this, so the same repo is marked the same way wherever it
- * is listed, which is the only way a per-repo note can mean one thing.
- */
+/** What is on screen: the project you opened, or the featured repo the landing
+ *  renders. Lists mark rows against this, so one repo marks the same way. */
 export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>(() => {
   const current = CURRENT_SOURCE.value;
   if (current) return current;
@@ -63,18 +47,13 @@ export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>((
   return featured ? { src: featured.src, branch: featured.branch } : null;
 });
 
-/**
- * The currently-loaded source's stable hash, or null when no source is loaded.
- * Derived from CURRENT_SOURCE — used to namespace per-source localStorage.
- */
+/** The loaded source's stable hash, or null. Namespaces per-source storage. */
 export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
 
-// Reflect the applied source in the page URL so reload/share reopens it. A
-// module-level effect on CURRENT_SOURCE (no imperative syncUrlToSource in the
-// fetch layer). No-ops while null (cold boot / picker open) so we never clobber
-// the URL before a source is applied.
+// Reflect the applied source in the URL so reload/share reopens it. No-ops
+// while null, so a cold boot can't clobber the ?src it is loading from.
 effect(() => {
   const cur = CURRENT_SOURCE.value;
   if (!cur) return;
@@ -96,11 +75,8 @@ export interface SourceInfo {
   src: string | undefined;
 }
 
-/**
- * Whether the applied source is a working tree on disk rather than a clone of a
- * remote. Only a working tree can change under the app, so anything that watches
- * for change keys off this.
- */
+/** A working tree on disk rather than a clone. Only a working tree can change
+ *  under the app, so anything watching for change keys off this. */
 export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
   const cur = CURRENT_SOURCE.value;
   return cur ? srcKind(cur.src) === SourceKind.Local : false;
@@ -136,11 +112,8 @@ export interface RecentSource {
 /** Persisted list of recently-opened sources. Hydrates at module load. */
 export const RECENTS = persistedSignal<RecentSource[]>(PERSISTED_KEYS.RECENTS, []);
 
-/**
- * Push (or update) an entry. Dedupes by source identity (src, plus branch for a
- * remote — a local path is one row regardless of checkout). The pushed entry
- * becomes the most-recent. List is capped at MAX_RECENT_SOURCES (oldest dropped).
- */
+/** Push (or update) an entry, most-recent first. Dedupes by source identity, so
+ *  a local path is one row regardless of checkout. Capped, oldest dropped. */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
   const filtered = RECENTS.value.filter((r) => !sameSourceIdentity(r, entry));
@@ -148,28 +121,19 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
 
-/**
- * Commit a successfully-loaded source: set CURRENT_SOURCE (the canonical
- * applied-source signal that the URL, CURRENT_SOURCE_KEY, SOURCE_INFO, and the
- * render layer's camera-reset all derive from) AND record it in recents with
- * the manifest-resolved branch. Single commit point for boot + switch.
- */
-export function setCurrentSource(
-  src: string,
-  branch: string | undefined,
-  manifest: Manifest
-): void {
-  // A local source carries no branch (identityBranch): its checkout is dynamic,
-  // so CURRENT_SOURCE, the URL, the cache key, and the recent all omit it. The
-  // checked-out branch is still shown in the header via SOURCE_INFO, which reads
-  // it from the manifest — display only, not identity.
+/** Commit a loaded source: CURRENT_SOURCE, its recents entry, and the manifest
+ *  the UI reads. Every mode ends its load here, with its own manifest. */
+export function commitSource(src: string, branch: string | undefined, manifest: Manifest): void {
+  // A local source carries no branch: its checkout is dynamic, so identity omits
+  // it. The header still shows it, read off the manifest — display, not identity.
   const idBranch = identityBranch(src, branch);
+  // Source before manifest: the camera-reframe reaction reads CURRENT_SOURCE at
+  // apply-start, and the apply is kicked off by the manifest write.
   CURRENT_SOURCE.value = { src, branch: idBranch };
+  setManifest(manifest);
   pushRecent({
     src,
-    // The server bakes the canonical owner/repo name into tree.name (a local
-    // worktree's src basename would be the folder name, not the repo); keep the
-    // raw src only as a defensive fallback.
+    // tree.name is the canonical owner/repo; a worktree's basename is its folder.
     label: manifest.tree?.name || src,
     branch: identityBranch(src, resolveBranch(manifest, branch)),
     checkout: resolveBranch(manifest, branch),

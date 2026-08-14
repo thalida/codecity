@@ -1,30 +1,7 @@
-// city/render/cameraRig.ts — owns the perspective camera, OrbitControls,
-// initial framing, and the focus/reset animations (R key reset,
-// F key focus-on-selection, dblclick focus).
-//
-// Public contract:
-//
-//   const rig = createCameraRig({ canvas, deps });
-//
-//   rig.camera                            // PerspectiveCamera (read-only ref)
-//   rig.controls                          // OrbitControls    (read-only ref)
-//   rig.update(dtMs)                      // per-frame from animate loop
-//   rig.reset()                           // R key
-//   rig.recenterTo(worldPoint)            // dblclick on empty space
-//   rig.focusBuilding(mesh, building)     // F or dblclick on a building
-//   rig.focusStreet(street, hitPoint)     // dblclick on a street
-//   rig.focusTree(sha)                    // F or dblclick on a tree (commit)
-//   rig.focusSelection(pickTarget)        // dispatches to one of the above
-//                                         //   based on the PickTarget kind
-//   rig.dispose()
-//
-// First-frame framing is one-shot by construction: frameToBbox is not on
-// the public API. update() runs the framing internally when an internal
-// firstFrame flag is true and cityState.bbox is non-empty,
-// then clears the flag. There's no surface for an accidental re-frame.
-//
-// Camera pose is never persisted. Every world load always starts at the
-// default gem-framing position.
+// city/render/cameraRig.ts — the perspective camera, OrbitControls, the initial
+// framing, and the focus/reset animations. First-frame framing is one-shot by
+// construction: nothing on the public API re-frames, update() does it behind a
+// flag. The pose is never persisted; every load starts at the gem framing.
 
 import * as THREE from 'three';
 import { computed, effect, untracked } from '@preact/signals';
@@ -47,6 +24,9 @@ import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
 import { CAMERA } from '@/state/stores/settings/camera';
 import { SHOWCASE } from '@/state/stores/settings/showcase';
+import { GEM_SIZING } from '@/state/stores/settings/gem';
+import { gemRadiusFor } from '@/city/components/gem/mesh';
+import { showcaseRadius } from './showcaseRadius';
 
 // The showcase fields that PLACE the camera. Rotation speed is out: dragging it
 // mid-spin should change the speed, not yank the orbit back to its start azimuth.
@@ -55,10 +35,6 @@ const SHOWCASE_POSE = computed(() => {
   return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
 });
 
-/** Narrow accessor surface the rig needs from the composer for component
- *  geometry (repoLabel/trees). World framing inputs (bbox, gem, root street,
- *  tallest building) come from cityState directly, not through here. createCity
- *  (city/index.ts) passes a small deps literal that satisfies this. */
 /** A snapshot of the user's camera, restored verbatim on switcher dismiss. */
 export interface CameraPose {
   position: THREE.Vector3;
@@ -79,35 +55,23 @@ export interface CameraRigDeps {
   ): { x: number; y: number; z: number; height: number; radius: number } | null;
 }
 
-/** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
- *  cities (small footprint, one big building) end up with a tiny
- *  worldRadius if Y is the only large axis — and on cities with little
- *  geometry at all, worldRadius is near zero. This guarantees the user
- *  can always pull back to a comfortable cinematic viewing distance. */
+/** Floor on maxDistance: a tiny-but-tall city has a near-zero worldRadius, and
+ *  the user still has to be able to pull back to a cinematic distance. */
 const MIN_MAX_DISTANCE = 8000;
 
-// Per-action duration ratios relative to CAMERA_BASE_DURATION_MS.
-// These tune the per-gesture feel — a Recenter should feel snappier than a
-// building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
-// so dragging the base in Settings scales every camera animation in lock-
-// step while preserving the relative pacing.
-//   RECENTER (0.7×) — quick pivot slide, no zoom change
-//   BUILDING_FOCUS (1.2×) — longer, gives the user time to read the tween
-//   STREET_FOCUS  (1.2×) — same character as building-focus
+// Ratios of CAMERA_BASE_DURATION_MS, not absolutes: dragging the base in
+// Settings then scales every animation while the relative pacing holds.
 const RECENTER_RATIO = 0.7;
 const BUILDING_FOCUS_RATIO = 1.2;
 const STREET_FOCUS_RATIO = 1.2;
 
-// Top-down focus framing. 80° elevation gives the user a near-overhead read
-// while still showing enough side-faces for 3D depth. Stays under
+// Near-overhead, but off the pole: enough side-face for depth, and under
 // controls.maxPolarAngle.
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
-// Headroom above the tallest building's roof when fitting the start
-// framing. 1.0 = spire flush at the top edge of the vertical FOV
-// (tightest geometric fit). 1.05 leaves ~5% of the vertical FOV as
-// sky above the tallest spire so the roof doesn't touch the very top.
+// 1.0 would sit the tallest spire flush against the top edge; the extra 5%
+// of vertical FOV is the sky that keeps it off it.
 const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
 
 export function createCameraRig({
@@ -149,20 +113,14 @@ export function createCameraRig({
   // this; in-flight rAF steps abort if their token doesn't match.
   let camAnimToken = 0;
 
-  // Compute the canonical "framed" pose for the current world bbox and
-  // refresh initialCamPos/initialTarget + controls.maxDistance + the
-  // OrbitControls saveState snapshot. Does NOT move the user's camera.
-  // Called on first frame and after every manifest swap so reset() always
-  // snaps to a pose that fits the current city — without this, a manifest
-  // swap after zooming way out could leave R targeting the OLD (large-city)
-  // framing while the camera was far outside the new bbox.
+  // Refresh the framed pose without moving the user's camera. Re-run per
+  // manifest swap, or R would still target the previous city's framing.
   function _captureFraming(): boolean {
     const bbox = cityState.bbox.value;
     if (!bbox || bbox.isEmpty()) return false;
 
-    // World-bbox metrics — drive controls.maxDistance + camera.far so the
-    // user can zoom all the way out and see the whole city without it
-    // being clipped by the far plane.
+    // Drive maxDistance + camera.far, so zooming all the way out shows the
+    // whole city rather than clipping it at the far plane.
     const worldCenter = new THREE.Vector3();
     bbox.getCenter(worldCenter);
     const worldGroundCenter = new THREE.Vector3(worldCenter.x, 0, worldCenter.z);
@@ -181,80 +139,46 @@ export function createCameraRig({
     const worldRadius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
     const halfFov = (camera.fov * Math.PI) / 180 / 2;
 
-    // Max zoom-out: a generous multiple of the world's geometric
-    // radius (which includes building heights via farY), floored at
-    // an absolute minimum so tiny-but-tall cities still let the user
-    // pull back. Decoupled from worldDist / FOV so the behavior is
-    // predictable regardless of city shape. Comment-on-history: the
-    // previous formula was worldDist × MAX_DISTANCE_MULT which kept
-    // small cities cramped because worldDist was itself small.
+    // Off the world radius rather than worldDist/FOV: the latter is itself
+    // small for a small city, which kept small cities cramped.
     controls.maxDistance = Math.max(worldRadius * CAMERA_MAX_DISTANCE_MULT, MIN_MAX_DISTANCE);
 
-    // Far clip: covers the farthest point a fully-zoomed-out camera can
-    // see (maxDistance past target, plus the world's own radius). Set
-    // unconditionally so it shrinks for small worlds (depth-buffer
-    // precision matters for the hover-ghost inset) AND grows for huge
-    // worlds. Floored at the Cyberpunk Valley sky-sphere's outer extent
-    // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
-    // at the corners of small-repo viewports.
+    // Shrinks for small worlds too (the hover-ghost inset needs the depth
+    // precision), floored at the sky sphere so its corners never clip.
     const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
     const skySphereExtent = CAMERA_FAR * 0.95;
     camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
-    // Framing target: the root gem, with a distance sized to the root
-    // street rather than the whole-world bbox. R should land the user
-    // looking at the gem with the root street + its immediate
-    // neighborhood readable on screen — not zoomed all the way out where
-    // the gem becomes an invisible dot in a sprawling metropolis.
+    // Sized to the root street, not the world bbox: R should land on a
+    // readable neighbourhood, not a metropolis with the gem as a dot.
     const gemPos = cityState.gemWorldPos.value;
     const rootStreet = cityState.rootStreet.value;
     let framingCenter: THREE.Vector3;
     let framingRadius: number;
     if (gemPos && rootStreet) {
       framingCenter = new THREE.Vector3(gemPos.x, 0, gemPos.z);
-      // Frame off the root street's WIDTH, not its length. Length is a
-      // proxy for "how much stuff is in the project" — for a big repo the
-      // root street is enormously long and framing on it is the same as
-      // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
-      // so width × 15 reliably fits the gem + the road's first stretch
-      // regardless of project size.
+      // Width, not length: length tracks project size, so framing on it is
+      // framing the whole world. Width is tier-bounded, so this holds.
       framingRadius = rootStreet.width * 15;
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
       framingRadius = worldRadius;
     }
-    // Distance from width: the existing "city neighborhood readable on
-    // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
-    // intentionally; tuned for the typical city shape.
+    // INITIAL_DISTANCE_MULT (<1) tightens the sphere fit on purpose, tuned
+    // for the typical city shape.
     const widthDist = (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
-    // Default framing direction: place the camera BEHIND the gem along the root
-    // street's long axis (the street extends in +X for X-oriented or +Z for
-    // Y-oriented; the gem sits at the low end — see gem/mesh.ts:createRootGem),
-    // lifted + swung by the user's elevation/azimuth (CAMERA store). Read
-    // untracked here — the reframe effect this runs inside tracks bbox only; a
-    // dedicated CAMERA effect re-frames on angle changes.
+    // Behind the gem along the root street's axis (the gem sits at its low
+    // end), lifted and swung by the user's angle. A CAMERA effect re-frames.
     const dir = computeFramingDir(
       CAMERA.value.ELEVATION,
       CAMERA.value.AZIMUTH,
       rootStreet ? rootStreet.orientation : null
     );
 
-    // Height fit: project the tallest building's 4 roof corners through
-    // the camera math and find the minimum D such that they all sit
-    // within the vertical FOV. One building, 4 corners — no loop over
-    // the whole city.
-    //
-    // For a point p offset from the target, the camera at target + dir·D
-    // sees screen-y = (p · cam_up) / (D − p · dir), where cam_up is
-    // perpendicular to dir and aligned with world up. Setting
-    // |screen-y| ≤ tan(halfFov) and solving:
-    //
-    //   D ≥ |p · cam_up| / tan(halfFov) + p · dir
-    //
-    // Take the max across the 4 roof corners. HEADROOM scales D up for
-    // breathing room above the roof (1.0 = spire flush against top edge).
+    // Smallest D fitting the tallest roof's 4 corners in the vertical FOV:
+    // D ≥ |p · cam_up| / tan(halfFov) + p · dir, maxed over the corners.
     let heightDist = 0;
     const tallest = gemPos && rootStreet ? cityState.tallestBuilding.value : null;
     const labelBounds = gemPos && rootStreet ? deps.getRepoLabelBounds() : null;
@@ -276,14 +200,8 @@ export function createCameraRig({
         const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
         if (dNeeded > heightDist) heightDist = dNeeded;
       };
-      // Position-independent height fit: use gem coords instead of the
-      // tallest building's real coords. The fit math adds p·dir, so a
-      // tall outlier 2000u from the gem would push the camera back
-      // ~2000u just to literally frame that one roof on screen — which
-      // is exactly the "starts zoomed all the way out to fit a far-away
-      // spire" bug. The default view just needs D large enough that a
-      // building of this HEIGHT could fit; the user pans/orbits to
-      // actually look at the outlier.
+      // At gem coords, not the building's own: p·dir would push the camera
+      // back by the outlier's distance just to frame that one roof.
       if (tallest) {
         for (const sx of [-0.5, 0.5]) {
           for (const sz of [-0.5, 0.5]) {
@@ -291,10 +209,8 @@ export function createCameraRig({
           }
         }
       }
-      // Fit the label's top-edge HEIGHT only, not its width: the panel is
-      // centered on the gem and already inside the width-fit frame, and its
-      // width comes from the text-texture aspect, which only settles on web-font
-      // load — sampling it made the frame jump after load (issue #62).
+      // Height only: the panel is centred on the gem, already inside the
+      // width fit, and its width settles on web-font load (issue #62).
       if (labelBounds) {
         const topY = labelBounds.centerY + labelBounds.halfHeight;
         _fitPoint(labelBounds.centerX, topY, labelBounds.centerZ);
@@ -306,11 +222,8 @@ export function createCameraRig({
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
 
-    // Update OrbitControls' saveState (used by controls.reset()) without
-    // disturbing the user's current view: stash, swap to framed pose,
-    // saveState, restore. saveState reads camera.position + target + zoom
-    // at call time, so this is the only way to reframe controls.reset()'s
-    // target without re-positioning the user.
+    // saveState reads the camera at call time, so stash/swap/restore is the
+    // only way to reframe controls.reset() without moving the user.
     const userPos = _scratchUserPos.copy(camera.position);
     const userTarget = _scratchUserTarget.copy(controls.target);
     camera.position.copy(initialCamPos);
@@ -336,27 +249,17 @@ export function createCameraRig({
     return true;
   }
 
-  // Re-frame on every manifest swap so R (reset) always fits the current city.
-  // bbox is reassigned (new Box3) ONLY on a non-reuse apply — the exact moment
-  // the framing should update — so tracking it here re-captures without firing
-  // on reuse applies. The first
-  // (construction-time) fire sees bbox=null and _captureFraming no-ops via its
-  // own empty-bbox guard; the boot apply then sets bbox and reframes. The
-  // decision to actually SNAP the camera on a source change lives in the city
-  // composer (createCity), which calls reset() from a bbox effect gated on
-  // CURRENT_SOURCE_KEY — this rig is source-agnostic.
+  // bbox is reassigned only on a non-reuse apply, which is exactly when the
+  // framing should update. Whether to SNAP is the composer's call, not this.
   const _disposeReframeEffect = effect(() => {
     void cityState.bbox.value;
-    // Run untracked so this effect subscribes to bbox ONLY — _captureFraming
-    // also reads cityState.gemWorldPos/rootStreet (computed off layout), which
-    // change in lockstep with bbox anyway, but tracking just bbox keeps the
-    // dependency set exactly what it claims to be.
+    // Untracked: _captureFraming reads gem/rootStreet too, and the dependency
+    // set should be exactly what this effect claims.
     untracked(_captureFraming);
   });
 
-  // Re-frame when a saved draft changes the default camera angle: reset() reads
-  // the fresh angle (via _captureFraming) and hard-snaps to the new pose.
-  // Subscribes to CAMERA only; on construction bbox is empty so reset() no-ops.
+  // A saved angle re-frames: reset() reads it and snaps. On construction the
+  // bbox is empty, so this no-ops.
   const _disposeCameraAngleEffect = effect(() => {
     void CAMERA.value;
     untracked(reset);
@@ -394,23 +297,14 @@ export function createCameraRig({
   }
 
   function reset() {
-    // Recapture from the CURRENT layout every call: the final manifest is a reuse
-    // apply (bbox frozen), so the bbox effect that normally caches the pose
-    // doesn't re-fire there — a cached pose could be stale. False only pre-manifest.
+    // Recapture every call: the final manifest is a reuse apply, so the bbox
+    // effect never fires for it and a cached pose would be stale.
     if (!_captureFraming() || !initialCamPos || !initialTarget) return;
-    // Cancel any in-flight focus/reset animation so it can't keep
-    // walking the camera away from the snap target.
+    // Or an in-flight focus keeps walking the camera off the snap target.
     camAnimToken++;
     camera.up.set(0, 1, 0);
-    // Hard snap. Bypassing controls.reset() in favor of a manual snap
-    // because controls.reset() calls update() at the end, which re-applies
-    // any residual sphericalDelta / panOffset / scale from the user's last
-    // interaction — visible as the camera drifting back toward the
-    // pre-reset pose, especially when the framed pose is far from where
-    // the user was (e.g. R after a manifest swap going from a close-up
-    // small world to a far-out big world). Disabling damping during the
-    // snap consumes those deltas in one frame at full strength, then we
-    // re-enable damping for normal use.
+    // Not controls.reset(): its trailing update() re-applies the user's
+    // residual deltas, drifting back. Damping off consumes them in one frame.
     const wasDamping = controls.enableDamping;
     controls.enableDamping = false;
     camera.position.copy(initialCamPos);
@@ -448,10 +342,8 @@ export function createCameraRig({
     const halfV = (camera.fov * Math.PI) / 180 / 2;
     const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
 
-    // Fit the target's bounding sphere. R encloses every span the target
-    // can present to the camera regardless of azimuth — for a tall building
-    // this prevents the camera landing inside the geometry when looking
-    // nearly-overhead at the b.h/2 centroid.
+    // The bounding sphere encloses every span the target can present, so a
+    // near-overhead look can't land the camera inside a tall building.
     const R = 0.5 * Math.sqrt(fitW * fitW + fitD * fitD + fitH * fitH);
     const halfFov = Math.min(halfV, halfH);
     const dist = Math.max((R / Math.sin(halfFov)) * TOP_DOWN_PADDING_MULT, controls.minDistance);
@@ -463,9 +355,8 @@ export function createCameraRig({
     let dirX = cur.x;
     let dirZ = cur.z;
     const horizLenSq = dirX * dirX + dirZ * dirZ;
-    // 1e-4 = (1 cm)^2 in world units — if the camera's horizontal offset
-    // from the target is sub-centimeter, treat it as nadir and fall back
-    // to the root-street axis so the azimuth doesn't NaN out.
+    // Sub-centimetre horizontal offset is nadir: the root-street axis stands
+    // in, or the azimuth NaNs out.
     if (horizLenSq < 1e-4) {
       const root = cityState.rootStreet.value;
       if (root && root.orientation === StreetAxis.X) {
@@ -519,11 +410,8 @@ export function createCameraRig({
     _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
   }
 
-  /** Debug/capture only (see city/capture): snap the camera to a pose looking
-   *  at `target` from `elevation`/`azimuth` degrees at `distance` world units.
-   *  Bypasses the top-down focus framing so README screenshots can get low,
-   *  close, street-level angles. Azimuth is measured off the root-street axis,
-   *  same as the CAMERA store. */
+  /** Capture only: an explicit pose, bypassing the top-down focus framing so a
+   *  README shot can be low and street-level. Azimuth is off the root axis. */
   function captureView(opts: {
     target: THREE.Vector3;
     /** Explicit camera distance. If omitted, `fitRadius` is fit to the FOV. */
@@ -606,10 +494,8 @@ export function createCameraRig({
     return { pos: new THREE.Vector3(s.x, 0, s.y), width: s.width, length: s.length };
   }
 
-  /** Single entry-point for "focus the camera on whatever is selected".
-   *  Dispatches to focusBuilding / focusStreet / focusTree based on the
-   *  PickTarget kind. Lives on the scene side so view code doesn't have
-   *  to know about the per-target focus mechanics. */
+  /** Focus whatever is selected. On the scene side, so view code never has to
+   *  know the per-target focus mechanics. */
   function focusSelection(sel: PickTarget | null): void {
     if (!sel) return;
     if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data);
@@ -618,14 +504,12 @@ export function createCameraRig({
   }
 
   // ── Showcase mode ────────────────────────────────────────────────
-  // The project switcher drives the live city into a hero turntable behind its
-  // overlay. The user's pose isn't stored in any signal (it lives on
-  // camera/controls), so the caller snapshots getPose() before entering and
-  // hard-snaps back with applyPose() on dismiss. Both transitions snap (no
-  // tween): the entry animation read as jarring on top of the chrome-hide.
 
-  // Non-null while the turntable runs; carries the caller's autoRotate so a
-  // settings change can re-enter on the same terms.
+  // The pose lives on camera/controls, not a signal, so the caller snapshots
+  // and snaps back. Untweened: a tween read as jarring over the chrome-hide.
+
+  // Carries the caller's autoRotate, so a settings change re-enters on the
+  // same terms.
   let showcaseMode: { autoRotate: boolean } | null = null;
 
   function getPose(): CameraPose {
@@ -656,19 +540,18 @@ export function createCameraRig({
     _snapTo(pose.target, pose.position, pose.up);
   }
 
-  /** The radius the showcase orbits the gem at: the configured distance, pulled in
-   *  when it would swing the camera off the island. The widest circle a
-   *  rectangular floor contains is its shorter half-extent. */
+  /** Where the showcase orbit sits, 0 (on the gem) to 1 (the whole city). */
   function _showcaseRadius(distance: number): number {
-    const bounds = cityState.latestWorldBounds.value;
-    const islandRadius = bounds ? Math.min(bounds.halfWidth, bounds.halfDepth) : distance;
-    return Math.max(Math.min(distance, islandRadius), controls.minDistance);
+    const rootStreet = cityState.rootStreet.value;
+    return showcaseRadius(distance, controls, {
+      gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, GEM_SIZING.value) : null,
+      worldBounds: cityState.latestWorldBounds.value,
+      sceneBbox: cityState.sceneBbox.value,
+    });
   }
 
-  /** Snap to a ground-level orbit circling the root gem and (optionally) start
-   *  spinning. Distance is held constant rather than fitted to the city, so
-   *  every project reads at the same scale — a big repo just puts more city
-   *  between the camera and the gem. */
+  /** A ground-level orbit circling the root gem, sized from the city's own
+   *  geometry so every project is framed in proportion. */
   function enterShowcase({ autoRotate }: { autoRotate: boolean }): void {
     showcaseMode = { autoRotate };
     // Off across the snap: _snapTo ends in controls.update(), which would advance

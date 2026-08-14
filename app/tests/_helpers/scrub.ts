@@ -61,6 +61,14 @@ export function makeBundle(over: Partial<TimelineBundle>): TimelineBundle {
   } as unknown as TimelineBundle;
 }
 
+/** A bundle of n commits, c0…c(n-1). Undated by default: SCRUB_TODAY_MS can't
+ *  parse one, so there is no today stop and the newest commit IS the present. */
+export function makeCommitBundle(n: number, date?: string): TimelineBundle {
+  return makeBundle({
+    commits: Array.from({ length: n }, (_, i) => ({ sha: `c${i}`, date })),
+  } as unknown as Partial<TimelineBundle>);
+}
+
 /** f.txt: absent at 0, created at 1 with 2 lines, grows to 6 at 2, deleted at 3.
  *  So createdIdx = 1, finalIdx = 3, union lines = 6. */
 export const SUBJECT_BUNDLE = makeBundle({

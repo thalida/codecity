@@ -36,6 +36,7 @@ import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
 import { useFeaturedCity } from '@/hooks/useFeaturedCity';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { attachLoadingReactions } from '@/state/loadingReactions';
+import { attachViewUrlReactions } from '@/state/viewUrl';
 
 export function App() {
   useDocumentTitle();
@@ -45,6 +46,9 @@ export function App() {
   const { submitSource, refreshSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
+  // Before the boot load can resolve, so the view params in the URL are read
+  // ahead of anything that reflects over them.
+  useEffect(() => attachViewUrlReactions(), []);
 
   // CURRENT_SOURCE is written only on a successful load, so this one reaction
   // means "a world committed": drop the stale selection and reveal the city.

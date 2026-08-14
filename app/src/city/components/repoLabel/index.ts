@@ -16,6 +16,7 @@ import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
 import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './textCanvas';
+import { repoLabelBounds, type RepoLabelBounds } from './bounds';
 
 // Fraction of FONT_SIZE, so growing the label thickens the beam with it.
 const BEAM_RADIUS_FRAC = 0.04;
@@ -82,6 +83,8 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   group.name = 'repoLabel';
 
   let textTex: RepoNameTexture | null = null;
+  // Kept beside the texture so the framing can size the panel before one exists.
+  let repoName = '';
   let panelMesh: THREE.Mesh | null = null;
   let beamMesh: THREE.Mesh | null = null;
   let panelMat: THREE.ShaderMaterial | null = null;
@@ -231,6 +234,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   }
 
   function setRepoName(name: string): void {
+    repoName = name;
     if (!textTex) {
       textTex = createRepoNameTexture(name);
       _buildMeshes();
@@ -306,31 +310,13 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     if (group.parent) group.parent.remove(group);
   }
 
-  function getPanelBounds(): {
-    centerX: number;
-    centerY: number;
-    centerZ: number;
-    halfWidth: number;
-    halfHeight: number;
-  } | null {
-    if (!panelMesh || !textTex) return null;
-    const cfg = REPO_LABEL.value;
-    if (!cfg.ENABLED) return null;
-    const halfFont = cfg.FONT_SIZE / 2;
-    const dims = BUILDING_DIMENSIONS.value;
-    const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
-    const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
-    // Mirror _applyTransform: panel center sits at anchor.y + heightWorld
-    // + halfFont; the group's x/z is the anchor's x/z.
-    const centerY = anchorY + heightWorld + halfFont;
-    const halfWidth = (cfg.FONT_SIZE * (textTex.aspect ?? 1)) / 2;
-    return {
-      centerX: anchorX,
-      centerY,
-      centerZ: anchorZ,
-      halfWidth,
-      halfHeight: halfFont,
-    };
+  function getPanelBounds(): RepoLabelBounds | null {
+    return repoLabelBounds(
+      repoName,
+      { x: anchorX, y: anchorY, z: anchorZ },
+      REPO_LABEL.value,
+      BUILDING_DIMENSIONS.value
+    );
   }
 
   return {

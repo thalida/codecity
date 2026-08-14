@@ -1,8 +1,6 @@
 // state/stores/settings/showcase.ts — the hero turntable the switcher and the
 // featured city drive the world into: a ground-level orbit circling the root
-// gem. Draft-backed like the rest of the World tab; the rig re-frames on save.
-//
-// ChangeRoute.Live: no rebuild/refresh reaction; the rig drives the update.
+// gem. All Live-routed: no rebuild reaction, the rig drives the update itself.
 
 import {
   settingSignal,
@@ -36,12 +34,12 @@ const SHOWCASE_FIELDS = {
   DISTANCE: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 3000,
-    min: 50,
-    max: 5000,
-    step: 50,
+    default: 1.25,
+    min: 0,
+    max: 2,
+    step: 0.05,
     label: 'Orbit radius',
-    tip: 'How far out the orbit circles the gem, in world units. Held the same for every project, so a big repo just means more city between you and the gem. Pulled in when it would carry the camera past the island edge.',
+    tip: 'How far out the turntable circles the gem: 0 sits on the gem itself, 1 frames the whole city, 2 pulls back twice that. In proportion to the project, so it means the same thing on any repo, and capped by how far the world lets you pull back.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,
