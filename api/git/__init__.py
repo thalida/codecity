@@ -11,6 +11,7 @@ __all__, no route depends on it.
 """
 
 from .clone import (
+    CloneProgress,
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
@@ -32,6 +33,7 @@ from .source import (
 )
 
 __all__ = [
+    "CloneProgress",
     "BranchNotFoundError",
     "CloneError",
     "HostUnreachableError",

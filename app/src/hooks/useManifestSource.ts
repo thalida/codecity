@@ -64,6 +64,9 @@ async function pumpManifestStream(
         percent: event.phase === ScanPhase.CloneProgress ? event.percent : undefined,
         stage: event.phase === ScanPhase.CloneProgress ? event.stage : undefined,
         mbOnDisk: event.phase === ScanPhase.CloneProgress ? event.mb_on_disk : undefined,
+        objects: event.phase === ScanPhase.CloneProgress ? event.objects : undefined,
+        objectsTotal: event.phase === ScanPhase.CloneProgress ? event.objects_total : undefined,
+        mib: event.phase === ScanPhase.CloneProgress ? event.mib : undefined,
         filesScanned: event.phase === ScanPhase.ScanProgress ? event.files_scanned : undefined,
       };
       continue;

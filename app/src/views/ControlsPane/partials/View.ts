@@ -6,8 +6,8 @@ import { SHOWCASE } from '@/state/stores/settings/showcase';
 
 export const VIEW_SECTION: SectionNode = {
   key: 'view',
-  label: 'View',
-  description: 'Where the camera sits.',
+  label: 'Camera',
+  description: 'The angle a project opens at, and the orbit that circles it behind the switcher.',
   children: [
     {
       key: 'default-angle',

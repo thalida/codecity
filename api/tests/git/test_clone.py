@@ -292,8 +292,10 @@ def test_clone_errors_share_a_base(exc):
 
 
 class NetGitRetryTests(unittest.TestCase):
-    def test_retryable_over_http1_1_then_succeeds(self) -> None:
-        # A transient network drop retries (forcing HTTP/1.1) and then succeeds.
+    def test_retryable_falls_back_to_http1_1_then_succeeds(self) -> None:
+        # A transient network drop retries and then succeeds. The first attempt
+        # rides git's own default (HTTP/2 against GitHub); only the retry drops
+        # to HTTP/1.1, so a healthy transfer keeps its multiplexing.
         calls: list[tuple[str, ...]] = []
 
         def fake(*args: str, **kw: object) -> str:
@@ -309,7 +311,8 @@ class NetGitRetryTests(unittest.TestCase):
             out = clone_mod._run_net_git("clone", "--", "url", "t")
         self.assertEqual(out, "ok")
         self.assertEqual(len(calls), 2)  # one retry
-        self.assertIn("http.version=HTTP/1.1", calls[0])  # forced on every attempt
+        self.assertNotIn("http.version=HTTP/1.1", calls[0])
+        self.assertIn("http.version=HTTP/1.1", calls[1])
 
     def test_net_git_disables_background_maintenance(self) -> None:
         # Otherwise git's detached post-fetch maintenance keeps writing into the
@@ -466,7 +469,42 @@ class HydrateBlobsTests(unittest.TestCase):
         self.assertTrue(_partial_clone_filter(clone).startswith("blob:limit"))
         self.assertTrue(self._blob_present(clone, v1_blob))  # now local
 
-        self.assertFalse(hydrate_blobs(clone))  # idempotent: no longer blob:none
+        self.assertFalse(hydrate_blobs(clone))  # idempotent: the marker is down
+
+    def test_hydrate_retries_when_a_previous_attempt_did_not_finish(self) -> None:
+        # The widened filter has to be in place for the refetch, so it cannot
+        # double as "finished": a cancel mid-fetch used to leave the clone
+        # looking hydrated with its history still missing, and every later
+        # timeline read those blobs as 0 lines and 0 bytes.
+        bare = self._multi_commit_remote()
+        clone = self.tmp_path / "clone"
+        _run(
+            "git",
+            "clone",
+            "-q",
+            "--filter=blob:none",
+            f"file://{bare}",
+            str(clone),
+            cwd=self.tmp_path,
+        )
+        v1_blob = subprocess.run(
+            ["git", "-C", str(clone), "rev-parse", "HEAD~1:file.txt"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        with mock.patch.object(
+            clone_mod, "_run_net_git", side_effect=ScanCancelledError()
+        ):
+            with self.assertRaises(ScanCancelledError):
+                hydrate_blobs(clone)
+        # Marked wide by the attempt, but the history never landed.
+        self.assertTrue(_partial_clone_filter(clone).startswith("blob:limit"))
+        self.assertFalse(self._blob_present(clone, v1_blob))
+
+        self.assertTrue(hydrate_blobs(clone), "an unfinished hydrate must retry")
+        self.assertTrue(self._blob_present(clone, v1_blob))
 
     def test_hydrate_noop_on_full_clone(self) -> None:
         # A plain (non-partial) repo has no filter → nothing to backfill.
@@ -722,21 +760,43 @@ class StallWatchdogTests(unittest.TestCase):
 def test_parse_clone_progress_line():
     """Real git --progress emits lines like:
         Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s
-    The parser extracts (stage, percent) when matchable, else None.
+    The counts and byte total matter as much as the percent: git sits on one
+    percent for minutes of a big fetch while those climb.
     """
-    from api.git.clone import _parse_clone_progress_line
+    from api.git.clone import CloneProgress, _parse_clone_progress_line
 
     cases = [
-        ("Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s", ("receiving", 45)),
-        ("Resolving deltas:  100% (50/50), done.", ("resolving", 100)),
-        ("Counting objects:  12%", ("counting", 12)),
-        ("Updating files:  59% (7321/12408)", ("updating", 59)),  # checkout phase
+        (
+            "Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s",
+            CloneProgress("receiving", 45, 123, 273, 1),
+        ),
+        (
+            "Receiving objects:   9% (40683/438084), 873.32 MiB | 35.03 MiB/s",
+            CloneProgress("receiving", 9, 40683, 438084, 873),
+        ),
+        (
+            "Receiving objects:  80% (1/1), 2.00 GiB | 10.00 MiB/s",
+            CloneProgress("receiving", 80, 1, 1, 2048),
+        ),
+        (
+            "Resolving deltas:  100% (50/50), done.",
+            CloneProgress("resolving", 100, 50, 50),
+        ),
+        ("Counting objects:  12%", CloneProgress("counting", 12)),
+        (
+            "Updating files:  59% (7321/12408)",  # checkout phase
+            CloneProgress("updating", 59, 7321, 12408),
+        ),
         ("Cloning into '/tmp/foo'...", None),
         ("", None),
         ("garbage line", None),
     ]
     for line, expected in cases:
         assert _parse_clone_progress_line(line) == expected, f"failed for: {line!r}"
+
+    # Indexable as (stage, percent) for callers that only want those.
+    stage, percent = _parse_clone_progress_line("Counting objects:  12%")[:2]
+    assert (stage, percent) == ("counting", 12)
 
 
 def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
@@ -790,9 +850,9 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     )
     for call in on_progress.call_args_list:
         args = call.args[0]
-        assert isinstance(args, tuple) and len(args) == 2
-        assert args[0] in {"counting", "receiving", "resolving"}
-        assert 0 <= args[1] <= 100
+        assert isinstance(args, clone_mod.CloneProgress)
+        assert args.stage in {"counting", "receiving", "resolving"}
+        assert 0 <= args.percent <= 100
     # Verify the throttle: at least one stage-transition payload should
     # come through (counting → receiving or receiving → resolving), and
     # total should be capped (we sent 7 progress lines; expect ≤ 7 fires
@@ -861,7 +921,7 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     # Collect per-stage the highest percent ever emitted.
     per_stage_max: dict[str, int] = {}
     for call in on_progress.call_args_list:
-        stage, percent = call.args[0]
+        stage, percent = call.args[0][:2]
         per_stage_max[stage] = max(per_stage_max.get(stage, 0), percent)
 
     # Every stage we sent must have ended with 100% reaching the UI.

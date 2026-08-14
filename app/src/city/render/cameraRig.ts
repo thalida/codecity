@@ -14,6 +14,7 @@ import {
   CAMERA_MAX_POLAR_ANGLE_FRAC,
   CAMERA_MIN_DISTANCE,
   CAMERA_MAX_DISTANCE_MULT,
+  CAMERA_GEM_FRAMING_WIDTH_MULT,
   CAMERA_INITIAL_DISTANCE_MULT,
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
@@ -160,7 +161,7 @@ export function createCameraRig({
       framingCenter = new THREE.Vector3(gemPos.x, 0, gemPos.z);
       // Width, not length: length tracks project size, so framing on it is
       // framing the whole world. Width is tier-bounded, so this holds.
-      framingRadius = rootStreet.width * 15;
+      framingRadius = rootStreet.width * CAMERA_GEM_FRAMING_WIDTH_MULT;
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
@@ -540,13 +541,23 @@ export function createCameraRig({
     _snapTo(pose.target, pose.position, pose.up);
   }
 
-  /** Where the showcase orbit sits, 0 (on the gem) to 1 (the whole city). */
+  /** The distance the default camera rests at, which the showcase counts in.
+   *  Same inputs as _captureFraming's widthDist, so 1 lands where opening does. */
+  function _gemFitDistance(): number | null {
+    const rootStreet = cityState.rootStreet.value;
+    if (!rootStreet) return null;
+    const halfFov = (camera.fov * Math.PI) / 180 / 2;
+    const framingRadius = rootStreet.width * CAMERA_GEM_FRAMING_WIDTH_MULT;
+    return (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
+  }
+
+  /** Where the showcase orbit sits, in units of that framing distance. */
   function _showcaseRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
     return showcaseRadius(distance, controls, {
       gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, GEM_SIZING.value) : null,
+      gemFitDistance: _gemFitDistance(),
       worldBounds: cityState.latestWorldBounds.value,
-      sceneBbox: cityState.sceneBbox.value,
     });
   }
 

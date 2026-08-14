@@ -45,6 +45,7 @@ from api.cache import (
 )
 from api.git import (
     BranchNotFoundError,
+    CloneProgress,
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
@@ -60,8 +61,10 @@ from api.git import (
     resolve_source,
 )
 from api.scan import (
+    ASSEMBLE_STEPS,
     NotAGitRepoError,
     ScanCancelledError,
+    assemble_tick,
     build_timeline_bundle,
     reconstruct_manifest,
     scan_tree,
@@ -152,17 +155,21 @@ async def timeline(
             elif stage == TimelineStage.BLOBS:
                 data["blobsDone"] = payload.get("done")
                 data["blobsTotal"] = payload.get("total")
-            # ASSEMBLE carries only its own start.
+            elif stage == TimelineStage.ASSEMBLE:
+                data["percent"] = payload.get("percent")
             _put(_sse(TimelineEvent.PROGRESS, data))
 
-        def _on_hydrate(payload: tuple[str, int]) -> None:
-            # git fetch (stage, percent) → the "downloading history" tick.
+        def _on_hydrate(p: CloneProgress) -> None:
+            # git fetch → the "downloading history" tick, counts and all.
             _put(
                 _sse(
                     TimelineEvent.PROGRESS,
                     {
                         "stage": TimelineStage.FETCH,
-                        "percent": payload[1],
+                        "percent": p.percent,
+                        "objects": p.objects,
+                        "objectsTotal": p.objects_total,
+                        "mib": p.mib,
                         "label": pending_label,
                     },
                 )
@@ -197,6 +204,10 @@ async def timeline(
                     on_progress=_on_progress,
                 )
                 holder["bundle"] = bundle
+                # Serialising the bundle and putting it on the wire is its own
+                # wait on a big history, and the client is blind to it: the row
+                # would otherwise sit on the last computed step throughout.
+                assemble_tick(_on_progress, ASSEMBLE_STEPS)
                 _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
             except ScanCancelledError:
                 pass  # client disconnected mid-hydrate; nothing to report
@@ -250,8 +261,15 @@ async def timeline(
 def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:
     """sse-starlette event dict: {'event': name, 'data': json-string}. Both
     StrEnums serialize to their wire string ('manifest-complete', 'timeline-
-    progress', …)."""
-    return {"event": event, "data": json.dumps(payload)}
+    progress', …).
+
+    None values are dropped, so every event matches what its model documents:
+    absent-or-value, never null. A progress line that carries no object count
+    would otherwise ship `"objects": null` for the client to special-case."""
+    return {
+        "event": event,
+        "data": json.dumps({k: v for k, v in payload.items() if v is not None}),
+    }
 
 
 def _sse_error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
@@ -341,15 +359,17 @@ async def manifest(
         def _put(item: dict[str, Any] | None) -> None:
             loop.call_soon_threadsafe(q.put_nowait, item)
 
-        def _on_clone(payload: tuple[str, int]) -> None:
-            stage, percent = payload
+        def _on_clone(p: CloneProgress) -> None:
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
                         "label": pending_label,
-                        "stage": stage,
-                        "percent": percent,
+                        "stage": p.stage,
+                        "percent": p.percent,
+                        "objects": p.objects,
+                        "objects_total": p.objects_total,
+                        "mib": p.mib,
                     },
                 )
             )

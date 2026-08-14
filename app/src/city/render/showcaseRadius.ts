@@ -1,41 +1,33 @@
-// city/render/showcaseRadius.ts — how far the showcase orbit sits from the gem.
-// One number off the city's own geometry rather than an absolute distance, so
-// the same setting means the same thing on a ten-file repo and a ten-thousand
-// -file one, and no project is framed by accident.
+// city/render/showcaseRadius.ts — how far the showcase orbit sits from the gem,
+// counted in the gem's own framing distance. The city's extent grows with the
+// project, so measuring in that put one setting on top of a small repo and
+// miles off a large one.
 
 import type { WorldBounds } from '@/city/utils/floorBounds';
-import type { CityBbox } from '@/types';
 
 export interface ShowcaseGeometry {
   /** The gem's own radius, from the layout. */
   gemRadius: number | null;
-  /** The island floor, standing in before a city is built. */
+  /** Where the default camera rests. Off the root street's width, which is
+   *  tier-bounded, so it barely moves between projects. */
+  gemFitDistance: number | null;
+  /** The island floor, standing in until then. */
   worldBounds: WorldBounds | null;
-  /** The built city's extent. */
-  sceneBbox: CityBbox | null;
 }
 
-/** The radius at 0 (on the gem) and at 1 (the city's own edge). */
-function _ends(geometry: ShowcaseGeometry): { near: number; far: number } | null {
-  const bbox = geometry.sceneBbox;
-  const bounds = geometry.worldBounds;
-  const far = bbox
-    ? Math.max(bbox.width, bbox.depth) / 2
-    : bounds
-      ? Math.max(bounds.halfWidth, bounds.halfDepth)
-      : null;
-  return far === null ? null : { near: geometry.gemRadius ?? far, far };
-}
-
-/** `t` from 0 (on the gem) through 1 (the whole city) and past it, held inside
- *  the same limits a hand-driven camera has. */
+/** `t` in units of that framing distance: 1 sits where opening the project
+ *  leaves you. Clamped to the camera's own limits, and never inside the gem. */
 export function showcaseRadius(
   t: number,
   limits: { minDistance: number; maxDistance: number },
   geometry: ShowcaseGeometry
 ): number {
-  const ends = _ends(geometry);
-  if (!ends) return limits.minDistance;
-  const radius = ends.near + (ends.far - ends.near) * Math.max(t, 0);
+  const unit =
+    geometry.gemFitDistance ??
+    (geometry.worldBounds
+      ? Math.hypot(geometry.worldBounds.halfWidth, geometry.worldBounds.halfDepth)
+      : null);
+  if (unit === null) return limits.minDistance;
+  const radius = Math.max(geometry.gemRadius ?? 0, unit * Math.max(t, 0));
   return Math.min(Math.max(radius, limits.minDistance), limits.maxDistance);
 }

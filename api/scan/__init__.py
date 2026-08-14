@@ -19,11 +19,13 @@ The submodules, roughly in the order a scan touches them:
 
 from api.errors import NotAGitRepoError, ScanCancelledError
 from .scanner import reconstruct_manifest, scan_tree, signature_tree
-from .timeline import build_timeline_bundle
+from .timeline import ASSEMBLE_STEPS, assemble_tick, build_timeline_bundle
 
 __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
+    "ASSEMBLE_STEPS",
+    "assemble_tick",
     "build_timeline_bundle",
     "reconstruct_manifest",
     "scan_tree",

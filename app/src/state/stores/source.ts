@@ -7,7 +7,7 @@ import { signal, computed, effect } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
-import { URL_PARAMS } from '@/constants/urlParams';
+import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
@@ -51,6 +51,16 @@ export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>((
 export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
+
+/** Drop the load from the URL, view params included: a cancel with nothing to
+ *  fall back to must not leave a reload re-running the load it called off. */
+export function clearSourceUrl(): void {
+  const url = new URL(window.location.href);
+  for (const key of [...Object.values(URL_PARAMS), ...Object.values(VIEW_PARAMS)]) {
+    url.searchParams.delete(key);
+  }
+  history.replaceState(null, '', url.toString());
+}
 
 // Reflect the applied source in the URL so reload/share reopens it. No-ops
 // while null, so a cold boot can't clobber the ?src it is loading from.
@@ -124,9 +134,12 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
 /** Commit a loaded source: CURRENT_SOURCE, its recents entry, and the manifest
  *  the UI reads. Every mode ends its load here, with its own manifest. */
 export function commitSource(src: string, branch: string | undefined, manifest: Manifest): void {
+  // ONE identity for the load, used by both writes below. Deriving it twice is
+  // what listed a repo twice (#185): see the test for the two rows it produced.
+  const checkout = resolveBranch(manifest, branch);
   // A local source carries no branch: its checkout is dynamic, so identity omits
   // it. The header still shows it, read off the manifest — display, not identity.
-  const idBranch = identityBranch(src, branch);
+  const idBranch = identityBranch(src, checkout);
   // Source before manifest: the camera-reframe reaction reads CURRENT_SOURCE at
   // apply-start, and the apply is kicked off by the manifest write.
   CURRENT_SOURCE.value = { src, branch: idBranch };
@@ -135,8 +148,8 @@ export function commitSource(src: string, branch: string | undefined, manifest: 
     src,
     // tree.name is the canonical owner/repo; a worktree's basename is its folder.
     label: manifest.tree?.name || src,
-    branch: identityBranch(src, resolveBranch(manifest, branch)),
-    checkout: resolveBranch(manifest, branch),
+    branch: idBranch,
+    checkout,
   });
 }
 

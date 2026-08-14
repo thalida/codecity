@@ -4,6 +4,7 @@
 // result back. Pure compute, no DOM or THREE.* references.
 
 import { layoutCity } from './algorithm';
+import { createPackReporter } from './packProgress';
 import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
@@ -21,7 +22,16 @@ self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {
   if (!data || data.type !== 'layout') return;
   try {
     _applySnapshot(data.configSnapshot);
-    const layout = layoutCity(data.manifest as unknown as Parameters<typeof layoutCity>[0]);
+    // The scanner already counted the tree, so the denominator is free. The
+    // main thread is idle awaiting this reply, so each tick repaints at once.
+    const onPlaced = createPackReporter(data.manifest.tree.descendants_count, (percent) => {
+      const tick: LayoutResponse = { type: 'layout-progress', id: data.id, percent };
+      (self as unknown as Worker).postMessage(tick);
+    });
+    const layout = layoutCity(
+      data.manifest as unknown as Parameters<typeof layoutCity>[0],
+      onPlaced
+    );
     const reply: LayoutResponse = {
       type: 'layout-result',
       id: data.id,

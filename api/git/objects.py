@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 from api.binfmt import detect_binary_type
 from api.media import probe_media_dims_from_bytes
@@ -195,12 +195,23 @@ def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int
     return (resolved, declared) if resolved is not None else (b"", declared)
 
 
+# Blobs per `cat-file --batch` call. One call for all of them buffers every
+# blob's CONTENT in memory at once (gigabytes on a big history) and can report
+# nothing until git has finished; chunking bounds both, and the extra spawns are
+# noise next to the work.
+_STATS_CHUNK = 2000
+
+
 def blob_stats_batch(
-    root: Path, shas: list[str], *, media_shas: frozenset[str] = frozenset()
+    root: Path,
+    shas: list[str],
+    *,
+    media_shas: frozenset[str] = frozenset(),
+    on_progress: Callable[[int], None] | None = None,
 ) -> dict[str, BlobStats]:
-    """Compute (lines, binary, media dims) for each blob via one
-    `cat-file --batch`. Duplicate shas are de-duped; the returned dict is
-    keyed by blob sha.
+    """Compute (lines, binary, media dims) for each blob via chunked
+    `cat-file --batch` calls. Duplicate shas are de-duped; the returned dict is
+    keyed by blob sha. ``on_progress`` gets the running resolved count.
 
     The media-dimension probe (hachoir-based) only runs for blobs whose
     sha is in `media_shas` — mirroring the live scanner, which only probes
@@ -212,6 +223,21 @@ def blob_stats_batch(
     unique = list(dict.fromkeys(shas))
     if not unique:
         return {}
+    result: dict[str, BlobStats] = {}
+    for start in range(0, len(unique), _STATS_CHUNK):
+        _stats_into(result, root, unique[start : start + _STATS_CHUNK], media_shas)
+        if on_progress is not None:
+            on_progress(min(start + _STATS_CHUNK, len(unique)))
+    return result
+
+
+def _stats_into(
+    result: dict[str, BlobStats],
+    root: Path,
+    unique: list[str],
+    media_shas: frozenset[str],
+) -> None:
+    """One `cat-file --batch` over `unique`, parsed into `result`."""
     proc = subprocess.run(
         _git_argv(root, "cat-file", "--batch"),
         input="\n".join(unique).encode("ascii"),
@@ -220,7 +246,6 @@ def blob_stats_batch(
         env=_GIT_ENV,
     )
     out = proc.stdout
-    result: dict[str, BlobStats] = {}
     i = 0
     n = len(out)
     while i < n:
@@ -252,7 +277,6 @@ def blob_stats_batch(
             binary_type=binary_type,
             size=real_size,
         )
-    return result
 
 
 def read_blob(root: Path, sha: str) -> bytes | None:

@@ -12,6 +12,7 @@ import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
+import { nextPaint } from '../../utils/nextPaint';
 import { reactiveRebuild } from '../../utils/reactiveRebuild';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
@@ -110,11 +111,9 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       const cityHeight = cityState.cityHeight.peek();
       const commitCount = manifest.commits?.length ?? 0;
 
-      // rAF starts the next frame; setTimeout(0) yields so the browser COMPLETES
-      // the paint before the placement scan + GPU upload begin.
+      // Let the city paint before the placement scan + GPU upload begin.
       markDecorating();
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      await new Promise<void>((r) => setTimeout(r, 0));
+      await nextPaint();
       if (!isCurrent()) return;
 
       let placements: TreePlacement[];

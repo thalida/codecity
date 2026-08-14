@@ -1,24 +1,17 @@
-// city/state/index.ts — the per-city manifest-bound store: signals + the async
-// manifest pipeline that advances them. Per-instance (NOT a module singleton —
-// tests construct multiple cities).
-//
-//   manifest / layout — SOURCE signals, reassigned EVERY apply. layout carries
-//     fresh per-building dims; the dims-dependent components (buildings/footprint/
-//     trees) rebuild off it. treePlacements is a source signal trees writes.
-//   structureRevision / cityRevision / decorationRevision — change-notification
-//     counters; consumers track them and peek the data.
-//   bbox / sceneBbox / cityHeight / latestWorldBounds / rootStreet / gemWorldPos /
-//   tallestBuilding — COMPUTED, never written. bbox = union of street rects +
-//     building footprints + footprint halo.
-//
-// applyManifest + invalidateLayoutCache are defined here (the store owns its
-// transition); every scene component rebuilds reactively off the signals above.
+// city/state/index.ts — the per-city manifest-bound store: signals plus the
+// async pipeline that advances them. Per-instance, not a module singleton.
+// manifest/layout are SOURCE signals reassigned every apply, the revisions are
+// change counters, the rest are computed. Components rebuild off them.
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { TREES } from '@/state/stores/settings/trees';
+import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/manifest';
+import { BuildStage } from '@/constants/buildStages';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
+import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
@@ -48,30 +41,20 @@ export interface CityState {
   // Tallest building (by height) for the camera start-framing height-fit. From
   // layout data, not the async building meshes (see the computed).
   readonly tallestBuilding: ReadonlySignal<Building | null>;
-  // { street dir.path → Street } from the layout. The buildings fader, pathLine,
-  // picker, and the CityWorld debug API resolve a street by directory off this
-  // instead of reaching into the streets component.
+  // { street dir.path → Street }. The fader, pathLine, picker and debug API
+  // resolve a street by directory here rather than through the component.
   readonly streetsByDirMap: ReadonlySignal<Record<string, Street>>;
-  // --- Change-notification counters.
-  // Consumers track a counter and peek the data; each bump means "re-derive."
-  //   structureRevision — bumped ONLY on a non-reuse apply (positions/topology
-  //     changed). The structure-reactive consumers (rootStreet/bbox/streets) track
-  //     it + peek `layout`, so they rebuild on a structure change and skip a reuse
-  //     apply. (layout reassigns every apply, so it is NOT itself a skip signal.)
-  //   cityRevision — bumped ONCE on EVERY apply. The general "the city re-applied"
-  //     tick: the picker clears hover + re-resolves its selection key, pathLine
-  //     recomputes (streets-by-dir map is fresh by then), buildingFader re-sweeps
-  //     the fresh iFade buffers. (cameraRig reframes off bbox, NOT this.)
-  //   decorationRevision — bumped by the trees component when its meshes change:
-  //     on CLEAR (picker drops stale tree pickables) and again on ATTACH (picker
-  //     re-resolves a Commit selection + includes the live tree meshes). fireflies
-  //     tracks treePlacements separately.
+  // Change counters, tracked while the data is peeked: structureRevision on a
+  // non-reuse apply only, cityRevision on every apply, decoration on tree swaps.
   structureRevision: Signal<number>;
   cityRevision: Signal<number>;
   decorationRevision: Signal<number>;
-  // The async manifest pipeline cityState owns: compute the layout off-thread,
-  // then set the source signals (every component rebuilds reactively off them).
-  applyManifest(newManifest: Manifest): Promise<void>;
+  // Compute the layout off-thread, then set the source signals. leadingStages
+  // are stages the CALLER already ran, so the readout counts them (Timeline).
+  applyManifest(newManifest: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
+  // The stages applyManifest would run for this manifest. For a caller that
+  // opens the readout on work of its own first.
+  buildStagesFor(newManifest: Manifest): BuildStage[];
   // Forces the next apply onto the non-reuse path (rebuild for the same layout signature).
   invalidateLayoutCache(): void;
 }
@@ -85,30 +68,22 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   const cityRevision = signal(0);
   const decorationRevision = signal(0);
 
-  // Footprint halo width in world units, or 0 when the halo is off. Dedupes to a
-  // number so bbox (below) re-fires only when the halo actually changes — not on
-  // every FOOTPRINT change (e.g. COLOR), which would spuriously reframe/refit.
+  // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
+  // the halo changes, not on every FOOTPRINT change (which would refit).
   const footprintHalo = computed<number>(() => {
     const f = FOOTPRINT.value;
     return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
   });
 
-  // World bbox. Tracks structureRevision (recomputes on a structure change only,
-  // so it's frozen on a reuse apply → cameraRig/island skip via the computed's
-  // memoization) and peeks `layout` for the data. Street-rect bounds == the built
-  // street group's bounds (sidewalk stadium reaches exactly ±length/2, ±width/2),
-  // so this matches the built street group's bounds + footprints.
+  // World bbox. Tracks structureRevision and peeks layout, so a reuse apply
+  // leaves it frozen and cameraRig/island skip on the memoized value.
   const bbox = computed<THREE.Box3 | null>(() => {
     void structureRevision.value;
     const l = layout.peek();
     if (!l) return null;
     const box = new THREE.Box3();
-    // Expand min/max directly instead of allocating a Vector3 + calling
-    // expandByPoint per point: this runs over every street + building (~190k
-    // points at Linux scale), so the inline form is ~2.4x faster and allocates
-    // nothing (rectOfStreet's per-street object included). box starts at
-    // +Inf/-Inf, so the first point seeds it; isEmpty() below still detects the
-    // no-streets case. Equivalent to expandByPoint of each rect's two corners.
+    // Inlined rather than expandByPoint per point: ~190k points at Linux scale,
+    // ~2.4x faster and allocation-free. The +Inf start still detects empty.
     const min = box.min;
     const max = box.max;
     for (const s of l.streets) {
@@ -179,27 +154,22 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return b ? b.max.y - b.min.y : 0;
   });
 
-  // Island floor sizing. Off sceneBbox + cityHeight (both frozen on a reuse apply
-  // via structureRevision), so the island re-fits only on a structure change.
-  // null until the first apply (no sceneBbox yet) — getWorldBounds is only called
-  // with a real bbox. getWorldBounds reads WORLD.GROUND_BUFFER_PERCENT, WORLD's
-  // only field + rebuild-routed, so that subscription never over-fires.
+  // Island floor sizing, off sceneBbox + cityHeight, so it re-fits only on a
+  // structure change. null until the first apply.
   const latestWorldBounds = computed<WorldBounds | null>(() => {
     const sb = sceneBbox.value;
     return sb ? getWorldBounds(sb, cityHeight.value) : null;
   });
 
-  // The root-of-repo street (gets the gem) — the first isRoot street. Tracks
-  // structureRevision + peeks layout, so it stays ref-stable on a reuse apply
-  // (gem/cameraRig skip) and recomputes only on a structure change.
+  // The root-of-repo street, which gets the gem. Ref-stable on a reuse apply,
+  // so the gem and cameraRig skip.
   const rootStreet = computed<Street | null>(() => {
     void structureRevision.value;
     return (layout.peek()?.streets ?? []).filter((s) => s.isRoot)[0] || null;
   });
 
-  // Gem world position: the floor-level (y=0) anchor at the open (gem) end of
-  // the root street. The XZ anchor comes from gemAnchorXZ — the one source of
-  // this geometry, shared with the gem mesh + tree placement.
+  // The floor-level anchor at the root street's open end. gemAnchorXZ is the
+  // one source of that geometry, shared with the gem mesh and tree placement.
   const gemWorldPos = computed<THREE.Vector3 | null>(() => {
     const root = rootStreet.value;
     if (!root) return null;
@@ -207,11 +177,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
-  // Tracks `layout` (every apply), NOT structureRevision: per-building dims
-  // (incl. the worker's media-silhouette sizing) recompute on a reuse apply —
-  // the skeleton→final swap turns placeholder heights real without bumping
-  // structureRevision — so the height must refresh there. Reading the layout
-  // directly also means framing never waits on the async building-mesh rebuild.
+  // Tracks `layout`, NOT structureRevision: a reuse apply turns placeholder
+  // heights real, and framing must not wait on the async building meshes.
   const tallestBuilding = computed<Building | null>(() => {
     const l = layout.value;
     if (!l) return null;
@@ -222,9 +189,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return tallest;
   });
 
-  // Street lookup by directory path. Tracks structureRevision + peeks layout
-  // (ref-stable on a reuse apply, recomputes on a structure change) — a
-  // { dir.path → Street } map derived straight from layout.streets.
+  // { dir.path → Street }, straight off layout.streets. Ref-stable on a reuse
+  // apply, recomputed on a structure change.
   const streetsByDirMap = computed<Record<string, Street>>(() => {
     void structureRevision.value;
     const map: Record<string, Street> = {};
@@ -234,32 +200,59 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return map;
   });
 
-  // --- The manifest pipeline. Private to this closure:
-  //   lastAtlasTreeSig — tree_sig the icon atlas was last SUCCESSFULLY built for
-  //     (lags the manifest if a build throws → retried next apply).
-  //   invalidated — one-shot "force the next apply onto the non-reuse path",
-  //     set by invalidateLayoutCache on a config Save.
-  //   generation — supersession: a newer call wins; an older one bails at its
-  //     post-await checks.
-  // The reuse check compares against the committed manifest signal directly
-  // (manifest.peek()) — no separate cache needed.
+  // Closure privates: the sig the atlas last built for (lagging a throw, so it
+  // retries), a one-shot non-reuse flag, and the supersession generation.
   let lastAtlasTreeSig: string | null = null;
   let invalidated = false;
   let generation = 0;
 
-  async function applyManifest(newManifest: Manifest): Promise<void> {
+  // The stages an apply of this manifest would run, so a caller doing work of
+  // its own beforehand can show the whole plan rather than a growing one.
+  function buildStagesFor(newManifest: Manifest): BuildStage[] {
+    const buildsAtlas = (newManifest.structure_signature ?? '') !== lastAtlasTreeSig;
+    return [
+      ...(buildsAtlas ? [BuildStage.Icons] : []),
+      BuildStage.Layout,
+      BuildStage.Assemble,
+      // The trees component ends a build: enabled, it decorates; off, it settles
+      // straight to idle and this stage never comes.
+      ...(TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
+    ];
+  }
+
+  async function applyManifest(
+    newManifest: Manifest,
+    leadingStages: readonly BuildStage[] = []
+  ): Promise<void> {
     const myGeneration = ++generation;
 
-    // Structure-only structure_signature (paths + nesting, NO mtime/size — stable
-    // across skeleton/final for one scan). Gates ONLY the icon atlas rebuild
-    // below; the layout reuse decision uses layout_signature instead (backend-
-    // computed, also mixes in per-file size/dims).
+    // Structure only (no mtime/size), so it holds across skeleton and final.
+    // Gates the atlas alone; layout reuse keys on layout_signature instead.
     const treeSig = newManifest.structure_signature ?? '';
+    const buildsAtlas = treeSig !== lastAtlasTreeSig;
 
-    // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
-    // when treeSig changes (settings re-applies skip). Must run BEFORE the layout
-    // signal fires the reactive buildings rebuild, so the cells bake the right UVs.
-    if (treeSig !== lastAtlasTreeSig) {
+    // Reuse only when the PACKER's inputs are unchanged (layout_signature adds
+    // per-file size): a content edit re-packs, a dates-only change reuses.
+    const prev = manifest.peek();
+    const prevLayoutSig =
+      prev && 'layout_signature' in prev ? (prev as Manifest).layout_signature : '';
+    const shouldReuse =
+      !invalidated && prevLayoutSig !== '' && newManifest.layout_signature === prevLayoutSig;
+    invalidated = false;
+
+    // The readout's denominator, decided before the first stage starts: a
+    // fixed count would promise a stage this apply is not going to run.
+    const own = buildStagesFor(newManifest);
+    beginBuild([...leadingStages, ...own]);
+    enterBuildStage(own[0]);
+    // The manifest fan-out and the atlas walk below run before anything can
+    // repaint, so the row would name them only once they were over.
+    await nextPaint();
+    if (myGeneration !== generation) return;
+
+    // Ahead of the layout signal firing the reactive buildings rebuild, so the
+    // cells bake the right roof UVs.
+    if (buildsAtlas) {
       try {
         const atlas = await buildIconAtlas(newManifest);
         if (myGeneration !== generation) return; // superseded mid-build
@@ -270,37 +263,31 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       }
     }
 
-    // Reuse the packed layout only when the packer's own inputs (structure +
-    // per-file size, per the backend-computed layout_signature) are unchanged
-    // — NOT merely the tree structure. A live content edit changes sizes, so
-    // it takes the full re-pack path and streets/positions re-solve; a
-    // dates-only change (or a settings re-apply of the identical manifest)
-    // still reuses.
-    const prev = manifest.peek();
-    const prevLayoutSig =
-      prev && 'layout_signature' in prev ? (prev as Manifest).layout_signature : '';
-    const shouldReuse =
-      !invalidated && prevLayoutSig !== '' && newManifest.layout_signature === prevLayoutSig;
-    invalidated = false;
+    enterBuildStage(BuildStage.Layout);
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
-    // Full envelope, not `.tree` — the layout code unwraps it and the worker
-    // contract stays typed against Manifest. 'superseded' = a newer apply took
-    // over; return silently and let it own the swap.
+    // Full envelope, not `.tree`: the worker contract stays typed against
+    // Manifest. 'superseded' means a newer apply owns the swap.
     try {
-      newLayout = await layoutClient.compute(newManifest, reusedLayout);
+      newLayout = await layoutClient.compute(newManifest, reusedLayout, (percent) => {
+        // A superseded apply's worker keeps posting until it is told to stop;
+        // its percent must not walk over the live build's readout.
+        if (myGeneration === generation) setBuildStagePercent(percent);
+      });
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
     if (myGeneration !== generation) return;
 
-    // One batch so the reactive consumers settle on a single change. manifest +
-    // layout reassign every apply; structureRevision bumps ONLY on a structure
-    // change (!shouldReuse) → the structure-reactive consumers + the bbox computed
-    // stay frozen on a reuse apply (the scenic skip). cityRevision bumps once so
-    // picker/pathLine/buildingFader re-derive. layout is set before
-    // structureRevision so structure consumers peek it fresh.
+    // The batch below holds the main thread for seconds on a big repo: hand the
+    // browser a frame first, so the row naming that work paints before it.
+    enterBuildStage(BuildStage.Assemble);
+    await nextPaint();
+    if (myGeneration !== generation) return;
+
+    // One batch so consumers settle once. layout is set before structureRevision
+    // so structure consumers peek it fresh; a reuse apply leaves them frozen.
     batch(() => {
       manifest.value = newManifest;
       layout.value = newLayout;
@@ -309,9 +296,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     });
   }
 
-  // A config-only Save calls this before re-applying the same manifest, forcing
-  // the next apply onto the non-reuse path (so the scenic effects rebuild even
-  // though the layout signature is unchanged). Does NOT touch the signals.
+  // A config-only Save calls this so the next apply of the same manifest takes
+  // the non-reuse path and the scenic effects rebuild. Touches no signals.
   function invalidateLayoutCache(): void {
     invalidated = true;
   }
@@ -332,6 +318,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     cityRevision,
     decorationRevision,
     applyManifest,
+    buildStagesFor,
     invalidateLayoutCache,
   };
 }

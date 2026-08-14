@@ -14,7 +14,7 @@ const SHOWCASE_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 3,
+    default: 45,
     min: 0,
     max: 90,
     step: 1,
@@ -34,12 +34,12 @@ const SHOWCASE_FIELDS = {
   DISTANCE: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 1.25,
+    default: 0.75,
     min: 0,
     max: 2,
     step: 0.05,
     label: 'Orbit radius',
-    tip: 'How far out the turntable circles the gem: 0 sits on the gem itself, 1 frames the whole city, 2 pulls back twice that. In proportion to the project, so it means the same thing on any repo, and capped by how far the world lets you pull back.',
+    tip: 'How far out the turntable circles the gem, counted in the distance the camera rests at when you open a project: 1 is exactly that far, 0.5 half as far, 2 twice. Measured off the gem rather than the city, so one value frames every repo alike.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,

@@ -241,22 +241,31 @@ describe('cameraRig showcase orbit', () => {
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(12, 3);
   });
 
-  // The two ends of the one slider: on the gem, and out at the city's own edge.
-  it('runs from the gem itself out to the whole city', () => {
-    const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
-    const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
-    const bbox = cs.sceneBbox.value as { width: number; depth: number };
-    const at = (t: number): number => {
+  // The property the slider has to have: one value means one framing, on any
+  // project. Against the city's extent, 0.1 varied by an order of magnitude.
+  it('puts a value at the same distance whatever the city sprawls to', () => {
+    const at = (cs: CityState, t: number): number => {
+      const rig = makeRig(cs);
       SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: t };
       rig.enterShowcase({ autoRotate: false });
-      return rig.camera.position.distanceTo(gem);
+      return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
     };
+    // Same root street, wildly different sprawl: 20x the depth behind the gem.
+    const compact = seedFramedCity({ xLength: 400, zLength: 400 });
+    const sprawling = seedFramedCity({ xLength: 400, zLength: 8000 });
 
-    // 0 is as close as the camera may ever sit, and nowhere near the city.
-    expect(at(0)).toBeCloseTo(rig.controls.minDistance, 6);
-    // 1 has to have the whole city in front of it, however the city is shaped.
-    expect(at(1)).toBeGreaterThanOrEqual(Math.max(bbox.width, bbox.depth) / 2);
+    expect(at(sprawling, 0.5)).toBeCloseTo(at(compact, 0.5), 3);
+    expect(at(sprawling, 0.1)).toBeCloseTo(at(compact, 0.1), 3);
+  });
+
+  it('is as close as the camera may ever sit at 0', () => {
+    const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
+    const rig = makeRig(cs);
+    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 0 };
+    rig.enterShowcase({ autoRotate: false });
+
+    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(rig.controls.minDistance, 6);
   });
 
   // Past 1 pulls back beyond the city, but no further than a hand-driven camera

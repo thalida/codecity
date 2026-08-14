@@ -27,7 +27,7 @@ import {
   PROJECTS_VIEW,
   LOADING_CANCEL,
 } from '@/state/stores/ui';
-import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
+import { SOURCE_ERROR, CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -116,7 +116,10 @@ export function App() {
           const registered = LOADING_CANCEL.peek();
           if (registered) registered();
           else {
+            // Nothing to go back to: the list opens over an empty world, so the
+            // URL must stop describing the load that was just called off.
             cancelLoad();
+            clearSourceUrl();
             openProjectsView({ dismissible: false });
           }
         }}

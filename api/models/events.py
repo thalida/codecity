@@ -45,9 +45,10 @@ _OptionalStage = Annotated[
 class CloneProgressEvent(BaseModel):
     """`clone-progress` — git source is being cloned; carries clone progress.
 
-    A normal progress tick has `stage` + `percent`. A heartbeat during the
-    silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
-    so the UI shows the working tree materializing rather than freezing."""
+    A normal progress tick has `stage` + `percent`, plus git's own
+    `objects`/`objects_total`/`mib` where the line carries them. A heartbeat
+    during the silent promisor blob fetch instead carries `mb_on_disk` (and no
+    percent), so the UI shows the working tree materializing, not a freeze."""
 
     # Server-computed display label (owner/repo or basename) so the UI shows a
     # friendly pending title without re-deriving it client-side.
@@ -55,6 +56,10 @@ class CloneProgressEvent(BaseModel):
     stage: _OptionalStage = None
     percent: OptionalInt = None
     mb_on_disk: OptionalInt = None
+    # Git holds a percent for minutes on a big fetch while these climb.
+    objects: OptionalInt = None
+    objects_total: OptionalInt = None
+    mib: OptionalInt = None
 
 
 class ScanProgressEvent(BaseModel):
@@ -138,11 +143,15 @@ class TimelineProgressEvent(BaseModel):
     progress. The `fetch` stage carries `percent`; `history` carries `commits`;
     `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
     the batch blob lookup, so that stage reports two ticks, not a live stream);
-    `assemble` carries nothing but its own start, and runs until the bundle
+    `assemble` carries `percent` over its own steps and runs until the bundle
     lands."""
 
     stage: _TimelineStage
     percent: OptionalInt = None
+    # `fetch` carries git's own counts beside its percent, for the same reason.
+    objects: OptionalInt = None
+    objectsTotal: OptionalInt = None
+    mib: OptionalInt = None
     commits: OptionalInt = None
     blobsDone: OptionalInt = None
     blobsTotal: OptionalInt = None

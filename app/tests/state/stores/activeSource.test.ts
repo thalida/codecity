@@ -4,6 +4,7 @@ import {
   CURRENT_SOURCE,
   SOURCE_INFO,
   commitSource,
+  clearSourceUrl,
   RECENTS,
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
@@ -74,6 +75,32 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
   });
 });
 
+describe('clearSourceUrl', () => {
+  afterEach(() => history.replaceState(null, '', '/'));
+
+  it('drops the load AND what was being viewed of it', () => {
+    // A cancel with no city to fall back to leaves the switcher open over
+    // nothing: a reload must not re-run the load that was just called off.
+    history.replaceState(
+      null,
+      '',
+      '/?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
+    );
+    clearSourceUrl();
+
+    expect(new URL(window.location.href).search).toBe('');
+  });
+
+  it('leaves anything it does not own alone', () => {
+    history.replaceState(null, '', '/?src=/proj&utm_source=x');
+    clearSourceUrl();
+
+    const params = new URL(window.location.href).searchParams;
+    expect(params.has('src')).toBe(false);
+    expect(params.get('utm_source')).toBe('x');
+  });
+});
+
 describe('commitSource', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
@@ -81,15 +108,36 @@ describe('commitSource', () => {
     history.replaceState(null, '', '/');
   });
 
-  it('sets CURRENT_SOURCE and records a recent with the resolved branch', () => {
+  it('resolves the branch once and gives the load ONE identity', () => {
+    // Derived twice, the row resolved `main` while CURRENT_SOURCE kept the
+    // branchless request, so no row ever matched the source that was loaded.
     commitSource('https://github.com/o/r', undefined, {
       tree: { name: 'r' },
       repo: { branch: 'main' },
     } as unknown as Manifest);
-    expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: undefined });
+    expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: 'main' });
     const recents = RECENTS.value;
     expect(recents[0].src).toBe('https://github.com/o/r');
     expect(recents[0].branch).toBe('main');
+    expect(recents[0].branch, 'the row must match the source it just loaded').toBe(
+      CURRENT_SOURCE.value!.branch
+    );
+  });
+
+  it('keeps that one identity when Timeline recommits the same source', () => {
+    commitSource('https://github.com/o/r', undefined, {
+      tree: { name: 'r' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
+    // Timeline hands back the branch it was loaded with, and the union
+    // manifest's detached-ref branch must not displace it.
+    commitSource('https://github.com/o/r', CURRENT_SOURCE.value?.branch, {
+      tree: { name: 'r' },
+      repo: { branch: '@ 1a2b3c4d' },
+    } as unknown as Manifest);
+
+    expect(RECENTS.value.filter((r) => r.src === 'https://github.com/o/r')).toHaveLength(1);
+    expect(RECENTS.value[0].branch).toBe('main');
   });
 
   it('records an explicitly-requested branch', () => {

@@ -39,6 +39,24 @@ OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
 
+# Assembly's four steps, each owning a quarter of the reported percent. The last
+# is the router's: serialising the bundle onto the wire is the step nothing else
+# can report. A percent, not a step name — what the steps are called is this
+# module's business, and the client's row wants a number like the rows above it.
+ASSEMBLE_STEPS = 4
+# Commits between ticks inside a step that reports its own progress.
+_ASSEMBLE_HEARTBEAT_EVERY = 200
+
+
+def assemble_tick(
+    on_progress: OnTimelineProgress | None, step: int, within: float = 0.0
+) -> None:
+    """Report assembly at `step` of ASSEMBLE_STEPS, `within` 0..1 through it."""
+    if on_progress is None:
+        return
+    percent = int(((step - 1 + min(max(within, 0.0), 1.0)) / ASSEMBLE_STEPS) * 100)
+    on_progress({"stage": TimelineStage.ASSEMBLE, "percent": percent})
+
 
 class CommitDelta(NamedTuple):
     sha: str
@@ -162,7 +180,19 @@ def _collect_blob_tables(
         on_progress(
             {"stage": TimelineStage.BLOBS, "done": total - len(misses), "total": total}
         )
-    fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
+    done = total - len(misses)
+
+    def _resolved(n: int) -> None:
+        if on_progress is not None:
+            on_progress(
+                {"stage": TimelineStage.BLOBS, "done": done + n, "total": total}
+            )
+
+    fresh = (
+        blob_stats_batch(root, misses, media_shas=media_shas, on_progress=_resolved)
+        if misses
+        else {}
+    )
     for sha, st in fresh.items():
         cached[sha] = blob_entry(st)
     if fresh:
@@ -308,12 +338,19 @@ def compute_commit_date_ranges(
     commits: list[CommitEntry],
     git_created: dict[str, str],
     git_modified: dict[str, str],
+    *,
+    on_commit: Callable[[int, int], None] | None = None,
 ) -> list[DateRangeMs]:
     """Per-commit created/modified ms ranges over the files present at each
     commit; range[HEAD] equals the live manifest's dateRanges (weathering
     normalizes against these). replay.ts walks the same deltas for a different
     output (per-frame scrub index) — neither is a copy of the other."""
     commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
+    # Parsed once per path, not once per (commit, path): the inner loop below
+    # runs commits x files-present times, ~98M on a big repo, and re-parsing an
+    # ISO stamp that many times is most of what made this the slowest step.
+    created_ms = {p: _iso_ms(v) for p, v in git_created.items()}
+    modified_ms = {p: _iso_ms(v) for p, v in git_modified.items()}
 
     final_idx: dict[str, int] = {}
     genesis_idx: dict[str, int] = {}
@@ -340,10 +377,10 @@ def compute_commit_date_ranges(
             lm = last_change.get(path, 0)
             modified = None
             if lm >= final_idx.get(path, 0):
-                modified = _iso_ms(git_modified.get(path))
+                modified = modified_ms.get(path)
             if modified is None:
                 modified = commit_ms[lm] if lm < len(commit_ms) else 0
-            created = _iso_ms(git_created.get(path))
+            created = created_ms.get(path)
             if created is None:
                 gi = genesis_idx.get(path, 0)
                 created = commit_ms[gi] if gi < len(commit_ms) else 0
@@ -367,6 +404,8 @@ def compute_commit_date_ranges(
                 "maxModified": max_modified or 0,
             }
         )
+        if on_commit is not None and i % _ASSEMBLE_HEARTBEAT_EVERY == 0:
+            on_commit(i, len(deltas))
     return ranges
 
 
@@ -433,9 +472,8 @@ def build_timeline_bundle(
                 blob_lines.setdefault(sha, 0)
                 blob_sizes.setdefault(sha, 0)
     # Everything below is assembly over the whole union: minutes on a big repo,
-    # and the client can only show a row for it if we say it started.
-    if on_progress is not None:
-        on_progress({"stage": TimelineStage.ASSEMBLE})
+    # and the only progress the client can show for it is what we count out.
+    assemble_tick(on_progress, 1)  # the union manifest
     union_manifest = build_union_manifest(
         root_path,
         deltas,
@@ -446,9 +484,17 @@ def build_timeline_bundle(
         history.created,
         history.modified,
     )
+    assemble_tick(on_progress, 2)  # per-commit line ranges
     commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
+    # The long one: it walks every file present at every commit, so it reports
+    # from inside rather than sitting on its own step for minutes.
+    assemble_tick(on_progress, 3)
     commit_date_ranges = compute_commit_date_ranges(
-        deltas, commits, history.created, history.modified
+        deltas,
+        commits,
+        history.created,
+        history.modified,
+        on_commit=lambda i, total: assemble_tick(on_progress, 3, i / max(total, 1)),
     )
     log("timeline bundle complete")
 

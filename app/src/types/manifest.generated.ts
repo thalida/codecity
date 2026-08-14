@@ -242,9 +242,10 @@ export interface components {
      * CloneProgressEvent
      * @description `clone-progress` — git source is being cloned; carries clone progress.
      *
-     *     A normal progress tick has `stage` + `percent`. A heartbeat during the
-     *     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
-     *     so the UI shows the working tree materializing rather than freezing.
+     *     A normal progress tick has `stage` + `percent`, plus git's own
+     *     `objects`/`objects_total`/`mib` where the line carries them. A heartbeat
+     *     during the silent promisor blob fetch instead carries `mb_on_disk` (and no
+     *     percent), so the UI shows the working tree materializing, not a freeze.
      */
     CloneProgressEvent: {
       /** Label */
@@ -258,6 +259,12 @@ export interface components {
       percent?: number;
       /** Mb On Disk */
       mb_on_disk?: number;
+      /** Objects */
+      objects?: number;
+      /** Objects Total */
+      objects_total?: number;
+      /** Mib */
+      mib?: number;
     };
     /** CommitDateRange */
     CommitDateRange: {
@@ -774,7 +781,7 @@ export interface components {
      *     progress. The `fetch` stage carries `percent`; `history` carries `commits`;
      *     `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
      *     the batch blob lookup, so that stage reports two ticks, not a live stream);
-     *     `assemble` carries nothing but its own start, and runs until the bundle
+     *     `assemble` carries `percent` over its own steps and runs until the bundle
      *     lands.
      */
     TimelineProgressEvent: {
@@ -782,6 +789,12 @@ export interface components {
       stage: 'fetch' | 'history' | 'blobs' | 'assemble';
       /** Percent */
       percent?: number;
+      /** Objects */
+      objects?: number;
+      /** Objectstotal */
+      objectsTotal?: number;
+      /** Mib */
+      mib?: number;
       /** Commits */
       commits?: number;
       /** Blobsdone */
