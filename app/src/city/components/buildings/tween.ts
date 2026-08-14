@@ -159,9 +159,8 @@ export function createBuildingTweens(deps: TweenDeps) {
   const _tmpPos = new THREE.Vector3();
   const _tmpScale = new THREE.Vector3();
 
-  // Meshes whose cull sphere is currently a lie. A cell's sphere covers the cell,
-  // but a building that MOVED tweens across the gap between its old cell and its
-  // new one, so it renders outside both until it lands.
+  // A building that MOVED tweens across the gap between its old cell and its
+  // new one, so it renders outside both spheres until it lands.
   const unculled = new Set<THREE.InstancedMesh>();
 
   function restoreCulling(mesh: THREE.InstancedMesh): void {

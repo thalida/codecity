@@ -77,9 +77,8 @@ describe('useManifestSource loadSource cancellation', () => {
     const p = loadSource({ src: 'https://github.com/o/r' });
     await flush(); // let the for-await attach its event listeners
 
-    // Skeleton arrives, then the user cancels before the final manifest. An
-    // aborted stream ends done (not a throw), so pumpManifestStream RETURNS the
-    // skeleton — the success path must still refuse to commit it.
+    // An aborted stream ends done, not a throw, so the success path receives
+    // the skeleton and still has to refuse to commit it.
     StubEventSource.instances[0]!.emit(
       'manifest-partial',
       JSON.stringify({
@@ -124,10 +123,8 @@ describe('useManifestSource loadSource cancellation', () => {
   });
 });
 
-// Issue #113: switching sources while in Timeline mode used to leave the union
-// city + scrub controller stuck on the newly loaded repo. loadSource must exit
-// Timeline mode itself; city/index.ts's effect (see tests/city/index.test.ts)
-// reacts to the flip and does the actual scene teardown.
+// #113: a switch in Timeline left the union city stuck on the new repo.
+// loadSource exits the mode; the city layer reacts to the flip and tears down.
 describe('loadSource exits Timeline mode', () => {
   let originalEventSource: typeof EventSource;
 
@@ -251,9 +248,8 @@ describe('refreshCurrentSource', () => {
   });
 });
 
-// Minimal manifest-complete payload so loadSource commits the source. The
-// stream reader treats a `manifest-complete` event as terminal (it closes the
-// EventSource itself) — no separate "done" event exists on the wire.
+// `manifest-complete` is terminal on the wire: the reader closes the
+// EventSource itself, and there is no separate "done" event.
 const MANIFEST_JSON = JSON.stringify({
   manifest: {
     content_signature: 'sig0',
@@ -294,9 +290,8 @@ describe('exclude-driven re-fetch', () => {
   });
 
   it('does not re-fetch merely because the source switched', async () => {
-    // Load s1 first so the reaction records a non-null key for it — otherwise
-    // the switch run exits on the `prev === null` branch and the actual
-    // switch-guard (`prevRepo !== repoKey`) is never exercised.
+    // Without a first load the reaction exits on `prev === null` and the
+    // switch guard it is here to exercise never runs.
     const load = loadSource({ src: 's1', branch: undefined });
     await flush();
     StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);

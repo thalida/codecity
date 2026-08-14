@@ -1,15 +1,7 @@
 // hooks/useSwitcherShowcase.ts — turns the live city into a backdrop while the
-// project switcher is open over it. On open: snapshot the user's camera pose +
-// selection (and whether its pane was minimised to the chip), clear the
-// selection, and drive the camera into a slow auto-rotating hero shot. On
-// dismiss: restore all of it verbatim.
-//
-// Hiding the chrome is NOT this hook's job: the landing covers the app in both
-// of its modes, so App keys that off PROJECTS_VIEW directly.
-//
-// The restore is gated on the source key: if the user actually SWITCHED
-// projects, the saved pose + selection describe a city that isn't there any
-// more, so we bow out and let the new one's own framing stand.
+// project switcher is open over it: snapshot camera pose, selection and pane
+// state, hero-shot the camera, and put it all back on dismiss. Gated on the
+// source key, since a switch means the snapshot describes a city that is gone.
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';

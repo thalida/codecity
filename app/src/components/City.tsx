@@ -1,11 +1,6 @@
-// layout/City.tsx — the city <canvas> and its Three.js scene lifecycle as a
-// self-contained component. On mount it builds the scene (createCity), wires
-// settings-commit reactions, and applies the MANIFEST signal (the fetch layer's
-// source of truth) to the scene on every change; on unmount it tears the city
-// down so a remount can't stack a second renderer + frame loop on the canvas.
-// Publishes SCENE_HANDLE for views that need picker/rig. The canvas is reached
-// via a ref (not getElementById), so the scene is tied to this component's
-// lifecycle rather than to DOM-query timing.
+// layout/City.tsx — the city <canvas> and its Three.js lifecycle. Mount builds
+// the scene and applies MANIFEST on every change; unmount tears it down so a
+// remount can't stack a second renderer and frame loop on the canvas.
 
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -50,12 +45,8 @@ export function City() {
         invalidateLayoutCache: handle.invalidateLayoutCache,
       });
 
-      // Apply MANIFEST → scene on every change. This flips the freshness
-      // readout to Rebuilding before each apply; success → Idle (+ error clear) is owned by
-      // the trees decoration pass (markIdle, the last stage of every
-      // applyManifest), and the camera reframe-on-source-change lives in the city
-      // composer — so this effect only kicks off the apply and surfaces a
-      // render-apply error.
+      // Only kicks off the apply and surfaces its error: reaching Idle belongs
+      // to the decoration pass, and reframing to the city composer.
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
@@ -76,10 +67,8 @@ export function City() {
     };
   }, []);
 
-  // A canvas is non-text content, so it needs a text alternative (WCAG 1.1.1).
-  // role=img + a description of what the scene shows; keyboard users browse the
-  // same data through the Explore file tree and Search panels, and selecting a
-  // building is announced by <SelectionAnnouncer>.
+  // Non-text content needs a text alternative (WCAG 1.1.1). Keyboard users
+  // browse the same data through Explore and Search.
   return (
     <canvas
       id="city"

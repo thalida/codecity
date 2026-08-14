@@ -21,9 +21,8 @@ export interface CellTile {
   buildings: (Building | null)[];
 }
 
-/** Every slot starts scale-zero, and the geometry is a placeholder the
- *  cell-aware builders swap out once the cell is attached. `extent` sizes the
- *  cull sphere to what this cell will actually hold. */
+/** Slots start scale-zero on placeholder geometry the cell-aware builders swap
+ *  out; `extent` sizes the cull sphere to what this cell will hold. */
 export function createEmptyCellTile(
   grid: SpatialGrid,
   cellId: number,
@@ -44,10 +43,8 @@ export function createEmptyCellTile(
   // so recomposing its identity matrix every frame is pure cost.
   detailMesh.matrixAutoUpdate = false;
   detailMesh.frustumCulled = true;
-  // The cell's own extent, not three's: left to itself it computes a sphere from
-  // the instance matrices on the first frustum test and caches it for good, so
-  // every later write (a rebuild's tween, a scrub) culls against where the
-  // buildings USED to be. This one is true for any arrangement inside the cell.
+  // Ours, not three's: left to itself it caches a sphere off the first frustum
+  // test, so later writes cull against where the buildings USED to be.
   detailMesh.boundingSphere = boundsSphere;
   detailMesh.userData = { cellId, meshKind: 'detail' };
   zeroAllInstances(detailMesh);

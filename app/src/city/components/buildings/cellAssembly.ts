@@ -1,10 +1,6 @@
-// city/components/buildings/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
-// building factory into a complete scene-ready set of cells given a
-// layout. Called from the buildings component (index.ts).
-//
-// Only BUILDINGS are consolidated into spatial-grid cells. Streets,
-// labels, paths, and the root gem stay on the engine-built path because
-// the engine handles those fine even at Linux scale.
+// city/components/buildings/cellAssembly.ts — turns a layout into a scene-ready
+// set of cells. Only BUILDINGS are consolidated this way; streets, labels, paths
+// and the gem stay engine-built, which holds up even at Linux scale.
 
 import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
@@ -27,24 +23,8 @@ export interface CellAssemblyOutput {
   facadePanels: InstancedFacadePanels | null;
 }
 
-/**
- * Assemble a cell-based scene from a layout's buildings. Only buildings are
- * placed into cells — streets, labels, paths, and the gem remain on the
- * engine-built rendering path. Cells share the one building material
- * (material.getBuildingMaterial(), via attachBuildingMeshToCell).
- *
- * Sparse allocation: only grid cells that contain at least one building
- * are allocated. For a 194-file project this is a small fraction of the
- * full grid; for an 80k-file repo the occupied-cell count scales with
- * directory density rather than full grid extent.
- *
- * Steps:
- *   1. Build a SpatialGrid from bounds.
- *   2. Walk buildings once to collect the set of occupied cellIds.
- *   3. Allocate CellTiles only for occupied cells; attach building mesh.
- *   4. Walk buildings again to write each building into its cell slot.
- *   5. Flush instanceMatrix.needsUpdate.
- */
+/** Assemble a cell-based scene from a layout's buildings. Sparse: only occupied
+ *  cells are allocated, so the count tracks directory density, not grid extent. */
 export function buildCellsFromLayout(
   bounds: WorldBounds,
   buildings: Building[]
@@ -106,8 +86,6 @@ export function buildCellsFromLayout(
   }
 
   // ---- Add all cell meshes to scene root ----
-  // Cells render at detail tier unconditionally; the legacy LOD tier
-  // machinery has been removed.
   const sceneRoot = new THREE.Group();
   sceneRoot.name = 'CellRoot';
   for (const cell of cells.values()) {
@@ -120,12 +98,9 @@ export function buildCellsFromLayout(
   }
 
   // ---- Instanced facade panels (media billboards + binary fingerprints) ----
-  // One InstancedMesh serves both; each building carries its own loader + aspect,
-  // so the LOD/streaming/fade machinery is shared. Media is gated on MEDIA_ENABLED
-  // (the billboard A/B toggle); binary fingerprints are a distinct feature and
-  // always render. Textures aren't loaded here — updateLOD streams on-screen ones.
-  // An empty file has no image to billboard and no bytes to fingerprint — it
-  // renders as the bare slab, so it gets no panel and no texture layer.
+
+  // One mesh serves both, so they share the LOD/streaming/fade machinery.
+  // Textures load later: updateLOD streams in the ones actually on screen.
   const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file) && !isEmptyFile(b.file))
     : [];

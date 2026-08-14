@@ -303,10 +303,8 @@ describe('RightSidebar', () => {
       expect(isOpen()).toBe(true);
     });
 
-    // Which selection changes reopen the pane is the picking side's call, and is
-    // covered against the real handler in city/interaction/inputHandlersPick.
-    // Here the point is the opposite: a selection landing on its own moves
-    // nothing, so a rebuild can't reopen a pane the user put away.
+    // Reopening is the picking side's call (covered in inputHandlersPick).
+    // Here: a selection landing on its own must move nothing.
     it('stays shut when a rebuild re-resolves the same node to a fresh target', async () => {
       setManifest(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);
