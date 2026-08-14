@@ -46,3 +46,12 @@
 .empty-state--lg .text-card-sub {
   max-width: 280px;
 }
+
+/* A node the scrub point doesn't have. Its own state at a glance, rather than a
+   generic empty one: the pane is blank BECAUSE the thing is gone. */
+.empty-state--absent .icon {
+  color: var(--cc-error);
+}
+.empty-state--absent .text-card-title {
+  color: var(--cc-error-light);
+}

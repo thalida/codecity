@@ -27,6 +27,9 @@ import { createGem } from './components/gem';
 import { createSky } from './components/sky';
 import { createIsland, ISLAND_TOP_Y } from './components/island';
 import { createRepoLabel } from './components/repoLabel';
+import { repoLabelBounds } from './components/repoLabel/bounds';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { createFootprint } from './components/footprint';
 import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
@@ -114,7 +117,15 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     canvas,
     cityState,
     deps: {
-      getRepoLabelBounds: () => repoLabel.getPanelBounds(),
+      // From the manifest + settings, never the label's meshes: those land on
+      // the first tick, and framing that waits frames a different city (#62).
+      getRepoLabelBounds: () =>
+        repoLabelBounds(
+          cityState.manifest.peek()?.tree?.name,
+          cityState.gemWorldPos.peek(),
+          REPO_LABEL.peek(),
+          BUILDING_DIMENSIONS.peek()
+        ),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });

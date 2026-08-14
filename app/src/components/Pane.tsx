@@ -126,11 +126,14 @@ export interface PaneEmptyProps {
   sub?: string;
   /** Large variant (bigger icon) — the default for selection panes. */
   large?: boolean;
+  /** Extra empty-state modifier class, e.g. empty-state--absent. */
+  modifier?: string;
 }
 
-export function PaneEmpty({ icon: Icon, title, sub, large = true }: PaneEmptyProps) {
+export function PaneEmpty({ icon: Icon, title, sub, large = true, modifier }: PaneEmptyProps) {
+  const base = large ? 'empty-state empty-state--lg' : 'empty-state';
   return (
-    <div class={large ? 'empty-state empty-state--lg' : 'empty-state'}>
+    <div class={modifier ? `${base} ${modifier}` : base}>
       {Icon && <Icon class="icon" />}
       <p class="text-card-title">{title}</p>
       {sub && <p class="text-card-sub">{sub}</p>}

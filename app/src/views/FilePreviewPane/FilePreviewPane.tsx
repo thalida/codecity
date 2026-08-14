@@ -541,10 +541,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       footerSlot={file && !absent ? <PaneStats items={fileStatItems(file)} /> : null}
     >
       {absent ? (
-        <div class="empty-state empty-state--lg file-absent-state">
-          <FileX class="icon" aria-hidden="true" />
-          <p class="text-card-title">File not available</p>
-        </div>
+        <PaneEmpty icon={FileX} title="File not available" modifier="empty-state--absent" />
       ) : (
         _previewBody(file)
       )}

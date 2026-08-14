@@ -9,7 +9,7 @@ import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route, FileType, CalendarRange } from 'lucide-preact';
+import { Route, FileType, CalendarRange, FolderX } from 'lucide-preact';
 import { KindBadge } from '@/components/Badge/Badge';
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/PaneStats/statItems';
@@ -31,6 +31,9 @@ export interface StreetPaneState {
   /** Repo remote URL + branch, for the header open-on-origin link. */
   remoteUrl?: string | null;
   branch?: string;
+  /** Gone by the scrubbed commit. Every figure here would be the union's
+   *  all-time one, which is worse than none, so the body says only that. */
+  isAbsent?: boolean;
   /** In Timeline mode the folder stats are the union (all-time), not the scrubbed
    *  commit — show a note saying so. */
   inTimeline?: boolean;
@@ -53,6 +56,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
     remoteUrl,
     branch = '',
     inTimeline,
+    isAbsent,
   } = state.value;
 
   if (!d) {
@@ -91,7 +95,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
       copyText={dirPath && dirPath !== ROOT_PATH ? dirPath : rootPath}
       copyLabel="Copy path"
       openUrl={
-        remoteUrl && dirPath && dirPath !== ROOT_PATH
+        remoteUrl && !isAbsent && dirPath && dirPath !== ROOT_PATH
           ? nodeUrl(remoteUrl, branch, dirPath, true)
           : null
       }
@@ -104,35 +108,41 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
           ? undefined
           : 'Excluding the project root would leave nothing to look at'
       }
-      bodyClass={`street-body${inTimeline ? ' has-stale-note' : ''}`}
-      footerSlot={<PaneStats items={directoryStatItems(d)} />}
+      bodyClass={`street-body${inTimeline && !isAbsent ? ' has-stale-note' : ''}`}
+      footerSlot={isAbsent ? null : <PaneStats items={directoryStatItems(d)} />}
     >
-      {inTimeline && (
-        <TimelineStaleNote>
-          All-time folder stats, not based on the timeline commit.
-        </TimelineStaleNote>
-      )}
-      <div class="street-content pane-inset">
-        {dateRange && (
-          <div class="street-dates" title="Oldest file created → newest change">
-            <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
-            {dateRange}
+      {isAbsent ? (
+        <PaneEmpty icon={FolderX} title="Directory not available" modifier="empty-state--absent" />
+      ) : (
+        <>
+          {inTimeline && (
+            <TimelineStaleNote>
+              All-time folder stats, not based on the timeline commit.
+            </TimelineStaleNote>
+          )}
+          <div class="street-content pane-inset">
+            {dateRange && (
+              <div class="street-dates" title="Oldest file created → newest change">
+                <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
+                {dateRange}
+              </div>
+            )}
+            {stats.length > 0 && (
+              <>
+                <div class="street-ext-h text-label">
+                  <FileType class="icon street-ext-icon" aria-hidden="true" />
+                  By extension
+                </div>
+                <div class="street-ext-list">
+                  {stats.map((s) => (
+                    <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        )}
-        {stats.length > 0 && (
-          <>
-            <div class="street-ext-h text-label">
-              <FileType class="icon street-ext-icon" aria-hidden="true" />
-              By extension
-            </div>
-            <div class="street-ext-list">
-              {stats.map((s) => (
-                <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+        </>
+      )}
     </Pane>
   );
 }

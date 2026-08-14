@@ -21,6 +21,7 @@ import {
   loadManifestAt,
   resetScrubbedManifest,
 } from '@/state/stores/scrubbedManifest';
+import { PRESENT_PATHS } from '@/state/stores/presentPaths';
 import { SETTLED_COMMIT, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
@@ -118,6 +119,9 @@ export function RightSidebar() {
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
       inTimeline: TIMELINE_MODE.value && !SCRUBBED_MANIFEST.value,
+      // The same set the sidebar tree filters on, so a road the tree has dropped
+      // can't still read as live here. Its rollups are the union's either way.
+      isAbsent: TIMELINE_MODE.value && !PRESENT_PATHS.value.has(sel.dir.path),
     };
   });
 
