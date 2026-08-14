@@ -1,19 +1,7 @@
-// city/layout/index.ts — main-thread façade for the layout worker.
-// Owns one lazily-created module Worker; exposes a Promise-based
-// `compute(manifest, opts)` API. Generates monotonic request ids and rejects
-// older pending requests when a newer one starts, so a rapid succession
-// of applyManifests can never produce stale layouts.
-//
-// Falls back to synchronous in-process layout when `Worker` is undefined
-// (jsdom test env). In the sync path the returned promise still
-// participates in the supersede protocol so callers see identical
-// semantics regardless of environment.
-//
-// When opts.reuseLayoutFrom is provided and the tree shape matches,
-// compute() skips the worker entirely and returns a fresh CityLayout in
-// the main thread — positions stay, per-file metadata (file refs,
-// dimensions) is recomputed from the new manifest. This is the cheap
-// path for skeleton→final transitions and live updates.
+// city/layout/index.ts — main-thread façade for the layout worker: one lazily
+// created Worker, a Promise-based compute(), and monotonic request ids so a
+// newer call supersedes the pending ones rather than racing them. Falls back to
+// synchronous in-process layout when Worker is undefined (jsdom), identically.
 
 import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
@@ -40,22 +28,8 @@ interface ConfigSnapshot {
 }
 
 export interface LayoutClient {
-  /**
-   * Compute the layout off-thread (or sync if Worker is unavailable).
-   * The returned promise resolves with the layout, or rejects with
-   * `Error('superseded')` when a newer compute() supersedes it, or
-   * `Error('disposed')` if the client is torn down before the call
-   * completes, or with the worker's own error message on failure.
-   *
-   * If `reuseLayoutFrom` is non-null, skips the worker round-trip and returns a
-   * cheap in-JS layout that reuses that prior layout's positions and recomputes
-   * per-file metadata from the new manifest. The caller must ensure the
-   * packer's inputs are unchanged (same layout_signature).
-   *
-   * `onProgress` receives whole percents as the pack advances. Only the worker
-   * path reports: the reuse and sync-fallback paths hold the thread for their
-   * whole (much shorter) run, so nothing could render a tick from them anyway.
-   */
+  /** Off-thread, or in-thread without a Worker; rejects 'superseded'/'disposed'.
+   *  reuseLayoutFrom takes the cheap path, onProgress reports the worker's own. */
   compute(
     manifest: Manifest,
     reuseLayoutFrom?: CityLayout | null,
@@ -65,10 +39,7 @@ export interface LayoutClient {
   dispose(): void;
 }
 
-// buildPathToFile(tree) -> Map<path, FileNode>
-//
-// Single O(N) walk of the manifest tree; returns a map from file path to
-// its FileNode. Used by reuseLayout to look up fresh FileNode refs.
+// One O(N) walk of the tree: path → FileNode, for reuseLayout's fresh refs.
 function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
   const map = new Map<string, FileNode>();
   function walk(node: TreeNode): void {
@@ -82,12 +53,8 @@ function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
   return map;
 }
 
-// reuseLayout(prior, newManifest) -> CityLayout
-//
-// Cheap main-thread path: keeps all positions, streets, paths, gem, and
-// sidewalks from the prior layout; recomputes per-file refs and dimensions
-// (h, w, d, floors) from the new manifest's real metadata. Does NOT call
-// the layout worker — skips collision detection and placement entirely.
+// The cheap main-thread path: prior positions kept, per-file refs and dims
+// recomputed from the new manifest. No worker, no collision detection.
 function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
   const filesByPath = buildPathToFile(newManifest.tree as unknown as TreeNode);
   const heightCtx = makeHeightContext(newManifest.stats);
@@ -169,12 +136,8 @@ export function createLayoutClient(): LayoutClient {
         entry.reject(new Error(event.message || 'layout worker error'));
       }
       pending.clear();
-      // After an uncaught exception, the worker's state is undefined
-      // per spec — posting further messages to it is unreliable. Null
-      // the cached ref so the next compute() reconstructs a fresh
-      // worker on demand, and terminate the dying instance so the
-      // browser frees its thread + memory promptly (browsers don't
-      // always auto-terminate after onerror).
+      // After an uncaught exception the worker's state is undefined per spec:
+      // drop the ref so the next compute rebuilds, and terminate the dying one.
       const dying = worker;
       worker = null;
       dying?.terminate();
@@ -213,9 +176,8 @@ export function createLayoutClient(): LayoutClient {
       return Promise.reject(new Error('layoutClient disposed'));
     }
 
-    // Cheap in-JS reuse path: caller has confirmed tree shape matches.
-    // Supersede any pending requests (same protocol as the full path) then
-    // return a microtask-resolved promise so callers always see async semantics.
+    // Supersede the pending requests as the full path does, then resolve in a
+    // microtask so callers always see async semantics.
     if (reuseLayoutFrom) {
       const id = nextId++;
       _supersedeAll();
@@ -245,10 +207,8 @@ export function createLayoutClient(): LayoutClient {
       const request: LayoutRequest = {
         type: 'layout',
         id,
-        // Send ONLY what layoutCity reads (tree + stats). The full manifest
-        // carries the commits array (100k–1M entries at Linux scale), which
-        // postMessage would structured-clone on the main thread every apply —
-        // ~240ms at 200k commits vs ~65ms for this slice, all wasted.
+        // ONLY what layoutCity reads: the commits array would be structured-
+        // cloned on the main thread every apply (~240ms at 200k), for nothing.
         manifest: { tree: manifest.tree, stats: manifest.stats },
         configSnapshot: _snapshot(),
       };
