@@ -2,12 +2,14 @@
    Shared column: repo label + spinner + current-step status + stepped list.
    Used by LoadingOverlay (cold boot) and ProjectsView (in-app switches). */
 
-/* Repo name (+ branch pill) — the header of the loading column. */
+/* Repo name (+ branch pill) — the header of the loading column. Holds its row
+   whether or not the label has arrived, so nothing below it moves when it does. */
 .loading-header {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--cc-space-3);
+  min-height: calc(var(--cc-font-lg) * 1.4);
 }
 .loading-pending-label {
   font-size: var(--cc-font-lg);
@@ -41,9 +43,8 @@
   text-align: center;
 }
 
-/* Shrinks to its widest row and centers as a block (the parent columns are
-   align-items: center), so the checklist sits centered while each row's text
-   stays left-aligned. */
+/* Fills the column rather than shrinking to its widest row: the tails change
+   length all through a load, sliding a content-sized list left and right. */
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);
@@ -51,6 +52,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-3);
+  align-self: stretch;
 }
 .loading-steps li {
   font-size: var(--cc-font-sm);
@@ -90,8 +92,9 @@
   font-size: var(--cc-font-2xs);
 }
 /* Trailing progress text (clone %, scanned file count) — secondary to the
-   step label. */
+   step label, and set off from it rather than running straight on. */
 .loading-step-tail {
+  margin-left: var(--cc-space-3);
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-xs);
   font-variant-numeric: tabular-nums;

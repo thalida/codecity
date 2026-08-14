@@ -42,12 +42,12 @@ export function LoadingProgress({
 
   return (
     <>
-      {pendingLabel && (
-        <div class="loading-header">
-          <span class="loading-pending-label">{pendingLabel}</span>
-          {branch && <span class="app-header-branch-pill">@{branch}</span>}
-        </div>
-      )}
+      {/* Always rendered: the label lands a beat after the overlay does, and a
+          row appearing under it would jog everything below. */}
+      <div class="loading-header">
+        <span class="loading-pending-label">{pendingLabel}</span>
+        {branch && <span class="app-header-branch-pill">@{branch}</span>}
+      </div>
       <div class="loading-spinner" />
       <div class="loading-status" role="status" aria-live="polite">
         {LOADING_STEP_LABELS[activeStep]}
@@ -77,7 +77,7 @@ export function LoadingProgress({
           return (
             <li key={step} data-step={step} data-state={stepState}>
               {LOADING_STEP_LABELS[step]}
-              {tail != null && <span class="loading-step-tail"> {tail}</span>}
+              {tail != null && <span class="loading-step-tail">{tail}</span>}
             </li>
           );
         })}

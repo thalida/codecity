@@ -203,13 +203,16 @@ describe('LoadingOverlay', () => {
     expect(header!.textContent).toContain('owner/repo');
   });
 
-  it('removes the pending label when set to null', async () => {
+  it('drops the label text but holds its row', async () => {
+    // The label lands a beat after the overlay does, so its row is always
+    // there: one appearing would jog every row under it mid-load.
     showLoadingOverlay({ kind: SourceKind.Remote });
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     PENDING_SOURCE_LABEL.value = null;
     await flush();
-    expect(container.querySelector('.loading-pending-label')).toBeNull();
+    expect(container.querySelector('.loading-pending-label')?.textContent).toBe('');
+    expect(container.querySelector('.loading-header')).not.toBeNull();
   });
 
   // ── Step tails ─────────────────────────────────────────────────────────
