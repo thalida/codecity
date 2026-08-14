@@ -25,7 +25,9 @@
   /* Bound to the VIEWPORT, never to the rows: their text changes all through a
      load, and a content-sized card resizes under the reader the whole way. */
   width: clamp(17.5rem, 90vw, 26rem);
-  max-width: calc(100vw - 2 * var(--cc-chrome-inset));
+  /* Never over the activity bar: centred, the card has to clear it on both
+     sides, which is what holds it off the rail's icons on a phone. */
+  max-width: calc(100vw - 2 * (var(--cc-rail-w) + var(--cc-space-3)));
 }
 
 /* A phone spends its width on the rows, not the card's margins: the long tails
