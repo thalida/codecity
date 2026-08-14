@@ -180,7 +180,19 @@ def _collect_blob_tables(
         on_progress(
             {"stage": TimelineStage.BLOBS, "done": total - len(misses), "total": total}
         )
-    fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
+    done = total - len(misses)
+
+    def _resolved(n: int) -> None:
+        if on_progress is not None:
+            on_progress(
+                {"stage": TimelineStage.BLOBS, "done": done + n, "total": total}
+            )
+
+    fresh = (
+        blob_stats_batch(root, misses, media_shas=media_shas, on_progress=_resolved)
+        if misses
+        else {}
+    )
     for sha, st in fresh.items():
         cached[sha] = blob_entry(st)
     if fresh:
