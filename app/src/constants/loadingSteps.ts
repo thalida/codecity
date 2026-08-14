@@ -4,6 +4,7 @@
 
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
+import type { TimelineProgress } from '@/types';
 
 export enum LoadingStep {
   Resolving = 'resolving',
@@ -11,28 +12,32 @@ export enum LoadingStep {
   Scanning = 'scanning',
   Skeleton = 'skeleton',
   Building = 'building',
-  // Client-side, between the city landing and the decoration pass finishing.
-  // Only inserted when a decoration layer is on.
-  Decorating = 'decorating',
-  // Timeline-mode entry: fetching the history bundle (commits + union manifest).
-  TimelineLoading = 'timeline-loading',
+  // Timeline-mode entry, one row per stage of the history stream: the blob
+  // backfill, the commit walk, then blob resolution.
+  TimelineFetch = 'timeline-fetch',
+  TimelineHistory = 'timeline-history',
+  TimelineBlobs = 'timeline-blobs',
 }
 
 // Display order. 'skeleton' paints placeholders while the server resolves
-// per-file metadata; 'building' tweens in the real heights.
+// per-file metadata; 'building' tweens in the real heights. Building is the
+// last row in both lists: the overlay lifts on the city's first painted frame,
+// and the decoration pass that follows runs on a city you can already see (the
+// freshness readout is what reports it).
 export const LOADING_STEPS: readonly LoadingStep[] = [
   LoadingStep.Resolving,
   LoadingStep.Cloning,
   LoadingStep.Scanning,
   LoadingStep.Skeleton,
   LoadingStep.Building,
-  LoadingStep.Decorating,
 ];
 
-// Timeline's own short list. Reuses LoadingStep.Building rather than inventing
+// Timeline's own list. Reuses LoadingStep.Building rather than inventing
 // a second label for the same act.
 export const TIMELINE_LOADING_STEPS: readonly LoadingStep[] = [
-  LoadingStep.TimelineLoading,
+  LoadingStep.TimelineFetch,
+  LoadingStep.TimelineHistory,
+  LoadingStep.TimelineBlobs,
   LoadingStep.Building,
 ];
 
@@ -51,9 +56,28 @@ export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [LoadingStep.Scanning]: 'Scanning files',
   [LoadingStep.Skeleton]: 'Sketching layout',
   [LoadingStep.Building]: 'Building city',
-  [LoadingStep.Decorating]: 'Adding decorations',
-  [LoadingStep.TimelineLoading]: 'Loading history',
+  [LoadingStep.TimelineFetch]: 'Fetching history',
+  [LoadingStep.TimelineHistory]: 'Walking commits',
+  [LoadingStep.TimelineBlobs]: 'Resolving files',
 };
+
+// Steps that exist only for a remote source: a path already on disk has
+// nothing to resolve, clone, or fetch.
+const REMOTE_ONLY_STEPS: ReadonlySet<LoadingStep> = new Set([
+  LoadingStep.Resolving,
+  LoadingStep.Cloning,
+  LoadingStep.TimelineFetch,
+]);
+
+/** Whether a step runs at all for this source kind. */
+export function stepRuns(step: LoadingStep, kind: SourceKind | null): boolean {
+  return kind !== SourceKind.Local || !REMOTE_ONLY_STEPS.has(step);
+}
+
+/** The step a list opens on: the first row this source kind actually runs. */
+export function firstStepFor(steps: readonly LoadingStep[], kind: SourceKind | null): LoadingStep {
+  return steps.find((step) => stepRuns(step, kind)) ?? steps[0];
+}
 
 /** Scan phase to step, by source kind: local skips resolving and cloning. One
  *  definition, shared by the overlay reactions and the inline progress. */
@@ -69,6 +93,22 @@ export function stepForPhase(phase: ScanPhase | null, kind: SourceKind): Loading
       return LoadingStep.Building;
     default:
       // phase === null: just-started, no stream event yet.
-      return kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
+      return firstStepFor(LOADING_STEPS, kind);
   }
+}
+
+// A Record, not a switch: a stage added to the wire contract fails to compile
+// here rather than silently falling through to the wrong row.
+const TIMELINE_STAGE_STEPS: Record<TimelineProgress['stage'], LoadingStep> = {
+  fetch: LoadingStep.TimelineFetch,
+  history: LoadingStep.TimelineHistory,
+  blobs: LoadingStep.TimelineBlobs,
+  // Union assembly, the bundle's trip down the wire, and the pack that follows
+  // are one wait with no way to tell them apart: they share the build row.
+  assemble: LoadingStep.Building,
+};
+
+/** Timeline stream stage to step. stepForPhase's counterpart for the other stream. */
+export function stepForTimelineStage(stage: TimelineProgress['stage']): LoadingStep {
+  return TIMELINE_STAGE_STEPS[stage];
 }

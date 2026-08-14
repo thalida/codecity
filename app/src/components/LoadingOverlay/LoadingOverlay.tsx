@@ -1,7 +1,7 @@
 // components/LoadingOverlay.tsx — Full-viewport centered progress shown for a
 // deep-link cold boot (no page open yet). Mounted once by App.tsx and driven by
-// the LOADING_OVERLAY signal (fed by the SCAN_PROGRESS reaction and the
-// REBUILD_STATUS → Decorating bridge). The inner column — repo label, spinner,
+// the LOADING_OVERLAY signal (fed by the SCAN_PROGRESS reaction, and by
+// Timeline entry for its own list). The inner column — repo label, spinner,
 // current step, and stepped list — is the shared <LoadingProgress>, which
 // ProjectsView also renders for in-app switches.
 //

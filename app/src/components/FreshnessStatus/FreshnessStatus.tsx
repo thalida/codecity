@@ -14,6 +14,7 @@ import {
   RebuildStatus,
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
+  REBUILD_DETAIL,
 } from '@/state/stores/manifest';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
@@ -65,13 +66,18 @@ export function useFreshness(): Freshness {
   const rebuildStatus = REBUILD_STATUS.value;
   const lastUpdatedAt = LAST_UPDATED_AT.value;
   const errorMessage = LAST_REBUILD_ERROR.value;
+  const rebuildDetail = REBUILD_DETAIL.value;
 
   let buildClass: BuildClass;
   let detailText: string;
   switch (rebuildStatus) {
     case RebuildStatus.Rebuilding:
       buildClass = BuildClass.Rebuilding;
-      detailText = DETAIL_TEXT.rebuilding;
+      // A rebuild with nothing else on screen to report it (Timeline refetching
+      // its bundle under an exclude edit) carries its stage here.
+      detailText = rebuildDetail
+        ? `${DETAIL_TEXT.rebuilding} ${rebuildDetail}`
+        : DETAIL_TEXT.rebuilding;
       break;
     case RebuildStatus.Decorating:
       buildClass = BuildClass.Rebuilding;
@@ -94,6 +100,8 @@ export function useFreshness(): Freshness {
   } else if (rebuildStatus === RebuildStatus.Idle && lastUpdatedAt > 0) {
     titleText = `${liveLabel} · rebuilt ${detailText}`;
   } else if (rebuildStatus === RebuildStatus.Rebuilding) {
+    // No stage tail here: ScanMenu announces this string from a live region,
+    // and a count ticking every few hundred ms would talk over everything else.
     titleText = `${liveLabel} · ${DETAIL_TEXT.rebuilding}`;
   } else {
     titleText = liveLabel;

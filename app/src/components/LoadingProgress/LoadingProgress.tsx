@@ -12,6 +12,7 @@ import {
   LoadingStepState,
   LOADING_STEPS,
   LOADING_STEP_LABELS,
+  stepRuns,
 } from '@/constants/loadingSteps';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
@@ -22,8 +23,7 @@ export interface LoadingProgressProps {
   // Trailing per-step progress text (clone %, scanned file count). Only the
   // overlay flow supplies these; ProjectsView omits them.
   stepTails?: Partial<Record<LoadingStep, string | null>>;
-  // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS;
-  // a custom list renders verbatim, no local-source resolve/clone hiding.
+  // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS.
   steps?: readonly LoadingStep[];
   // Aborts the load and returns to the project list. Each surface wires the
   // routing (ProjectsView is already the list; the overlay opens it).
@@ -40,8 +40,6 @@ export function LoadingProgress({
 }: LoadingProgressProps) {
   const pendingLabel = PENDING_SOURCE_LABEL.value;
   const activeIdx = steps.indexOf(activeStep);
-  const isCustom = steps !== LOADING_STEPS;
-  const isLocal = !isCustom && kind === SourceKind.Local;
 
   return (
     <>
@@ -58,9 +56,10 @@ export function LoadingProgress({
       </div>
       <ol class="loading-steps">
         {steps.map((step) => {
-          // Local sources skip resolve/clone; keep the rows in the DOM (hidden)
-          // so the list height doesn't jump when the flow starts.
-          if (isLocal && (step === LoadingStep.Resolving || step === LoadingStep.Cloning)) {
+          // A step this source kind never runs (a local path's resolve, clone
+          // or history fetch) keeps its row in the DOM, hidden, so the list
+          // height doesn't jump when the flow starts.
+          if (!stepRuns(step, kind)) {
             return (
               <li
                 key={step}

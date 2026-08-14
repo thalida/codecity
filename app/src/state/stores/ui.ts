@@ -121,7 +121,7 @@ export function openSelectionPane(): void {
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
-import { LoadingStep } from '@/constants/loadingSteps';
+import { LoadingStep, LOADING_STEPS, firstStepFor } from '@/constants/loadingSteps';
 
 /** Repo name in the loading overlay's header, shown before the manifest lands.
  *  Overlay-owned: showLoadingOverlay/hideLoadingOverlay control its lifetime. */
@@ -154,13 +154,10 @@ export function showLoadingOverlay(
   opts: LoadingOverlayShowOpts,
   onCancel?: (() => void) | null
 ): void {
-  const initialStep: LoadingStep =
-    opts.steps?.[0] ??
-    (opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving);
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,
-    activeStep: initialStep,
+    activeStep: firstStepFor(opts.steps ?? LOADING_STEPS, opts.kind),
     stepTails: {},
   };
   if (onCancel !== undefined) LOADING_CANCEL.value = onCancel;

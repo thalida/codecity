@@ -148,9 +148,10 @@ async def timeline(
             data: dict[str, Any] = {"stage": stage, "label": pending_label}
             if stage == "history":
                 data["commits"] = payload.get("commits")
-            else:  # "blobs"
+            elif stage == "blobs":
                 data["blobsDone"] = payload.get("done")
                 data["blobsTotal"] = payload.get("total")
+            # "assemble" carries only its own start.
             _put(_sse(TimelineEvent.PROGRESS, data))
 
         def _on_hydrate(payload: tuple[str, int]) -> None:

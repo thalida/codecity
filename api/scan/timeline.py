@@ -142,7 +142,8 @@ def _collect_blob_tables(
     keyed by sha, plus a byte-size table. Stats go through the same content-
     addressed blob cache reconstruct_manifest uses (cat-file only the misses);
     sizes are a separate uncached batch. The blob-check batch resolves the total
-    up front, so ``on_progress`` only needs a start + done tick."""
+    up front, so ``on_progress`` only needs a start + done tick — the done tick
+    lands after the size batch, which is the rest of this stage's real work."""
     shas = list({sha for d in deltas for _, sha in d.changes if sha})
     total = len(shas)
     media_shas = frozenset(
@@ -162,8 +163,6 @@ def _collect_blob_tables(
     if fresh:
         cache_save_blobs(root, cached)
     log(f"  done — {total:,} blobs resolved")
-    if on_progress is not None:
-        on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
     # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
     sizes = blob_sizes_batch(root, shas)
@@ -172,6 +171,8 @@ def _collect_blob_tables(
         if entry is not None and "size" in entry:
             sizes[s] = entry["size"]
     blob_stats = {s: cached[s] for s in shas if s in cached}
+    if on_progress is not None:
+        on_progress({"stage": "blobs", "done": total, "total": total})
     return lines, sizes, blob_stats
 
 
@@ -426,6 +427,10 @@ def build_timeline_bundle(
             if sha is not None:
                 blob_lines.setdefault(sha, 0)
                 blob_sizes.setdefault(sha, 0)
+    # Everything below is assembly over the whole union: minutes on a big repo,
+    # and the client can only show a row for it if we say it started.
+    if on_progress is not None:
+        on_progress({"stage": "assemble"})
     union_manifest = build_union_manifest(
         root_path,
         deltas,

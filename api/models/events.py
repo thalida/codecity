@@ -114,13 +114,15 @@ class TimelineEvent(StrEnum):
 
 
 class TimelineProgressEvent(BaseModel):
-    """`timeline-progress` — the history walk, blob-table resolution, or (for a
-    blobless remote clone) the up-front blob backfill is in progress. The
-    `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
-    carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
-    blob lookup, so that stage reports two ticks, not a live stream)."""
+    """`timeline-progress` — the history walk, blob-table resolution, union
+    assembly, or (for a blobless remote clone) the up-front blob backfill is in
+    progress. The `fetch` stage carries `percent`; `history` carries `commits`;
+    `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
+    the batch blob lookup, so that stage reports two ticks, not a live stream);
+    `assemble` carries nothing but its own start, and runs until the bundle
+    lands."""
 
-    stage: Literal["fetch", "history", "blobs"]
+    stage: Literal["fetch", "history", "blobs", "assemble"]
     percent: OptionalInt = None
     commits: OptionalInt = None
     blobsDone: OptionalInt = None
