@@ -29,6 +29,7 @@ from api.models.events import (
     ScanProgressEvent,
     TimelineCompleteEvent,
     TimelineEvent,
+    TimelineStage,
     TimelineProgressEvent,
 )
 from api.models.manifest import SignatureResponse
@@ -146,11 +147,12 @@ async def timeline(
         def _on_progress(payload: dict[str, Any]) -> None:
             stage = payload["stage"]
             data: dict[str, Any] = {"stage": stage, "label": pending_label}
-            if stage == "history":
+            if stage == TimelineStage.HISTORY:
                 data["commits"] = payload.get("commits")
-            else:  # "blobs"
+            elif stage == TimelineStage.BLOBS:
                 data["blobsDone"] = payload.get("done")
                 data["blobsTotal"] = payload.get("total")
+            # ASSEMBLE carries only its own start.
             _put(_sse(TimelineEvent.PROGRESS, data))
 
         def _on_hydrate(payload: tuple[str, int]) -> None:
@@ -158,7 +160,11 @@ async def timeline(
             _put(
                 _sse(
                     TimelineEvent.PROGRESS,
-                    {"stage": "fetch", "percent": payload[1], "label": pending_label},
+                    {
+                        "stage": TimelineStage.FETCH,
+                        "percent": payload[1],
+                        "label": pending_label,
+                    },
                 )
             )
 

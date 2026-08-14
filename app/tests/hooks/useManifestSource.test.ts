@@ -52,8 +52,8 @@ describe('useManifestSource loadSource cancellation', () => {
       );
       await p;
 
-      // loadSource is done; the overlay lives on through Building/Decorating,
-      // and the header has to live exactly as long as the overlay.
+      // loadSource is done; the overlay lives on through Building, and the
+      // header has to live exactly as long as the overlay.
       expect(PENDING_SOURCE_LABEL.value, 'cleared with the stream, not the overlay').toBe('o/r');
     });
   });
@@ -173,7 +173,7 @@ describe('loadSource exits Timeline mode', () => {
 // is the history bundle: a live re-scan would answer it by leaving the mode.
 describe('refreshCurrentSource', () => {
   let restoreEventSource: () => void;
-  let timelineRefreshes: Array<{ noCache?: boolean } | undefined>;
+  let timelineRefreshes: Array<{ noCache?: boolean; overlay?: boolean } | undefined>;
 
   beforeEach(() => {
     restoreEventSource = installEventSource();
@@ -198,7 +198,8 @@ describe('refreshCurrentSource', () => {
 
     refreshCurrentSource(false);
 
-    expect(timelineRefreshes).toEqual([{ noCache: false }]);
+    // overlay: asked for by hand, so it reports its stages like a Live refresh.
+    expect(timelineRefreshes).toEqual([{ noCache: false, overlay: true }]);
     expect(TIMELINE_MODE.value).toBe(true);
     expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
   });
@@ -222,7 +223,7 @@ describe('refreshCurrentSource', () => {
 
     refreshCurrentSource(true);
 
-    expect(timelineRefreshes).toEqual([{ noCache: true }]);
+    expect(timelineRefreshes).toEqual([{ noCache: true, overlay: true }]);
     expect(TIMELINE_MODE.value).toBe(true);
     expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
   });

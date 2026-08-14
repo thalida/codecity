@@ -769,18 +769,17 @@ export interface components {
     };
     /**
      * TimelineProgressEvent
-     * @description `timeline-progress` — the history walk, blob-table resolution, or (for a
-     *     blobless remote clone) the up-front blob backfill is in progress. The
-     *     `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
-     *     carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
-     *     blob lookup, so that stage reports two ticks, not a live stream).
+     * @description `timeline-progress` — the history walk, blob-table resolution, union
+     *     assembly, or (for a blobless remote clone) the up-front blob backfill is in
+     *     progress. The `fetch` stage carries `percent`; `history` carries `commits`;
+     *     `blobs` carries `blobsDone`/`blobsTotal` (the total is known up front from
+     *     the batch blob lookup, so that stage reports two ticks, not a live stream);
+     *     `assemble` carries nothing but its own start, and runs until the bundle
+     *     lands.
      */
     TimelineProgressEvent: {
-      /**
-       * Stage
-       * @enum {string}
-       */
-      stage: 'fetch' | 'history' | 'blobs';
+      /** @enum {string} */
+      stage: 'fetch' | 'history' | 'blobs' | 'assemble';
       /** Percent */
       percent?: number;
       /** Commits */
@@ -792,6 +791,14 @@ export interface components {
       /** Label */
       label?: string;
     };
+    /**
+     * TimelineStage
+     * @description Which part of the timeline build a progress tick is reporting — the wire
+     *     contract the frontend matches verbatim. Members are used everywhere instead
+     *     of literals, like ScanEvent's.
+     * @enum {string}
+     */
+    TimelineStage: 'fetch' | 'history' | 'blobs' | 'assemble';
     /** ValidationError */
     ValidationError: {
       /** Location */

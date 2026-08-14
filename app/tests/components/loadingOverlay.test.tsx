@@ -11,14 +11,12 @@ import {
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
 
-import { LoadingStep } from '@/constants/loadingSteps';
+import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 
-// The overlay is now a signal-driven Preact component (App.tsx mounts a
-// single <LoadingOverlay/>); state is driven by the uiState helpers that
-// the manifest-stream consumer calls. These tests render the component and
-// poke those helpers, flushing Preact's microtask re-render before asserting.
+// The overlay is signal-driven, so these tests render the component and poke
+// the ui-store helpers, flushing Preact's re-render before asserting.
 
 let container: HTMLDivElement;
 
@@ -48,10 +46,8 @@ describe('LoadingOverlay', () => {
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });
 
-  // <ProjectsView> is the loading surface for any switch it initiates; this
-  // overlay's narrow remaining job is a deep-link cold boot with no view
-  // open. Two full-viewport surfaces stacking would leave the overlay's
-  // no-controls backdrop on top of the view's Cancel button.
+  // Two full-viewport surfaces stacking would leave this overlay's no-controls
+  // backdrop on top of the projects view's Cancel button.
   it('stays hidden while the projects view is open, even mid-load', async () => {
     showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
@@ -149,21 +145,51 @@ describe('LoadingOverlay', () => {
     );
   });
 
-  it('a custom steps list (Timeline entry) renders those rows verbatim, starting on the first step', async () => {
-    showLoadingOverlay({
-      kind: SourceKind.Remote,
-      steps: [LoadingStep.TimelineLoading, LoadingStep.Building],
-    });
+  it('renders the Timeline list as one row per server stage, starting on the first', async () => {
+    showLoadingOverlay({ kind: SourceKind.Remote, steps: TIMELINE_LOADING_STEPS });
     await flush();
-    expect(container.querySelector('[data-step="timeline-loading"]')).toBeTruthy();
-    expect(container.querySelector('[data-step="building"]')).toBeTruthy();
-    // No resolving/cloning/scanning/skeleton/decorating rows from the default list.
-    expect(container.querySelector('[data-step="resolving"]')).toBeNull();
-    expect(container.querySelector('[data-step="cloning"]')).toBeNull();
     expect(
-      container.querySelector('[data-step="timeline-loading"]')?.getAttribute('data-state')
+      container.querySelector('[data-step="timeline-fetch"]')?.getAttribute('data-state')
     ).toBe('active');
-    expect(container.textContent).toContain('Loading history');
+    expect(
+      container.querySelector('[data-step="timeline-history"]')?.getAttribute('data-state')
+    ).toBe('pending');
+    expect(
+      container.querySelector('[data-step="timeline-blobs"]')?.getAttribute('data-state')
+    ).toBe('pending');
+    expect(container.querySelector('[data-step="building"]')).toBeTruthy();
+    // None of the default list's rows leak in.
+    expect(container.querySelector('[data-step="resolving"]')).toBeNull();
+    expect(container.querySelector('[data-step="scanning"]')).toBeNull();
+    expect(container.textContent).toContain('Fetching history');
+    expect(container.textContent).toContain('Walking commits');
+    expect(container.textContent).toContain('Resolving files');
+  });
+
+  it('hides the history fetch for a local Timeline entry and starts on the walk', async () => {
+    showLoadingOverlay({ kind: SourceKind.Local, steps: TIMELINE_LOADING_STEPS });
+    await flush();
+    const fetchRow = container.querySelector('[data-step="timeline-fetch"]') as HTMLElement;
+    expect(fetchRow.style.display).toBe('none'); // nothing to fetch: the repo is already on disk
+    expect(
+      container.querySelector('[data-step="timeline-history"]')?.getAttribute('data-state')
+    ).toBe('active');
+  });
+
+  it('marks the stages behind the active one done', async () => {
+    showLoadingOverlay({ kind: SourceKind.Remote, steps: TIMELINE_LOADING_STEPS });
+    await flush();
+    setLoadingStep(LoadingStep.TimelineBlobs);
+    await flush();
+    expect(
+      container.querySelector('[data-step="timeline-fetch"]')?.getAttribute('data-state')
+    ).toBe('done');
+    expect(
+      container.querySelector('[data-step="timeline-history"]')?.getAttribute('data-state')
+    ).toBe('done');
+    expect(container.querySelector('[data-step="building"]')?.getAttribute('data-state')).toBe(
+      'pending'
+    );
   });
 
   // ── Pending-label header ────────────────────────────────────────────────

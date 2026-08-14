@@ -86,7 +86,7 @@ async function pumpManifestStream(
 
 // Injected, not imported (importing useTimelineMode back was a cycle); it
 // registers before TIMELINE_MODE can turn on.
-type TimelineRefresh = (opts?: { noCache?: boolean }) => Promise<void>;
+type TimelineRefresh = (opts?: { noCache?: boolean; overlay?: boolean }) => Promise<void>;
 
 let timelineRefresh: TimelineRefresh | null = null;
 
@@ -192,7 +192,9 @@ export function refreshCurrentSource(skipCache = false): void {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
   if (TIMELINE_MODE.peek() && timelineRefresh) {
-    void timelineRefresh({ noCache: skipCache });
+    // Asked for by hand, so it gets the same stepped overlay a Live refresh
+    // does: the history walk behind it runs for minutes on a big repo.
+    void timelineRefresh({ noCache: skipCache, overlay: true });
     return;
   }
   void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
@@ -307,8 +309,8 @@ export function setupLiveUpdates(): () => void {
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
-    // Timeline owns the scene: excludes change the union data, so refetch its bundle
-    // + re-pack (it marks rebuilding itself). Live: in-place re-scan.
+    // Timeline owns the scene: excludes change the union data, so refetch its
+    // bundle + re-pack (it reports itself through the readout). Live: re-scan.
     let refresh: Promise<void>;
     if (TIMELINE_MODE.peek() && timelineRefresh) {
       refresh = timelineRefresh();

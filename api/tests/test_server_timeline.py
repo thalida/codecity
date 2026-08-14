@@ -77,6 +77,14 @@ def test_timeline_stream_emits_progress_then_bundle(
     # known up front from the batch blob-check), so even a 2-blob repo trips it.
     assert "timeline-progress" in names
     assert names[-1] == "timeline-complete"
+    # Stage order is what the client's step rows are driven off, and `assemble`
+    # is the one that covers the union build — the longest silent stretch.
+    stages = [d["stage"] for n, d in events if n == "timeline-progress"]
+    assert [s for i, s in enumerate(stages) if i == 0 or s != stages[i - 1]] == [
+        "history",
+        "blobs",
+        "assemble",
+    ]
     bundle = events[-1][1]["bundle"]
     assert set(bundle) >= {
         "commits",
