@@ -64,9 +64,19 @@ export const SCRUB_DRAGGING = signal(false);
 // The commit content fetches key on: follows the scrub but holds still mid-drag,
 // so dragging across a long history doesn't refetch once per commit crossed.
 export const SETTLED_COMMIT = signal(0);
+
+// The same rest point as a position. SETTLED_COMMIT caps at the newest commit,
+// so it can't tell that stop from the today stop past it; this can.
+export const SETTLED_POS = signal(0);
+
 effect(() => {
   const commit = SCRUB_COMMIT.value;
-  if (!SCRUB_DRAGGING.value) SETTLED_COMMIT.value = commit;
+  const pos = SCRUB_POS.value;
+  if (SCRUB_DRAGGING.value) return;
+  batch(() => {
+    SETTLED_COMMIT.value = commit;
+    SETTLED_POS.value = pos;
+  });
 });
 
 // Every entry path, called only once the union city is packed: flipping the mode

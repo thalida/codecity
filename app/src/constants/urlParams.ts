@@ -1,7 +1,7 @@
-// constants/urlParams.ts — Query-param keys shared by the page URL
-// (?src=…&branch=…) and the /api/manifest request contract. The backend reads
-// these exact names, so the string values are the wire form — don't rename
-// without a matching server change.
+// constants/urlParams.ts — the page URL's query-param keys, in two families.
+// URL_PARAMS are also the /api/manifest wire form: the backend reads these
+// exact names, so don't rename one without a matching server change.
+// VIEW_PARAMS never leave the browser — they say what you were looking at.
 
 export const URL_PARAMS = {
   /** Source to render: a git URL or a local path. */
@@ -12,4 +12,15 @@ export const URL_PARAMS = {
   NO_CACHE: 'no_cache',
   /** Repeated rel-path the UI hides from the rendered city (client-side pref). */
   EXCLUDE: 'exclude',
+} as const;
+
+export const VIEW_PARAMS = {
+  /** 'timeline' when the city is the union city under the scrubber. Absent is Live. */
+  MODE: 'mode',
+  /** Sha the scrubber rests on in Timeline. Absent is the present, so a link
+   *  that means "now" keeps meaning it as the branch moves. */
+  COMMIT: 'commit',
+  /** What is selected: `file:<path>`, `dir:<path>` or `commit:<sha>`. One
+   *  param, because a selection is one identity (state/viewUrl encodes it). */
+  SELECTION: 'sel',
 } as const;
