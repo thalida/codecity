@@ -30,6 +30,8 @@ describe('loadingReactions', () => {
     SCAN_PROGRESS.value = null;
     REBUILD_STATUS.value = RebuildStatus.Idle;
     BUILD_PROGRESS.value = null;
+    // Visibility is per attach, so one left up is invisible to the next test.
+    LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
   });
 
   // The scan streams structure, then per-file metadata, then git history. History
@@ -161,6 +163,62 @@ describe('loadingReactions', () => {
     expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
   });
 
+  // Sketching layout owns the skeleton AND the city drawn from it; Building
+  // city is the real heights going up. The list only ever moves forward.
+
+  it('stays on Sketching layout while the skeleton city is being built', () => {
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['metadata', 'history'],
+    };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding; // the skeleton's own pack
+
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
+  });
+
+  it('moves to Building city when the real heights land', () => {
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['metadata', 'history'],
+    };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['history'],
+    };
+
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+  });
+
+  it('never walks the list backwards inside one load', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+
+    // Re-lighting a row already passed reads as the load starting again.
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['metadata', 'history'],
+    };
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.ScanProgress };
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+  });
+
+  it('starts the list over for a genuinely new load', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+
+    // A new load announces itself with a phase-less first event.
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress, percent: 10 };
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Cloning);
+  });
+
   it('does NOT show the overlay for a settings rebuild (no stream)', () => {
     // A config Save sets Rebuilding with no SCAN_PROGRESS — the footer owns that
     // status, not the loading overlay.
@@ -190,9 +248,8 @@ describe('loadingReactions', () => {
   });
 
   it('carries on into the decoration pass rather than going blank', () => {
-    // Timeline's overlay outlives the pack: it stays up through the tree pass
-    // and the scrub install, so the row would sit empty for exactly the wait
-    // that needed a readout.
+    // Timeline's overlay outlives the pack, so a row cleared here sits empty
+    // through the tree pass and the scrub install: the wait that needed it.
     beginBuild([BuildStage.Layout, BuildStage.Assemble, BuildStage.Decorate]);
     markDecorating();
 
