@@ -16,8 +16,7 @@ import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
-
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+import { flush } from '../_helpers/preact';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;

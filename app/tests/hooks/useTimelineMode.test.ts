@@ -16,6 +16,7 @@ import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
+import { flush } from '../_helpers/preact';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
@@ -23,8 +24,6 @@ const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(
 
 vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
-
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 // repo, like the server's union manifest carries: Timeline commits this as the
 // manifest the header and panes read, so a bare tree is not a fixture of one.

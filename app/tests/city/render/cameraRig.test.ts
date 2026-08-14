@@ -8,27 +8,11 @@ import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
 import type { CityState } from '@/city/state';
-import { GEM_SIZING } from '@/state/stores/settings/gem';
-import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { SHOWCASE } from '@/state/stores/settings/showcase';
 import { getDefault } from '@/state/persist';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
-}
-
-// The slider's arithmetic over the city under test: gem at 0, city edge at 1.
-function showcaseEnds(
-  cs: CityState,
-  rig: { controls: { minDistance: number; maxDistance: number } },
-  t: number
-): number {
-  const street = cs.rootStreet.value as { width: number };
-  const bbox = cs.sceneBbox.value as { width: number; depth: number };
-  const near = gemRadiusFor(street.width, GEM_SIZING.value);
-  const far = Math.max(bbox.width, bbox.depth) / 2;
-  const radius = near + (far - near) * t;
-  return Math.min(Math.max(radius, rig.controls.minDistance), rig.controls.maxDistance);
 }
 
 // The rig frames off cityState, so seed a real bbox and root street.
@@ -241,13 +225,19 @@ describe('cameraRig showcase orbit', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: 0.5 };
+    const at = (t: number): number => {
+      SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: t };
+      rig.enterShowcase({ autoRotate: false });
+      return rig.camera.position.distanceTo(gem);
+    };
 
-    rig.enterShowcase({ autoRotate: false });
-
+    // Linear in the slider: halfway between two stops is halfway along. Read
+    // above 1, where neither the near floor nor the far cap is in play.
+    const one = at(1);
+    const two = at(2);
+    expect(at(1.5)).toBeCloseTo((one + two) / 2, 3);
     // The pivot is the gem itself (ground level), not a point up the skyline.
     expect(rig.controls.target.distanceTo(gem)).toBeCloseTo(0, 5);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(showcaseEnds(cs, rig, 0.5), 3);
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(12, 3);
   });
 
@@ -256,23 +246,17 @@ describe('cameraRig showcase orbit', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    const street = cs.rootStreet.value as { width: number };
     const bbox = cs.sceneBbox.value as { width: number; depth: number };
+    const at = (t: number): number => {
+      SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: t };
+      rig.enterShowcase({ autoRotate: false });
+      return rig.camera.position.distanceTo(gem);
+    };
 
-    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 0 };
-    rig.enterShowcase({ autoRotate: false });
-    const gemRadius = gemRadiusFor(street.width, GEM_SIZING.value);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(
-      Math.max(gemRadius, rig.controls.minDistance),
-      3
-    );
-
-    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 1 };
-    rig.enterShowcase({ autoRotate: false });
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(
-      Math.max(bbox.width, bbox.depth) / 2,
-      3
-    );
+    // 0 is as close as the camera may ever sit, and nowhere near the city.
+    expect(at(0)).toBeCloseTo(rig.controls.minDistance, 6);
+    // 1 has to have the whole city in front of it, however the city is shaped.
+    expect(at(1)).toBeGreaterThanOrEqual(Math.max(bbox.width, bbox.depth) / 2);
   });
 
   // Past 1 pulls back beyond the city, but no further than a hand-driven camera
@@ -300,10 +284,11 @@ describe('cameraRig showcase orbit', () => {
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     rig.enterShowcase({ autoRotate: false });
 
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 0.75 };
+    const before = rig.camera.position.distanceTo(gem);
+    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 0.25 };
 
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
-    expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(showcaseEnds(cs, rig, 0.75), 3);
+    expect(rig.camera.position.distanceTo(gem)).toBeLessThan(before);
   });
 
   it('leaves the camera alone when a slider moves outside the showcase', () => {

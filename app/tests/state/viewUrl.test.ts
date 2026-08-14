@@ -6,8 +6,15 @@ vi.mock('@/state/stores/scene', () => ({ showPath: vi.fn(), showCommit: vi.fn() 
 
 import { attachViewUrlReactions } from '@/state/viewUrl';
 import { showPath, showCommit } from '@/state/stores/scene';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
+import {
+  MANIFEST,
+  REBUILD_STATUS,
+  RebuildStatus,
+  markRebuilding,
+  markDecorating,
+  markIdle,
+} from '@/state/stores/manifest';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import {
   TIMELINE_MODE,
@@ -18,29 +25,26 @@ import {
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { makeCommitBundle } from '../_helpers/scrub';
+import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
-import type { TimelineBundle } from '@/types';
+import type { Manifest } from '@/types';
 
 const SRC = '/repos/codecity';
-const LOADED = { tree: { name: 'codecity' } };
+// A loaded manifest, repo and all: commitSource reads it the way the header does.
+const LOADED = {
+  tree: { name: 'codecity' },
+  repo: { branch: 'main', remote_url: null, head_sha: 'abc', dirty: false },
+} as unknown as Manifest;
 
-/** Undated commits: SCRUB_TODAY_MS can't parse one, so there is no today stop
- *  and the newest commit IS the present. */
-const bundleOf = (n: number, date?: string) =>
-  ({
-    commits: Array.from({ length: n }, (_, i) => ({ sha: `c${i}`, date })),
-  }) as unknown as TimelineBundle;
-
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 const params = (): URLSearchParams => new URLSearchParams(window.location.search);
 
-/** The edge the restore waits on, in the order the app produces it: source,
- *  manifest, the apply it kicks off, and the city that apply leaves. */
+/** A source loading, through the real commit point and the real rebuild
+ *  transitions: whatever they come to write, this test follows. */
 function commitWorld(src = SRC): void {
-  CURRENT_SOURCE.value = { src, branch: undefined };
-  MANIFEST.value = LOADED;
-  REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-  REBUILD_STATUS.value = RebuildStatus.Idle;
+  commitSource(src, undefined, LOADED);
+  markRebuilding(); // City applies the committed manifest
+  markIdle(); // ...and the city it built lands
 }
 
 describe('view URL', () => {
@@ -100,7 +104,7 @@ describe('view URL', () => {
     it('writes the commit the scrubber rests on, and nothing at the present', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = bundleOf(4);
+      TIMELINE_BUNDLE.value = makeCommitBundle(4);
       TIMELINE_MODE.value = true;
 
       setScrubPos(1);
@@ -117,7 +121,7 @@ describe('view URL', () => {
     it('tells the newest commit from the today stop past it', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = bundleOf(4, '2020-01-01T00:00:00Z');
+      TIMELINE_BUNDLE.value = makeCommitBundle(4, '2020-01-01T00:00:00Z');
       setTodayMs(Date.parse('2024-01-01T00:00:00Z'));
       TIMELINE_MODE.value = true;
 
@@ -131,7 +135,7 @@ describe('view URL', () => {
     it('holds the URL still through a drag, and writes where it comes to rest', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = bundleOf(4);
+      TIMELINE_BUNDLE.value = makeCommitBundle(4);
       TIMELINE_MODE.value = true;
       setScrubPos(0);
 
@@ -149,7 +153,7 @@ describe('view URL', () => {
     it('writes no commit while Live, bundle or no bundle', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = bundleOf(4);
+      TIMELINE_BUNDLE.value = makeCommitBundle(4);
       setScrubPos(1);
 
       expect(params().has('mode')).toBe(false);
@@ -159,7 +163,7 @@ describe('view URL', () => {
     it('drops the mode and the commit on the way back to Live', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = bundleOf(4);
+      TIMELINE_BUNDLE.value = makeCommitBundle(4);
       TIMELINE_MODE.value = true;
       setScrubPos(1);
       expect(params().get('commit')).toBe('c1');
@@ -208,15 +212,14 @@ describe('view URL', () => {
     // building to select: restoring there erases the params it was holding.
     it('waits for the apply, not for whatever left the city Idle', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
-      REBUILD_STATUS.value = RebuildStatus.Idle; // the empty boot city
-      CURRENT_SOURCE.value = { src: SRC, branch: undefined };
-      MANIFEST.value = LOADED;
+      markIdle(); // the empty boot city settles, before any source
+      commitSource(SRC, undefined, LOADED);
       await flush();
       expect(showPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
-      REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-      REBUILD_STATUS.value = RebuildStatus.Decorating;
+      markRebuilding();
+      markDecorating();
       await flush();
       expect(showPath).toHaveBeenCalledWith('app/src/main.tsx');
     });
