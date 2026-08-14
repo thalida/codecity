@@ -1,9 +1,8 @@
 // state/stores/settings/showcase.ts — the hero turntable the switcher and the
 // featured city drive the world into: a ground-level orbit circling the root
-// gem. Draft-backed like the rest of the World tab; the rig re-frames on save.
-//
-// ChangeRoute.Live: no rebuild/refresh reaction; the rig drives the update.
+// gem. All Live-routed: no rebuild reaction, the rig drives the update itself.
 
+import { ShowcaseAnchor } from '@/types';
 import {
   settingSignal,
   FieldKind,
@@ -11,6 +10,12 @@ import {
   type ConfigOf,
   type FieldMap,
 } from '@/state/settingsSchema';
+
+const ANCHOR_OPTIONS = [
+  { value: ShowcaseAnchor.Gem, label: 'Gem' },
+  { value: ShowcaseAnchor.Island, label: 'Island edge' },
+  { value: ShowcaseAnchor.City, label: 'City extent' },
+];
 
 const SHOWCASE_FIELDS = {
   ELEVATION: {
@@ -33,15 +38,23 @@ const SHOWCASE_FIELDS = {
     label: 'Azimuth',
     tip: 'Where the orbit starts out, off the main street axis. Auto-rotate carries it around from there.',
   },
+  ANCHOR: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Select,
+    default: ShowcaseAnchor.Island,
+    options: ANCHOR_OPTIONS,
+    label: 'Orbit around',
+    tip: "What the orbit radius is measured against. Gem is the gem's own radius, for a close hero shot. Island is the floor it stands on, the widest circle that stays on land. City is the built extent, which can carry the camera out over the water.",
+  },
   DISTANCE: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 3000,
-    min: 50,
-    max: 5000,
-    step: 50,
+    default: 1,
+    min: 0.1,
+    max: 3,
+    step: 0.05,
     label: 'Orbit radius',
-    tip: 'How far out the orbit circles the gem, in world units. Held the same for every project, so a big repo just means more city between you and the gem. Pulled in when it would carry the camera past the island edge.',
+    tip: 'How far out the orbit circles the gem, as a multiple of what it is measured around. Every project orbits in proportion to its own size, so a small repo is framed as closely as a big one.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,

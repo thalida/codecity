@@ -4,7 +4,7 @@
 // plaza, so no separate pad mesh exists.
 
 import * as THREE from 'three';
-import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
+import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/stores/settings/gem';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { BYTE_MAX } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
@@ -74,20 +74,20 @@ function _makeGlowTexture(): THREE.DataTexture {
 
 // Builds the gem at the street's origin-end cap; the inner gem lives at
 // group.userData.gem. Size must match the radius the layout reserves.
+/** The gem's radius: it scales with the street it sits on. layout/algorithm.ts
+ *  reserves the origin-cap plaza from the same signal, so the two agree. */
+export function gemRadiusFor(streetWidth: number, sizing: GemSizingConfig): number {
+  return Math.max(streetWidth * sizing.RADIUS_AS_STREET_FRAC, sizing.MIN_RADIUS);
+}
+
 export function createRootGem(street: Street): THREE.Group {
   const sizing = GEM_SIZING.value;
   const appearance = GEM.value;
   const edgeColor = appearance.EDGE_COLOR;
   const group = new THREE.Group();
 
-  // Size scales with street width. layout/algorithm.ts reserves the origin-cap
-  // plaza from this same GEM_SIZING signal, so the two agree by construction.
-  const radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
-  const minRadius = sizing.MIN_RADIUS;
   const hoverFrac = GEM_HOVER_LIFT_FRAC;
-
-  let radius = street.width * radiusFrac;
-  if (radius < minRadius) radius = minRadius;
+  const radius = gemRadiusFor(street.width, sizing);
   const hoverY = radius + street.width * hoverFrac;
 
   // Shared gemAnchorXZ helper keeps this in lockstep with treePlacement's

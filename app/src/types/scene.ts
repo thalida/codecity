@@ -17,15 +17,8 @@ export interface CityBbox {
   depth: number;
 }
 
-/**
- * Output of layoutCity(manifest). All world-space coordinates; no DOM /
- * three.js. The renderer (city/index.ts createCity) consumes this to build
- * meshes.
- *
- * lineStats / byteStats are project-wide ranges computed once during
- * layout so each building can be normalized into the project's actual
- * range (smallest → MIN_*, largest → MAX_*).
- */
+/** layoutCity's output: world-space, no DOM or three.js. lineStats/byteStats
+ *  are project-wide, so a building normalizes into its own project's range. */
 export interface CityLayout {
   buildings: Building[];
   streets: Street[];
@@ -52,12 +45,8 @@ export interface EnteringBuilding {
   newPosZ: number;
 }
 
-/**
- * Building present in both the prior and current build. Always carries
- * the new transform; old transform fields are present when the prior
- * manifest had this building (so first-render staying buildings don't
- * get a spurious tween from zero).
- */
+/** A building in both the prior and current build. The old transform is
+ *  present only when the prior manifest had it, so nothing tweens from zero. */
 export interface StayingBuilding {
   /** Slot index within the CellTile (same as building.slotId). */
   instanceId: number;
@@ -79,4 +68,11 @@ export interface StayingBuilding {
   oldPosX?: number;
   oldPosY?: number;
   oldPosZ?: number;
+}
+
+/** What the showcase orbit's radius is a multiple of. */
+export enum ShowcaseAnchor {
+  Gem = 'gem',
+  Island = 'island',
+  City = 'city',
 }
