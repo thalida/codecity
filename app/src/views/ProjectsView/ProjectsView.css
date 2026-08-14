@@ -8,6 +8,9 @@
   inset: 0;
   z-index: 1000;
   overflow-y: auto;
+  /* Scrolled to its end, this would otherwise chain out to the root, which on a
+     phone is what moves the browser's toolbar around under the app. */
+  overscroll-behavior: contain;
 }
 
 /* No background in either mode: the city canvas renders behind this page,
