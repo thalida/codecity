@@ -8,14 +8,14 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import axe from 'axe-core';
-import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
-import { DynamicSection } from '@/views/ControlsPane/partials';
-import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
+import { ControlsPane } from '@/panes/ControlsPane/ControlsPane';
+import { DynamicSection } from '@/panes/ControlsPane/partials';
+import { BUILDINGS_SECTION } from '@/panes/ControlsPane/partials/Buildings';
 import { HomeView } from '@/views/HomeView/HomeView';
 import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
 import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
 import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
-import { TreePane } from '@/views/TreePane/TreePane';
+import { TreeTab } from '@/panes/ExplorePane/tabs/TreeTab/TreeTab';
 import { AppHeader } from '@/layout/AppHeader/AppHeader';
 import { AppFooter } from '@/layout/AppFooter/AppFooter';
 import { goHome, openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/ui';
@@ -140,7 +140,7 @@ const SURFACES: Surface[] = [
     name: 'TreePane',
     mount: (c) =>
       render(
-        <TreePane
+        <TreeTab
           manifest={signal(TREE as unknown as DirNode)}
           selectedPath={signal(null)}
           hoveredPath={signal(null)}

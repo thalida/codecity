@@ -1,0 +1,77 @@
+/* ── ControlsPane ── */
+
+/* Sticky headers stack: a subgroup pins just below its section, so this offset
+   is the section header's rendered height. */
+.controls-pane {
+  --cc-controls-header-h: 28px;
+  /* Indent-guide geometry, as the tree tab does it: the chevron sits in a left
+     gutter, and an open body rules a line centered under it. */
+  --cc-ctrl-inset: var(--cc-space-2); /* header row left padding = chevron gutter */
+  --cc-ctrl-glyph: 14px; /* chevron column width */
+  --cc-ctrl-guide: 1px;
+}
+
+/* One left inset for every row, so headers and the fields beneath them line up
+   to the right of the guide at each level. */
+.controls-section-summary,
+.setting-subgroup-summary,
+.controls-pane .setting-row,
+.controls-pane .setting-subgroup > .text-label {
+  padding-left: var(--cc-ctrl-inset);
+}
+/* Drop the inherited right pad, so a header's reset button lines up with the
+   field resets and readouts sitting flush at the content edge. */
+.controls-section-summary,
+.setting-subgroup-summary {
+  padding-right: 0;
+}
+/* The nested body draws the guide: margin centers the rule under the parent
+   chevron, padding steps the rows to its right. */
+.controls-disclosure-body {
+  margin-left: calc(var(--cc-ctrl-inset) + var(--cc-ctrl-glyph) / 2 - var(--cc-ctrl-guide) / 2);
+  padding-left: var(--cc-space-4);
+  border-left: var(--cc-ctrl-guide) solid var(--cc-accent-bg-soft);
+}
+
+/* Headers pin flush to the top, so the body can keep no top padding: rows
+   would peek above the pinned header through it. */
+.controls-pane .pane-inset {
+  padding-top: 0;
+}
+.controls-pane .pane-inset > :first-child {
+  margin-top: var(--cc-pane-inset);
+}
+
+/* Fills the header row and stays transparent, so the row's own hover shows
+   through and the reset button sits far right as a sibling. */
+.controls-disclosure-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--cc-tap-min);
+  /* Fill the row's padding box so the whole header height is clickable. */
+  margin: calc(-1 * var(--cc-space-2)) 0;
+  padding: var(--cc-space-2) 0;
+}
+
+/* Hover stays OPAQUE: a sticky header must never let scrolled rows show
+   through, so .row:hover's gray is composited over the pane. */
+.controls-section > .controls-section-summary:hover,
+.setting-subgroup-collapsible > .setting-subgroup-summary:hover {
+  background: color-mix(in oklch, var(--cc-white) 4%, var(--cc-bg-sidebar));
+}
+.controls-disclosure-toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.controls-disclosure-toggle[aria-expanded='true'] .chevron {
+  transform: rotate(90deg);
+}

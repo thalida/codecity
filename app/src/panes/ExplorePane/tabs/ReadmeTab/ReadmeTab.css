@@ -1,0 +1,166 @@
+/* Explore's Readme tab: the markdown body and the states around it. */
+
+.readme-markdown code {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+.readme-markdown {
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-sm);
+  line-height: var(--cc-lh-relaxed);
+  word-wrap: break-word;
+}
+
+.readme-markdown h1,
+.readme-markdown h2,
+.readme-markdown h3,
+.readme-markdown h4,
+.readme-markdown h5,
+.readme-markdown h6 {
+  color: var(--cc-text-strong);
+  font-weight: var(--cc-fw-bold);
+  margin: var(--cc-space-7) 0 var(--cc-space-4);
+  line-height: var(--cc-lh-tight);
+}
+.readme-markdown h1:first-child,
+.readme-markdown h2:first-child,
+.readme-markdown h3:first-child {
+  margin-top: var(--cc-space-0);
+}
+.readme-markdown h1 {
+  font-size: var(--cc-font-lg);
+  padding-bottom: var(--cc-space-3);
+  border-bottom: 1px solid var(--cc-border-subtle);
+}
+.readme-markdown h2 {
+  font-size: var(--cc-font-md);
+  padding-bottom: var(--cc-space-2);
+  border-bottom: 1px solid var(--cc-track);
+}
+.readme-markdown h3 {
+  font-size: var(--cc-font-sm);
+}
+.readme-markdown h4 {
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-primary);
+}
+.readme-markdown h5,
+.readme-markdown h6 {
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+}
+
+.readme-markdown p {
+  margin: var(--cc-space-4) 0;
+}
+
+/* .readme-markdown a styling lives in text.css, composed onto the shared .link
+   selector list (markdown anchors can't carry a `link` class in TSX). */
+
+.readme-markdown strong {
+  color: var(--cc-text-strong);
+  font-weight: var(--cc-fw-bold);
+}
+.readme-markdown em {
+  color: var(--cc-text-strong);
+  font-style: italic;
+}
+
+.readme-markdown ul,
+.readme-markdown ol {
+  margin: var(--cc-space-4) 0;
+  padding-left: var(--cc-space-8);
+}
+.readme-markdown li {
+  margin: var(--cc-space-2) 0;
+}
+.readme-markdown li > p {
+  margin: var(--cc-space-0);
+}
+
+.readme-markdown blockquote {
+  margin: var(--cc-space-5) 0;
+  padding: var(--cc-space-2) var(--cc-space-6);
+  border-left: 3px solid var(--cc-border-tooltip);
+  color: var(--cc-text-secondary);
+  background: var(--cc-accent-bg-soft);
+}
+.readme-markdown blockquote > p {
+  margin: var(--cc-space-2) 0;
+}
+
+.readme-markdown hr {
+  border: none;
+  border-top: 1px solid var(--cc-border-subtle);
+  margin: var(--cc-space-7) 0;
+}
+
+/* Standalone: marked emits bare <code>, which no class reaches, so the pill
+   styling is redeclared here rather than composed from an atom. */
+.readme-markdown code {
+  border: 1px solid var(--cc-accent-bg);
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-sm);
+}
+
+.readme-markdown pre {
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-track);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  margin: var(--cc-space-5) 0;
+  overflow-x: auto;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-sm);
+  line-height: var(--cc-lh-base);
+}
+.readme-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: var(--cc-space-0);
+  color: var(--cc-text-primary);
+  font-size: inherit;
+}
+
+.readme-markdown img {
+  max-width: 100%;
+  border-radius: var(--cc-radius-sm);
+}
+
+.readme-markdown table {
+  border-collapse: collapse;
+  margin: var(--cc-space-5) 0;
+  font-size: var(--cc-font-sm);
+}
+.readme-markdown th,
+.readme-markdown td {
+  border: 1px solid var(--cc-border-subtle);
+  padding: var(--cc-space-2) var(--cc-space-5);
+  text-align: left;
+}
+.readme-markdown th {
+  background: var(--cc-bg-chrome);
+  color: var(--cc-text-strong);
+}
+
+.readme-markdown input[type='checkbox'] {
+  margin: 0 var(--cc-space-3) 0 0;
+  accent-color: var(--cc-accent);
+}
+
+/* Timeline: clear the floating stale-note toast so the README starts below it. */
+.readme-tab .pane-body.has-stale-note {
+  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
+}
+
+/* Positioning context for the floating <TimelineStaleNote>, which sits at an
+   identical inset from every pane edge because these bodies carry none. */
+.readme-tab {
+  position: relative;
+}

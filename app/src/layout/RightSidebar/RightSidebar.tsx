@@ -29,12 +29,12 @@ import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
 import { addExclude } from '@/state/stores/excludes';
-import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
-import { CommitPane } from '@/views/CommitPane/CommitPane';
-import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
-import { StreetPane } from '@/views/StreetPane/StreetPane';
-import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
+import { FilePreviewPane } from '@/panes/FilePreviewPane/FilePreviewPane';
+import type { FilePreviewPaneState } from '@/panes/FilePreviewPane/FilePreviewPane';
+import { CommitPane } from '@/panes/CommitPane/CommitPane';
+import type { CommitPaneState } from '@/panes/CommitPane/CommitPane';
+import { StreetPane } from '@/panes/StreetPane/StreetPane';
+import type { StreetPaneState } from '@/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/ui';
 

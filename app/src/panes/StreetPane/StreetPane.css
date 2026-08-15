@@ -1,0 +1,109 @@
+/* ── Street pane (right sidebar) ────────────────────────────────────────
+   Shown when a directory is selected: a header, subtree totals, and one ranked
+   bar per file extension. */
+
+.street-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The scroller, so the body stays a fixed positioning context and the stale
+   toast pins instead of scrolling away. The inset lives here, not the body. */
+.street-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+/* When the toast is up, drop the first stat below it so it isn't covered on
+   load (matches the file pane's code clearance). */
+.street-body.has-stale-note .street-content {
+  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
+}
+
+/* Activity span: oldest file created → newest change. */
+.street-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
+}
+
+.street-dates-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--cc-text-faint);
+}
+
+/* "By extension" heading — icon + uppercase label, matching the almanac's
+   .almanac-section-title treatment. */
+.street-ext-h {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+}
+
+.street-ext-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--cc-layer-streets);
+}
+
+/* One grid (badge | bar | metric) so every bar shares an x, with the outer
+   columns auto-sized to their widest content. */
+.street-ext-list {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: var(--cc-space-3);
+  row-gap: var(--cc-space-4);
+  font-size: var(--cc-font-sm);
+}
+
+/* Rows place their cells into the list's shared columns rather than forming
+   their own box. */
+.street-ext-row {
+  display: contents;
+}
+
+/* Keep the badge pill its natural width (don't stretch it to the column). */
+.street-ext-row .path-badge {
+  justify-self: start;
+}
+
+/* The bar: a dark groove holding a single hue-colored fill (count-proportional). */
+.street-ext-track {
+  position: relative;
+  min-width: 0;
+  height: 18px;
+  border-radius: var(--cc-radius-sm);
+  /* Darkest app bg reads as a sunken groove within the sidebar. */
+  background: var(--cc-bg-app);
+  overflow: hidden;
+}
+
+.street-ext-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  opacity: 0.8;
+  /* Only the leading end: a partial fill stops mid-track, past where the
+     track's own rounded corner reaches. */
+  border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
+}
+
+/* "share · count", styled like the Overview tab's dot-stats and right-aligned
+   so every row's metric ends at the same x. */
+.street-ext-meta {
+  justify-self: end;
+  color: var(--cc-text-primary);
+  white-space: nowrap;
+}
+
+/* Positioning context for the floating <TimelineStaleNote>, which sits at an
+   identical inset from every pane edge because these bodies carry none. */
+.street-body {
+  position: relative;
+}

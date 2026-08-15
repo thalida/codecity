@@ -1,0 +1,25 @@
+/* The chassis every sidebar pane wears. Colocated with <Pane>, so using the
+   component is the only way to get these. */
+
+.pane,
+.pane-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* .pane hides overflow; its children scroll instead. */
+.pane {
+  overflow: hidden;
+}
+
+.pane-body {
+  overflow-y: auto;
+}
+
+/* The one shared inset, so pane and panel content indent identically. */
+.pane-inset {
+  padding: var(--cc-pane-inset);
+  box-sizing: border-box;
+}

@@ -15,10 +15,10 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
-import { ExplorePane } from '@/views/ExplorePane/ExplorePane';
-import { InfoPane } from '@/views/InfoPane/InfoPane';
-import { SearchPane } from '@/views/SearchPane/SearchPane';
-import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
+import { ExplorePane } from '@/panes/ExplorePane/ExplorePane';
+import { InfoPane } from '@/panes/InfoPane/InfoPane';
+import { SearchPane } from '@/panes/SearchPane/SearchPane';
+import { ControlsPane } from '@/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
 
 // ── Helpers ──────────────────────────────────────────────────────────
