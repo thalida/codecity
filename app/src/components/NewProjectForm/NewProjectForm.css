@@ -11,9 +11,22 @@
   flex-direction: column;
   gap: var(--cc-space-3);
 }
+/* Wraps rather than truncating: the note is the part that would be cut, and it
+   is the part saying the field takes more than the placeholder's example. */
+.new-project-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cc-space-2) var(--cc-space-4);
+}
 .new-project-field label {
   font-size: var(--cc-font-sm);
   color: var(--cc-text-secondary);
+}
+.new-project-hosts {
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-muted);
 }
 .new-project-field .form-input {
   width: 100%;

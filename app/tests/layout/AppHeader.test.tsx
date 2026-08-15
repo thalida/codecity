@@ -101,6 +101,19 @@ describe('AppHeader', () => {
     expect(trigger.parentElement).toBe(cluster);
   });
 
+  // The gem says which app this is; this says which kind of repo the name
+  // beside it belongs to, the way every row in the switcher already does.
+  it('marks the chip with the repo kind, and drops it before a project loads', async () => {
+    render(<AppHeader />, container);
+    await flush();
+    expect(container.querySelector('.project-switcher-kind')).toBeNull();
+
+    loadProject();
+    render(<AppHeader />, container);
+    await flush();
+    expect(container.querySelector('.project-switcher-kind .icon')).not.toBeNull();
+  });
+
   it('groups the project controls in one outlined cluster', async () => {
     loadProject();
     render(<AppHeader />, container);

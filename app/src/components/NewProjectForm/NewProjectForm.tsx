@@ -1,14 +1,10 @@
 // components/NewProjectForm/NewProjectForm.tsx — new-source entry. One field
-// that takes either a git URL or a local path and classifies itself as you type
-// (srcKind): a URL gets a repo-resolved branch dropdown; a local path is opened
-// directly. When local repos are off, the field is URL-only: the label,
-// placeholder, and a standing UnreachableSource notice all reflect that, and a
-// typed path is blocked. Everything that describes the field renders in one
-// slot beneath it, so a failure can never stack with the guidance it answers.
-//
+// takes a git URL or a local path and classifies itself as you type (srcKind).
+// Everything describing the field renders in one slot beneath it, so a failure
+// can never stack with the guidance it answers.
+
 // Submits on Enter (a real <form>) or the split button, whose menu carries the
-// fresh-scan variant. Skipping the cache is a way of opening, not a setting, so
-// it lives on the open control rather than in a disclosure beside it.
+// fresh-scan variant: skipping the cache is a way of opening, not a setting.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
@@ -26,6 +22,10 @@ import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+
+// Named hosts and then the general case: "any git host" alone reads as a claim,
+// while three names and an "any" reads as a range.
+const HOSTS_NOTE = 'GitHub, GitLab, Forgejo, any git host';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
@@ -78,9 +78,8 @@ export function NewProjectForm({
   // One field, classified by what's typed. Empty defaults to a URL so the
   // branch dropdown's absence (not a path) is the resting state.
   const isRemote = activeSrc ? srcKind(activeSrc) === SourceKind.Remote : true;
-  // A local path typed while local repos are off is the one thing this form
-  // can't open. Gated on looksLikePath so a half-typed URL never trips it, and
-  // it suppresses the "enter a git URL" nudge (the standing notice is the why).
+  // The one thing this form can't open. Gated on looksLikePath so a half-typed
+  // URL never trips it, and it suppresses the "enter a git URL" nudge.
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
   // The standing notice is only useful while the field could still be a path:
   // hide it once the input reads as a URL so the URL flow stays clean.
@@ -126,11 +125,13 @@ export function NewProjectForm({
         submit();
       }}
     >
-      {/* Directly under the card's heading, above the field: it says what this
-          instance can open, which is context for filling the field in, not a
-          footnote on the result. */}
       <div class="new-project-field">
-        <label htmlFor="new-project-source">{sourceLabel}</label>
+        <div class="new-project-label-row">
+          <label htmlFor="new-project-source">{sourceLabel}</label>
+          {/* Beside the label, not in the slot below: that slot is a precedence
+              chain, and this is true whatever else it happens to be saying. */}
+          <span class="new-project-hosts">{HOSTS_NOTE}</span>
+        </div>
         <input
           id="new-project-source"
           class={hasError ? 'form-input form-input--error' : 'form-input'}

@@ -36,6 +36,7 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
         <ProjectSwitcher
           rootLabel={si.label}
           branch={si.branch}
+          src={si.src}
           onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
         {/* Dropped on a phone: a repo path on a phone's clipboard has nowhere
