@@ -14,8 +14,8 @@ import { SOURCE_ERROR } from '@/state/stores/source';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { attachLoadingReactions } from '@/state/loadingReactions';
-import { attachRouteHistory, useRouteLocation, useRouteSearch } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 export function App() {
   // The title spans both routes; everything a single view needs is mounted by

@@ -1,7 +1,7 @@
-// components/City — the city <canvas> and its Three.js lifecycle. Mount builds
-// the scene and applies MANIFEST on every change; unmount tears it down so a
-// remount can't stack a second renderer and frame loop on the canvas. Each view
-// decides what it is FOR, which is all the variant says.
+// city/City.tsx — the <canvas> and its Three.js lifecycle: this folder's mount
+// point, beside the createCity API it drives. Mount applies MANIFEST on every
+// change, unmount tears the scene down so a remount cannot stack a second
+// renderer on it, and the variant is all a view says about what it is FOR.
 
 import './City.css';
 import { useRef, useEffect } from 'preact/hooks';

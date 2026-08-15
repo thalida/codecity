@@ -7,7 +7,7 @@ import './styles/index.css';
 // Sets data-cc-* from the persisted theme before Preact mounts, so there's
 // no flash (persistedSignal hydrates synchronously).
 import '@/state/stores/settings/theme';
-import { normalizeBootRoute } from '@/state/route';
+import { normalizeBootRoute } from '@/router/location';
 import { App } from '@/layout/App/App';
 
 // Settle the route BEFORE the first render so the first paint is already the

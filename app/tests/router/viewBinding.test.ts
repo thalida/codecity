@@ -9,7 +9,7 @@ vi.mock('@/state/stores/scene', async (importOriginal) => ({
   clearSelection: vi.fn(),
 }));
 
-import { attachViewUrlReactions } from '@/state/viewUrl';
+import { attachViewUrlReactions } from '@/router/viewBinding';
 import { showPath, showCommit } from '@/state/stores/scene';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST, BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/manifest';
@@ -27,8 +27,8 @@ import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
-import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 const SRC = '/repos/codecity';
 // A loaded manifest, repo and all: commitSource reads it the way the header does.

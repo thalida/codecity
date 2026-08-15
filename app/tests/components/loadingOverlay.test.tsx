@@ -11,8 +11,8 @@ import {
 } from '@/state/stores/ui';
 
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
-import { navigate } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 

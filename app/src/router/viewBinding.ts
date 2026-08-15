@@ -1,4 +1,4 @@
-// state/viewUrl.ts — mode, scrub position and selection ⇄ the page URL, a
+// router/viewBinding.ts — mode, scrub position and selection ⇄ the page URL, a
 // binding that spans three stores so it lives in none of them. The view writes
 // the URL (replace only, off the SETTLED scrub position, or a drag buries your
 // history), and the URL writes the view, which is what Back and Forward need.
@@ -6,9 +6,9 @@
 import { signal, effect, type Signal } from '@preact/signals';
 
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/constants/urlParams';
-import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from '@/state/route';
-import { parseSelection, selectionParam } from '@/state/viewParams';
-import { ROUTES } from '@/constants/routes';
+import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
+import { parseSelection, selectionParam } from './viewParams';
+import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/manifest';
 import { showPath, showCommit, clearSelection } from '@/state/stores/scene';

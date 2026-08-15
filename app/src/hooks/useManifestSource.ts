@@ -31,9 +31,9 @@ import {
   sameSourceIdentity,
 } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { readUrlView, type UrlView } from '@/state/viewParams';
-import { ROUTE_PARAMS, ROUTE_PATH } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { readUrlView, type UrlView } from '@/router/viewParams';
+import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';

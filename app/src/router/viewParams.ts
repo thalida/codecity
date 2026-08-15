@@ -1,4 +1,4 @@
-// state/viewParams.ts — the query string's vocabulary, both directions: what a
+// router/viewParams.ts — the query string's vocabulary, both directions: what a
 // URL asks for (source, mode, where in history, what is selected) and how a
 // selection is written back. Pure, and free of the reaction layer: the fetch
 // layer decodes here, and going through viewUrl would make a cycle of it.

@@ -2,7 +2,7 @@
 // which owns the canvas + the Three.js scene lifecycle.
 
 import './CenterPane.css';
-import { City } from '@/components/City/City';
+import { City } from '@/city/City';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
 import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
 import { SelectionChip } from '@/components/SelectionChip/SelectionChip';

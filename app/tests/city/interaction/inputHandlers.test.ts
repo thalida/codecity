@@ -6,8 +6,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/ui';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { navigate } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { NodeKind } from '@/types';
 
 vi.mock('three', async () => {

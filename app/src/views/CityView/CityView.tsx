@@ -16,7 +16,7 @@ import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
-import { attachViewUrlReactions } from '@/state/viewUrl';
+import { attachViewUrlReactions } from '@/router/viewBinding';
 import { goHome, LOADING_CANCEL } from '@/state/stores/ui';
 import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
 import {

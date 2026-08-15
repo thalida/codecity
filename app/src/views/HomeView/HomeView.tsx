@@ -6,7 +6,7 @@
 import './HomeView.css';
 import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
-import { City, CityVariant } from '@/components/City/City';
+import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
 import { HOME_OPTS, LOADING_OVERLAY, clearHomeError, type SourcePayload } from '@/state/stores/ui';

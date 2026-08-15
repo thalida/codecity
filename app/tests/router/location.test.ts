@@ -1,5 +1,5 @@
-// The URL signal: what it exposes, and which navigations are allowed to add a
-// history entry. Everything else in the app writes the URL through here.
+// The URL signal: what it exposes, and which navigations add a history entry.
+// Everything else in the app writes the URL through here.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
@@ -11,10 +11,10 @@ import {
   setRouteParams,
   hrefFor,
   attachRouteHistory,
-} from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+} from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
-describe('state/route', () => {
+describe('router/location', () => {
   beforeEach(() => {
     navigate(ROUTES.HOME, { replace: true });
   });

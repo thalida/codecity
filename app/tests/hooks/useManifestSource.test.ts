@@ -9,7 +9,7 @@ import {
   bootLoad,
   attachRouteLoad,
 } from '@/hooks/useManifestSource';
-import { readUrlView } from '@/state/viewParams';
+import { readUrlView } from '@/router/viewParams';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -18,8 +18,8 @@ import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
-import { navigate, ROUTE_PARAMS } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate, ROUTE_PARAMS } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;

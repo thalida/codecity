@@ -6,8 +6,8 @@
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
-import { ROUTES } from '@/constants/routes';
-import { ROUTE_PATH, navigate } from '@/state/route';
+import { ROUTES } from '@/router/paths';
+import { ROUTE_PATH, navigate } from '@/router/location';
 import { SidebarTab } from '@/types/ui';
 import type { ScanErrorCode } from '@/api/manifest';
 

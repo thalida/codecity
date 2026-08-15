@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ON_HOME, HOME_OPTS, goHome, OVERLAY_OPEN } from '@/state/stores/ui';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { navigate, HREF } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate, HREF } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 const CITY_HREF = '/city?src=https%3A%2F%2Fgithub.com%2Fo%2Floaded';
 

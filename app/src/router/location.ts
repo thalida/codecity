@@ -1,12 +1,12 @@
-// state/route.ts — the page URL, as a signal. The single writer: path AND
+// router/location.ts — the page URL, as a signal. The single writer of path AND
 // query, so nothing else calls pushState/replaceState. wouter renders off the
-// hooks at the bottom; effects and pre-paint boot code read the signals
-// directly, which is why the URL lives here rather than in router context.
+// hooks at the bottom; effects and pre-paint code read the signals directly,
+// which is why the URL lives here rather than in router context.
 
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
 import { URL_PARAMS } from '@/constants/urlParams';
-import { ROUTES } from '@/constants/routes';
+import { ROUTES } from './paths';
 
 function readHref(): string {
   return `${window.location.pathname}${window.location.search}`;

@@ -11,8 +11,8 @@ import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
-import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {

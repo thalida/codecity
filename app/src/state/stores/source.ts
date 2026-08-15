@@ -8,8 +8,8 @@ import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
-import { ROUTES } from '@/constants/routes';
-import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/state/route';
+import { ROUTES } from '@/router/paths';
+import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/router/location';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,

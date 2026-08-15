@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 
 // The backdrop canvas: jsdom has no WebGL, and none of this is about the scene.
-vi.mock('@/components/City/City', () => ({
+vi.mock('@/city/City', () => ({
   City: () => null,
   CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
 }));
@@ -22,8 +22,8 @@ import { HomeView } from '@/views/HomeView/HomeView';
 import { HOME_OPTS, goHome, setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
-import { navigate } from '@/state/route';
-import { ROUTES } from '@/constants/routes';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
