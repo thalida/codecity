@@ -75,18 +75,18 @@ describe('AppHeader', () => {
     expect(container.querySelector('a[href="https://github.com/thalida/codecity"]')).toBeNull();
   });
 
-  it('puts the freshness readout and refresh together, opposite the project', async () => {
+  it('puts the freshness readout opposite the project, with nothing beside it', async () => {
     loadProject();
     render(<AppHeader />, container);
     await flush();
 
     const freshness = container.querySelector('.app-header-freshness')!;
     expect(freshness).not.toBeNull();
-    // A readout parked in the opposite corner from its own button is the
-    // mistake this resort exists to fix, so they share one cluster.
     expect(freshness.querySelector('.freshness-status')).not.toBeNull();
-    expect(freshness.querySelector('[aria-label="Refresh"]')).not.toBeNull();
     expect(freshness.classList.contains('chrome-cluster')).toBe(true);
+    // The readout is the whole cluster: acting on it happens in its panel, so a
+    // second item in the bar would be a duplicate of a row in there.
+    expect(freshness.querySelectorAll('.cluster-item')).toHaveLength(1);
   });
 
   // The trigger and its panel are siblings, so the cluster's dividers and
@@ -111,28 +111,27 @@ describe('AppHeader', () => {
     expect(cluster.querySelector('[aria-label="Copy repo source"]')).not.toBeNull();
   });
 
-  it('puts the default on the button and only the alternative in the panel', async () => {
+  it('holds both ways to re-open the source in the panel, and none in the bar', async () => {
     loadProject();
     const onRefresh = vi.fn();
     render(<AppHeader onRefresh={onRefresh} />, container);
     await flush();
 
-    // Glyph only in the bar, so the accessible name is the whole label.
-    const refresh = container.querySelector<HTMLButtonElement>('[aria-label="Refresh"]')!;
-    expect(refresh.textContent).toBe('');
-    refresh.click();
-    expect(onRefresh).toHaveBeenCalledWith(false);
+    expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
 
-    // The panel carries what the button isn't, and never repeats it.
     container.querySelector<HTMLButtonElement>('.scan-menu-trigger')!.click();
     await flush();
     const actions = Array.from(
-      container.querySelectorAll<HTMLElement>('.popover-panel .scan-menu-action')
+      container.querySelectorAll<HTMLButtonElement>('.popover-panel .scan-menu-action')
     );
-    expect(actions.map((el) => el.textContent?.trim())).toEqual(['Fresh scan']);
+    expect(actions.map((el) => el.querySelector('.scan-menu-action-label')?.textContent)).toEqual([
+      'Reload',
+      'Fresh scan',
+    ]);
 
+    // Cheapest first, and the cache flag is the only thing between them.
     actions[0].click();
-    expect(onRefresh).toHaveBeenCalledWith(true);
+    expect(onRefresh).toHaveBeenCalledWith(false);
   });
 
   it('shows nothing to refresh before a project is loaded', async () => {

@@ -76,15 +76,26 @@ describe('ScanMenu', () => {
     expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
   });
 
-  it('runs a fresh scan and closes', async () => {
-    const onFreshScan = vi.fn();
-    render(<ScanMenu onFreshScan={onFreshScan} />, container);
+  // The cache flag is the only difference between them, so the panel is where
+  // that choice belongs rather than split across a button and a menu.
+  const ACTION_CASES: Array<[label: string, index: number, skipCache: boolean]> = [
+    ['Reload', 0, false],
+    ['Fresh scan', 1, true],
+  ];
+  it.each(ACTION_CASES)('runs %s and closes the panel', async (label, index, skipCache) => {
+    const onRefresh = vi.fn();
+    render(<ScanMenu onRefresh={onRefresh} />, container);
     await flush();
     await open();
 
-    container.querySelector<HTMLButtonElement>('.scan-menu-action')!.click();
+    const actions = container.querySelectorAll<HTMLButtonElement>('.scan-menu-action');
+    expect(actions).toHaveLength(2);
+    expect(actions[index].querySelector('.scan-menu-action-label')!.textContent).toBe(label);
+
+    actions[index].click();
     await flush();
-    expect(onFreshScan).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledWith(skipCache);
     expect(panel()).toBeNull();
   });
 

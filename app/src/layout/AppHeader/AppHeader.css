@@ -1,8 +1,7 @@
 /* ── Sitewide header ──────────────────────────────────────────────────
-   Full-width strip across the top of the app shell. Sits in the body's
-   column flex above #app-body; the sidebars start at its lower edge.
-   Two clusters: the project on the left (chip, copy-source, open-on-origin),
-   its freshness on the right (status, refresh). See .chrome-cluster. */
+   Full-width strip in the body's column flex above #app-body; the sidebars
+   start at its lower edge. Two clusters: the project on the left, its
+   freshness on the right (the scan menu's trigger). See .chrome-cluster. */
 
 #app-header {
   flex: 0 0 auto;
@@ -19,16 +18,15 @@
   user-select: none;
 }
 
-/* Shrinkable, so a long repo name truncates instead of pushing the freshness
-   cluster off the end. Needs the id to outrank .chrome-cluster's `flex: none`,
-   which loads after this file. */
+/* Shrinkable, so a long repo name truncates rather than pushing the freshness
+   cluster off. The id outranks .chrome-cluster's `flex: none`, which loads later. */
 #app-header .app-header-project {
   flex: 0 1 auto;
   min-width: 0;
 }
 
 /* Freshness cluster pinned to the far right, opposite the project controls:
-   how fresh the city is, and the button that acts on it, together. */
+   how fresh the city is, and everything that acts on it, behind one press. */
 .app-header-freshness {
   margin-left: auto;
 }

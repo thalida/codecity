@@ -17,9 +17,8 @@
   /* No overflow: hidden — it would clip the scan panel at the bar. */
 }
 
-/* The project chip's box, for every item: fixed height, width from content,
-   symmetric inline padding. Inline padding clears the pill's curve at the ends
-   as well as spacing the dividers. */
+/* The project chip's box, for every item. The inline padding clears the pill's
+   curve at the ends as well as spacing the dividers. */
 .cluster-item {
   appearance: none;
   flex: 0 1 auto;
@@ -39,10 +38,8 @@
   text-decoration: none;
 }
 
-/* Accent marks what's pressable, so a readout beside a control (the freshness
-   text next to refresh) can't be mistaken for one. accent-light, the same step
-   .link--chrome uses, so the icon buttons and the text links in these bars are
-   one colour rather than two. */
+/* Accent marks what's pressable. accent-light, the same step .link--chrome
+   uses, so buttons and links in these bars are one colour rather than two. */
 .cluster-item--press {
   color: var(--cc-accent-light);
   cursor: pointer;
@@ -57,17 +54,14 @@
   opacity: 0.5;
 }
 
-/* Divider on the item, so a conditional item (copy with no source, debug tools
-   off) can't strand one. A general sibling combinator, not adjacent: CopyButton
-   renders a screen-reader announcer between itself and the next item. */
+/* On the item, so a conditional one can't strand a divider. General sibling,
+   not adjacent: CopyButton renders an announcer between itself and the next. */
 .cluster-item ~ .cluster-item {
   border-left: 1px solid var(--cc-border-input);
 }
 
-/* Only the cluster's own edge rounds, so the hover fill on an end item follows
-   the pill instead of squaring it off. Logical corners for RTL. The end match
-   is "no cluster-item after this": :last-of-type counts per element name, so it
-   rounded the last <button> even with a <a> item beside it. */
+/* Only the cluster's own edge rounds, so an end item's hover fill follows the
+   pill. :last-of-type counts per element name, so it matched too early. */
 .cluster-item:first-child {
   border-start-start-radius: var(--cc-radius-pill);
   border-end-start-radius: var(--cc-radius-pill);
@@ -95,10 +89,8 @@
   color: var(--cc-text-strong);
 }
 
-/* The "this opens something" glyph, on every item that has one — a popover
-   trigger or the project chip. ChevronsUpDown draws in the middle 10/24 of its
-   box, so the empty bearing on the trailing side reads as more padding there
-   than at the leading edge; pull the box back by it. */
+/* The "this opens something" glyph. ChevronsUpDown draws in the middle 10/24 of
+   its box, so its trailing bearing reads as padding; pull the box back by it. */
 .cluster-cue {
   margin-inline-end: -0.29em;
   opacity: 0.7;

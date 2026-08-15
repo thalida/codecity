@@ -1,22 +1,16 @@
-// layout/AppHeader.tsx — Sitewide top header. Composition shell only.
-//
-// The header is the PROJECT; the footer is the APP. Everything here is about
-// the repo you have open: which one it is (gem + name + branch), what you can
-// do with its address, and how fresh it is. Two clusters, each outlined as a
-// group: see .chrome-cluster.
+// layout/AppHeader.tsx — Sitewide top header, composition shell only. The
+// header is the PROJECT; the footer is the APP. Everything here is about the
+// repo you have open: which one it is, what you can do with its address, and
+// how fresh it is. Two clusters, each outlined: see .chrome-cluster.
 
 import './AppHeader.css';
-import { ExternalLink, RefreshCw } from 'lucide-preact';
+import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { openProjectsView } from '@/state/stores/ui';
 import { IS_PHONE } from '@/state/stores/viewport';
-import {
-  ChromeCluster,
-  ClusterButton,
-  ClusterLink,
-} from '@/components/ChromeCluster/ChromeCluster';
+import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton, CopyButtonVariant } from '@/components/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
@@ -63,13 +57,10 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
       </ChromeCluster>
 
       {hasProject && (
+        // Still a cluster around the one item: ScanMenu renders no wrapper, so
+        // this is what its panel anchors to.
         <ChromeCluster class="app-header-freshness">
-          <ScanMenu onFreshScan={() => onRefresh?.(true)} />
-          {/* Beside the menu, not inside it: the menu lists what this button
-              isn't, and the common case stays one press. */}
-          <ClusterButton title="Refresh" aria-label="Refresh" onClick={() => onRefresh?.(false)}>
-            <RefreshCw class="icon" />
-          </ClusterButton>
+          <ScanMenu onRefresh={onRefresh} />
         </ChromeCluster>
       )}
     </header>

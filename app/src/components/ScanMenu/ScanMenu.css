@@ -5,21 +5,36 @@
   color: inherit;
 }
 
-/* Spans the panel on the same inset as everything else: at 21rem a centred
-   pill would float, and its edges lining up with the rows below is what keeps
-   it from reading as a stray heading. Scoped past .btn-secondary's inline-flex. */
+/* ── Reload / Fresh scan ────────────────────────────────────────────────
+   Glyph in its own column, so it centres on the label and not on the pair. */
 .popover-panel .scan-menu-action {
-  display: flex;
-  align-self: stretch;
-  width: auto;
-  margin-inline: var(--popover-inset);
-  gap: var(--cc-space-3);
-  padding-block: var(--cc-space-3);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--cc-space-3);
+  row-gap: var(--cc-space-1);
+  padding-inline: var(--cc-space-5);
+  text-align: left;
+}
+
+.scan-menu-action-icon {
+  grid-area: 1 / 1;
+  align-self: center;
+}
+
+.scan-menu-action-label {
+  grid-area: 1 / 2;
+}
+
+.scan-menu-action-note {
+  grid-area: 2 / 2;
+  font-size: var(--cc-font-xs);
+  font-weight: var(--cc-fw-normal);
+  line-height: var(--cc-lh-base);
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
 }
 
 /* ── Excluded from city ─────────────────────────────────────────────────
-   Rows are plain flex containers, not buttons: only the restore control is
-   clickable, so there is no row hover. */
+   Rows are containers, not buttons: only the restore control is clickable. */
 
 .excludes-list {
   display: flex;

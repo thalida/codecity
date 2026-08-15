@@ -97,6 +97,18 @@
   overflow-wrap: anywhere;
 }
 
+/* A full-width action on the same inset as the rows: a button sized to its own
+   label floats in a panel this wide. The .btn-* box supplies the rest. */
+.popover-panel .popover-action {
+  align-self: stretch;
+  width: auto;
+  margin-inline: var(--popover-inset);
+  padding-block: var(--cc-space-3);
+}
+.popover-panel .popover-action + .popover-action {
+  margin-top: var(--cc-space-2);
+}
+
 /* Trailing, not leading: prose above a control makes you read before you can
    act. Centred so it reads as a footnote rather than another row. */
 .popover-hint {
