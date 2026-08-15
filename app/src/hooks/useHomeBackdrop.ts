@@ -12,9 +12,9 @@ import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { RECENTS } from '@/state/stores/source';
+import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
-import { identityBranch, resolveBranch } from '@/utils/sources';
+import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
@@ -47,8 +47,20 @@ async function streamFeatured(src: string, signal: AbortSignal): Promise<Manifes
 /** Who gets to be the backdrop, best first. */
 function candidates(featuredRepo: string | undefined): Candidate[] {
   const out: Candidate[] = [];
+  // The project you just left, still in memory: no round trip, and it is the
+  // city you were looking at a moment ago.
+  const loaded = MANIFEST.peek();
+  const current = CURRENT_SOURCE.peek();
+  if (current && !isEmptyManifest(loaded)) {
+    out.push({
+      src: current.src,
+      branch: current.branch,
+      kind: BackdropKind.Recent,
+      fetch: () => Promise.resolve(loaded as Manifest),
+    });
+  }
   const recent = RECENTS.peek()[0];
-  if (recent) {
+  if (recent && !sameSourceIdentity(recent, current ?? { src: '' })) {
     out.push({
       src: recent.src,
       branch: recent.branch,
@@ -57,7 +69,7 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
     });
   }
   // Skipped when it IS the recent one: it would only paint the same city again.
-  if (featuredRepo && featuredRepo !== recent?.src) {
+  if (featuredRepo && featuredRepo !== recent?.src && featuredRepo !== current?.src) {
     out.push({
       src: featuredRepo,
       kind: BackdropKind.Featured,
@@ -84,9 +96,6 @@ export function useHomeBackdrop(): void {
       try {
         const manifest = await next.fetch(signal);
         if (signal.aborted) return;
-        // A real project landed mid-flight: the scene is theirs now, and
-        // painting over it would be a visible glitch.
-        if (!isEmptyManifest(MANIFEST.peek())) return;
         if (!manifest) {
           void tryNext(handle, featuredRepo); // nothing there, try the next one
           return;

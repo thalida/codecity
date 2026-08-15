@@ -61,6 +61,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           invalidateLayoutCache: handle.invalidateLayoutCache,
         });
 
+        // A backdrop shows what its view decided to show, which is not the
+        // opened project: useHomeBackdrop drives that canvas itself.
+        if (variant !== CityVariant.Scene) return;
+
         // Only kicks off the apply and surfaces its error: reaching Idle belongs
         // to the decoration pass, and reframing to the city composer.
         unsubApply = effect(() => {

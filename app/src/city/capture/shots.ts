@@ -97,24 +97,11 @@ export const SHOTS: Record<string, ShotPose> = {
     handle.rig.reset();
   },
 
-  // The landing's wallpaper (`just hero-image`). Low and wide, so the sky
-  // carries the upper half where the landing's copy sits.
-  hero: (handle, _m, o) => {
-    const anchors = handle.rig.captureAnchors();
-    const base = anchors.gem ?? anchors.center;
-    if (!base) {
-      handle.rig.reset();
-      return;
-    }
-    const target = base.clone();
-    // Aim below the city's middle: it drops the skyline into the lower third.
-    target.y -= anchors.cityRadius * 0.25;
-    handle.rig.captureView({
-      target,
-      distance: o.dist ?? anchors.cityRadius * 1.15,
-      elevation: o.elev ?? 11,
-      azimuth: o.az ?? 28,
-    });
+  // The landing's wallpaper (`just hero-image`). Shot from the showcase's own
+  // pose, since the landing swaps this image for a live showcase city.
+  hero: (handle) => {
+    if (!handle.rig.captureAnchors().gem) return false; // no city yet
+    handle.rig.enterShowcase({ autoRotate: false });
   },
 
   // The city part-built, at the defaults. The load is async, so this returns
