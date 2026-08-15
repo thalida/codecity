@@ -8,7 +8,7 @@ import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
-import { openProjectsView } from '@/state/stores/ui';
+import { goHome } from '@/state/stores/ui';
 import { IS_PHONE } from '@/state/stores/viewport';
 import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
@@ -37,7 +37,7 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
           rootLabel={si.label}
           branch={si.branch}
           src={si.src}
-          onSwitchSource={onSwitchSource ?? (() => openProjectsView())}
+          onSwitchSource={onSwitchSource ?? (() => goHome())}
         />
         {/* Dropped on a phone: a repo path on a phone's clipboard has nowhere
             to go, and the room buys the repo name back. */}

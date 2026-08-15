@@ -13,7 +13,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS } from '@/state/stores/source';
-import { ON_HOME, SWITCHER_DISMISSIBLE } from '@/state/stores/ui';
+import { ON_HOME } from '@/state/stores/ui';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { identityBranch, resolveBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -75,7 +75,6 @@ export function useHomeBackdrop(): void {
     // the effect give featured its turn when the config lands late.
     const tried = new Set<string>();
     let inFlight = false;
-    let showcasing = false;
 
     async function tryNext(handle: SceneHandle, featuredRepo?: string): Promise<void> {
       const signal = controller.signal;
@@ -111,30 +110,19 @@ export function useHomeBackdrop(): void {
 
     const stop = effect(() => {
       const home = ON_HOME.value;
+      // The landing's own canvas, which mounts with the view: leaving the route
+      // takes it (and the scene) with it, so there is nothing to hand back.
       const handle = SCENE_HANDLE.value;
-      // Re-runs when the server config lands, which is what gives the featured
-      // fallback its turn.
+      // Re-runs when the server config lands, which gives featured its turn.
       const featured = SERVER_CONFIG.value.featuredRepo;
-      // Cold boot only: dismissible means there's a real city behind already,
-      // and that one is the better backdrop.
-      const coldBoot = home && !SWITCHER_DISMISSIBLE.value;
 
-      if (coldBoot && handle && !inFlight && !BACKDROP_CITY.peek()) {
-        showcasing = true;
-        void tryNext(handle, featured);
-      } else if (!home && showcasing) {
-        // The user opened something. Hand the camera back before their city
-        // arrives, or it inherits the turntable and spins under them.
-        showcasing = false;
-        handle?.rig.exitShowcase();
-        BACKDROP_CITY.value = null;
-      }
+      if (home && handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);
+      else if (!home) BACKDROP_CITY.value = null;
     });
 
     return () => {
       stop();
       controller.abort();
-      if (showcasing) SCENE_HANDLE.peek()?.rig.exitShowcase();
       BACKDROP_CITY.value = null;
     };
   }, []);

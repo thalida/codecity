@@ -23,9 +23,17 @@ import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
-import { srcKind, SourceKind, identityBranch, sourceKey } from '@/utils/sources';
+import {
+  srcKind,
+  SourceKind,
+  identityBranch,
+  sourceKey,
+  sameSourceIdentity,
+} from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { readBootView, type BootView } from '@/state/bootView';
+import { readBootViewFrom, type BootView } from '@/state/bootView';
+import { ROUTE_PARAMS, ROUTE_PATH } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
@@ -341,8 +349,8 @@ export function setupLiveUpdates(): () => void {
   };
 }
 
-/** The boot load, in the mode the URL asks for. A Timeline boot that fails to
- *  engage falls through to Live, so the page lands on a working city. */
+/** The load the URL asks for, in the mode it asks for. A Timeline boot that
+ *  fails to engage falls through to Live, so the page lands on a working city. */
 export async function bootLoad(boot: BootView): Promise<void> {
   const src = boot.src;
   if (!src) return;
@@ -351,6 +359,33 @@ export async function bootLoad(boot: BootView): Promise<void> {
     if (TIMELINE_MODE.peek()) return;
   }
   await loadSource({ src, branch: boot.branch });
+}
+
+/** Load whatever project the URL names, whenever that changes: the boot read
+ *  and every Back/Forward between cities are the same event. Returns a dispose. */
+export function attachRouteLoad(): () => void {
+  // Claimed, not committed: CURRENT_SOURCE lands only on success, leaving a
+  // mid-load window where a re-run would start the same load again.
+  let claimed: { src: string; branch?: string } | null = null;
+
+  return effect(() => {
+    const onCity = ROUTE_PATH.value === ROUTES.CITY;
+    // Tracked: this is the whole point, the URL asking for something new.
+    const params = ROUTE_PARAMS.value;
+    if (!onCity) return;
+    const boot = readBootViewFrom(params);
+    if (!boot.src) return;
+    const want = { src: boot.src, branch: boot.branch };
+    if (claimed && sameSourceIdentity(claimed, want)) return;
+    const current = CURRENT_SOURCE.peek();
+    if (current && sameSourceIdentity(current, want)) {
+      claimed = want;
+      return;
+    }
+    claimed = want;
+    // Out of the tracking scope: the load writes signals this effect reads.
+    queueMicrotask(() => void bootLoad(boot));
+  });
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────
@@ -372,13 +407,10 @@ export function useManifestSource(): {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
+    // The URL drives what is rendered: boot read and every later Back/Forward.
+    // A bare ?src is complete; the server resolves the default branch.
+    const disposeRouteLoad = attachRouteLoad();
     (async () => {
-      // No ?branch is not an incomplete request: the server resolves origin's
-      // default branch when none is pinned.
-      const boot = readBootView();
-      if (boot.src) await bootLoad(boot);
-      if (cancelled) return;
-
       // Independent boot reads, so they go out together rather than making the
       // landing wait for two round trips in series.
       const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
@@ -389,10 +421,10 @@ export function useManifestSource(): {
       // One loop for the app's lifetime: it re-reads the canonical signals per
       // tick, so boot and every switch are covered without restarting it.
       disposeLiveUpdates = setupLiveUpdates();
-      // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();
     return () => {
       cancelled = true;
+      disposeRouteLoad();
       disposeLiveUpdates?.();
     };
   }, []);

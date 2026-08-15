@@ -1,33 +1,42 @@
-/* ── codecity landing / project switcher ────────────────────────────────────
-   Full-bleed page (not a modal): a brand hero and an action panel, side by side
-   with room and stacked without. The gem palette (lime/cyan/purple/magenta)
-   colors the "what it does" cues. */
+/* ── codecity landing: the `/` route ────────────────────────────────────────
+   The whole page, not an overlay over one: a brand hero and an action panel,
+   side by side with room and stacked without. The gem palette
+   (lime/cyan/purple/magenta) colors the "what it does" cues. */
 
 .landing {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
+  position: relative;
+  height: 100%;
   overflow-y: auto;
   /* Scrolled to its end, this would otherwise chain out to the root, which on a
      phone is what moves the browser's toolbar around under the app. */
   overscroll-behavior: contain;
 }
 
-/* No background in either mode: the city canvas renders behind this page,
-   and an opaque landing would hide the thing it is staging. */
-
-/* Swirl stage (not a canvas of its own), keeping the page's layers plain:
-   0 stage, 0 scrim pseudo-element, 1 .landing-inner. */
+/* The wallpaper (`just hero-image`), with the backdrop city fading in over it.
+   Layers stay plain: 0 stage, 0 scrim, 1 inner. */
 .landing-stage {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  background-image: url('/hero-city.webp');
+  background-size: cover;
+  background-position: center;
 }
 
-.landing-stage > * {
-  position: absolute;
-  inset: 0;
+.landing-stage .city-canvas {
+  opacity: 0;
+  transition: opacity 600ms ease-out;
+}
+
+.landing-stage.is-painted .city-canvas {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-stage .city-canvas {
+    transition: none;
+  }
 }
 
 /* Scrim only the hero side for AA text contrast; the action cards frost
@@ -61,15 +70,6 @@
       color-mix(in oklch, var(--cc-bg-app) 40%, transparent) 100%
     );
   }
-}
-
-/* Above .landing-inner: below its 1040px cap the inner spans full width and
-   would paint over this button and swallow the click. */
-.landing-close {
-  position: absolute;
-  top: var(--cc-space-5);
-  right: var(--cc-space-5);
-  z-index: 2;
 }
 
 .landing-inner {
@@ -310,11 +310,6 @@
    extra specificity, so these must follow the rules they override. */
 
 @media (max-width: 900px) {
-  .landing-close {
-    top: var(--cc-space-7);
-    right: var(--cc-space-7);
-  }
-
   .landing-inner {
     grid-template-columns: 1fr;
     align-items: start;
@@ -325,8 +320,6 @@
     /* Wider than the side-by-side gap: stacked, this is the break between the
        pitch and the thing you act on, not a column gutter. */
     gap: calc(var(--cc-space-9) * 1.5);
-    /* The top band clears the floating close button (its own inset plus its
-       height) so the brand never shares a line with it. */
     padding: calc(var(--cc-space-9) * 2) var(--cc-space-7) var(--cc-space-9);
   }
 

@@ -7,9 +7,8 @@
   overflow: hidden;
 }
 
-/* Bottom-center scene controls: the time-travel bar (timeline mode only)
-   stacked above the Live/Timeline toggle. pointer-events pass through the
-   gaps so the canvas stays draggable. */
+/* The time-travel bar stacked above the Live/Timeline toggle. Events pass
+   through the gaps so the canvas stays draggable. */
 #scene-controls {
   position: absolute;
   left: 50%;
@@ -36,18 +35,6 @@
     bottom: var(--cc-space-6);
     width: calc(100% - var(--cc-space-6) * 2);
   }
-}
-
-/* Scoped to this pane: a bare `canvas` selector reaches every canvas in the
-   app, and the opaque fill below then hides whatever a translucent one was
-   meant to sit over (it did exactly that to the landing backdrop). */
-#center-pane canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  /* Match the body bg so any sub-frame transparency during resize blends
-     in instead of flashing. */
-  background: var(--cc-bg-app);
 }
 
 /* Hover tooltip — surface (bg + border + radius + padding + shadow) from

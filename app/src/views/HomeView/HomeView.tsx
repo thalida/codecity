@@ -1,22 +1,15 @@
-// The landing and the project switcher, one page. Renders null when closed so
-// form/list state resets on the next open. It is also the loading surface for
-// every switch it starts, so LoadingOverlay suppresses itself while visible —
-// leaving the overlay to own deep-link cold boot alone.
+// views/HomeView — what `/` renders: the project switcher, over a city used as
+// wallpaper. A route, not a modal, so being rendered IS being open: no
+// visibility flag, no focus trap, no close button. You leave by opening a
+// project, or by going Back.
 
-import './ProjectsView.css';
-import { useEffect, useRef, useState } from 'preact/hooks';
-import { X, Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
-import { useDialogFocus } from '@/hooks/useDialogFocus';
+import './HomeView.css';
+import { useState } from 'preact/hooks';
+import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
+import { City, CityVariant } from '@/components/City/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
-import { LandingBackdrop } from '@/components/LandingBackdrop/LandingBackdrop';
-import {
-  PROJECTS_VIEW_OPTS,
-  SWITCHER_DISMISSIBLE,
-  LOADING_OVERLAY,
-  clearProjectsViewError,
-  type SourcePayload,
-} from '@/state/stores/ui';
+import { HOME_OPTS, LOADING_OVERLAY, clearHomeError, type SourcePayload } from '@/state/stores/ui';
 import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -32,20 +25,16 @@ import { DISCOVER } from '@/state/stores/discover';
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
-export interface ProjectsViewProps {
+export interface HomeViewProps {
   onSubmit: (payload: SourcePayload) => void;
+  /** Abort the load this view is showing progress for. */
   onCancel: () => void;
-  onClose: () => void;
 }
 
-export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps) {
-  // Mounted BY the home route, so there is no visibility to check: being
-  // rendered is what "open" means, and unmounting resets the form.
-  const opts = PROJECTS_VIEW_OPTS.value;
-  const dismissible = SWITCHER_DISMISSIBLE.value;
+export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
+  const opts = HOME_OPTS.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
-  const rootRef = useRef<HTMLDivElement>(null);
 
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.
@@ -62,42 +51,15 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   // and can take the Discover tab with it.
   const activeTab = tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
 
-  // Dismissible means it floats over a city, so it's a real dialog and traps
-  // focus. The landing IS the page, with nothing behind to trap against.
-  const isModal = dismissible;
-  useDialogFocus(isModal, rootRef);
-
-  // Escape closes the page when dismissible and not mid-load.
-  useEffect(() => {
-    if (!dismissible) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [dismissible, loading, onClose]);
+  const painted = BACKDROP_CITY.value !== null;
 
   return (
-    <div
-      ref={rootRef}
-      class={`landing${dismissible ? ' landing--modal' : ''}`}
-      role={isModal ? 'dialog' : undefined}
-      aria-modal={isModal ? 'true' : undefined}
-      aria-label="codecity: open a project"
-    >
-      {/* The swirl is the fallback, so it yields to any real city behind it and
-          stays put while one is still streaming. */}
-      {!dismissible && !BACKDROP_CITY.value && (
-        <div class="landing-stage" aria-hidden="true">
-          <LandingBackdrop />
-        </div>
-      )}
-
-      {dismissible && !loading && (
-        <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
-          <X class="icon" />
-        </button>
-      )}
+    <div class="landing" aria-label="codecity: open a project">
+      {/* Wallpaper first, the city over it once one paints: here the canvas is
+          decoration, so it carries no chrome and no controls. */}
+      <div class={`landing-stage${painted ? ' is-painted' : ''}`} aria-hidden="true">
+        <City variant={CityVariant.Backdrop} />
+      </div>
 
       <div class="landing-inner">
         <section class="landing-hero">
@@ -178,7 +140,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   errorCode={opts.errorCode}
                   prefill={opts.prefill}
                   onSubmit={onSubmit}
-                  onDirty={clearProjectsViewError}
+                  onDirty={clearHomeError}
                 />
               </section>
               <section class="landing-card landing-card--sources surface-glass">

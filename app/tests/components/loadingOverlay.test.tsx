@@ -47,18 +47,6 @@ describe('LoadingOverlay', () => {
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });
 
-  // Two full-viewport surfaces stacking would leave this overlay's no-controls
-  // backdrop on top of the projects view's Cancel button.
-  it('stays hidden while the switcher route is up, even mid-load', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote });
-    await flush();
-    expect(container.querySelector('.loading-backdrop')).not.toBeNull();
-
-    navigate(ROUTES.HOME);
-    await flush();
-    expect(container.querySelector('.loading-backdrop')).toBeNull();
-  });
-
   it('show reveals the overlay', async () => {
     showLoadingOverlay({ kind: SourceKind.Local });
     await flush();

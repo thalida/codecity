@@ -4,7 +4,7 @@
 // suppresses itself (below), so two full-viewport surfaces never stack.
 
 import './LoadingOverlay.css';
-import { LOADING_OVERLAY, ON_HOME } from '@/state/stores/ui';
+import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 
 export interface LoadingOverlayProps {
@@ -15,7 +15,6 @@ export interface LoadingOverlayProps {
 export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
   const lo = LOADING_OVERLAY.value;
   if (!lo.visible || !lo.activeStep) return null;
-  if (ON_HOME.value) return null;
 
   return (
     <div class="loading-backdrop">

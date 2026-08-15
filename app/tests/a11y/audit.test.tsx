@@ -11,20 +11,14 @@ import axe from 'axe-core';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
 import { DynamicSection } from '@/views/ControlsPane/partials';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
-import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
+import { HomeView } from '@/views/HomeView/HomeView';
 import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
 import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
 import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { TreePane } from '@/views/TreePane/TreePane';
 import { AppHeader } from '@/layout/AppHeader/AppHeader';
 import { AppFooter } from '@/layout/AppFooter/AppFooter';
-import {
-  openProjectsView,
-  openDebug,
-  openShortcuts,
-  closeDebug,
-  closeShortcuts,
-} from '@/state/stores/ui';
+import { goHome, openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/ui';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -89,23 +83,23 @@ const SURFACES: Surface[] = [
     },
   },
   {
-    name: 'ProjectsView',
+    name: 'HomeView',
     mount: (c) => {
-      openProjectsView();
-      render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
+      goHome();
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, c);
     },
   },
   {
     // Both dropdowns, opened: the menu, its items and the auto-refresh row in
     // the footer slot are only in the DOM while open.
-    name: 'ProjectsView (Discover tab, open-project menu)',
+    name: 'HomeView (Discover tab, open-project menu)',
     mount: (c) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted: true };
       DISCOVER.value = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
-      openProjectsView();
-      render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
+      goHome();
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, c);
       openByLabel(c, 'More ways to open');
     },
   },

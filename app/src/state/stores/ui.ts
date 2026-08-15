@@ -7,8 +7,7 @@ import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { ROUTES } from '@/constants/routes';
-import { HREF, ROUTE_PATH, navigate } from '@/state/route';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { ROUTE_PATH, navigate } from '@/state/route';
 import { SidebarTab } from '@/types/ui';
 import type { ScanErrorCode } from '@/api/manifest';
 
@@ -24,9 +23,9 @@ export interface SourcePayload {
   skipCache?: boolean;
 }
 
-/** Options for opening the source picker. Whether it can be dismissed is NOT
- *  among them: that is whether a city is loaded (see SWITCHER_DISMISSIBLE). */
-export interface OpenOpts {
+/** What to tell the landing when something sends you there: what to prefill,
+ *  and what went wrong. Not visibility, which is the route. */
+export interface HomeOpts {
   prefill?: SourcePayload;
   error?: string;
   /** The failure's machine-readable reason, where the server gave one, so the
@@ -42,51 +41,27 @@ export interface LoadingOverlayShowOpts {
   steps?: readonly LoadingStep[];
 }
 
-// ── Projects view ────────────────────────────────────────────────────────────
+// ── Home (the landing / project switcher) ────────────────────────────────────
 
-/** The switcher IS home: it shows because of where you are, not because a flag
+/** The landing IS home: it shows because of where you are, not because a flag
  *  says so, which is what makes back/forward land on it correctly. */
 export const ON_HOME = computed(() => ROUTE_PATH.value === ROUTES.HOME);
 
-/** Per-open extras: what to prefill, what went wrong. Not visibility. */
-export const PROJECTS_VIEW_OPTS = signal<OpenOpts>({});
+export const HOME_OPTS = signal<HomeOpts>({});
 
-/** Dismissible when there is a city to go back to. Derived, not passed in: a
- *  browser Back onto home has no caller to say which kind of open it is. */
-export const SWITCHER_DISMISSIBLE = computed(() => CURRENT_SOURCE.value !== null);
-
-/** The switcher over a loaded city: the only case with something behind it to
- *  turn into a backdrop, which is what drives the showcase. */
-export const SWITCHER_SHOWCASE = computed(() => ON_HOME.value && SWITCHER_DISMISSIBLE.value);
-
-/** Where the switcher was opened from, so dismissing returns to the exact view
- *  it covered (mode, scrub commit and selection included). */
-const COVERED_HREF = signal<string | null>(null);
-
-/** Go to the switcher. A destination the user asked for, so it pushes. */
-export function openProjectsView(opts: OpenOpts = {}): void {
-  PROJECTS_VIEW_OPTS.value = opts;
-  const here = HREF.peek();
-  if (here !== ROUTES.HOME) COVERED_HREF.value = here;
+/** Go to the landing. A destination the user asked for, so it pushes: Back is
+ *  how you return to the city, which is why the view has no close button. */
+export function goHome(opts: HomeOpts = {}): void {
+  HOME_OPTS.value = opts;
   navigate(ROUTES.HOME);
-}
-
-/** Leave the switcher for the view it covered. peek throughout: reactions call
- *  this from inside effects, where tracking would feed back on itself. */
-export function closeProjectsView(): void {
-  // Nothing loaded means nothing to go back TO, whatever we were covering when
-  // the last city was dropped: leaving would land on a /city with no project.
-  if (!SWITCHER_DISMISSIBLE.peek()) return;
-  const covered = COVERED_HREF.peek();
-  if (covered) navigate(covered);
 }
 
 /** Drop a stale error banner without disturbing the prefill. No-ops with no
  *  error, so it is cheap on every keystroke. */
-export function clearProjectsViewError(): void {
-  const prev = PROJECTS_VIEW_OPTS.peek();
+export function clearHomeError(): void {
+  const prev = HOME_OPTS.peek();
   if (!prev.error) return;
-  PROJECTS_VIEW_OPTS.value = { ...prev, error: undefined, errorCode: undefined };
+  HOME_OPTS.value = { ...prev, error: undefined, errorCode: undefined };
 }
 
 // ── Left sidebar ─────────────────────────────────────────────────────────────
@@ -219,8 +194,8 @@ export function closeDebug(): void {
   DEBUG_OPEN.value = false;
 }
 
-/** True while any modal (projects view, shortcuts, debug) is open. Scene input
- *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
+/** True when something else owns the keyboard: a modal, or the landing, whose
+ *  backdrop canvas would otherwise answer keystrokes meant for its form. */
 export const OVERLAY_OPEN = computed(
   () => ON_HOME.value || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
 );

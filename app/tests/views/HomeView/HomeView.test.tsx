@@ -1,16 +1,17 @@
-// Native-harness tests for ProjectsView (no @testing-library/preact here).
+// Native-harness tests for HomeView (no @testing-library/preact here).
 // Focus: while SCAN_PROGRESS is non-null the view shows progress + Cancel and
 // unmounts the form/recents entirely, rather than disabling them.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
-import {
-  PROJECTS_VIEW_OPTS,
-  openProjectsView,
-  setLoadingStepTail,
-  PENDING_SOURCE_LABEL,
-} from '@/state/stores/ui';
+
+// The backdrop canvas: jsdom has no WebGL, and none of this is about the scene.
+vi.mock('@/components/City/City', () => ({
+  City: () => null,
+  CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
+}));
+import { HomeView } from '@/views/HomeView/HomeView';
+import { HOME_OPTS, goHome, setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { navigate } from '@/state/route';
 import { ROUTES } from '@/constants/routes';
@@ -22,14 +23,14 @@ import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
-import { flush, drainAsync } from '../../_helpers/preact';
+import { flush } from '../../_helpers/preact';
 
-/** A city behind the switcher: what makes it dismissible, and a modal. */
+/** A project already loaded, which the landing names as its backdrop. */
 function loadedCity(): void {
   CURRENT_SOURCE.value = { src: 'https://github.com/o/loaded', branch: 'main' };
 }
 
-describe('ProjectsView', () => {
+describe('HomeView', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -42,7 +43,7 @@ describe('ProjectsView', () => {
     render(null, container);
     document.body.removeChild(container);
     navigate(ROUTES.HOME, { replace: true });
-    PROJECTS_VIEW_OPTS.value = {};
+    HOME_OPTS.value = {};
     CURRENT_SOURCE.value = null;
     SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
@@ -55,7 +56,7 @@ describe('ProjectsView', () => {
 
   it('renders the new-project form when open and idle', async () => {
     loadedCity();
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
@@ -66,7 +67,7 @@ describe('ProjectsView', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'o/r', lastOpenedAt: 1 },
     ];
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
     await flush();
     expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
 
@@ -88,7 +89,7 @@ describe('ProjectsView', () => {
 
   it('forwards per-step tails (clone %) into the inline switcher progress', async () => {
     loadedCity();
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
     setLoadingStepTail(LoadingStep.Cloning, '45% (Receiving)');
     await flush();
@@ -103,7 +104,7 @@ describe('ProjectsView', () => {
   it('wires the Cancel button to onCancel', async () => {
     loadedCity();
     const onCancel = vi.fn();
-    render(<ProjectsView onSubmit={() => {}} onCancel={onCancel} onClose={() => {}} />, container);
+    render(<HomeView onSubmit={() => {}} onCancel={onCancel} />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await flush();
 
@@ -115,18 +116,10 @@ describe('ProjectsView', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
-  it('does not show a close button while loading, even when dismissible', async () => {
-    loadedCity();
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
-    await flush();
-    expect(container.querySelector('[aria-label="Close"]')).toBeNull();
-  });
-
   it('drops a stale error banner once a new load starts', async () => {
     loadedCity();
-    openProjectsView({ error: 'repository not found' });
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    goHome({ error: 'repository not found' });
+    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
     await flush();
     expect(container.textContent).toMatch(/repository not found/i);
 
@@ -137,11 +130,11 @@ describe('ProjectsView', () => {
 
   it('drops a stale error banner as soon as the user edits the source', async () => {
     loadedCity();
-    openProjectsView({
+    goHome({
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     });
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
 
@@ -156,25 +149,6 @@ describe('ProjectsView', () => {
     );
   });
 
-  it('closes on Escape only when dismissible and not loading', async () => {
-    loadedCity();
-    const onClose = vi.fn();
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={onClose} />, container);
-    await flush();
-
-    // The Escape listener rebinds in a `loading`-keyed effect, whose commit
-    // needs an rAF-scale tick in jsdom — hence drainAsync, not flush().
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
-    await drainAsync();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect(onClose).not.toHaveBeenCalled();
-
-    SCAN_PROGRESS.value = null;
-    await drainAsync();
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect(onClose).toHaveBeenCalledOnce();
-  });
-
   describe('the Recent / Discover card', () => {
     const RECENT = { src: 'https://github.com/o/r', label: 'r', lastOpenedAt: 1 };
     const CURATED = [
@@ -184,10 +158,7 @@ describe('ProjectsView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      render(
-        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
       await flush();
     };
 
@@ -303,10 +274,7 @@ describe('ProjectsView', () => {
       const onSubmit = vi.fn();
       DISCOVER.value = CURATED;
       loadedCity();
-      render(
-        <ProjectsView onSubmit={onSubmit} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+      render(<HomeView onSubmit={onSubmit} onCancel={() => {}} />, container);
       await flush();
       container.querySelector<HTMLButtonElement>('[data-list="discover"] .source-row')!.click();
       expect(onSubmit).toHaveBeenCalledWith({ src: 'https://github.com/preactjs/preact' });
@@ -331,38 +299,35 @@ describe('ProjectsView', () => {
     });
   });
 
-  describe('the featured city', () => {
+  describe('the backdrop', () => {
     const stage = () => container.querySelector('.landing-stage');
     const featured = () => container.querySelector('.landing-featured');
 
-    it('stages a backdrop on a cold boot, where there is no city to reveal', async () => {
-      openProjectsView();
-      render(
-        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+    it('always stages the wallpaper: it is what "no city yet" looks like', async () => {
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
       await flush();
       expect(stage()).not.toBeNull();
       // Decoration: named for nobody, so it stays out of the a11y tree.
       expect(stage()!.getAttribute('aria-hidden')).toBe('true');
     });
 
-    it('stages nothing over a loaded city, which is already the backdrop', async () => {
-      loadedCity();
-      render(
-        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+    it('reveals the canvas over the wallpaper only once a backdrop has painted', async () => {
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
       await flush();
-      expect(stage()).toBeNull();
+      expect(stage()!.classList.contains('is-painted')).toBe(false);
+
+      BACKDROP_CITY.value = {
+        src: 'https://github.com/o/r',
+        label: 'o/r',
+        kind: BackdropKind.Recent,
+      };
+      await flush();
+      expect(stage()!.classList.contains('is-painted')).toBe(true);
     });
 
     it('names the city on screen once it has actually painted', async () => {
-      openProjectsView();
-      render(
-        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+      goHome();
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
@@ -383,11 +348,8 @@ describe('ProjectsView', () => {
     const renderLanding = async (opts: { dismissible: boolean }) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
-      openProjectsView();
-      render(
-        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
-        container
-      );
+      goHome();
+      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };

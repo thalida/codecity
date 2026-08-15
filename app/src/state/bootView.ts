@@ -41,8 +41,9 @@ export function parseSelection(raw: string | null): PickerSelectionKey | null {
   return null;
 }
 
-export function readBootView(): BootView {
-  const qp = ROUTE_PARAMS.peek();
+/** Read a view off an explicit param set: the route reaction hands in the
+ *  params it just reacted to, rather than re-peeking a signal mid-change. */
+export function readBootViewFrom(qp: URLSearchParams): BootView {
   const src = qp.get(URL_PARAMS.SRC);
   return {
     src,
@@ -53,6 +54,10 @@ export function readBootView(): BootView {
     commit: qp.get(VIEW_PARAMS.COMMIT),
     selection: parseSelection(qp.get(VIEW_PARAMS.SELECTION)),
   };
+}
+
+export function readBootView(): BootView {
+  return readBootViewFrom(ROUTE_PARAMS.peek());
 }
 
 // Runs pre-paint (main.tsx) so the first render is already on the right route.
