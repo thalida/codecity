@@ -14,6 +14,7 @@ function resetStores() {
   TREES.value = {
     ENABLED: true,
     CITY_CLEARANCE_PERCENT: 5,
+    CITY_CLEARANCE_LIMITS: [0, 2000],
     DENSITY_FALLOFF: 0,
     EDGE_INSET_PERCENT: 1,
     MIN_HEIGHT: 48,

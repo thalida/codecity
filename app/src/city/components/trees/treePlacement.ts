@@ -153,8 +153,15 @@ export function placeTrees(
 
   // A share of the island, not a distance: a fixed gap that suits a big repo is
   // the whole of a small one. Off the narrow axis, and stacks with the halo.
-  const halfFoot =
-    Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100);
+
+  // Clamped in world units: the same share of a much bigger island is a
+  // clearing wide enough to push the forest out of frame.
+  const [clearanceMin, clearanceMax] = cfg.CITY_CLEARANCE_LIMITS;
+  const halfFoot = THREE.MathUtils.clamp(
+    Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100),
+    Math.max(0, clearanceMin),
+    Math.max(0, clearanceMax)
+  );
 
   // The farthest a candidate can be from the city, which normalises the
   // falloff distance into [0,1].
