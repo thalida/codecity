@@ -49,7 +49,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 10000,
     step: 100,
     label: 'Full height at (lines)',
-    tip: 'Line count that earns a max-floors building. A repo whose largest file is smaller stays proportionally shorter, so a repo of tiny files reads as a low-rise city rather than being stretched to full height.',
+    tip: 'Line count that earns a max-floors building. A repo whose largest file is smaller stays proportionally shorter, so tiny files read as a low-rise city.',
   },
   FLOOR_HEIGHT: {
     route: ChangeRoute.Rebuild,
@@ -69,7 +69,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Empty file height',
-    tip: 'An empty (0 byte) file has no content to stack, so it renders as a flat slab instead of a building; this is its height as a fraction of one floor. Kept above zero so the slab still catches clicks.',
+    tip: 'An empty (0 byte) file has nothing to stack, so it renders as a flat slab. Height as a fraction of one floor, above zero so it still catches clicks.',
   },
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
@@ -119,7 +119,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 2,
     step: 0.05,
     label: 'Data block height × width',
-    tip: 'Binary files render as squat, windowless data blocks sized by bytes; this sets their height as a fraction of that byte-driven width. Below 1 they stay warehouse-like, above 1 they tower.',
+    tip: 'Binary files render as squat, windowless blocks sized by bytes. Height as a fraction of that width: below 1 they stay warehouse-like, above 1 they tower.',
   },
 } satisfies FieldMap;
 
@@ -416,7 +416,7 @@ const BUILDINGS_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Render the image/video billboard on the face of media-file buildings. Off skips the billboard mesh entirely (no fetch, decode, upload, or draw): the buildings still show, just without their picture.',
+    tip: 'Render the image/video billboard on media-file buildings. Off skips the mesh entirely, no fetch or decode: the buildings still show, without the picture.',
   },
   MEDIA_SIDE_MARGIN_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -462,7 +462,7 @@ const BUILDINGS_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and windowless with no facade.',
+    tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and blank.',
   },
   DATA_COLOR: {
     route: ChangeRoute.Refresh,

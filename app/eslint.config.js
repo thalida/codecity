@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import css from '@eslint/css';
-import house from './eslint-rules/comment-length.js';
+import house from './eslint-rules/index.js';
 
 export default tseslint.config(
   {
@@ -37,6 +37,7 @@ export default tseslint.config(
       // On here so an editor flags it as you type. The whole-tree `npm run
       // lint` switches it off; the pre-push gate runs it over changed files.
       'house/comment-length': ['error', { max: 2, header: 4 }],
+      'house/tip-length': ['error', { max: 160 }],
       'no-var': 'error',
       'prefer-const': 'error',
       eqeqeq: ['error', 'smart'],

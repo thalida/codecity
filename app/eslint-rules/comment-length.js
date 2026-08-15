@@ -100,7 +100,3 @@ export const cssCommentLength = {
     };
   },
 };
-
-export default {
-  rules: { 'comment-length': commentLength, 'css-comment-length': cssCommentLength },
-};
