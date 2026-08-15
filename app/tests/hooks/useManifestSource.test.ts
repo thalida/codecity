@@ -9,7 +9,7 @@ import {
   bootLoad,
   attachRouteLoad,
 } from '@/hooks/useManifestSource';
-import { readBootView } from '@/state/bootView';
+import { readUrlView } from '@/state/viewParams';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -18,7 +18,7 @@ import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
-import { navigate } from '@/state/route';
+import { navigate, ROUTE_PARAMS } from '@/state/route';
 import { ROUTES } from '@/constants/routes';
 
 describe('useManifestSource loadSource cancellation', () => {
@@ -336,7 +336,7 @@ describe('the boot load runs the mode the URL asks for', () => {
 
   const boot = (search: string): Promise<void> => {
     navigate(`/city${search}`, { replace: true });
-    return bootLoad(readBootView());
+    return bootLoad(readUrlView(ROUTE_PARAMS.peek()));
   };
 
   it('hands a ?mode=timeline boot the bundle load, with no live scan', async () => {

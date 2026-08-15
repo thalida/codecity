@@ -1,7 +1,7 @@
-// state/bootView.ts — what the URL asks the page to open with: the source, the
-// mode, where in history, and what was selected. Read by the boot load (which
-// mode's call to make), by the reflection that keeps it up to date, and by the
-// pre-paint picker decision below.
+// state/viewParams.ts — the query string's vocabulary, both directions: what a
+// URL asks for (source, mode, where in history, what is selected) and how a
+// selection is written back. Pure, and free of the reaction layer: the fetch
+// layer decodes here, and going through viewUrl would make a cycle of it.
 
 import {
   URL_PARAMS,
@@ -9,13 +9,12 @@ import {
   TIMELINE_MODE_PARAM,
   SELECTION_KIND_PARAMS,
 } from '@/constants/urlParams';
-import { ROUTES } from '@/constants/routes';
-import { ROUTE_PARAMS, ROUTE_PATH, navigate, hrefFor } from '@/state/route';
 import { identityBranch } from '@/utils/sources';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
 
-export interface BootView {
+/** The view a URL is asking for. */
+export interface UrlView {
   src: string | null;
   branch: string | undefined;
   timeline: boolean;
@@ -41,9 +40,9 @@ export function parseSelection(raw: string | null): PickerSelectionKey | null {
   return null;
 }
 
-/** Read a view off an explicit param set: the route reaction hands in the
- *  params it just reacted to, rather than re-peeking a signal mid-change. */
-export function readBootViewFrom(qp: URLSearchParams): BootView {
+/** Read a view off an explicit param set: a reaction hands in the params it
+ *  just reacted to, rather than re-peeking a signal mid-change. */
+export function readUrlView(qp: URLSearchParams): UrlView {
   const src = qp.get(URL_PARAMS.SRC);
   return {
     src,
@@ -56,18 +55,9 @@ export function readBootViewFrom(qp: URLSearchParams): BootView {
   };
 }
 
-export function readBootView(): BootView {
-  return readBootViewFrom(ROUTE_PARAMS.peek());
-}
-
-// Runs pre-paint (main.tsx) so the first render is already on the right route.
-// A bare ?src is complete: the server resolves origin's default branch.
-export function normalizeBootRoute(): void {
-  const params = ROUTE_PARAMS.peek();
-  const hasSrc = !!params.get(URL_PARAMS.SRC);
-  const path = ROUTE_PATH.peek();
-  // Links from before /city existed carry ?src at the root.
-  if (hasSrc && path !== ROUTES.CITY) navigate(hrefFor(ROUTES.CITY, params), { replace: true });
-  // /city describes a project; without one there is nothing for it to show.
-  else if (!hasSrc && path !== ROUTES.HOME) navigate(ROUTES.HOME, { replace: true });
+/** A selection as one param value, the shape parseSelection reads back. */
+export function selectionParam(key: PickerSelectionKey | null): string | null {
+  if (!key) return null;
+  const kind = SELECTION_KIND_PARAMS[key.kind];
+  return key.kind === NodeKind.Commit ? `${kind}:${key.sha}` : `${kind}:${key.path}`;
 }

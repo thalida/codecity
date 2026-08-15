@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// The restore commands, stubbed: what is asserted is that the URL's selection
-// is put back, not what a real city does with it.
-vi.mock('@/state/stores/scene', () => ({ showPath: vi.fn(), showCommit: vi.fn() }));
+// The selection commands, stubbed: what matters is the URL's selection being
+// put back. Partial, since the timeline entry points read the rest.
+vi.mock('@/state/stores/scene', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/state/stores/scene')>()),
+  showPath: vi.fn(),
+  showCommit: vi.fn(),
+  clearSelection: vi.fn(),
+}));
 
 import { attachViewUrlReactions } from '@/state/viewUrl';
 import { showPath, showCommit } from '@/state/stores/scene';

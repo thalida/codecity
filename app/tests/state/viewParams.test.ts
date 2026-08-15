@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { normalizeBootRoute, readBootView } from '@/state/bootView';
+import { readUrlView } from '@/state/viewParams';
+import { normalizeBootRoute } from '@/state/route';
 import { NodeKind } from '@/types';
-import { HREF, navigate } from '@/state/route';
+import { HREF, navigate, ROUTE_PARAMS } from '@/state/route';
 import { ROUTES } from '@/constants/routes';
 
 function boot(href: string) {
@@ -44,10 +45,10 @@ describe('normalizeBootRoute', () => {
   });
 });
 
-describe('readBootView', () => {
+describe('readUrlView', () => {
   const read = (search: string) => {
     navigate(`/city${search}`, { replace: true });
-    return readBootView();
+    return readUrlView(ROUTE_PARAMS.peek());
   };
 
   afterEach(() => {

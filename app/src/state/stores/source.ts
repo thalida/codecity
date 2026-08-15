@@ -72,6 +72,15 @@ effect(() => {
   const cur = CURRENT_SOURCE.value;
   if (!cur) return;
   const params = new URLSearchParams(ROUTE_SEARCH.peek());
+  // A different project than the URL was describing: its mode, scrub commit
+  // and selection belong to the one that just left.
+  const had = params.get(URL_PARAMS.SRC);
+  if (
+    had &&
+    !sameSourceIdentity({ src: had, branch: params.get(URL_PARAMS.BRANCH) ?? undefined }, cur)
+  ) {
+    for (const key of Object.values(VIEW_PARAMS)) params.delete(key);
+  }
   params.set(URL_PARAMS.SRC, cur.src);
   if (cur.branch) params.set(URL_PARAMS.BRANCH, cur.branch);
   else params.delete(URL_PARAMS.BRANCH);

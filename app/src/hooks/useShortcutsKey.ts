@@ -1,8 +1,6 @@
-// hooks/useShortcutsKey.ts — "?" opens the keyboard-shortcuts panel.
-//
-// App-level rather than a scene shortcut: it has to work before any city is
-// loaded. The footer's glyph is easy to miss, so this is how the panel is
-// realistically reached.
+// hooks/useShortcutsKey.ts — "?" opens the keyboard-shortcuts panel. Mounted by
+// CityView, which is where the panel it opens renders: the footer's glyph is
+// easy to miss, so this is how it is realistically reached.
 
 import { useEffect } from 'preact/hooks';
 import { openShortcuts, OVERLAY_OPEN } from '@/state/stores/ui';

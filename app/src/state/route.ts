@@ -5,6 +5,8 @@
 
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
+import { URL_PARAMS } from '@/constants/urlParams';
+import { ROUTES } from '@/constants/routes';
 
 function readHref(): string {
   return `${window.location.pathname}${window.location.search}`;
@@ -70,6 +72,18 @@ export function attachRouteHistory(): () => void {
   };
   window.addEventListener('popstate', onPopState);
   return () => window.removeEventListener('popstate', onPopState);
+}
+
+/** Put a boot URL on the route it belongs to, before the first render. A bare
+ *  ?src is complete: the server resolves origin's default branch. */
+export function normalizeBootRoute(): void {
+  const params = ROUTE_PARAMS.peek();
+  const hasSrc = !!params.get(URL_PARAMS.SRC);
+  const path = ROUTE_PATH.peek();
+  // Links minted before /city existed carry ?src at the root.
+  if (hasSrc && path !== ROUTES.CITY) navigate(hrefFor(ROUTES.CITY, params), { replace: true });
+  // /city describes a project; without one there is nothing for it to show.
+  else if (!hasSrc && path !== ROUTES.HOME) navigate(ROUTES.HOME, { replace: true });
 }
 
 // ── wouter hooks ─────────────────────────────────────────────────────

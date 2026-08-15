@@ -3,7 +3,7 @@
 // (MANIFEST, SCAN_PROGRESS, CURRENT_SOURCE via setCurrentSource, SOURCE_ERROR).
 // The render layer consumes them and owns the apply's rebuild status.
 
-import { useEffect, useCallback } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
 import {
@@ -31,7 +31,7 @@ import {
   sameSourceIdentity,
 } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { readBootViewFrom, type BootView } from '@/state/bootView';
+import { readUrlView, type UrlView } from '@/state/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/state/route';
 import { ROUTES } from '@/constants/routes';
 import type { Manifest } from '@/types';
@@ -351,7 +351,7 @@ export function setupLiveUpdates(): () => void {
 
 /** The load the URL asks for, in the mode it asks for. A Timeline boot that
  *  fails to engage falls through to Live, so the page lands on a working city. */
-export async function bootLoad(boot: BootView): Promise<void> {
+export async function bootLoad(boot: UrlView): Promise<void> {
   const src = boot.src;
   if (!src) return;
   if (boot.timeline && timelineBoot) {
@@ -373,7 +373,7 @@ export function attachRouteLoad(): () => void {
     // Tracked: this is the whole point, the URL asking for something new.
     const params = ROUTE_PARAMS.value;
     if (!onCity) return;
-    const boot = readBootViewFrom(params);
+    const boot = readUrlView(params);
     if (!boot.src) return;
     const want = { src: boot.src, branch: boot.branch };
     if (claimed && sameSourceIdentity(claimed, want)) return;
@@ -390,20 +390,10 @@ export function attachRouteLoad(): () => void {
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-/** Boot the fetch pipeline on mount, and hand App the submit/refresh/cancel
- *  handlers to pass down as props rather than a global invoke channel. */
-export function useManifestSource(): {
-  submitSource: (payload: SourcePayload) => void;
-  refreshSource: (skipCache: boolean) => void;
-  cancelLoad: () => void;
-} {
-  const submitSource = useCallback((payload: SourcePayload) => {
-    void loadSource(payload);
-  }, []);
-  const refreshSource = useCallback((skipCache: boolean) => {
-    refreshCurrentSource(skipCache);
-  }, []);
-
+/** Boot the fetch pipeline on mount. Nothing to hand back: loadSource,
+ *  refreshCurrentSource and cancelLoad are module functions, so a view calls
+ *  the one it needs rather than App threading it down as a prop. */
+export function useManifestSource(): void {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
@@ -428,6 +418,4 @@ export function useManifestSource(): {
       disposeLiveUpdates?.();
     };
   }, []);
-
-  return { submitSource, refreshSource, cancelLoad };
 }

@@ -10,9 +10,18 @@ vi.mock('@/components/City/City', () => ({
   City: () => null,
   CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
 }));
+
+// The view calls these directly now, so they are what "it opened a project" and
+// "it cancelled the load" mean.
+vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useManifestSource')>()),
+  loadSource: vi.fn(),
+  cancelLoad: vi.fn(),
+}));
 import { HomeView } from '@/views/HomeView/HomeView';
 import { HOME_OPTS, goHome, setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
+import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { navigate } from '@/state/route';
 import { ROUTES } from '@/constants/routes';
 import { LoadingStep } from '@/constants/loadingSteps';
@@ -56,7 +65,7 @@ describe('HomeView', () => {
 
   it('renders the new-project form when open and idle', async () => {
     loadedCity();
-    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<HomeView />, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
@@ -67,7 +76,7 @@ describe('HomeView', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'o/r', lastOpenedAt: 1 },
     ];
-    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<HomeView />, container);
     await flush();
     expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
 
@@ -89,7 +98,7 @@ describe('HomeView', () => {
 
   it('forwards per-step tails (clone %) into the inline switcher progress', async () => {
     loadedCity();
-    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<HomeView />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
     setLoadingStepTail(LoadingStep.Cloning, '45% (Receiving)');
     await flush();
@@ -101,10 +110,9 @@ describe('HomeView', () => {
     setLoadingStepTail(LoadingStep.Cloning, null); // reset the shared overlay state
   });
 
-  it('wires the Cancel button to onCancel', async () => {
+  it('cancels the in-flight load from its Cancel button', async () => {
     loadedCity();
-    const onCancel = vi.fn();
-    render(<HomeView onSubmit={() => {}} onCancel={onCancel} />, container);
+    render(<HomeView />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await flush();
 
@@ -113,13 +121,13 @@ describe('HomeView', () => {
     )!;
     expect(cancelBtn).toBeTruthy();
     cancelBtn.click();
-    expect(onCancel).toHaveBeenCalledOnce();
+    expect(cancelLoad).toHaveBeenCalledOnce();
   });
 
   it('drops a stale error banner once a new load starts', async () => {
     loadedCity();
     goHome({ error: 'repository not found' });
-    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<HomeView />, container);
     await flush();
     expect(container.textContent).toMatch(/repository not found/i);
 
@@ -134,7 +142,7 @@ describe('HomeView', () => {
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     });
-    render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<HomeView />, container);
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
 
@@ -158,7 +166,7 @@ describe('HomeView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
     };
 
@@ -271,13 +279,12 @@ describe('HomeView', () => {
     });
 
     it('opens the source a Discover row names', async () => {
-      const onSubmit = vi.fn();
       DISCOVER.value = CURATED;
       loadedCity();
-      render(<HomeView onSubmit={onSubmit} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
       container.querySelector<HTMLButtonElement>('[data-list="discover"] .source-row')!.click();
-      expect(onSubmit).toHaveBeenCalledWith({ src: 'https://github.com/preactjs/preact' });
+      expect(loadSource).toHaveBeenCalledWith({ src: 'https://github.com/preactjs/preact' });
     });
 
     it('shows no remove control on a Discover row: it is not yours to forget', async () => {
@@ -304,7 +311,7 @@ describe('HomeView', () => {
     const featured = () => container.querySelector('.landing-featured');
 
     it('always stages the wallpaper: it is what "no city yet" looks like', async () => {
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
       expect(stage()).not.toBeNull();
       // Decoration: named for nobody, so it stays out of the a11y tree.
@@ -312,7 +319,7 @@ describe('HomeView', () => {
     });
 
     it('reveals the canvas over the wallpaper only once a backdrop has painted', async () => {
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
       expect(stage()!.classList.contains('is-painted')).toBe(false);
 
@@ -327,7 +334,7 @@ describe('HomeView', () => {
 
     it('names the city on screen once it has actually painted', async () => {
       goHome();
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
@@ -349,7 +356,7 @@ describe('HomeView', () => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
       goHome();
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, container);
+      render(<HomeView />, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };

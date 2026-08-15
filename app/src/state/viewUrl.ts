@@ -1,16 +1,17 @@
-// state/viewUrl.ts — mode, scrub position and selection ⇄ the page URL. They
-// span three stores, so this reflection lives in none of them. replaceState
-// only, off the SETTLED scrub position: a drag would otherwise bury the user's
-// own history. Restoring waits for a city — the boot load resolves before one.
+// state/viewUrl.ts — mode, scrub position and selection ⇄ the page URL, a
+// binding that spans three stores so it lives in none of them. The view writes
+// the URL (replace only, off the SETTLED scrub position, or a drag buries your
+// history), and the URL writes the view, which is what Back and Forward need.
 
 import { signal, effect, type Signal } from '@preact/signals';
 
-import { VIEW_PARAMS, TIMELINE_MODE_PARAM, SELECTION_KIND_PARAMS } from '@/constants/urlParams';
-import { setRouteParams, type NavigateOptions } from '@/state/route';
-import { readBootView, type BootView } from '@/state/bootView';
+import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/constants/urlParams';
+import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from '@/state/route';
+import { parseSelection, selectionParam } from '@/state/viewParams';
+import { ROUTES } from '@/constants/routes';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/manifest';
-import { showPath, showCommit } from '@/state/stores/scene';
+import { showPath, showCommit, clearSelection } from '@/state/stores/scene';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -19,7 +20,7 @@ import {
   SCRUB_MAX,
 } from '@/state/stores/timeline';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
-import { sameSourceIdentity } from '@/utils/sources';
+import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { isEmptyManifest } from '@/utils/manifest';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
@@ -27,12 +28,6 @@ import type { PickerSelectionKey } from '@/types';
 const REPLACE: NavigateOptions = { replace: true };
 
 // ── Encoding ─────────────────────────────────────────────────────────
-
-function selectionParam(key: PickerSelectionKey | null): string | null {
-  if (!key) return null;
-  const kind = SELECTION_KIND_PARAMS[key.kind];
-  return key.kind === NodeKind.Commit ? `${kind}:${key.sha}` : `${kind}:${key.path}`;
-}
 
 /** The sha the scrubber rests on, or null at the present — so a link that
  *  means "now" still means it once the branch has moved on. */
@@ -63,57 +58,67 @@ function reflectViewToUrl(): void {
   }, REPLACE);
 }
 
-// ── Restore ──────────────────────────────────────────────────────────
+// ── Follow ───────────────────────────────────────────────────────────
 
-// ?mode and ?commit are the boot load's inputs, so only the selection is left.
-// Every kind restores alike: picked out, details open, camera untouched.
-function restoreSelection(selection: PickerSelectionKey): void {
-  if (selection.kind === NodeKind.Commit) showCommit(selection.sha);
+/** Every kind restores alike: picked out, details open, camera untouched. */
+function applySelection(selection: PickerSelectionKey | null): void {
+  if (!selection) clearSelection();
+  else if (selection.kind === NodeKind.Commit) showCommit(selection.sha);
   else showPath(selection.path);
 }
 
-function installRestore(boot: BootView, restored: Signal<boolean>): () => void {
-  // Nothing saved, or no source for it to belong to: the reflection below owns
-  // the URL from its first write.
-  if (!boot.src || !boot.selection) {
-    restored.value = true;
-    return () => {};
-  }
-
-  let claimed = false;
+/** Put the view the URL describes on screen whenever it says something the view
+ *  does not. PEEKS the live view, so the reflection cannot feed back here. */
+function installViewFollow(followed: Signal<boolean>): () => void {
   return effect(() => {
+    const params = ROUTE_PARAMS.value;
+    const onCity = ROUTE_PATH.value === ROUTES.CITY;
     const source = CURRENT_SOURCE.value;
-    // A built city for a committed source: there is something to select in.
-    if (claimed || !source || isEmptyManifest(BUILT_MANIFEST.value)) return;
-    claimed = true;
-    // A different repo got here first (a deep link that failed, then a hand
-    // pick): the saved view described the URL's repo, so let it go.
-    if (!sameSourceIdentity(source, boot)) {
-      restored.value = true;
+    const built = !isEmptyManifest(BUILT_MANIFEST.value);
+    // Nothing to select in, and no bundle to scrub, until there is a city.
+    if (!onCity || !source || !built) return;
+
+    const wantTimeline = params.get(VIEW_PARAMS.MODE) === TIMELINE_MODE_PARAM;
+    const wantCommit = params.get(VIEW_PARAMS.COMMIT);
+    const wantSelection = params.get(VIEW_PARAMS.SELECTION);
+    const modeDiffers = wantTimeline !== TIMELINE_MODE.peek();
+    const commitDiffers = wantTimeline && !!wantCommit && wantCommit !== settledCommitSha();
+    const selectionDiffers = wantSelection !== selectionParam(PICKER_SELECTION_KEY.peek());
+
+    // The common case, and the gate must open NOW rather than a microtask
+    // later, or the view it protects has moved on by the time it does.
+    if (!modeDiffers && !commitDiffers && !selectionDiffers) {
+      followed.value = true;
       return;
     }
-    // Out of the effect's tracking scope before touching any signal: the entry
-    // path writes several, and a write inside the scope is a cycle.
+
+    // Out of the tracking scope: everything below writes signals this reads.
     queueMicrotask(() => {
-      if (boot.selection) restoreSelection(boot.selection);
-      restored.value = true;
+      if (modeDiffers) {
+        if (wantTimeline) void loadTimelineScene({ commit: wantCommit ?? undefined });
+        else exitTimelineMode();
+      } else if (commitDiffers && wantCommit) {
+        void viewCommitInTimeline(wantCommit);
+      }
+      if (selectionDiffers) applySelection(parseSelection(wantSelection));
+      followed.value = true;
     });
   });
 }
 
-/** Mount the URL⇄view reactions, boot view read first so the reflection can
- *  never overwrite what it is about to restore. Returns a dispose. */
+/** Mount the URL⇄view binding. Returns a dispose. */
 export function attachViewUrlReactions(): () => void {
-  const boot = readBootView();
-  const restored = signal(false);
-  const stopRestore = installRestore(boot, restored);
+  // The reflection waits for the follow's first pass, or it would describe an
+  // empty view over the URL it is about to be told to restore.
+  const followed = signal(false);
+  const stopFollow = installViewFollow(followed);
   const stopReflect = effect(() => {
     // Like the ?src reflection: an unloaded page has no view to describe.
-    if (!CURRENT_SOURCE.value || !restored.value) return;
+    if (!CURRENT_SOURCE.value || !followed.value) return;
     reflectViewToUrl();
   });
   return () => {
-    stopRestore();
+    stopFollow();
     stopReflect();
   };
 }

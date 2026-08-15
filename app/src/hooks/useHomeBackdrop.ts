@@ -1,7 +1,7 @@
-// hooks/useHomeBackdrop.ts — paints a city behind the switcher on a cold boot:
-// the project you were last in, from whatever the server had cached for it,
-// then the featured repo. Neither scans, and every failure is silent, since the
-// hero image underneath is already a complete answer.
+// hooks/useHomeBackdrop.ts — paints a city behind the landing for as long as
+// HomeView is mounted: the project you were last in, from whatever the server
+// had cached for it, then the featured repo. Neither scans, and every failure
+// is silent, since the hero image underneath is already a complete answer.
 
 // Applies the manifest STRAIGHT TO THE SCENE, never writing MANIFEST: that
 // signal means "the project you opened", which a backdrop is not.
@@ -13,7 +13,6 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS } from '@/state/stores/source';
-import { ON_HOME } from '@/state/stores/ui';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { identityBranch, resolveBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -109,15 +108,12 @@ export function useHomeBackdrop(): void {
     }
 
     const stop = effect(() => {
-      const home = ON_HOME.value;
       // The landing's own canvas, which mounts with the view: leaving the route
       // takes it (and the scene) with it, so there is nothing to hand back.
       const handle = SCENE_HANDLE.value;
       // Re-runs when the server config lands, which gives featured its turn.
       const featured = SERVER_CONFIG.value.featuredRepo;
-
-      if (home && handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);
-      else if (!home) BACKDROP_CITY.value = null;
+      if (handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);
     });
 
     return () => {

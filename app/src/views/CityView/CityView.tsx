@@ -1,6 +1,10 @@
-// views/CityView — what `/city` renders: the city and the chrome that belongs
-// to it. <City /> lives in the center pane here, flyable and pickable, which is
-// the whole difference between this view and the landing's use of it.
+// views/CityView — what `/city` renders: the city, flyable and pickable in the
+// center pane, and the chrome that belongs to it. Everything city-shaped mounts
+// here rather than at the root: the URL⇄view binding, the selection announcer,
+// and the syntax theme the file preview reads.
+
+import { useEffect } from 'preact/hooks';
+import { useSignalEffect } from '@preact/signals';
 
 import { AppHeader } from '@/layout/AppHeader/AppHeader';
 import { AppFooter } from '@/layout/AppFooter/AppFooter';
@@ -8,15 +12,43 @@ import { CenterPane } from '@/layout/CenterPane/CenterPane';
 import { LeftSidebar } from '@/layout/LeftSidebar/LeftSidebar';
 import { RightSidebar } from '@/layout/RightSidebar/RightSidebar';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
-import { runCollisionCheck, runStemDiagnostic, runTreeGroundingCheck } from '@/state/stores/scene';
+import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
+import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
+import { useShortcutsKey } from '@/hooks/useShortcutsKey';
+import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
+import { attachViewUrlReactions } from '@/state/viewUrl';
+import { goHome, LOADING_CANCEL } from '@/state/stores/ui';
+import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
+import {
+  clearSelection,
+  runCollisionCheck,
+  runStemDiagnostic,
+  runTreeGroundingCheck,
+} from '@/state/stores/scene';
 
-export interface CityViewProps {
-  onSwitchSource: () => void;
-  onRefresh: (skipCache: boolean) => void;
-  onCancelLoad: () => void;
-}
+export function CityView() {
+  // The panel it opens lives in this view's footer, so the key belongs here.
+  useShortcutsKey();
+  // Mode, scrub commit and selection are this view's: the landing has nothing
+  // to describe, and reflecting there would write them onto `/`.
+  useEffect(() => attachViewUrlReactions(), []);
 
-export function CityView({ onSwitchSource, onRefresh, onCancelLoad }: CityViewProps) {
+  // A newly loaded source has nothing selected in it yet.
+  useSignalEffect(() => {
+    if (CURRENT_SOURCE.value) clearSelection();
+  });
+
+  const onCancelLoad = () => {
+    // A load with something to go back to registers its own handler; one with
+    // nothing to go back to leaves the URL describing what it just called off.
+    const registered = LOADING_CANCEL.peek();
+    if (registered) registered();
+    else {
+      cancelLoad();
+      clearSourceUrl();
+    }
+  };
+
   return (
     <>
       <a class="skip-link" href="#app-body">
@@ -24,7 +56,7 @@ export function CityView({ onSwitchSource, onRefresh, onCancelLoad }: CityViewPr
       </a>
       {/* The header owns the control; which read a refresh means in the mode
           you are in is the fetch layer's call. */}
-      <AppHeader onSwitchSource={onSwitchSource} onRefresh={onRefresh} />
+      <AppHeader onSwitchSource={() => goHome()} onRefresh={refreshCurrentSource} />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />
@@ -38,6 +70,8 @@ export function CityView({ onSwitchSource, onRefresh, onCancelLoad }: CityViewPr
       {/* Belongs to this route: a load started from the landing shows its
           progress there, in the card it was started from. */}
       <LoadingOverlay onCancel={onCancelLoad} />
+      <HljsThemeLink />
+      <SelectionAnnouncer />
     </>
   );
 }

@@ -86,7 +86,7 @@ const SURFACES: Surface[] = [
     name: 'HomeView',
     mount: (c) => {
       goHome();
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, c);
+      render(<HomeView />, c);
     },
   },
   {
@@ -99,7 +99,7 @@ const SURFACES: Surface[] = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
       goHome();
-      render(<HomeView onSubmit={() => {}} onCancel={() => {}} />, c);
+      render(<HomeView />, c);
       openByLabel(c, 'More ways to open');
     },
   },

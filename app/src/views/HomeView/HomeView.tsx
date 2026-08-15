@@ -11,6 +11,8 @@ import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
 import { HOME_OPTS, LOADING_OVERLAY, clearHomeError, type SourcePayload } from '@/state/stores/ui';
 import { BACKDROP_CITY } from '@/state/stores/backdrop';
+import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
+import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { RECENTS } from '@/state/stores/source';
@@ -25,13 +27,10 @@ import { DISCOVER } from '@/state/stores/discover';
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
-export interface HomeViewProps {
-  onSubmit: (payload: SourcePayload) => void;
-  /** Abort the load this view is showing progress for. */
-  onCancel: () => void;
-}
-
-export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
+export function HomeView() {
+  useHomeBackdrop();
+  // The one way this view opens a project, whichever list or form asked.
+  const open = (payload: SourcePayload): void => void loadSource(payload);
   const opts = HOME_OPTS.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
@@ -122,7 +121,7 @@ export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
                   // The tails (clone %, files scanned) are computed into
                   // LOADING_OVERLAY even while this surface owns the load.
                   stepTails={LOADING_OVERLAY.value.stepTails}
-                  onCancel={onCancel}
+                  onCancel={cancelLoad}
                 />
               </div>
             </section>
@@ -139,7 +138,7 @@ export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
                   error={opts.error}
                   errorCode={opts.errorCode}
                   prefill={opts.prefill}
-                  onSubmit={onSubmit}
+                  onSubmit={open}
                   onDirty={clearHomeError}
                 />
               </section>
@@ -158,9 +157,9 @@ export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
                   class="landing-tabpanel"
                 >
                   {activeTab === SOURCE_TAB.recents ? (
-                    <RecentsList onOpen={onSubmit} />
+                    <RecentsList onOpen={open} />
                   ) : (
-                    <DiscoverList onOpen={onSubmit} />
+                    <DiscoverList onOpen={open} />
                   )}
                 </div>
               </section>
