@@ -1,54 +1,57 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { openBootPickerIfNeeded, readBootView } from '@/state/bootView';
+import { describe, it, expect, afterEach } from 'vitest';
+import { normalizeBootRoute, readBootView } from '@/state/bootView';
 import { NodeKind } from '@/types';
-import { PROJECTS_VIEW } from '@/state/stores/ui';
+import { HREF, navigate } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 
-function boot(search: string) {
-  history.replaceState(null, '', `/${search}`);
-  openBootPickerIfNeeded();
+function boot(href: string) {
+  navigate(href, { replace: true });
+  normalizeBootRoute();
 }
 
-describe('openBootPickerIfNeeded', () => {
-  beforeEach(() => {
-    PROJECTS_VIEW.value = { visible: false, opts: {} };
-  });
-
+describe('normalizeBootRoute', () => {
   afterEach(() => {
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
   });
 
-  it('opens the picker when there is no ?src to load', () => {
-    boot('');
-    expect(PROJECTS_VIEW.value.visible).toBe(true);
-    expect(PROJECTS_VIEW.value.opts.dismissible).toBe(false);
+  it('lands on home when there is no ?src to load', () => {
+    boot('/');
+    expect(HREF.value).toBe(ROUTES.HOME);
   });
 
-  // Reported bug: a bare ?src from the discover list used to land on the picker
-  // instead of the city you were looking at.
-  it('loads a remote ?src with no ?branch instead of diverting to the picker', () => {
-    boot('?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact');
-    expect(PROJECTS_VIEW.value.visible).toBe(false);
+  // Links minted before /city existed carry ?src at the root, and a bare ?src
+  // is a complete request: the server resolves the default branch.
+  it('moves a rooted ?src onto /city, params intact', () => {
+    boot('/?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact');
+    expect(HREF.value).toBe('/city?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact');
   });
 
-  it('loads a fully-specified ?src&?branch', () => {
-    boot('?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact&branch=main');
-    expect(PROJECTS_VIEW.value.visible).toBe(false);
+  it('carries every view param across the move', () => {
+    boot('/?src=%2Frepos%2Fcodecity&branch=main&mode=timeline&commit=abc&sel=file%3Aa.ts');
+    expect(HREF.value).toBe(
+      '/city?src=%2Frepos%2Fcodecity&branch=main&mode=timeline&commit=abc&sel=file%3Aa.ts'
+    );
   });
 
-  it('loads a local ?src', () => {
-    boot('?src=%2Frepos%2Fcodecity');
-    expect(PROJECTS_VIEW.value.visible).toBe(false);
+  it('leaves a ?src already on /city alone', () => {
+    boot('/city?src=%2Frepos%2Fcodecity');
+    expect(HREF.value).toBe('/city?src=%2Frepos%2Fcodecity');
+  });
+
+  it('sends a /city with no project home, since there is nothing to show', () => {
+    boot('/city');
+    expect(HREF.value).toBe(ROUTES.HOME);
   });
 });
 
 describe('readBootView', () => {
   const read = (search: string) => {
-    history.replaceState(null, '', `/${search}`);
+    navigate(`/city${search}`, { replace: true });
     return readBootView();
   };
 
   afterEach(() => {
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
   });
 
   it('reads the view the URL asks for', () => {

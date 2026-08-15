@@ -22,6 +22,8 @@ import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
+import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 
 const SRC = '/repos/codecity';
 // A loaded manifest, repo and all: commitSource reads it the way the header does.
@@ -30,7 +32,7 @@ const LOADED = {
   repo: { branch: 'main', remote_url: null, head_sha: 'abc', dirty: false },
 } as unknown as Manifest;
 
-const params = (): URLSearchParams => new URLSearchParams(window.location.search);
+const params = (): URLSearchParams => ROUTE_PARAMS.value;
 
 /** A source loaded and its city built, each through the function that really
  *  does it. */
@@ -43,13 +45,13 @@ describe('view URL', () => {
   let dispose: (() => void) | null = null;
 
   const attach = (search = ''): void => {
-    history.replaceState(null, '', `/${search}`);
+    navigate(`/city${search}`, { replace: true });
     dispose = attachViewUrlReactions();
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
     CURRENT_SOURCE.value = null;
     MANIFEST.value = EMPTY_MANIFEST;
     BUILT_MANIFEST.value = EMPTY_MANIFEST;
@@ -66,7 +68,7 @@ describe('view URL', () => {
     it('leaves the URL alone until a source is applied', () => {
       attach();
       PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: 'app/src/main.tsx' };
-      expect(window.location.search).toBe('');
+      expect(ROUTE_SEARCH.value).toBe('');
     });
 
     it('writes the selected file, and drops it when the selection is cleared', () => {

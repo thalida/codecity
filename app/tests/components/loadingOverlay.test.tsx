@@ -3,7 +3,6 @@ import { render } from 'preact';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import {
   LOADING_OVERLAY,
-  PROJECTS_VIEW,
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
@@ -12,6 +11,8 @@ import {
 } from '@/state/stores/ui';
 
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
+import { navigate } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 
@@ -38,7 +39,7 @@ afterEach(() => {
   render(null, container);
   container.remove();
   PENDING_SOURCE_LABEL.value = null;
-  PROJECTS_VIEW.value = { visible: false, opts: {} };
+  navigate(ROUTES.CITY, { replace: true });
 });
 
 describe('LoadingOverlay', () => {
@@ -48,12 +49,12 @@ describe('LoadingOverlay', () => {
 
   // Two full-viewport surfaces stacking would leave this overlay's no-controls
   // backdrop on top of the projects view's Cancel button.
-  it('stays hidden while the projects view is open, even mid-load', async () => {
+  it('stays hidden while the switcher route is up, even mid-load', async () => {
     showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
     expect(container.querySelector('.loading-backdrop')).not.toBeNull();
 
-    PROJECTS_VIEW.value = { visible: true, opts: {} };
+    navigate(ROUTES.HOME);
     await flush();
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });

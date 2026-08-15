@@ -78,7 +78,7 @@ describe('useSwitcherShowcase', () => {
   let container: HTMLDivElement;
 
   const openSwitcher = async () => {
-    openProjectsView({ dismissible: true });
+    openProjectsView();
     await flush();
   };
   const closeSwitcher = async () => {

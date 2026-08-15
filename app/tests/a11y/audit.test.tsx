@@ -1,9 +1,7 @@
-// axe-core over the app's interactive surfaces, plus structural guards for the
-// classes axe-in-jsdom misses: controls inside a <summary>, unnamed form
-// fields, orphan labels, positive tabindex.
-//
-// Contrast needs real layout, which jsdom lacks, so that rule is off here and
-// verified separately through the OKLCH token math.
+// axe-core over the app's interactive surfaces, plus structural guards for what
+// axe-in-jsdom misses: controls inside a <summary>, unnamed form fields, orphan
+// labels, positive tabindex. Contrast needs real layout, so that rule is off
+// here and verified separately through the OKLCH token math.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
@@ -83,10 +81,8 @@ const SURFACES: Surface[] = [
   {
     name: 'ControlsPane',
     mount: (c) => render(<ControlsPane />, c),
-    // The full panel (271 controls) is too slow to axe-scan under coverage.
-    // Buildings alone exercises every control kind (color/hue/number/range/
-    // select/slider/toggle); expand every disclosure so the controls are
-    // visible (axe skips display:none) and scan just that.
+    // The full panel is too slow to axe-scan under coverage; Buildings alone
+    // covers every control kind. Disclosures expand: axe skips display:none.
     axeMount: (c) => {
       render(<DynamicSection node={BUILDINGS_SECTION} />, c);
       c.querySelectorAll<HTMLElement>('.controls-disclosure-toggle').forEach((t) => t.click());
@@ -95,7 +91,7 @@ const SURFACES: Surface[] = [
   {
     name: 'ProjectsView',
     mount: (c) => {
-      openProjectsView({ dismissible: true });
+      openProjectsView();
       render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
     },
   },
@@ -108,7 +104,7 @@ const SURFACES: Surface[] = [
       DISCOVER.value = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
-      openProjectsView({ dismissible: true });
+      openProjectsView();
       render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
       openByLabel(c, 'More ways to open');
     },

@@ -11,6 +11,8 @@ import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
+import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {
@@ -76,28 +78,26 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
 });
 
 describe('clearSourceUrl', () => {
-  afterEach(() => history.replaceState(null, '', '/'));
+  afterEach(() => navigate(ROUTES.HOME, { replace: true }));
 
-  it('drops the load AND what was being viewed of it', () => {
+  it('drops the load AND what was being viewed of it, and goes home', () => {
     // A cancel with no city to fall back to leaves the switcher open over
     // nothing: a reload must not re-run the load that was just called off.
-    history.replaceState(
-      null,
-      '',
-      '/?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
+    navigate(
+      '/city?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
     );
     clearSourceUrl();
 
-    expect(new URL(window.location.href).search).toBe('');
+    expect(HREF.value).toBe(ROUTES.HOME);
   });
 
   it('leaves anything it does not own alone', () => {
-    history.replaceState(null, '', '/?src=/proj&utm_source=x');
+    navigate('/city?src=/proj&utm_source=x');
     clearSourceUrl();
 
-    const params = new URL(window.location.href).searchParams;
-    expect(params.has('src')).toBe(false);
-    expect(params.get('utm_source')).toBe('x');
+    expect(ROUTE_PATH.value).toBe(ROUTES.HOME);
+    expect(ROUTE_PARAMS.value.has('src')).toBe(false);
+    expect(ROUTE_PARAMS.value.get('utm_source')).toBe('x');
   });
 });
 

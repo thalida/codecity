@@ -11,12 +11,13 @@ import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
 import { LandingBackdrop } from '@/components/LandingBackdrop/LandingBackdrop';
 import {
-  PROJECTS_VIEW,
+  PROJECTS_VIEW_OPTS,
+  SWITCHER_DISMISSIBLE,
   LOADING_OVERLAY,
   clearProjectsViewError,
-  FEATURED_CITY,
   type SourcePayload,
 } from '@/state/stores/ui';
+import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { RECENTS } from '@/state/stores/source';
@@ -38,7 +39,10 @@ export interface ProjectsViewProps {
 }
 
 export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps) {
-  const pv = PROJECTS_VIEW.value;
+  // Mounted BY the home route, so there is no visibility to check: being
+  // rendered is what "open" means, and unmounting resets the form.
+  const opts = PROJECTS_VIEW_OPTS.value;
+  const dismissible = SWITCHER_DISMISSIBLE.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -52,11 +56,6 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
     ...(hasDiscover ? [{ id: SOURCE_TAB.discover, label: 'Discover', icon: Compass }] : []),
   ];
   const [pickedTab, setPickedTab] = useState<string | null>(null);
-  // Cleared on close, not on open: this returns null rather than unmounting, so
-  // resetting on the way in would be a visible flip.
-  useEffect(() => {
-    if (!pv.visible) setPickedTab(null);
-  }, [pv.visible]);
   // With nothing of your own yet, Discover is the tab with something in it.
   const defaultTab = !hasRecents && hasDiscover ? SOURCE_TAB.discover : SOURCE_TAB.recents;
   // During render, not via an effect: the server's list lands after first paint
@@ -65,38 +64,36 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
 
   // Dismissible means it floats over a city, so it's a real dialog and traps
   // focus. The landing IS the page, with nothing behind to trap against.
-  const isModal = pv.visible && pv.opts.dismissible;
+  const isModal = dismissible;
   useDialogFocus(isModal, rootRef);
 
   // Escape closes the page when dismissible and not mid-load.
   useEffect(() => {
-    if (!pv.visible || !pv.opts.dismissible) return;
+    if (!dismissible) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !loading) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [pv.visible, pv.opts.dismissible, loading, onClose]);
-
-  if (!pv.visible) return null;
+  }, [dismissible, loading, onClose]);
 
   return (
     <div
       ref={rootRef}
-      class={`landing${pv.opts.dismissible ? ' landing--modal' : ''}`}
+      class={`landing${dismissible ? ' landing--modal' : ''}`}
       role={isModal ? 'dialog' : undefined}
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
       {/* The swirl is the fallback, so it yields to any real city behind it and
           stays put while one is still streaming. */}
-      {!pv.opts.dismissible && !FEATURED_CITY.value && (
+      {!dismissible && !BACKDROP_CITY.value && (
         <div class="landing-stage" aria-hidden="true">
           <LandingBackdrop />
         </div>
       )}
 
-      {pv.opts.dismissible && !loading && (
+      {dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
           <X class="icon" />
         </button>
@@ -119,9 +116,9 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
           <p class="landing-tagline">Turn any git repo into a 3D city</p>
           {/* Set only once the city is painted, so it can't name something you
               can't see. */}
-          {FEATURED_CITY.value && (
+          {BACKDROP_CITY.value && (
             <p class="landing-featured">
-              You're looking at <strong>{FEATURED_CITY.value.label}</strong>
+              You're looking at <strong>{BACKDROP_CITY.value.label}</strong>
             </p>
           )}
           <ul class="landing-delights">
@@ -174,12 +171,12 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                 <NewProjectForm
                   // Remount on a new prefill so a failed submit restores what
                   // was typed instead of clearing it.
-                  key={pv.opts.prefill?.src ?? ''}
+                  key={opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   hosted={SERVER_CONFIG.value.hosted}
-                  error={pv.opts.error}
-                  errorCode={pv.opts.errorCode}
-                  prefill={pv.opts.prefill}
+                  error={opts.error}
+                  errorCode={opts.errorCode}
+                  prefill={opts.prefill}
                   onSubmit={onSubmit}
                   onDirty={clearProjectsViewError}
                 />

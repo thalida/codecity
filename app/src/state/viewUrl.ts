@@ -6,6 +6,7 @@
 import { signal, effect, type Signal } from '@preact/signals';
 
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM, SELECTION_KIND_PARAMS } from '@/constants/urlParams';
+import { setRouteParams, type NavigateOptions } from '@/state/route';
 import { readBootView, type BootView } from '@/state/bootView';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/manifest';
@@ -22,6 +23,8 @@ import { sameSourceIdentity } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
+
+const REPLACE: NavigateOptions = { replace: true };
 
 // ── Encoding ─────────────────────────────────────────────────────────
 
@@ -47,14 +50,17 @@ function setOrDelete(params: URLSearchParams, key: string, value: string | null)
 
 function reflectViewToUrl(): void {
   const timeline = TIMELINE_MODE.value;
-  const url = new URL(window.location.href);
-  setOrDelete(url.searchParams, VIEW_PARAMS.MODE, timeline ? TIMELINE_MODE_PARAM : null);
-  // A scrub position only means something in Timeline: back in Live you are at
-  // HEAD, so the commit leaves with the mode.
-  setOrDelete(url.searchParams, VIEW_PARAMS.COMMIT, timeline ? settledCommitSha() : null);
-  setOrDelete(url.searchParams, VIEW_PARAMS.SELECTION, selectionParam(PICKER_SELECTION_KEY.value));
-  const next = url.toString();
-  if (next !== window.location.href) history.replaceState(null, '', next);
+  const selection = selectionParam(PICKER_SELECTION_KEY.value);
+  const commit = timeline ? settledCommitSha() : null;
+  // Replace, always: none of these is a place the user asked to go, and a drag
+  // would otherwise bury their own history under a hundred entries.
+  setRouteParams((params) => {
+    setOrDelete(params, VIEW_PARAMS.MODE, timeline ? TIMELINE_MODE_PARAM : null);
+    // A scrub position only means something in Timeline: back in Live you are at
+    // HEAD, so the commit leaves with the mode.
+    setOrDelete(params, VIEW_PARAMS.COMMIT, commit);
+    setOrDelete(params, VIEW_PARAMS.SELECTION, selection);
+  }, REPLACE);
 }
 
 // ── Restore ──────────────────────────────────────────────────────────

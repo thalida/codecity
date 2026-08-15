@@ -3,13 +3,14 @@
 // mode's call to make), by the reflection that keeps it up to date, and by the
 // pre-paint picker decision below.
 
-import { openProjectsView } from '@/state/stores/ui';
 import {
   URL_PARAMS,
   VIEW_PARAMS,
   TIMELINE_MODE_PARAM,
   SELECTION_KIND_PARAMS,
 } from '@/constants/urlParams';
+import { ROUTES } from '@/constants/routes';
+import { ROUTE_PARAMS, ROUTE_PATH, navigate, hrefFor } from '@/state/route';
 import { identityBranch } from '@/utils/sources';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
@@ -41,7 +42,7 @@ export function parseSelection(raw: string | null): PickerSelectionKey | null {
 }
 
 export function readBootView(): BootView {
-  const qp = new URLSearchParams(window.location.search);
+  const qp = ROUTE_PARAMS.peek();
   const src = qp.get(URL_PARAMS.SRC);
   return {
     src,
@@ -54,8 +55,14 @@ export function readBootView(): BootView {
   };
 }
 
-// Runs pre-paint (main.tsx), so the landing covers the chrome on frame one. A
-// bare ?src is a complete request: the server resolves origin's default branch.
-export function openBootPickerIfNeeded(): void {
-  if (!readBootView().src) openProjectsView({ dismissible: false });
+// Runs pre-paint (main.tsx) so the first render is already on the right route.
+// A bare ?src is complete: the server resolves origin's default branch.
+export function normalizeBootRoute(): void {
+  const params = ROUTE_PARAMS.peek();
+  const hasSrc = !!params.get(URL_PARAMS.SRC);
+  const path = ROUTE_PATH.peek();
+  // Links from before /city existed carry ?src at the root.
+  if (hasSrc && path !== ROUTES.CITY) navigate(hrefFor(ROUTES.CITY, params), { replace: true });
+  // /city describes a project; without one there is nothing for it to show.
+  else if (!hasSrc && path !== ROUTES.HOME) navigate(ROUTES.HOME, { replace: true });
 }

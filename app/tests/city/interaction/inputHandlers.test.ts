@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/ui';
 import { SCENE_HANDLE } from '@/state/stores/scene';
+import { navigate } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 import { NodeKind } from '@/types';
 
 vi.mock('three', async () => {
@@ -27,6 +29,8 @@ describe('scene keydown handler — modal suppression', () => {
   let cities: Array<Awaited<ReturnType<typeof createCity>>> = [];
 
   beforeEach(() => {
+    // Over a city: home IS the switcher, which owns the keyboard.
+    navigate(ROUTES.CITY, { replace: true });
     let calls = 0;
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
@@ -42,6 +46,7 @@ describe('scene keydown handler — modal suppression', () => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
     closeShortcuts();
+    navigate(ROUTES.HOME, { replace: true });
     SCENE_HANDLE.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });

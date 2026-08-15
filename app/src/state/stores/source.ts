@@ -8,6 +8,8 @@ import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
+import { ROUTES } from '@/constants/routes';
+import { navigate, hrefFor, ROUTE_SEARCH } from '@/state/route';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
@@ -17,7 +19,7 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import { FEATURED_CITY } from '@/state/stores/ui';
+import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { Manifest } from '@/types';
@@ -43,8 +45,8 @@ export const SOURCE_ERROR = signal<{
 export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>(() => {
   const current = CURRENT_SOURCE.value;
   if (current) return current;
-  const featured = FEATURED_CITY.value;
-  return featured ? { src: featured.src, branch: featured.branch } : null;
+  const backdrop = BACKDROP_CITY.value;
+  return backdrop ? { src: backdrop.src, branch: backdrop.branch } : null;
 });
 
 /** The loaded source's stable hash, or null. Namespaces per-source storage. */
@@ -52,26 +54,28 @@ export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
 
-/** Drop the load from the URL, view params included: a cancel with nothing to
- *  fall back to must not leave a reload re-running the load it called off. */
+/** Drop the load from the URL and go home: a cancel with nothing to fall back
+ *  to must not leave a reload re-running what it called off. */
 export function clearSourceUrl(): void {
-  const url = new URL(window.location.href);
+  // Anything the app does not own (an ?utm_source, say) rides along home: only
+  // the params describing the load that was called off are dropped.
+  const params = new URLSearchParams(ROUTE_SEARCH.peek());
   for (const key of [...Object.values(URL_PARAMS), ...Object.values(VIEW_PARAMS)]) {
-    url.searchParams.delete(key);
+    params.delete(key);
   }
-  history.replaceState(null, '', url.toString());
+  navigate(hrefFor(ROUTES.HOME, params), { replace: true });
 }
 
-// Reflect the applied source in the URL so reload/share reopens it. No-ops
-// while null, so a cold boot can't clobber the ?src it is loading from.
+// Reflect the applied source so reload/share reopens it, moving to /city if the
+// load began at home. Replaces: asking for the project was the push.
 effect(() => {
   const cur = CURRENT_SOURCE.value;
   if (!cur) return;
-  const url = new URL(window.location.href);
-  url.searchParams.set(URL_PARAMS.SRC, cur.src);
-  if (cur.branch) url.searchParams.set(URL_PARAMS.BRANCH, cur.branch);
-  else url.searchParams.delete(URL_PARAMS.BRANCH);
-  history.replaceState(null, '', url.toString());
+  const params = new URLSearchParams(ROUTE_SEARCH.peek());
+  params.set(URL_PARAMS.SRC, cur.src);
+  if (cur.branch) params.set(URL_PARAMS.BRANCH, cur.branch);
+  else params.delete(URL_PARAMS.BRANCH);
+  navigate(hrefFor(ROUTES.CITY, params), { replace: true });
 });
 
 export interface SourceInfo {

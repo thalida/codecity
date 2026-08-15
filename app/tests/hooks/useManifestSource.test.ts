@@ -17,6 +17,8 @@ import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
+import { navigate } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;
@@ -321,18 +323,18 @@ describe('the boot load runs the mode the URL asks for', () => {
     StubEventSource.instances = [];
     SOURCE_ERROR.value = null;
     TIMELINE_MODE.value = false;
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
   });
 
   afterEach(() => {
     restoreEventSource();
     setTimelineBootHandler(null);
     TIMELINE_MODE.value = false;
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
   });
 
   const boot = (search: string): Promise<void> => {
-    history.replaceState(null, '', `/${search}`);
+    navigate(`/city${search}`, { replace: true });
     return bootLoad(readBootView());
   };
 

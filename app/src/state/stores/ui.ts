@@ -6,6 +6,9 @@
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
+import { ROUTES } from '@/constants/routes';
+import { HREF, ROUTE_PATH, navigate } from '@/state/route';
+import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SidebarTab } from '@/types/ui';
 import type { ScanErrorCode } from '@/api/manifest';
 
@@ -21,10 +24,10 @@ export interface SourcePayload {
   skipCache?: boolean;
 }
 
-/** Options for opening the source picker. */
+/** Options for opening the source picker. Whether it can be dismissed is NOT
+ *  among them: that is whether a city is loaded (see SWITCHER_DISMISSIBLE). */
 export interface OpenOpts {
   prefill?: SourcePayload;
-  dismissible?: boolean; // default: false
   error?: string;
   /** The failure's machine-readable reason, where the server gave one, so the
    *  form can offer a remedy instead of only echoing the message. */
@@ -41,52 +44,49 @@ export interface LoadingOverlayShowOpts {
 
 // ── Projects view ────────────────────────────────────────────────────────────
 
-export interface ProjectsViewState {
-  visible: boolean;
-  opts: OpenOpts;
-}
+/** The switcher IS home: it shows because of where you are, not because a flag
+ *  says so, which is what makes back/forward land on it correctly. */
+export const ON_HOME = computed(() => ROUTE_PATH.value === ROUTES.HOME);
 
-export const PROJECTS_VIEW = signal<ProjectsViewState>({
-  visible: false,
-  opts: {},
-});
+/** Per-open extras: what to prefill, what went wrong. Not visibility. */
+export const PROJECTS_VIEW_OPTS = signal<OpenOpts>({});
 
-/** Open the projects view. */
+/** Dismissible when there is a city to go back to. Derived, not passed in: a
+ *  browser Back onto home has no caller to say which kind of open it is. */
+export const SWITCHER_DISMISSIBLE = computed(() => CURRENT_SOURCE.value !== null);
+
+/** The switcher over a loaded city: the only case with something behind it to
+ *  turn into a backdrop, which is what drives the showcase. */
+export const SWITCHER_SHOWCASE = computed(() => ON_HOME.value && SWITCHER_DISMISSIBLE.value);
+
+/** Where the switcher was opened from, so dismissing returns to the exact view
+ *  it covered (mode, scrub commit and selection included). */
+const COVERED_HREF = signal<string | null>(null);
+
+/** Go to the switcher. A destination the user asked for, so it pushes. */
 export function openProjectsView(opts: OpenOpts = {}): void {
-  PROJECTS_VIEW.value = { visible: true, opts };
+  PROJECTS_VIEW_OPTS.value = opts;
+  const here = HREF.peek();
+  if (here !== ROUTES.HOME) COVERED_HREF.value = here;
+  navigate(ROUTES.HOME);
 }
 
-/** peek, not value: a reaction calls this from inside an effect, and tracking
- *  it would make opening the view immediately close it again. */
+/** Leave the switcher for the view it covered. peek throughout: reactions call
+ *  this from inside effects, where tracking would feed back on itself. */
 export function closeProjectsView(): void {
-  PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
+  // Nothing loaded means nothing to go back TO, whatever we were covering when
+  // the last city was dropped: leaving would land on a /city with no project.
+  if (!SWITCHER_DISMISSIBLE.peek()) return;
+  const covered = COVERED_HREF.peek();
+  if (covered) navigate(covered);
 }
 
-/** The city behind the landing, written only once it has actually painted, so
- *  nothing names a repo you can't see. */
-export const FEATURED_CITY = signal<{
-  src: string;
-  label: string;
-  /** The loaded branch, normalised like CURRENT_SOURCE's: identity includes it,
-   *  so a row storing @main only matches when this carries it too. */
-  branch?: string;
-} | null>(null);
-
-/** The switcher open over a loaded city: the only case with something behind it
- *  to turn into a backdrop, which is what drives the showcase. */
-export const SWITCHER_SHOWCASE = computed(
-  () => PROJECTS_VIEW.value.visible && PROJECTS_VIEW.value.opts.dismissible === true
-);
-
-/** Drop a stale error banner without disturbing the view or its prefill. No-ops
- *  with no error, so it is cheap on every keystroke. */
+/** Drop a stale error banner without disturbing the prefill. No-ops with no
+ *  error, so it is cheap on every keystroke. */
 export function clearProjectsViewError(): void {
-  const prev = PROJECTS_VIEW.peek();
-  if (!prev.opts.error) return;
-  PROJECTS_VIEW.value = {
-    ...prev,
-    opts: { ...prev.opts, error: undefined, errorCode: undefined },
-  };
+  const prev = PROJECTS_VIEW_OPTS.peek();
+  if (!prev.error) return;
+  PROJECTS_VIEW_OPTS.value = { ...prev, error: undefined, errorCode: undefined };
 }
 
 // ── Left sidebar ─────────────────────────────────────────────────────────────
@@ -222,5 +222,5 @@ export function closeDebug(): void {
 /** True while any modal (projects view, shortcuts, debug) is open. Scene input
  *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
 export const OVERLAY_OPEN = computed(
-  () => PROJECTS_VIEW.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+  () => ON_HOME.value || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
 );

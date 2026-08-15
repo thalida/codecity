@@ -6,22 +6,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import {
-  PROJECTS_VIEW,
+  PROJECTS_VIEW_OPTS,
   openProjectsView,
-  closeProjectsView,
   setLoadingStepTail,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
+import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
+import { navigate } from '@/state/route';
+import { ROUTES } from '@/constants/routes';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
-import { FEATURED_CITY } from '@/state/stores/ui';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
 import { flush, drainAsync } from '../../_helpers/preact';
+
+/** A city behind the switcher: what makes it dismissible, and a modal. */
+function loadedCity(): void {
+  CURRENT_SOURCE.value = { src: 'https://github.com/o/loaded', branch: 'main' };
+}
 
 describe('ProjectsView', () => {
   let container: HTMLDivElement;
@@ -35,24 +41,20 @@ describe('ProjectsView', () => {
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    closeProjectsView();
+    navigate(ROUTES.HOME, { replace: true });
+    PROJECTS_VIEW_OPTS.value = {};
+    CURRENT_SOURCE.value = null;
     SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
     RECENTS.value = [];
     DISCOVER.value = [];
-    FEATURED_CITY.value = null;
+    BACKDROP_CITY.value = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('renders nothing when closed', async () => {
-    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
-    await flush();
-    expect(container.querySelector('.landing')).toBeNull();
-  });
-
   it('renders the new-project form when open and idle', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
@@ -60,7 +62,7 @@ describe('ProjectsView', () => {
   });
 
   it('shows inline progress and hides the form/recents while a load is in flight', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'o/r', lastOpenedAt: 1 },
     ];
@@ -85,7 +87,7 @@ describe('ProjectsView', () => {
   });
 
   it('forwards per-step tails (clone %) into the inline switcher progress', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
     setLoadingStepTail(LoadingStep.Cloning, '45% (Receiving)');
@@ -99,7 +101,7 @@ describe('ProjectsView', () => {
   });
 
   it('wires the Cancel button to onCancel', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     const onCancel = vi.fn();
     render(<ProjectsView onSubmit={() => {}} onCancel={onCancel} onClose={() => {}} />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
@@ -114,7 +116,7 @@ describe('ProjectsView', () => {
   });
 
   it('does not show a close button while loading, even when dismissible', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await flush();
@@ -122,7 +124,8 @@ describe('ProjectsView', () => {
   });
 
   it('drops a stale error banner once a new load starts', async () => {
-    openProjectsView({ dismissible: true, error: 'repository not found' });
+    loadedCity();
+    openProjectsView({ error: 'repository not found' });
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
     expect(container.textContent).toMatch(/repository not found/i);
@@ -133,8 +136,8 @@ describe('ProjectsView', () => {
   });
 
   it('drops a stale error banner as soon as the user edits the source', async () => {
+    loadedCity();
     openProjectsView({
-      dismissible: true,
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     });
@@ -154,7 +157,7 @@ describe('ProjectsView', () => {
   });
 
   it('closes on Escape only when dismissible and not loading', async () => {
-    openProjectsView({ dismissible: true });
+    loadedCity();
     const onClose = vi.fn();
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={onClose} />, container);
     await flush();
@@ -181,7 +184,6 @@ describe('ProjectsView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      openProjectsView({ dismissible: true });
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
@@ -264,7 +266,12 @@ describe('ProjectsView', () => {
       const src = 'https://github.com/thalida/codecity';
       RECENTS.value = [{ src, branch: 'main', label: 'thalida/codecity', lastOpenedAt: 1 }];
       DISCOVER.value = [{ url: src, label: 'codecity', featured: true }];
-      FEATURED_CITY.value = { src, label: 'thalida/codecity', branch: 'main' };
+      BACKDROP_CITY.value = {
+        src,
+        label: 'thalida/codecity',
+        branch: 'main',
+        kind: BackdropKind.Featured,
+      };
       await open();
       expect(
         container.querySelector('[data-list="recents"] .source-row--active .source-row-note')
@@ -273,8 +280,8 @@ describe('ProjectsView', () => {
     });
 
     it('forgets a picked tab when the switcher closes', async () => {
-      // Regression: the view stays mounted while hidden, so a tab picked
-      // once became the tab every later open landed on.
+      // The route unmounts the view on close, which resets the tab: it used to
+      // stay mounted and hidden, so one pick stuck for every later open.
       RECENTS.value = [RECENT];
       DISCOVER.value = CURATED;
       await open();
@@ -285,10 +292,9 @@ describe('ProjectsView', () => {
       await flush();
       expect(container.querySelector('[data-list="discover"]')).not.toBeNull();
 
-      closeProjectsView();
+      render(null, container); // leaving home
       await flush();
-      openProjectsView({ dismissible: true });
-      await flush();
+      await open(); // and coming back
       expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
       expect(container.querySelector('[data-list="discover"]')).toBeNull();
     });
@@ -296,7 +302,7 @@ describe('ProjectsView', () => {
     it('opens the source a Discover row names', async () => {
       const onSubmit = vi.fn();
       DISCOVER.value = CURATED;
-      openProjectsView({ dismissible: true });
+      loadedCity();
       render(
         <ProjectsView onSubmit={onSubmit} onCancel={() => {}} onClose={() => {}} />,
         container
@@ -330,7 +336,7 @@ describe('ProjectsView', () => {
     const featured = () => container.querySelector('.landing-featured');
 
     it('stages a backdrop on a cold boot, where there is no city to reveal', async () => {
-      openProjectsView({ dismissible: false });
+      openProjectsView();
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
@@ -342,7 +348,7 @@ describe('ProjectsView', () => {
     });
 
     it('stages nothing over a loaded city, which is already the backdrop', async () => {
-      openProjectsView({ dismissible: true });
+      loadedCity();
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
@@ -352,7 +358,7 @@ describe('ProjectsView', () => {
     });
 
     it('names the city on screen once it has actually painted', async () => {
-      openProjectsView({ dismissible: false });
+      openProjectsView();
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
@@ -361,17 +367,14 @@ describe('ProjectsView', () => {
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
 
-      FEATURED_CITY.value = {
+      BACKDROP_CITY.value = {
         src: 'https://github.com/thalida/codecity',
         label: 'thalida/codecity',
+        kind: BackdropKind.Featured,
       };
       await flush();
       expect(featured()!.textContent).toContain('thalida/codecity');
     });
-  });
-
-  it('reflects the PROJECTS_VIEW signal directly', () => {
-    expect(PROJECTS_VIEW.value.visible).toBe(false);
   });
 
   // The landing covers the app header and footer, so without these a cold
@@ -379,7 +382,8 @@ describe('ProjectsView', () => {
   describe('identity line', () => {
     const renderLanding = async (opts: { dismissible: boolean }) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
-      openProjectsView(opts);
+      if (opts.dismissible) loadedCity();
+      openProjectsView();
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
