@@ -8,6 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
+import { isEmptyManifest } from '@/utils/manifest';
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
@@ -135,10 +136,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
-    if (key !== null && key !== lastReframedSourceKey) {
-      lastReframedSourceKey = key;
-      untracked(() => rig.reset());
-    }
+    if (key === null || key === lastReframedSourceKey) return;
+    // Not the boot city, whose childless root still lays out a street: a scene
+    // built for an already-loaded source would frame that and skip the city.
+    if (isEmptyManifest(cityState.manifest.peek())) return;
+    lastReframedSourceKey = key;
+    untracked(() => rig.reset());
   });
 
   const postFx = createPostFx(renderer, scene, rig.camera);

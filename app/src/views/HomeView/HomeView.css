@@ -1,7 +1,6 @@
 /* ── codecity landing: the `/` route ────────────────────────────────────────
-   The whole page, not an overlay over one: a brand hero and an action panel,
-   side by side with room and stacked without. The gem palette
-   (lime/cyan/purple/magenta) colors the "what it does" cues. */
+   The page itself (a <main>), not an overlay over one: a brand hero and an
+   action panel, side by side with room and stacked without. */
 
 .landing {
   position: relative;

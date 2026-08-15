@@ -54,7 +54,7 @@ export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
   const painted = BACKDROP_CITY.value !== null;
 
   return (
-    <div class="landing" aria-label="codecity: open a project">
+    <main class="landing">
       {/* Wallpaper first, the city over it once one paints: here the canvas is
           decoration, so it carries no chrome and no controls. */}
       <div class={`landing-stage${painted ? ' is-painted' : ''}`} aria-hidden="true">
@@ -168,6 +168,6 @@ export function HomeView({ onSubmit, onCancel }: HomeViewProps) {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
