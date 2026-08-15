@@ -32,11 +32,12 @@ from api.models.events import (
     TimelineStage,
     TimelineProgressEvent,
 )
-from api.models.manifest import SignatureResponse
+from api.models.manifest import Manifest, SignatureResponse
 from api.security import TRUST
 from api.cache import (
     cache_clear_timeline,
     cache_load_manifest,
+    cache_load_newest_manifest,
     cache_load_ref_manifest,
     cache_load_timeline,
     cache_save_manifest,
@@ -52,6 +53,7 @@ from api.git import (
     ResolveError,
     SourceKind,
     classify,
+    clone_dir_for,
     ensure_clone,
     fetch_lfs_history,
     hydrate_blobs,
@@ -103,6 +105,44 @@ def signature(
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
     return SignatureResponse.model_validate(dict(sig))
+
+
+@router.get(
+    "/manifest/cached",
+    response_model=Manifest,
+    responses={404: {"description": "Nothing cached for this source."}},
+)
+def cached_manifest(
+    src: str = Query(...),
+    branch: str | None = Query(None),
+) -> Any:
+    """The newest manifest already on disk for this source, or 404. Never
+    scans, never clones, never resolves a ref over the network.
+
+    Backs the landing backdrop, which wants a city to show rather than a
+    current one. Everything else wants the truth and goes to /api/manifest."""
+    if not src:
+        raise HTTPException(400, "missing 'src' query param")
+    kind = classify(src)
+    if kind is SourceKind.INVALID:
+        raise HTTPException(400, "unrecognized source: pass a local path or a git URL")
+    if kind is SourceKind.REMOTE:
+        # The clone dir is keyed on the branch AS PASSED, so a repo first opened
+        # without one (server-resolved default) lives somewhere else than the
+        # branch the client later recorded for it. Both are the same repo here.
+        roots = [clone_dir_for(src, branch)]
+        if branch:
+            roots.append(clone_dir_for(src, None))
+    else:
+        try:
+            roots = [resolve_local(src)]
+        except ResolveError:
+            raise HTTPException(404, "nothing cached for this source")
+    for root in roots:
+        manifest = cache_load_newest_manifest(root)
+        if manifest is not None:
+            return manifest
+    raise HTTPException(404, "nothing cached for this source")
 
 
 TimelineSSEEvent = Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEvent]

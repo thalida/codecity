@@ -584,6 +584,28 @@ def cache_load_manifest(
     return _load_gz_manifest(_manifest_cache_path(abs_root, content_signature))
 
 
+def cache_load_newest_manifest(abs_root: Path) -> "Manifest | None":
+    """The most recently written CONTENT manifest for this root, whatever
+    signature it was scanned at, or None if this root was never scanned.
+
+    For the landing backdrop, which wants a city to show rather than a current
+    one: staleness is invisible in wallpaper, and scanning to avoid it would
+    cost a full walk on every cold boot."""
+    prefix = f"{repo_key(abs_root)}{KEY_SEP}"
+    newest: tuple[float, Path] | None = None
+    for path in _manifest_dir().glob(_manifest_glob(abs_root)):
+        # _entry_family reads the part after the repo key, as prune does.
+        if _entry_family(path.name[len(prefix) :]) is not ManifestFamily.CONTENT:
+            continue
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue  # vanished under us
+        if newest is None or mtime > newest[0]:
+            newest = (mtime, path)
+    return _load_gz_manifest(newest[1]) if newest else None
+
+
 def cache_save_manifest(
     abs_root: Path,
     content_signature: str,
