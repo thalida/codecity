@@ -1,20 +1,15 @@
 /* FreshnessStatus — one dot, two channels of state. Colour says what the
    rebuild is doing; animation says whether the live poll is running. */
-/* Layout: [dot] <status text>
- * One dot, two channels:
- *   color     = rebuild state (green/yellow/red)
- *   animation = live state (heartbeat when polling, static when paused)
- * Rebuilding takes precedence: dot pulses fast regardless of live state.
- * Error: static red (the alert effect comes from the color, not motion). */
+/* Layout: [dot] <status text>. Rebuilding outranks the live state: the dot
+   pulses fast either way. Error is static red, alerting by colour alone. */
 .freshness-status {
   display: inline-flex;
   align-items: center;
   gap: var(--cc-space-3);
 }
-/* Shape in .dot above; state-driven colors come from the .is-* parent
-   modifiers below. */
+/* Its tone is the trigger's, set with the count's in ScanMenu.css: two greys
+   beside each other read as an accident. State colours are on the dot. */
 .freshness-status-detail {
-  color: var(--cc-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

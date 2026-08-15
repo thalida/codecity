@@ -1,6 +1,7 @@
-/* Design tokens: scale tokens hold values, base aliases point at one step of a
-   scale so swapping the alias rebases that default everywhere. Nothing outside
-   this file hard-codes a value. See docs/ui-component-system.md. */
+/* Design tokens: scale tokens hold values, -base aliases point at the step a
+   scale defaults to. Nothing outside this file hard-codes a value, and no rule
+   anywhere dims a token with opacity to reach a tone between two steps.
+   See docs/ui-component-system.md. */
 
 :root {
   /* Naming: -light / -dark shade a colour; -bg-soft / -bg / -bg-strong /
@@ -21,20 +22,20 @@
   --cc-border-tooltip: oklch(0.32 0.058 274.6);
   --cc-track: oklch(0.23 0.023 277);
   --cc-track-hover: oklch(0.355 0.042 276.7);
-  --cc-border-base: var(--cc-border-subtle);
 
   /* Its own value, not an alias: the other badges take their object's colour in
      the city, and a commit's tree is too dark to read as a label. */
   --cc-badge-commit-bg: oklch(0.355 0.042 276.7);
 
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
-  --cc-text-strong: oklch(0.921 0.023 275.3); /* emphasis / hover / active / titles */
-  --cc-text-primary: oklch(0.823 0.028 276.8); /* default body copy */
-  --cc-text-secondary: oklch(0.655 0.038 276.4); /* subtitles, subtext, captions, meta */
-  --cc-text-muted: oklch(
-    0.596 0.063 276.8
-  ); /* hints, placeholders, resting icon buttons; L holds ≥4.5:1 on the sidebar surface */
-  --cc-text-faint: oklch(0.407 0.037 276.6); /* decorative separators only */
+  /* One ladder: L falls a step at a time and chroma rises toward the surface's,
+     so a dimmer step is the same grey further back, not a different grey. */
+  --cc-text-strong: oklch(0.921 0.023 279.4); /* emphasis / hover / active / titles */
+  --cc-text-primary: oklch(0.823 0.029 279.4); /* default body copy */
+  --cc-text-secondary: oklch(0.655 0.034 279.4); /* subtitles, subtext, captions, meta */
+  /* L holds ≥4.5:1 on the sidebar surface. */
+  --cc-text-muted: oklch(0.596 0.04 279.4); /* hints, placeholders, resting icon buttons */
+  --cc-text-faint: oklch(0.407 0.046 279.4); /* decorative separators only */
   --cc-text-inverse: oklch(0.148 0.013 284.7); /* dark text on accent CTA */
   --cc-text-base: var(--cc-text-primary);
 
@@ -69,7 +70,6 @@
   --cc-success-dark: oklch(0.681 0.123 157.3);
   --cc-success-bg: color-mix(in oklch, var(--cc-success) 10%, transparent);
   --cc-warning: oklch(0.837 0.164 84.4);
-  --cc-warning-bg: color-mix(in oklch, var(--cc-warning) 15%, transparent);
   --cc-error: oklch(0.637 0.208 25.3);
   --cc-error-light: oklch(0.843 0.088 25.3); /* light shade of --cc-error (shares its hue) */
   --cc-error-bg: color-mix(in oklch, var(--cc-error) 18%, transparent);
@@ -100,10 +100,6 @@
   --cc-syntax-string-bg: color-mix(in oklch, var(--cc-syntax-string) 8%, transparent);
   --cc-syntax-deletion-bg: color-mix(in oklch, var(--cc-syntax-deletion) 8%, transparent);
 
-  /* ── Back-compat aliases for prior commits ───────────────────────────── */
-  --cc-hover-overlay: var(--cc-overlay-bg);
-  --cc-hover-overlay-sm: var(--cc-overlay-bg-soft);
-
   /* ── SCALES — Spacing ─────────────────────────────────────────────────── */
   --cc-space-0: 0;
   --cc-space-px: 1px; /* hairline (kbd padding, dense badges) */
@@ -116,7 +112,6 @@
   --cc-space-7: 16px;
   --cc-space-8: 24px;
   --cc-space-9: 32px;
-  --cc-space-base: var(--cc-space-4);
   /* Pane edge to its content. Body padding, row insets and full-bleed margins
      all key off it, so they reflow together. */
   --cc-pane-inset: var(--cc-space-6);
@@ -152,7 +147,6 @@
   --cc-radius-lg: 10px; /* outer modal/loading card */
   --cc-radius-pill: 100px; /* fully rounded pill */
   --cc-radius-circle: 50%; /* dots, slider thumbs, spinner */
-  --cc-radius-base: var(--cc-radius-sm);
 
   /* ── SCALES — Font sizes ──────────────────────────────────────────────── */
   --cc-font-2xs: 10px;
@@ -162,15 +156,12 @@
   --cc-font-lg: 18px;
   --cc-font-xl: 22px;
   --cc-font-2xl: 28px;
-  --cc-font-base: var(--cc-font-md); /* body / default */
-  --cc-font-root: var(--cc-font-md); /* html/body */
 
   /* ── SCALES — Font weights ────────────────────────────────────────────── */
   --cc-fw-normal: 400;
   --cc-fw-medium: 500;
   --cc-fw-semibold: 600;
   --cc-fw-bold: 700;
-  --cc-fw-base: var(--cc-fw-normal);
 
   /* ── SCALES — Font families ───────────────────────────────────────────── */
   --cc-font-sans:
@@ -180,7 +171,6 @@
 
   /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
   --cc-track-label: 0.08em; /* uppercase section labels */
-  --cc-track-base: 0;
 
   /* ── SCALES — Line height (leading) ──────────────────────────────────── */
   --cc-lh-tight: 1.25; /* headings / titles */
@@ -195,8 +185,7 @@
   --cc-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.4); /* slider thumb */
   --cc-shadow-md: 0 2px 10px oklch(0 0 0 / 0.4); /* tooltip */
   --cc-shadow-lg: 0 10px 40px oklch(0 0 0 / 0.6); /* modal, loading-card */
-  --cc-shadow-base: var(--cc-shadow-md);
-  --cc-shadow-text: 0 1px 2px oklch(0 0 0 / 0.5); /* canvas overlay text */
+  --cc-shadow-sheet: 0 -4px 24px oklch(0 0 0 / 0.6); /* phone sheet, cast upward */
   --cc-glow-accent: 0 0 6px color-mix(in oklch, var(--cc-accent) 35%, transparent); /* range-pair fill */
 }
 
@@ -212,6 +201,14 @@
 
 @supports (color: oklch(from white l c h)) {
   :root {
+    /* Same ladder as the fallbacks above, stated as what it is: one hue, L per
+       step, chroma climbing toward the surface's as the step gets dimmer. */
+    --cc-text-strong: oklch(from var(--cc-bg-sidebar) 0.921 calc(c * 1.2) h);
+    --cc-text-primary: oklch(from var(--cc-bg-sidebar) 0.823 calc(c * 1.5) h);
+    --cc-text-secondary: oklch(from var(--cc-bg-sidebar) 0.655 calc(c * 1.8) h);
+    --cc-text-muted: oklch(from var(--cc-bg-sidebar) 0.596 calc(c * 2.1) h);
+    --cc-text-faint: oklch(from var(--cc-bg-sidebar) 0.407 calc(c * 2.4) h);
+
     --cc-border-subtle: oklch(from var(--cc-bg-sidebar) calc(l + 0.068) calc(c * 1.58) h);
     --cc-border-input: oklch(from var(--cc-bg-sidebar) calc(l + 0.1) calc(c * 1.58) h);
     --cc-border-tooltip: oklch(from var(--cc-bg-sidebar) calc(l + 0.139) calc(c * 3.05) h);

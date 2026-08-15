@@ -1,8 +1,62 @@
 /* ScanMenu — what the shared popover shell (Popover.css) doesn't cover. */
 
-/* Inside a button now, so the readout follows the item's hover colour. */
-.scan-menu-trigger:not(:disabled):hover .freshness-status-detail {
+/* One tone for everything the trigger reports: the age and the count are the
+   same kind of fact, and a second grey between them reads as an accident. */
+.scan-menu-trigger .freshness-status-detail,
+.scan-menu-trigger .scan-menu-count {
+  color: var(--cc-text-secondary);
+}
+.scan-menu-trigger .scan-menu-count .icon {
   color: inherit;
+}
+
+/* Inside a button, so they follow the item's hover colour. */
+.scan-menu-trigger:not(:disabled):hover .freshness-status-detail,
+.scan-menu-trigger:not(:disabled):hover .scan-menu-count {
+  color: inherit;
+}
+
+/* ── Hidden-path count ──────────────────────────────────────────────────
+   The one act whose result is an absence, so the bar carries the mark. */
+.scan-menu-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  padding: 0 var(--cc-space-2);
+  border-radius: var(--cc-radius-pill);
+  /* No resting fill: an accent chip beside a dimmer timestamp reads as the
+     louder of the two, and the pulse is what asks for attention. */
+  font-variant-numeric: tabular-nums; /* the one digit in these bars that grows */
+  animation: scan-menu-count-pulse 0.6s ease-out;
+}
+
+/* A ring leaving the chip, so a hide that the city itself only shows as a gap
+   lands somewhere the eye can follow back. Ends where the resting style is. */
+@keyframes scan-menu-count-pulse {
+  from {
+    box-shadow: 0 0 0 0 var(--cc-accent);
+    background: var(--cc-accent-bg);
+    color: var(--cc-accent-light);
+  }
+  /* Fill and colour omitted: an implicit to-keyframe lands on the element's own
+     resting values, so the ring can't end on a tone this file restates. */
+  to {
+    box-shadow: 0 0 0 var(--cc-space-4) transparent;
+  }
+}
+
+/* The fill change alone (a colour, not vestibular motion), like .activity-bar-dot. */
+@keyframes scan-menu-count-flash {
+  50% {
+    background: var(--cc-accent-bg);
+    color: var(--cc-accent-light);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-menu-count {
+    animation-name: scan-menu-count-flash;
+  }
 }
 
 /* ── Reload / Fresh scan ────────────────────────────────────────────────

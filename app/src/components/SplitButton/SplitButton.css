@@ -68,7 +68,7 @@
 }
 
 .split-button-item:hover {
-  background: var(--cc-hover-overlay);
+  background: var(--cc-overlay-bg);
 }
 
 .split-button-item-label {

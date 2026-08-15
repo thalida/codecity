@@ -83,11 +83,9 @@
 .btn-icon--sm {
   font-size: var(--cc-font-sm);
 }
+/* A bigger glyph in the same square box. It sets no width of its own: `auto`
+   took it from the glyph and left a lone icon in a portrait rectangle. */
 .btn-icon--lg {
-  width: auto;
-  height: auto;
-  min-height: var(--cc-tap-min);
-  padding: var(--cc-space-2);
   border-radius: var(--cc-radius-md);
   font-size: var(--cc-font-lg);
   color: inherit;

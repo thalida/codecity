@@ -14,8 +14,10 @@
   color: var(--cc-text-muted);
   text-align: center;
 }
+/* A rung under the copy, not the copy's colour at 55%: an opacity lands between
+   two steps of the text ladder and reads as a colour of its own. */
 .empty-state .icon {
-  opacity: 0.55;
+  color: var(--cc-text-faint);
   font-size: var(--cc-font-xl);
   margin-bottom: var(--cc-space-1);
 }

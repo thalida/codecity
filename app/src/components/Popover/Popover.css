@@ -177,7 +177,7 @@
     border-start-end-radius: var(--cc-radius-lg);
     border-end-start-radius: 0;
     border-end-end-radius: 0;
-    box-shadow: 0 -4px 24px oklch(0 0 0 / 0.6);
+    box-shadow: var(--cc-shadow-sheet);
   }
 
   /* Nothing tethers this to its trigger, so the handle says where it came from

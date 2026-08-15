@@ -91,9 +91,11 @@
 
 /* The "this opens something" glyph. ChevronsUpDown draws in the middle 10/24 of
    its box, so its trailing bearing reads as padding; pull the box back by it. */
-.cluster-cue {
+.cluster-item .cluster-cue {
   margin-inline-end: -0.29em;
-  opacity: 0.7;
+  /* A rung, not the action glyph dimmed: an opacity on top of a colour lands
+     between two steps of the ladder and reads as a third grey. */
+  color: var(--cc-text-secondary);
 }
 
 /* Copy feedback. Also on .icon, which carries its own colour above. */

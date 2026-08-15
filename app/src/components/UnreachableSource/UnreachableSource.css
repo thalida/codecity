@@ -1,25 +1,22 @@
-/* UnreachableSource — guidance under the source field. The standing variant is
-   quiet prose; the error variant is the same content with a preamble and a
-   warning tint, because it is answering something that just failed. */
+/* UnreachableSource — guidance under the source field. The error variant is the
+   same content with a preamble and a warning tint: something just failed. */
 
-/* It sits directly under the field it describes, so it takes the field's own
-   shape: same radius, a full border rather than a left rule, which reads as
-   part of the input group instead of a callout floating beside it. */
+/* The field's own shape (same radius, a full border, not a left rule), so it
+   reads as part of the input group rather than a callout beside it. */
 .unreachable {
   display: flex;
   align-items: flex-start;
   gap: var(--cc-space-3);
   padding: var(--cc-space-3) var(--cc-space-4);
-  border: 1px solid var(--cc-accent-line);
+  border: 1px solid var(--cc-accent-border);
   border-radius: var(--cc-radius-sm);
   background: var(--cc-accent-bg-soft);
   font-size: var(--cc-font-xs);
   line-height: 1.5;
 }
 
-/* One text line tall, so the glyph centres on the FIRST line rather than on the
-   whole block. The slot deliberately leaves font-size alone, which is what makes
-   1lh resolve against the text's size and equal the first line's real box. */
+/* One text line tall, so the glyph centres on the FIRST line. font-size is left
+   alone: that is what makes 1lh resolve to the first line's real box. */
 .unreachable-glyph-slot {
   flex: none;
   display: flex;
