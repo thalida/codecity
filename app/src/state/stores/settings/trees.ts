@@ -56,8 +56,18 @@ const TREES_FIELDS = {
     min: 0,
     max: 50,
     step: 1,
-    label: 'Island edge inset',
-    tip: 'How far short of the island edge trees stop.',
+    label: 'Island edge inset (% of island)',
+    tip: 'How far short of the island edge trees stop, as a share of the island radius.',
+  },
+  EDGE_INSET_LIMITS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.RangePair,
+    default: [0, 256] as [number, number],
+    min: 0,
+    max: 2000,
+    step: 1,
+    label: 'Inset limits (world units)',
+    tip: 'World-unit floor and ceiling for the inset, applied after the percentage so a huge island keeps its rim in proportion.',
   },
 
   COLOR_BUSY_DAY: {

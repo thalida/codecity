@@ -200,6 +200,37 @@ describe('placeTrees (commit-driven)', () => {
       expect(floored).toBeGreaterThan(unfloored);
     });
   });
+
+  describe('island edge inset limits', () => {
+    // The inset is radial, so how far out the forest reaches is the widest
+    // distance any placement sits from the island center.
+    const outermost = (placements: TreePlacement[]): number =>
+      Math.max(...placements.map((p) => Math.hypot(p.x, p.y)));
+
+    const forest = (percent: number, limits: [number, number]): TreePlacement[] => {
+      const bb = bbox(-5000, -5000, 5000, 5000);
+      TREES.value = {
+        ...TREES.value,
+        EDGE_INSET_PERCENT: percent,
+        EDGE_INSET_LIMITS: limits,
+      };
+      return placeTrees(emptyLayout(bb), bb, { commitCount: 600 });
+    };
+
+    it('caps the inset, so a big island keeps its trees out at the rim', () => {
+      const unclamped = outermost(forest(20, [0, 2000]));
+      const clamped = outermost(forest(20, [0, 200]));
+      expect(clamped).toBeGreaterThan(unclamped);
+    });
+
+    it('floors the inset, so trees stop short of the edge on any island', () => {
+      const unfloored = outermost(forest(0, [0, 2000]));
+      const floored = outermost(forest(0, [800, 2000]));
+      // Short of the full 800: the candidate grid is discrete, so the outermost
+      // survivor sits inside the rim rather than on it.
+      expect(unfloored - floored).toBeGreaterThan(600);
+    });
+  });
 });
 
 export type { TreePlacement };

@@ -17,6 +17,7 @@ export const TREES_SECTION: SectionNode = {
         field(TREES, 'CITY_CLEARANCE_LIMITS'),
         field(TREES, 'DENSITY_FALLOFF'),
         field(TREES, 'EDGE_INSET_PERCENT'),
+        field(TREES, 'EDGE_INSET_LIMITS'),
       ],
     },
     {

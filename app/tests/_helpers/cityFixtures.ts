@@ -131,6 +131,7 @@ export function resetTreesConfig(): void {
     CITY_CLEARANCE_LIMITS: [0, 2000],
     DENSITY_FALLOFF: 0,
     EDGE_INSET_PERCENT: 1,
+    EDGE_INSET_LIMITS: [0, 2000],
     MIN_HEIGHT: 48,
     MAX_HEIGHT: 144,
     MIN_WIDTH: 32,

@@ -194,14 +194,19 @@ export function placeTrees(
         roundness: islandGeo.ROUNDNESS,
         grassThickness: islandGeo.GRASS_THICKNESS,
       });
-      // Shrink every vertex radially inward by insetFrac so the rejection
-      // polygon is uniformly inset from the actual island edge.
+      // Every vertex pulled radially inward by insetFrac, clamped in world
+      // units for the same reason the city clearance is.
       const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+      const [insetMin, insetMax] = cfg.EDGE_INSET_LIMITS;
       islandPolygon = rawPolygon.map((v) => {
         const r = Math.hypot(v.x, v.z);
         if (r < 1e-6) return v.clone();
-        const newR = r * (1 - insetFrac);
-        const scale = newR / r;
+        const inset = THREE.MathUtils.clamp(
+          r * insetFrac,
+          Math.max(0, insetMin),
+          Math.max(0, insetMax)
+        );
+        const scale = Math.max(0, r - inset) / r;
         return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
       });
     }
