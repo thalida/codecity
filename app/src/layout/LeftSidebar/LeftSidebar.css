@@ -15,17 +15,14 @@
   z-index: 90;
   overflow: hidden;
 }
-/* Until showLeftSidebar populates the tree, the empty container would
-   show as a lighter strip on the left during the manifest fetch / scene
-   build. Hide it while empty so the initial paint is just the header. */
+/* Empty until showLeftSidebar populates the tree, where it would paint as a
+   lighter strip through the fetch. Hidden, so the first paint is the header. */
 #left-sidebar:empty {
   display: none;
 }
 
-/* Collapsed: just the activity bar shows. This rule outranks the base
- * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
- * so the dragged width is restored automatically on un-collapse — no need to
- * clear/restore anything. */
+/* Collapsed: only the activity bar. Outranks the base width by specificity,
+ * so un-collapsing restores the dragged width with nothing to clear. */
 #left-sidebar.is-collapsed {
   width: var(--cc-rail-w);
   min-width: var(--cc-rail-w);
@@ -35,10 +32,8 @@
   display: none;
 }
 
-/* Activity bar splits into two nested flex columns: a top group that
- * stacks from the top and a bottom group that pins to the bottom. The
- * outer bar's `justify-content: space-between` pushes the two groups
- * apart — no margin-top: auto trick. */
+/* Two nested flex columns, one stacking from the top and one from the bottom;
+ * space-between on the bar pushes them apart with no margin-top: auto. */
 .activity-bar {
   width: var(--cc-rail-w);
   flex-shrink: 0;
@@ -90,10 +85,8 @@
   background: var(--cc-accent-bg);
 }
 
-/* "Settings differ from default" dot over the Settings icon. Remounted with a
- * key on the total (LeftSidebar.tsx), so it replays the expanding ring each time
- * the count changes — the "something was customized" cue. The per-tab counts
- * live on the subtabs. */
+/* "Settings differ from default" dot over the Settings icon, replaying its ring
+ * on each change (useReplayAnimation). Per-tab counts live on the subtabs. */
 .activity-bar-dot {
   position: absolute;
   top: var(--cc-space-2);
@@ -146,10 +139,7 @@
 }
 
 /* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
-   Same rail-beside-pane composition as the desktop, but the sidebar overlays
-   the city at full width instead of squeezing it: its 280px floor would leave
-   a sliver. Only the whole sidebar moves — the pane keeps its normal flow, and
-   with it the rail's edge. */
+   The sidebar overlays the city rather than squeezing it to a sliver. */
 @media (max-width: 640px) {
   #left-sidebar.is-collapsed {
     width: var(--cc-rail-w);

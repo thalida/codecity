@@ -78,7 +78,9 @@
 /* The axis is painted on canvas: an accent played fill and past ticks, neutral
    ticks ahead of the handle. */
 .time-travel-track {
-  --tt-tick: rgba(148, 151, 168, 0.5);
+  /* Half-strength meta text: the ticks are a readout, and a hand-mixed grey
+     here is one the theme's surface can't re-tint. */
+  --tt-tick: color-mix(in oklch, var(--cc-text-secondary) 50%, transparent);
   position: relative;
   flex: 1;
   min-width: 0;

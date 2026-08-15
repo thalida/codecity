@@ -226,25 +226,22 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
-  // A build reports on two surfaces — the overlay's row and the inline
-  // freshness detail — and one reaction writes both, so they can't drift (#185).
+  // The build's stages go to the overlay's row and nowhere else. They pass in a
+  // few frames, and the freshness readout flickering through them was noise.
 
-  it('puts the build stage on the Building row and beside the freshness dot', () => {
+  it('puts the build stage on the Building row', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble]);
 
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('0% layout');
-    expect(REBUILD_DETAIL.value).toBe('0% layout');
   });
 
-  it('keeps the two in step through the whole build', () => {
+  it('follows the build the whole way down the row', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble]);
     setBuildStagePercent(30);
-    expect(REBUILD_DETAIL.value).toBe('15% layout');
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('15% layout');
 
     enterBuildStage(BuildStage.Assemble);
-    expect(REBUILD_DETAIL.value).toBe('50% buildings');
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe(REBUILD_DETAIL.value);
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('50% buildings');
   });
 
   it('carries on into the decoration pass rather than going blank', () => {
@@ -254,15 +251,25 @@ describe('loadingReactions', () => {
     markDecorating();
 
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('67% trees');
-    expect(REBUILD_DETAIL.value).toBe('67% trees');
   });
 
-  it('clears both when the build finishes', () => {
+  // The readout beside the dot says "rebuilding…" and nothing else; only a
+  // build with no overlay to report it (Timeline's refetch) writes that detail.
+  it('leaves the freshness detail alone through a build', () => {
+    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    expect(REBUILD_DETAIL.value).toBeNull();
+
+    setBuildStagePercent(30);
+    enterBuildStage(BuildStage.Assemble);
+    markDecorating();
+    expect(REBUILD_DETAIL.value).toBeNull();
+  });
+
+  it('clears the row when the build finishes', () => {
     beginBuild([BuildStage.Layout, BuildStage.Assemble]);
     markIdle();
 
     expect(BUILD_PROGRESS.value).toBeNull();
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBeNull();
-    expect(REBUILD_DETAIL.value).toBeNull();
   });
 });

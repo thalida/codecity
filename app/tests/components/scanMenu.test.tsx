@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { EXCLUDES, addExclude } from '@/state/stores/excludes';
+import { EXCLUDES, addExclude, clearExcludes } from '@/state/stores/excludes';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 
@@ -56,6 +56,71 @@ describe('ScanMenu', () => {
     expect(trigger().contains(live)).toBe(false);
   });
 
+  // Hiding a building closes the pane and removes the building, so without this
+  // the only trace of what you did is missing geometry.
+  it('marks the trigger with how many paths are hidden, and drops the mark at none', async () => {
+    render(<ScanMenu />, container);
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')).toBeNull();
+
+    addExclude('vendor');
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('1');
+
+    addExclude('a.md');
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('2');
+
+    clearExcludes();
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')).toBeNull();
+  });
+
+  it('carries the hidden count into the name and the live region, singular and plural', async () => {
+    render(<ScanMenu />, container);
+    await flush();
+    const live = () => container.querySelector('[role="status"]')!;
+    expect(live().textContent).not.toMatch(/hidden/);
+
+    addExclude('vendor');
+    await flush();
+    expect(live().textContent).toMatch(/1 path hidden$/);
+    expect(trigger().getAttribute('aria-label')).toMatch(/1 path hidden$/);
+
+    addExclude('a.md');
+    await flush();
+    expect(live().textContent).toMatch(/2 paths hidden$/);
+  });
+
+  // The chip is already on screen when the second path is hidden, so the ring
+  // only replays if something restarts it (useReplayAnimation).
+  it('replays the pulse when the count changes', async () => {
+    addExclude('vendor');
+    render(<ScanMenu />, container);
+    await flush();
+
+    const chip = trigger().querySelector('.scan-menu-count') as HTMLElement;
+    // oldValue, not the live attribute: the records arrive on a microtask, by
+    // which time the restart has already put the style back.
+    const seen: string[] = [];
+    const observer = new MutationObserver((records) =>
+      records.forEach((r) => seen.push(r.oldValue ?? ''))
+    );
+    observer.observe(chip, {
+      attributes: true,
+      attributeFilter: ['style'],
+      attributeOldValue: true,
+    });
+
+    addExclude('a.md');
+    await flush();
+    observer.disconnect();
+
+    // Cleared, reflowed, restored: the animation runs from the top again.
+    expect(seen.some((s) => s.includes('animation: none'))).toBe(true);
+    expect(chip.getAttribute('style')).toBe('');
+  });
+
   it('opens the panel and marks itself expanded', async () => {
     render(<ScanMenu />, container);
     await flush();
@@ -76,15 +141,26 @@ describe('ScanMenu', () => {
     expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
   });
 
-  it('runs a fresh scan and closes', async () => {
-    const onFreshScan = vi.fn();
-    render(<ScanMenu onFreshScan={onFreshScan} />, container);
+  // The cache flag is the only difference between them, so the panel is where
+  // that choice belongs rather than split across a button and a menu.
+  const ACTION_CASES: Array<[label: string, index: number, skipCache: boolean]> = [
+    ['Reload', 0, false],
+    ['Fresh scan', 1, true],
+  ];
+  it.each(ACTION_CASES)('runs %s and closes the panel', async (label, index, skipCache) => {
+    const onRefresh = vi.fn();
+    render(<ScanMenu onRefresh={onRefresh} />, container);
     await flush();
     await open();
 
-    container.querySelector<HTMLButtonElement>('.scan-menu-action')!.click();
+    const actions = container.querySelectorAll<HTMLButtonElement>('.scan-menu-action');
+    expect(actions).toHaveLength(2);
+    expect(actions[index].querySelector('.scan-menu-action-label')!.textContent).toBe(label);
+
+    actions[index].click();
     await flush();
-    expect(onFreshScan).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onRefresh).toHaveBeenCalledWith(skipCache);
     expect(panel()).toBeNull();
   });
 

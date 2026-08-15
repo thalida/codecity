@@ -5,12 +5,7 @@
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import {
-  BUILD_PROGRESS,
-  REBUILD_STATUS,
-  RebuildStatus,
-  setRebuildDetail,
-} from '@/state/stores/manifest';
+import { BUILD_PROGRESS, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -32,13 +27,11 @@ export function attachLoadingReactions(): () => void {
   return () => stops.forEach((stop) => stop());
 }
 
-// The build's stage tail onto BOTH surfaces that report a build — the overlay's
-// row and the inline freshness readout — so the two can never drift apart.
+// The overlay's row only: these stages pass in a few frames, and the freshness
+// readout flickering through them cost more attention than they are worth.
 function attachBuildReaction(): () => void {
   return effect(() => {
-    const tail = buildStageTail(BUILD_PROGRESS.value);
-    setLoadingStepTail(LoadingStep.Building, tail);
-    setRebuildDetail(tail);
+    setLoadingStepTail(LoadingStep.Building, buildStageTail(BUILD_PROGRESS.value));
   });
 }
 

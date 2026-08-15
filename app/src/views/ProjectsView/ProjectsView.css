@@ -103,6 +103,18 @@
   /* It's a home link now: keep the wordmark looking like a wordmark. */
   text-decoration: none;
   color: inherit;
+  /* Own line: the gem's own transition is on its float, not on this. */
+  border-radius: var(--cc-radius-md);
+}
+
+/* The hover state a wordmark can take: the mark lights and the type warms,
+   rather than an underline through the one piece of art on the page. */
+.landing-brand:hover .landing-wordmark,
+.landing-brand:focus-visible .landing-wordmark {
+  color: var(--cc-accent-light);
+}
+.landing-brand:hover .landing-gem {
+  filter: drop-shadow(0 0 20px color-mix(in oklch, var(--cc-gem-cyan) 70%, transparent));
 }
 
 /* Brand + meta line as one tight block so the line reads as attached to the
@@ -128,6 +140,7 @@
   height: 48px;
   filter: drop-shadow(0 0 16px color-mix(in oklch, var(--cc-gem-cyan) 40%, transparent));
   animation: landing-gem-float 6s ease-in-out infinite;
+  transition: filter var(--cc-t-base);
 }
 .landing-gem .gem-icon {
   width: 48px;
@@ -153,6 +166,7 @@
   font-size: var(--cc-font-2xl);
   font-weight: var(--cc-fw-bold);
   color: var(--cc-text-strong);
+  transition: color var(--cc-t-base);
 }
 
 .landing-tagline {

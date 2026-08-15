@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -65,6 +66,17 @@ def test_bundled_list_exercises_the_generic_hosting_icon(
     monkeypatch.delenv("CODECITY_DISCOVER_FILE", raising=False)
     repos = client.get("/api/discover").json()["repos"]
     assert any("github.com" not in r["url"] for r in repos)
+
+
+def test_bundled_list_spans_several_hosts(client: TestClient, monkeypatch) -> None:
+    """Discover is where "any git URL" stops being a claim: a list that is all
+    one host teaches the opposite, whatever the form's label says. Hosts people
+    recognise only, since every row here is a recommendation."""
+    monkeypatch.delenv("CODECITY_DISCOVER", raising=False)
+    monkeypatch.delenv("CODECITY_DISCOVER_FILE", raising=False)
+    repos = client.get("/api/discover").json()["repos"]
+    hosts = {urlparse(r["url"]).netloc for r in repos}
+    assert len(hosts) >= 4, hosts
 
 
 @pytest.mark.parametrize("value", ["off", "0", "false", "no"])

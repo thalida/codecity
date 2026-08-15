@@ -44,8 +44,8 @@ export const BUILT_MANIFEST = signal<ManifestValue>(EMPTY_MANIFEST);
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
 
-/** Live progress beside "rebuilding…" in the freshness readout, for a refetch
- *  with no overlay. Every transition clears it: it can't outlive its state. */
+/** Progress beside "rebuilding…", for the one build nothing else reports:
+ *  Timeline's no-overlay refetch. Every transition clears it. */
 export const REBUILD_DETAIL = signal<string | null>(null);
 
 /** Epoch millis of the most recent finished apply, in whichever mode: a live

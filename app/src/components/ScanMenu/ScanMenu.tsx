@@ -1,13 +1,15 @@
 // components/ScanMenu/ScanMenu.tsx — the freshness readout as a trigger, over
-// everything that decides how fresh the city gets to be.
+// everything that decides how fresh the city gets to be: both ways to re-open
+// the source, the auto-refresh settings, and what the scan is skipping.
 
 import './ScanMenu.css';
 import { Fragment } from 'preact';
-import { EyeOff, RefreshCcwDot, RotateCcw } from 'lucide-preact';
+import { EyeOff, RefreshCcwDot, RefreshCw, RotateCcw } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { FreshnessStatus, useFreshness } from '@/components/FreshnessStatus/FreshnessStatus';
 import { Field } from '@/components/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
 import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
@@ -94,14 +96,39 @@ function ExcludesGroup() {
   );
 }
 
+/** The two ways to re-open the source, in the order you'd reach for them. */
+const ACTIONS = [
+  {
+    id: 'reload',
+    icon: RefreshCw,
+    label: 'Reload',
+    note: 'Rebuild the city from the cached scan',
+    skipCache: false,
+  },
+  {
+    id: 'fresh-scan',
+    icon: RefreshCcwDot,
+    label: 'Fresh scan',
+    note: 'Ignore the cache and re-read the whole repo',
+    skipCache: true,
+  },
+] as const;
+
 export interface ScanMenuProps {
-  /** Re-open the source ignoring the cached scan. Plain refresh is the button
-   *  beside this one, so the panel lists only what that button isn't. */
-  onFreshScan?: () => void;
+  /** Re-open the current source. `skipCache` ignores the server's cached scan
+   *  and re-reads the repo from scratch. */
+  onRefresh?: (skipCache: boolean) => void;
 }
 
-export function ScanMenu({ onFreshScan }: ScanMenuProps) {
+export function ScanMenu({ onRefresh }: ScanMenuProps) {
   const freshness = useFreshness();
+  // Excluding is the one act whose result is an absence: the pane closes, the
+  // building goes, and nothing else in the app says where it went.
+  const hiddenCount = ACTIVE_EXCLUDES.value.length;
+  const countRef = useReplayAnimation<HTMLSpanElement>(hiddenCount);
+  const status = hiddenCount
+    ? `${freshness.titleText} · ${hiddenCount} ${hiddenCount === 1 ? 'path' : 'paths'} hidden`
+    : freshness.titleText;
 
   return (
     <>
@@ -109,28 +136,41 @@ export function ScanMenu({ onFreshScan }: ScanMenuProps) {
         label={PANEL_LABEL}
         placement={PopoverPlacement.BelowEnd}
         triggerClass="scan-menu-trigger"
-        triggerLabel={`${PANEL_LABEL} — ${freshness.titleText}`}
-        triggerTitle={freshness.titleText}
-        trigger={<FreshnessStatus freshness={freshness} />}
+        triggerLabel={`${PANEL_LABEL}: ${status}`}
+        triggerTitle={status}
+        trigger={
+          <>
+            <FreshnessStatus freshness={freshness} />
+            {hiddenCount > 0 && (
+              <span ref={countRef} class="scan-menu-count">
+                <EyeOff class="icon" aria-hidden="true" />
+                {hiddenCount}
+              </span>
+            )}
+          </>
+        }
       >
         {(close) => (
           <>
             <section class="popover-group">
-              <button
-                type="button"
-                class="btn-secondary scan-menu-action"
-                title="Ignore the cache and re-read the whole repo"
-                onClick={() => {
-                  // No refocus: the rescan replaces what's on screen.
-                  close(false);
-                  onFreshScan?.();
-                }}
-              >
-                {/* A refresh arrow, like the plain Refresh beside the trigger:
-                    this is the same act, done harder. */}
-                <RefreshCcwDot class="icon" aria-hidden="true" />
-                Fresh scan
-              </button>
+              {ACTIONS.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  class="btn-secondary popover-action scan-menu-action"
+                  onClick={() => {
+                    // No refocus: the reload replaces what's on screen.
+                    close(false);
+                    onRefresh?.(action.skipCache);
+                  }}
+                >
+                  <action.icon class="icon scan-menu-action-icon" aria-hidden="true" />
+                  <span class="scan-menu-action-label">{action.label}</span>
+                  {/* On the row, not a tooltip: the two differ only in what they
+                      do to the cache, which is the thing you're choosing between. */}
+                  <span class="scan-menu-action-note">{action.note}</span>
+                </button>
+              ))}
             </section>
 
             <section class="popover-group">
@@ -159,7 +199,7 @@ export function ScanMenu({ onFreshScan }: ScanMenuProps) {
       </Popover>
       {/* Standalone: a button's contents are only read on focus. */}
       <span class="sr-only" role="status">
-        {freshness.titleText}
+        {status}
       </span>
     </>
   );

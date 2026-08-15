@@ -61,9 +61,11 @@ export function RecentRow(props: RecentRowProps) {
         onOpen={props.onOpen}
       />
 
+      {/* No --text here: that modifier is for a button with words in it, and it
+          takes width from them, which on a lone glyph is a portrait box. */}
       <button
         type="button"
-        class="btn-icon btn-icon--text"
+        class="btn-icon"
         aria-label="Remove from recents"
         onClick={props.onAskRemove}
       >

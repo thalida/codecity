@@ -3,8 +3,8 @@
 // picker.
 
 import './LeftSidebar.css';
-import { useRef, useLayoutEffect } from 'preact/hooks';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
@@ -30,17 +30,8 @@ function _pathOf(target: PickTarget | null): string | null {
   return null;
 }
 
-// A keyed remount won't restart the ring animation, since Preact reuses the
-// node, so this resets and reflows to force it.
 function SettingsChangeDot({ count }: { count: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.animation = 'none';
-    void el.offsetWidth; // reflow so the next assignment restarts the animation
-    el.style.animation = '';
-  }, [count]);
+  const ref = useReplayAnimation<HTMLSpanElement>(count);
   return <span ref={ref} class="activity-bar-dot" aria-hidden="true" />;
 }
 

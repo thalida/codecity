@@ -1,15 +1,10 @@
 // components/SourceRow/SourceRow.tsx — one openable source: kind glyph, label,
-// branch pill, and the raw src underneath. Shared by Recents and Discover,
-// because a Discover row is a recent you haven't opened yet, and the two
-// looking different would imply a difference that isn't there.
-//
-// Presentational and click-only. Everything around a row (the remove control on
-// a recent, the active badge) belongs to whoever is listing it.
+// branch pill, raw src. Shared by Recents and Discover, since a Discover row is
+// a recent you haven't opened yet. Presentational and click-only: everything
+// around a row (a remove control, an active badge) belongs to its lister.
 
 import './SourceRow.css';
-import { Folder } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
-import { srcKind, SourceKind } from '@/utils/sources';
 
 export interface SourceRowProps {
   src: string;
@@ -35,8 +30,6 @@ export function SourceRow({
   unavailableReason,
   onOpen,
 }: SourceRowProps) {
-  const isLocal = srcKind(src) === SourceKind.Local;
-
   return (
     <button
       type="button"
@@ -48,7 +41,7 @@ export function SourceRow({
       onClick={unavailable ? undefined : onOpen}
     >
       <span class="source-row-icon">
-        {isLocal ? <Folder class="icon" /> : <HostingIcon src={src} />}
+        <HostingIcon src={src} />
       </span>
       <div class="source-row-body">
         <div class="source-row-label-row">

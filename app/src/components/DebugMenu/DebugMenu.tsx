@@ -3,7 +3,6 @@
 //
 // Open state lives in DEBUG_OPEN so OVERLAY_OPEN can read it.
 
-import './DebugMenu.css';
 import { Bug } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { DEBUG_OPEN } from '@/state/stores/ui';
@@ -33,7 +32,7 @@ export function DebugMenu({
           {onRunCollisionCheck && (
             <button
               type="button"
-              class="btn-secondary debug-action"
+              class="btn-secondary popover-action"
               title="Walks the current layout and logs any rect/rect overlaps."
               onClick={() => onRunCollisionCheck()}
             >
@@ -43,7 +42,7 @@ export function DebugMenu({
           {onRunStemDiagnostic && (
             <button
               type="button"
-              class="btn-secondary debug-action"
+              class="btn-secondary popover-action"
               title="Re-runs layout under tracing and logs, per road, the chosen stem and binding obstacle for each child placement."
               onClick={() => onRunStemDiagnostic()}
             >
@@ -53,7 +52,7 @@ export function DebugMenu({
           {onRunTreeGroundingCheck && (
             <button
               type="button"
-              class="btn-secondary debug-action"
+              class="btn-secondary popover-action"
               title="Measures every tree's lowest trunk vertex against the ground plane and logs any that float or sink."
               onClick={() => onRunTreeGroundingCheck()}
             >

@@ -18,18 +18,13 @@
   background: var(--cc-overlay-bg);
 }
 
-/* Kind glyph. Sized by font-size so any glyph, the lucide Folder or the
-   HostingIcon brand SVGs, sizes uniformly off one token (icons are 1em; see
-   icons.css). */
+/* Kind glyph. Sized by font-size alone: every glyph HostingIcon can return
+   carries .icon, which is 1em (icons.css). */
 .source-row-icon {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   font-size: var(--cc-font-md);
-}
-.source-row-icon > svg {
-  width: 1em;
-  height: 1em;
 }
 
 .source-row-body {
@@ -45,9 +40,8 @@
   gap: var(--cc-space-2);
   min-width: 0;
 }
-/* The repo name is the row's identity, so it keeps its full width and the
-   branch beside it gives way. Branches are the long half anyway: worktrees of
-   one repo share a name and differ only in the branch. */
+/* The name is the row's identity, so the branch beside it gives way: worktrees
+   of one repo share a name and differ only there. */
 .source-row-label {
   flex: 0 0 auto;
   font-weight: var(--cc-fw-medium);
@@ -93,10 +87,8 @@
   cursor: not-allowed;
 }
 
-/* Row status, at the end of the row. Deliberately not a pill: it labels a state
-   the row is already in (highlighted, or flagged as featured), and a bordered
-   chip competes with the repo name for the eye. Uppercase micro-type reads as a
-   caption rather than as something to press. */
+/* Not a pill: it labels a state the row is already in, and a bordered chip
+   competes with the name. Uppercase micro-type reads as caption, not control. */
 .source-row-note {
   flex: 0 0 auto;
   margin-left: auto;
@@ -119,11 +111,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-1);
-  /* Grow into the card's remaining height and scroll the rows rather than the
-     page, wherever the card is height-capped (the side-by-side landing layout).
-     Stacked, the card shrink-wraps and the page scroller takes over instead.
-     min-height: 0 lets this flex child shrink below its content so the overflow
-     is its own. */
+  /* Scroll the rows, not the page, wherever the card is height-capped; stacked,
+     the card shrink-wraps and the page scroller takes over instead. */
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -134,9 +123,8 @@
   padding-right: var(--cc-space-2);
 }
 
-/* One row plus whatever sits beside it (a recent's remove control; nothing on
-   a Discover row). Siblings, not parent/child, so the row's hover highlight has
-   symmetric padding and the control keeps its own hit area. */
+/* A row plus whatever sits beside it. Siblings, not parent/child, so the hover
+   highlight stays symmetric and the control keeps its own hit area. */
 .source-list-item {
   display: flex;
   align-items: center;

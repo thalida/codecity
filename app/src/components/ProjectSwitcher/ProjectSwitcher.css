@@ -2,9 +2,8 @@
    branch pill truncate with an ellipsis so a long repo name can't overflow and
    overlap its neighbours; the full name stays reachable via the switcher. */
 
-/* The repo name is the one thing in either bar that names what you're looking
-   at, so it takes the brightest step while everything around it stays muted or
-   accent. */
+/* The one thing in either bar that names what you're looking at, so it takes
+   the brightest step while everything around it stays quieter. */
 .project-switcher-label {
   color: var(--cc-text-strong);
   white-space: nowrap;
@@ -42,10 +41,7 @@
   flex: 0 0 auto;
 }
 
-/* The gem is the chip's leading glyph, sized to the chip's other icons and
-   held at its intrinsic width so a long repo name shrinks the label, not it.
-   The descendant selector outranks .gem-icon's own 1em sizing on specificity,
-   so the size holds regardless of CSS import order. */
+/* Descendant selector, to outrank .gem-icon's own 1em sizing. */
 .project-switcher .gem-icon {
   width: var(--cc-font-sm);
   height: var(--cc-font-sm);
@@ -53,6 +49,21 @@
   /* Reads as the chip's icon rather than a glyph in the name: only this gap
      widens, so the name, branch pill, and affordance stay a tight cluster. */
   margin-right: var(--cc-space-2);
+}
+
+.project-switcher-kind {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The readout tone, not the glyph tone: the name is the bright thing in this
+   chip, and a mark on each side of it would compete for that. */
+.project-switcher .project-switcher-kind .icon {
+  color: var(--cc-text-secondary);
+}
+.project-switcher:not(:disabled):hover .project-switcher-kind .icon {
+  color: inherit;
 }
 
 .app-header-branch-pill {
@@ -71,10 +82,8 @@
   white-space: nowrap;
 }
 
-/* Inside the switcher the branch pill can shrink and truncate when the chip
-   runs out of room (rather than pushing the chip wider). In the recents list
-   the same pill has room and is left alone. inline-block (not inline-flex) so
-   text-overflow applies to the text. */
+/* Here the pill truncates rather than pushing the chip wider; in the recents
+   list it has room. inline-block, so text-overflow reaches the text. */
 .project-switcher .app-header-branch-pill {
   display: inline-block;
   min-width: 0;
