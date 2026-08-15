@@ -9,6 +9,7 @@ import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { FreshnessStatus, useFreshness } from '@/components/FreshnessStatus/FreshnessStatus';
 import { Field } from '@/components/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
 import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
@@ -121,6 +122,13 @@ export interface ScanMenuProps {
 
 export function ScanMenu({ onRefresh }: ScanMenuProps) {
   const freshness = useFreshness();
+  // Excluding is the one act whose result is an absence: the pane closes, the
+  // building goes, and nothing else in the app says where it went.
+  const hiddenCount = ACTIVE_EXCLUDES.value.length;
+  const countRef = useReplayAnimation<HTMLSpanElement>(hiddenCount);
+  const status = hiddenCount
+    ? `${freshness.titleText} · ${hiddenCount} ${hiddenCount === 1 ? 'path' : 'paths'} hidden`
+    : freshness.titleText;
 
   return (
     <>
@@ -128,9 +136,19 @@ export function ScanMenu({ onRefresh }: ScanMenuProps) {
         label={PANEL_LABEL}
         placement={PopoverPlacement.BelowEnd}
         triggerClass="scan-menu-trigger"
-        triggerLabel={`${PANEL_LABEL} — ${freshness.titleText}`}
-        triggerTitle={freshness.titleText}
-        trigger={<FreshnessStatus freshness={freshness} />}
+        triggerLabel={`${PANEL_LABEL}: ${status}`}
+        triggerTitle={status}
+        trigger={
+          <>
+            <FreshnessStatus freshness={freshness} />
+            {hiddenCount > 0 && (
+              <span ref={countRef} class="scan-menu-count">
+                <EyeOff class="icon" aria-hidden="true" />
+                {hiddenCount}
+              </span>
+            )}
+          </>
+        }
       >
         {(close) => (
           <>
@@ -181,7 +199,7 @@ export function ScanMenu({ onRefresh }: ScanMenuProps) {
       </Popover>
       {/* Standalone: a button's contents are only read on focus. */}
       <span class="sr-only" role="status">
-        {freshness.titleText}
+        {status}
       </span>
     </>
   );

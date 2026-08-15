@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { EXCLUDES, addExclude } from '@/state/stores/excludes';
+import { EXCLUDES, addExclude, clearExcludes } from '@/state/stores/excludes';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 
@@ -54,6 +54,71 @@ describe('ScanMenu', () => {
     const live = container.querySelector('[role="status"]')!;
     expect(live).not.toBeNull();
     expect(trigger().contains(live)).toBe(false);
+  });
+
+  // Hiding a building closes the pane and removes the building, so without this
+  // the only trace of what you did is missing geometry.
+  it('marks the trigger with how many paths are hidden, and drops the mark at none', async () => {
+    render(<ScanMenu />, container);
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')).toBeNull();
+
+    addExclude('vendor');
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('1');
+
+    addExclude('a.md');
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('2');
+
+    clearExcludes();
+    await flush();
+    expect(trigger().querySelector('.scan-menu-count')).toBeNull();
+  });
+
+  it('carries the hidden count into the name and the live region, singular and plural', async () => {
+    render(<ScanMenu />, container);
+    await flush();
+    const live = () => container.querySelector('[role="status"]')!;
+    expect(live().textContent).not.toMatch(/hidden/);
+
+    addExclude('vendor');
+    await flush();
+    expect(live().textContent).toMatch(/1 path hidden$/);
+    expect(trigger().getAttribute('aria-label')).toMatch(/1 path hidden$/);
+
+    addExclude('a.md');
+    await flush();
+    expect(live().textContent).toMatch(/2 paths hidden$/);
+  });
+
+  // The chip is already on screen when the second path is hidden, so the ring
+  // only replays if something restarts it (useReplayAnimation).
+  it('replays the pulse when the count changes', async () => {
+    addExclude('vendor');
+    render(<ScanMenu />, container);
+    await flush();
+
+    const chip = trigger().querySelector('.scan-menu-count') as HTMLElement;
+    // oldValue, not the live attribute: the records arrive on a microtask, by
+    // which time the restart has already put the style back.
+    const seen: string[] = [];
+    const observer = new MutationObserver((records) =>
+      records.forEach((r) => seen.push(r.oldValue ?? ''))
+    );
+    observer.observe(chip, {
+      attributes: true,
+      attributeFilter: ['style'],
+      attributeOldValue: true,
+    });
+
+    addExclude('a.md');
+    await flush();
+    observer.disconnect();
+
+    // Cleared, reflowed, restored: the animation runs from the top again.
+    expect(seen.some((s) => s.includes('animation: none'))).toBe(true);
+    expect(chip.getAttribute('style')).toBe('');
   });
 
   it('opens the panel and marks itself expanded', async () => {
