@@ -1,0 +1,80 @@
+// state/route.ts — the page URL, as a signal. The single writer: path AND
+// query, so nothing else calls pushState/replaceState. wouter renders off the
+// hooks at the bottom; effects and pre-paint boot code read the signals
+// directly, which is why the URL lives here rather than in router context.
+
+import { signal, computed } from '@preact/signals';
+import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
+
+function readHref(): string {
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+/** Path + query as one string, the shape wouter's location hook wants. */
+export const HREF = signal<string>(readHref());
+
+export const ROUTE_PATH = computed<string>(() => {
+  const q = HREF.value.indexOf('?');
+  return q === -1 ? HREF.value : HREF.value.slice(0, q);
+});
+
+/** Query string WITHOUT the leading '?', which is wouter's searchHook contract. */
+export const ROUTE_SEARCH = computed<string>(() => {
+  const q = HREF.value.indexOf('?');
+  return q === -1 ? '' : HREF.value.slice(q + 1);
+});
+
+export const ROUTE_PARAMS = computed<URLSearchParams>(
+  () => new URLSearchParams(ROUTE_SEARCH.value)
+);
+
+export interface NavigateOptions {
+  /** Replace rather than push: what the user never asked to be a destination
+   *  (scrub position, selection) must not bury the back button. */
+  replace?: boolean;
+}
+
+/** Go to a path+query. No-ops when it would not change the URL, so a reflection
+ *  effect can fire freely without stacking identical history entries. */
+export function navigate(to: string, opts: NavigateOptions = {}): void {
+  if (to === HREF.peek()) return;
+  if (opts.replace) history.replaceState(null, '', to);
+  else history.pushState(null, '', to);
+  HREF.value = to;
+}
+
+/** Rewrite the query in place, leaving the path alone. The mutator gets the
+ *  live params to set/delete on. */
+export function setRouteParams(
+  mutate: (params: URLSearchParams) => void,
+  opts: NavigateOptions = {}
+): void {
+  const params = new URLSearchParams(ROUTE_SEARCH.peek());
+  mutate(params);
+  const query = params.toString();
+  navigate(query ? `${ROUTE_PATH.peek()}?${query}` : ROUTE_PATH.peek(), opts);
+}
+
+/** Build a href from a path and params, for links and for navigate() callers
+ *  that are moving between routes rather than editing the current one. */
+export function hrefFor(path: string, params?: URLSearchParams): string {
+  const query = params?.toString() ?? '';
+  return query ? `${path}?${query}` : path;
+}
+
+/** Back/forward: the browser owns the URL for that beat, so the signal follows
+ *  it rather than the other way round. */
+export function attachRouteHistory(): () => void {
+  const onPopState = () => {
+    HREF.value = readHref();
+  };
+  window.addEventListener('popstate', onPopState);
+  return () => window.removeEventListener('popstate', onPopState);
+}
+
+// ── wouter hooks ─────────────────────────────────────────────────────
+
+// Reading .value inside a component subscribes it, so a navigate() anywhere
+// re-renders the tree; wouter never holds location state of its own.
+export const useRouteLocation: BaseLocationHook = () => [ROUTE_PATH.value, navigate];
+export const useRouteSearch: BaseSearchHook = () => ROUTE_SEARCH.value;
