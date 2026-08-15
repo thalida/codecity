@@ -165,6 +165,22 @@ screenshots *shots='':
      cd app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/screenshots.mjs {{shots}}
 
+# Regenerate app/public/hero-city.webp: the wallpaper the landing paints before
+# (and instead of) a city. Same headless harness as `just screenshots`, its own
+# recipe so a README regen never churns a shipped asset. Captured at 1920x1080
+# with a 2x device scale, so the file covers a 4K screen, then encoded to webp
+# (needs cwebp: brew install webp). Needs `just dev` running in another terminal.
+hero-image quality='82':
+    @set -e ; \
+     command -v cwebp >/dev/null || { echo "[just] error: cwebp not found (brew install webp)" >&2 ; exit 1 ; } ; \
+     URL=$(just url) ; \
+     echo "[codecity] capturing the landing wallpaper from $URL" ; \
+     cd app && npx playwright install chromium && \
+     CODECITY_URL="$URL" node scripts/screenshots.mjs hero ; \
+     cwebp -q {{quality}} -m 6 -quiet public/hero-city.png -o public/hero-city.webp ; \
+     rm public/hero-city.png ; \
+     echo "[codecity] wrote app/public/hero-city.webp ($(du -h public/hero-city.webp | cut -f1), q={{quality}})"
+
 # Regenerate the animated .github/readme/demo.mp4: a headless orbit of codecity
 # rendering its own repo, recorded with Playwright and encoded to a small h264
 # mp4 with ffmpeg (required: brew install ffmpeg). Needs `just dev` running.
