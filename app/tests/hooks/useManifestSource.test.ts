@@ -7,6 +7,7 @@ import {
   setTimelineRefreshHandler,
   setTimelineBootHandler,
   bootLoad,
+  attachRouteLoad,
 } from '@/hooks/useManifestSource';
 import { readBootView } from '@/state/bootView';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
@@ -376,5 +377,91 @@ describe('the boot load runs the mode the URL asks for', () => {
     expect(StubEventSource.instances).toHaveLength(1);
     cancelLoad();
     await p;
+  });
+});
+
+describe('the URL drives what is loaded', () => {
+  let restoreEventSource: () => void;
+  let detach: () => void;
+
+  const srcOf = (i: number): string | null =>
+    new URL(StubEventSource.instances[i]!.url, 'http://x').searchParams.get('src');
+
+  /** Finish the in-flight load, which is what commits the source. */
+  const complete = async (name: string): Promise<void> => {
+    const es = StubEventSource.instances[StubEventSource.instances.length - 1]!;
+    es.emit('manifest-complete', JSON.stringify({ manifest: { tree: { name } } }));
+    await flush();
+  };
+
+  beforeEach(() => {
+    restoreEventSource = installEventSource();
+    StubEventSource.instances = [];
+    CURRENT_SOURCE.value = null;
+    SOURCE_ERROR.value = null;
+    navigate(ROUTES.HOME, { replace: true });
+  });
+
+  afterEach(() => {
+    detach?.();
+    restoreEventSource();
+    CURRENT_SOURCE.value = null;
+    navigate(ROUTES.HOME, { replace: true });
+  });
+
+  it('loads nothing while the URL names no project', async () => {
+    detach = attachRouteLoad();
+    await flush();
+    expect(StubEventSource.instances).toHaveLength(0);
+  });
+
+  it('loads the project the URL already names when it attaches', async () => {
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+
+    expect(StubEventSource.instances).toHaveLength(1);
+    expect(srcOf(0)).toBe('/repos/a');
+  });
+
+  it('loads the new project when the URL changes under it', async () => {
+    // The reported bug: Back to a different ?src moved the address bar and
+    // left the old city on screen, because the URL was read once at mount.
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    await complete('a');
+
+    navigate('/city?src=%2Frepos%2Fb');
+    await flush();
+
+    expect(StubEventSource.instances).toHaveLength(2);
+    expect(srcOf(1)).toBe('/repos/b');
+  });
+
+  it('does not reload the project already on screen', async () => {
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    await complete('a');
+
+    // A view param changing is not a different project.
+    navigate('/city?src=%2Frepos%2Fa&sel=file%3Aa.ts');
+    await flush();
+
+    expect(StubEventSource.instances).toHaveLength(1);
+  });
+
+  it('stops following the URL once detached', async () => {
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    await complete('a');
+
+    detach();
+    navigate('/city?src=%2Frepos%2Fb');
+    await flush();
+
+    expect(StubEventSource.instances).toHaveLength(1);
   });
 });
