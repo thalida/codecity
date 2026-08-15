@@ -1,15 +1,7 @@
-// state/stores/settings/footprint.ts — Cyberpunk Valley city footprint configuration.
-//
-// One InstancedMesh per layout rect (buildings + streets + paths),
-// each scaled up by HALO_WIDTH world units in both axes, painted with
-// COLOR, drawn at y=0 between the valley floor (-500) and the city's
-// sidewalk/asphalt layers (1+). The overlapping inflated quads
-// compose visually into one continuous asphalt slab that follows the
-// city silhouette.
-//
-// Tree placement reads HALO_WIDTH so candidate trees inside the slab
-// are rejected by the existing rbush overlap check — no extra
-// gradient logic required.
+// state/stores/settings/footprint.ts — the asphalt slab under the city. One
+// quad per layout rect, each inflated by HALO_WIDTH so the overlapping quads
+// compose into one continuous silhouette. Tree placement reads HALO_WIDTH too,
+// so candidates inside the slab fall out of the existing rbush overlap check.
 
 import {
   settingSignal,
@@ -19,10 +11,8 @@ import {
   type FieldMap,
 } from '@/state/settingsSchema';
 
-// Schema-driven (see state/schema), but stays its own object store
-// because HALO_WIDTH is threaded into the tree-placement worker. HALO_WIDTH
-// bakes into per-instance Matrix4 data → rebuild; ENABLED / CORNER_RADIUS /
-// COLOR are material/visibility updates → refresh.
+// Its own object store because HALO_WIDTH is threaded into the tree-placement
+// worker.
 const FOOTPRINT_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,
@@ -56,7 +46,7 @@ const FOOTPRINT_FIELDS = {
     max: 2,
     step: 0.05,
     label: 'Halo radius × halo width',
-    tip: 'Corner roundness as a multiple of Halo width: 0 is sharp, 1 rounds by one halo width, 2 by two. Only shows where the silhouette actually ends, not where rects overlap.',
+    tip: 'Corner roundness as a multiple of Halo width: 0 is sharp, 2 rounds by two halo widths. Only shows where the silhouette ends, not where rects overlap.',
   },
 } satisfies FieldMap;
 

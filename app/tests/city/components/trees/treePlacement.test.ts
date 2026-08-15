@@ -1,6 +1,6 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
@@ -50,10 +50,8 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('places a tree for every commit even on a tiny, city-covered island', () => {
-    // A 2- or 3-commit repo: the candidate grid is floored (TREE_MIN_CELLS) so
-    // enough positions survive rejection to place ALL commits' trees. Without the
-    // floor a handful of cells collide with the centered building and accepted
-    // falls below the commit count, silently dropping HEAD's tree.
+    // The candidate grid is floored (TREE_MIN_CELLS) so enough positions survive
+    // rejection; without it the centered building eats HEAD's tree.
     const bb = bbox(-40, -40, 40, 40);
     const layout: CityLayout = {
       ...emptyLayout(bb),
@@ -68,8 +66,7 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('still places every commit at the maximum density falloff', () => {
-    // Falloff thins candidates probabilistically; at the top of the range it
-    // rejects nearly everything and the forest disappears entirely. Thinned
+    // At the top of the range falloff rejects nearly everything, so the thinned
     // positions are kept as spares and topped up to reach the commit count.
     WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 100 };
     TREES.value = { ...TREES.value, DENSITY_FALLOFF: 50 };
@@ -153,6 +150,86 @@ describe('placeTrees (commit-driven)', () => {
     }
 
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
+  });
+
+  describe('city clearance limits', () => {
+    // A 400x400 block at the origin, so a placement's gap is its Chebyshev
+    // distance from the origin minus the half-extent, as rbush measures it.
+    const HALF_BLOCK = 200;
+    const cityBlock = (bb: ReturnType<typeof bbox>): CityLayout => ({
+      ...emptyLayout(bb),
+      buildings: [building({ x: 0, y: 0, w: HALF_BLOCK * 2, d: HALF_BLOCK * 2, h: 10 })],
+    });
+    const narrowestGap = (placements: TreePlacement[]): number =>
+      Math.min(...placements.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y)) - HALF_BLOCK));
+
+    beforeEach(() => {
+      FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 0 };
+    });
+    afterEach(() => {
+      FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
+    });
+
+    it('caps the gap on a big island, where a small percentage clears a lot of ground', () => {
+      const bb = bbox(-10_000, -10_000, 10_000, 10_000);
+      const layout = cityBlock(bb);
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 10 };
+
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
+      const unclamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 300] };
+      const clamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+
+      expect(clamped).toBeGreaterThanOrEqual(300);
+      expect(clamped).toBeLessThan(unclamped);
+    });
+
+    it('floors the gap on a small island, where the percentage barely clears anything', () => {
+      const bb = bbox(-600, -600, 600, 600);
+      const layout = cityBlock(bb);
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 1 };
+
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
+      const unfloored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+
+      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [80, 2000] };
+      const floored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+
+      expect(floored).toBeGreaterThanOrEqual(80);
+      expect(floored).toBeGreaterThan(unfloored);
+    });
+  });
+
+  describe('island edge inset limits', () => {
+    // The inset is radial, so how far out the forest reaches is the widest
+    // distance any placement sits from the island center.
+    const outermost = (placements: TreePlacement[]): number =>
+      Math.max(...placements.map((p) => Math.hypot(p.x, p.y)));
+
+    const forest = (percent: number, limits: [number, number]): TreePlacement[] => {
+      const bb = bbox(-5000, -5000, 5000, 5000);
+      TREES.value = {
+        ...TREES.value,
+        EDGE_INSET_PERCENT: percent,
+        EDGE_INSET_LIMITS: limits,
+      };
+      return placeTrees(emptyLayout(bb), bb, { commitCount: 600 });
+    };
+
+    it('caps the inset, so a big island keeps its trees out at the rim', () => {
+      const unclamped = outermost(forest(20, [0, 2000]));
+      const clamped = outermost(forest(20, [0, 200]));
+      expect(clamped).toBeGreaterThan(unclamped);
+    });
+
+    it('floors the inset, so trees stop short of the edge on any island', () => {
+      const unfloored = outermost(forest(0, [0, 2000]));
+      const floored = outermost(forest(0, [800, 2000]));
+      // Short of the full 800: the candidate grid is discrete, so the outermost
+      // survivor sits inside the rim rather than on it.
+      expect(unfloored - floored).toBeGreaterThan(600);
+    });
   });
 });
 

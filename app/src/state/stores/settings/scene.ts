@@ -91,7 +91,7 @@ const SCENE_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Falloff height ×',
-    tip: "How much of each building the haze covers, as a fraction of that building's own height. 0.5 hazes the bottom half of every building, so a 2-floor stub and a 60-floor tower wear the same relative skirt.",
+    tip: 'How much of each building the haze covers, as a fraction of its own height. At 0.5 a 2-floor stub and a 60-floor tower wear the same relative skirt.',
   },
 } satisfies FieldMap;
 

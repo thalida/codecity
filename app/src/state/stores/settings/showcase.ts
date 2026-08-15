@@ -39,7 +39,7 @@ const SHOWCASE_FIELDS = {
     max: 2,
     step: 0.05,
     label: 'Orbit radius',
-    tip: 'How far out the turntable circles the gem, counted in the distance the camera rests at when you open a project: 1 is exactly that far, 0.5 half as far, 2 twice. Measured off the gem rather than the city, so one value frames every repo alike.',
+    tip: 'How far out the turntable circles the gem, in multiples of the distance the camera opens at: 1 is exactly that far, 0.5 half, 2 twice. Measured off the gem.',
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,

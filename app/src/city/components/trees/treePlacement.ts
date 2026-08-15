@@ -153,8 +153,15 @@ export function placeTrees(
 
   // A share of the island, not a distance: a fixed gap that suits a big repo is
   // the whole of a small one. Off the narrow axis, and stacks with the halo.
-  const halfFoot =
-    Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100);
+
+  // Clamped in world units: the same share of a much bigger island is a
+  // clearing wide enough to push the forest out of frame.
+  const [clearanceMin, clearanceMax] = cfg.CITY_CLEARANCE_LIMITS;
+  const halfFoot = THREE.MathUtils.clamp(
+    Math.min(sampleHalfW, sampleHalfD) * (Math.max(0, cfg.CITY_CLEARANCE_PERCENT) / 100),
+    Math.max(0, clearanceMin),
+    Math.max(0, clearanceMax)
+  );
 
   // The farthest a candidate can be from the city, which normalises the
   // falloff distance into [0,1].
@@ -187,14 +194,19 @@ export function placeTrees(
         roundness: islandGeo.ROUNDNESS,
         grassThickness: islandGeo.GRASS_THICKNESS,
       });
-      // Shrink every vertex radially inward by insetFrac so the rejection
-      // polygon is uniformly inset from the actual island edge.
+      // Every vertex pulled radially inward by insetFrac, clamped in world
+      // units for the same reason the city clearance is.
       const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+      const [insetMin, insetMax] = cfg.EDGE_INSET_LIMITS;
       islandPolygon = rawPolygon.map((v) => {
         const r = Math.hypot(v.x, v.z);
         if (r < 1e-6) return v.clone();
-        const newR = r * (1 - insetFrac);
-        const scale = newR / r;
+        const inset = THREE.MathUtils.clamp(
+          r * insetFrac,
+          Math.max(0, insetMin),
+          Math.max(0, insetMax)
+        );
+        const scale = Math.max(0, r - inset) / r;
         return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
       });
     }

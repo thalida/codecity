@@ -18,7 +18,7 @@ const SCRUBBER_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Even spacing',
-    tip: '0 places each commit purely by when it happened, so busy bursts bunch up tight. 1 gives every commit the same width, so a long gap looks like a short one. In between keeps the shape of time while leaving each commit wide enough to grab.',
+    tip: '0 places each commit by when it happened, so busy bursts bunch tight. 1 gives every commit the same width. In between keeps the shape of time, still grabbable.',
   },
 } satisfies FieldMap;
 

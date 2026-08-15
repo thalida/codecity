@@ -29,6 +29,16 @@ const TREES_FIELDS = {
     label: 'Distance from city (% of island)',
     tip: 'Minimum gap from any building or street, as a share of the island, so the gap suits a small repo as well as a large one.',
   },
+  CITY_CLEARANCE_LIMITS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.RangePair,
+    default: [0, 256] as [number, number],
+    min: 0,
+    max: 2000,
+    step: 1,
+    label: 'Distance limits (world units)',
+    tip: 'World-unit floor and ceiling for that gap, applied after the percentage so a huge island cannot clear a huge ring.',
+  },
   DENSITY_FALLOFF: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
@@ -46,8 +56,18 @@ const TREES_FIELDS = {
     min: 0,
     max: 50,
     step: 1,
-    label: 'Island edge inset',
-    tip: 'How far short of the island edge trees stop.',
+    label: 'Island edge inset (% of island)',
+    tip: 'How far short of the island edge trees stop, as a share of the island radius.',
+  },
+  EDGE_INSET_LIMITS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.RangePair,
+    default: [0, 256] as [number, number],
+    min: 0,
+    max: 2000,
+    step: 1,
+    label: 'Inset limits (world units)',
+    tip: 'World-unit floor and ceiling for the inset, applied after the percentage so a huge island keeps its rim in proportion.',
   },
 
   COLOR_BUSY_DAY: {
@@ -170,7 +190,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Age shrink floor',
-    tip: 'Width multiplier for the shortest, newest trees. 1 means no shrink, 0.5 gives half-width saplings, 0 makes width strictly follow height. Tallest trees always render at full width.',
+    tip: 'Width multiplier for the shortest, newest trees. 1 means no shrink, 0.5 half-width saplings, 0 makes width follow height. Tallest trees stay full width.',
   },
 
   // Two persistent meshes snap to the active tree each frame. One width for
