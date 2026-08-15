@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LeftSidebar } from '@/layout/LeftSidebar/LeftSidebar';
+import { LeftSidebar } from '@/chrome/LeftSidebar/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setManifest } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -14,10 +14,8 @@ const TEST_TREE = {
   children: [{ name: 'a.ts', type: 'file', path: 'a.ts', extension: '.ts', size: 100, lines: 10 }],
 };
 
-// Minimal SCENE_HANDLE stand-in so the sidebar's manifest bridge picks
-// up a tree to render. The Preact panes only read getManifest() +
-// subscribe to onChange — none of the other handle methods are touched
-// in these structural tests.
+// Minimal SCENE_HANDLE stand-in: the panes only read getManifest() and
+// subscribe to onChange, so nothing else on the handle is touched here.
 function makeSceneHandle() {
   return {
     world: {
@@ -40,9 +38,8 @@ describe('LeftSidebar', () => {
   beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    // Seed MANIFEST directly (the fetch layer is the writer now that the
-    // scene→MANIFEST bridge is gone) so the sidebar has a tree to render.
-    // SCENE_HANDLE is still seeded for the picker the panes read.
+    // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is
+    // still seeded for the picker the panes read.
     setManifest({ tree: TEST_TREE } as never);
     SCENE_HANDLE.value = makeSceneHandle() as never;
     render(<LeftSidebar />, container);

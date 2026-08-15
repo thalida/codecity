@@ -146,7 +146,7 @@
     min-width: var(--cc-rail-w);
   }
 
-  /* Against #app-body, so it spans exactly the room between the bars. Keeps the
+  /* Against #city-body, so it spans exactly the room between the bars. Keeps the
      base z-index: a selection pane (100) covers this one, never the reverse. */
   #left-sidebar:not(.is-collapsed) {
     position: absolute;

@@ -1,8 +1,8 @@
-// layout/AppFooter.tsx — the app's own bar. The header is the project; nothing
+// chrome/CityFooter — the app's own bar. The header is the project; nothing
 // here is about the repo you have open. Per-node stats live in the selection
 // pane's footer, beside the thing they describe.
 
-import './AppFooter.css';
+import './CityFooter.css';
 import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
 import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
@@ -16,13 +16,13 @@ export interface AppFooterProps {
   onRunTreeGroundingCheck?: () => void;
 }
 
-export function AppFooter({
+export function CityFooter({
   onRunCollisionCheck,
   onRunStemDiagnostic,
   onRunTreeGroundingCheck,
 }: AppFooterProps = {}) {
   return (
-    <footer id="app-footer" class="surface-chrome">
+    <footer id="city-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
         <ChromeCluster>
           <AppearanceMenu />

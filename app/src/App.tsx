@@ -1,4 +1,4 @@
-// layout/App.tsx — the composition root: the routes, and the few reactions
+// App.tsx — the composition root: the routes, and the few reactions
 // that outlive any one of them. Each view owns its own layout, its own hooks,
 // and the canvas it mounts.
 

@@ -16,8 +16,8 @@ import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
 import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
 import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { TreeTab } from '@/panes/ExplorePane/tabs/TreeTab/TreeTab';
-import { AppHeader } from '@/layout/AppHeader/AppHeader';
-import { AppFooter } from '@/layout/AppFooter/AppFooter';
+import { CityHeader } from '@/chrome/CityHeader/CityHeader';
+import { CityFooter } from '@/chrome/CityFooter/CityFooter';
 import { goHome, openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/ui';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
@@ -104,16 +104,16 @@ const SURFACES: Surface[] = [
     },
   },
   {
-    name: 'AppHeader (refresh menu open)',
+    name: 'CityHeader (refresh menu open)',
     mount: (c) => {
       loadProject();
-      render(<AppHeader />, c);
+      render(<CityHeader />, c);
       openByLabel(c, 'More refresh options');
     },
   },
   {
-    name: 'AppFooter',
-    mount: (c) => render(<AppFooter />, c),
+    name: 'CityFooter',
+    mount: (c) => render(<CityFooter />, c),
   },
   {
     name: 'DebugMenu',

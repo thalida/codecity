@@ -1,9 +1,9 @@
-// layout/AppHeader.tsx — Sitewide top header, composition shell only. The
+// chrome/CityHeader — Sitewide top header, composition shell only. The
 // header is the PROJECT; the footer is the APP. Everything here is about the
 // repo you have open: which one it is, what you can do with its address, and
 // how fresh it is. Two clusters, each outlined: see .chrome-cluster.
 
-import './AppHeader.css';
+import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -23,7 +23,7 @@ export interface AppHeaderProps {
   onRefresh?: (skipCache: boolean) => void;
 }
 
-export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
+export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
   const si = SOURCE_INFO.value;
   const remoteUrl = (MANIFEST.value as Manifest)?.repo?.remote_url ?? null;
   // Nothing loaded: the freshness cluster would be reporting on a project that
@@ -31,7 +31,7 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
   const hasProject = Boolean(si.src);
 
   return (
-    <header id="app-header" class="surface-chrome">
+    <header id="city-header" class="surface-chrome">
       <ChromeCluster class="app-header-project">
         <ProjectSwitcher
           rootLabel={si.label}

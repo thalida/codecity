@@ -1,0 +1,71 @@
+/* ── City footer (status bar) ────────────────────────────────────────────
+   Two tracks: run-state left, credit right. Per-node stats live in the
+   selection pane instead. */
+
+#city-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-7);
+  padding: 0 var(--cc-chrome-inset);
+  height: var(--cc-chrome-h);
+  border-top: 1px solid var(--cc-track);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-2xs);
+  color: var(--cc-text-secondary);
+  white-space: nowrap;
+}
+
+.app-footer-section {
+  display: flex;
+  align-items: center;
+  /* Tight: the `·` separators do most of the spacing, and this only keeps
+     items off the dots. */
+  gap: var(--cc-space-3);
+  /* min-width:0 is what lets overflow:hidden actually bite: without it the
+   * section's min-content width wins and long text paints past the section. */
+  min-width: 0;
+  overflow: hidden;
+}
+/* The left absorbs the slack; the right is content-sized and unclipped, since
+   one of its buttons opens a panel that must escape the bar. */
+.app-footer-section.app-footer-left {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  overflow: visible;
+}
+.app-footer-section.app-footer-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+/* Muted-dot separator between the left section's items. Pointer-events:none
+ * so a stray click between items doesn't fall on the dot. */
+.app-footer-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  pointer-events: none;
+}
+
+/* The debug button uses .btn-icon + .btn-icon--sm. */
+
+/* ── Version + credit ─────────────────────────────────────────────── */
+/* Both a step below the status text, so the live state reads first. The credit
+   takes .link--chrome: nothing else in a status bar says "link". */
+#city-footer .meta-version,
+#city-footer .meta-credit {
+  color: var(--cc-text-muted);
+}
+
+/* ── Phone (PHONE_MAX_PX) ───────────────────────────────────────────────────
+   Only the build number goes, separator and all: it is still on the landing. */
+@media (max-width: 640px) {
+  #city-footer {
+    gap: var(--cc-space-3);
+  }
+
+  #city-footer .meta-version,
+  #city-footer .meta-version + .meta-sep {
+    display: none;
+  }
+}

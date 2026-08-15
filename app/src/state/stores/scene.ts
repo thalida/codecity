@@ -1,7 +1,7 @@
 // state/stores/scene.ts — Runtime signal that holds the Three.js scene
-// handle once CenterPane mounts and createCity completes. Components
+// handle once CityStage mounts and createCity completes. Components
 // that need world / picker / rig read SCENE_HANDLE.value?.world etc.
-// Null until CenterPane's useEffect resolves.
+// Null until CityStage's useEffect resolves.
 
 import { signal, effect } from '@preact/signals';
 import type { createCity } from '../../city';

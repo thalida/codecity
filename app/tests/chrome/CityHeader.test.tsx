@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { AppHeader } from '@/layout/AppHeader/AppHeader';
+import { CityHeader } from '@/chrome/CityHeader/CityHeader';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
@@ -17,7 +17,7 @@ function loadProject() {
   CURRENT_SOURCE.value = { src: '/repos/codecity', branch: 'main' };
 }
 
-describe('AppHeader', () => {
+describe('CityHeader', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -34,7 +34,7 @@ describe('AppHeader', () => {
 
   it('renders the gem inside the project chip', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -46,7 +46,7 @@ describe('AppHeader', () => {
   it('opens the switcher when the chip is clicked', async () => {
     const onSwitchSource = vi.fn();
     loadProject();
-    render(<AppHeader onSwitchSource={onSwitchSource} />, container);
+    render(<CityHeader onSwitchSource={onSwitchSource} />, container);
     await flush();
 
     container.querySelector<HTMLButtonElement>('.project-switcher')!.click();
@@ -56,7 +56,7 @@ describe('AppHeader', () => {
   });
 
   it('still renders the gem before a project loads', async () => {
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -68,7 +68,7 @@ describe('AppHeader', () => {
   // the repo you have open.
   it('holds neither the about link nor the shortcuts button', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
@@ -77,7 +77,7 @@ describe('AppHeader', () => {
 
   it('puts the freshness readout opposite the project, with nothing beside it', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     const freshness = container.querySelector('.app-header-freshness')!;
@@ -93,7 +93,7 @@ describe('AppHeader', () => {
   // end-rounding still apply to the trigger; a wrapper would break both.
   it('makes the readout a direct child of the cluster, not a wrapped one', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     const cluster = container.querySelector('.app-header-freshness')!;
@@ -104,19 +104,19 @@ describe('AppHeader', () => {
   // The gem says which app this is; this says which kind of repo the name
   // beside it belongs to, the way every row in the switcher already does.
   it('marks the chip with the repo kind, and drops it before a project loads', async () => {
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
     expect(container.querySelector('.project-switcher-kind')).toBeNull();
 
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
     expect(container.querySelector('.project-switcher-kind .icon')).not.toBeNull();
   });
 
   it('groups the project controls in one outlined cluster', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     const cluster = container.querySelector('.chrome-cluster')!;
@@ -127,7 +127,7 @@ describe('AppHeader', () => {
   it('holds both ways to re-open the source in the panel, and none in the bar', async () => {
     loadProject();
     const onRefresh = vi.fn();
-    render(<AppHeader onRefresh={onRefresh} />, container);
+    render(<CityHeader onRefresh={onRefresh} />, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
@@ -148,14 +148,14 @@ describe('AppHeader', () => {
   });
 
   it('shows nothing to refresh before a project is loaded', async () => {
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
     expect(container.querySelector('.app-header-freshness')).toBeNull();
   });
 
   it('has no reset-view control', async () => {
     loadProject();
-    render(<AppHeader />, container);
+    render(<CityHeader />, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Reset view"]')).toBeNull();

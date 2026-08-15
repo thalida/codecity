@@ -1,15 +1,15 @@
-// layout/CenterPane.tsx — the center column. Holds the <City /> component,
-// which owns the canvas + the Three.js scene lifecycle.
+// chrome/CityStage — the stage the city is performed on: the canvas, the
+// selection chip, and the scene controls that sit over it.
 
-import './CenterPane.css';
+import './CityStage.css';
 import { City } from '@/city/City';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
 import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
 import { SelectionChip } from '@/components/SelectionChip/SelectionChip';
 
-export function CenterPane() {
+export function CityStage() {
   return (
-    <div id="center-pane">
+    <div id="city-stage">
       <City />
       <SelectionChip />
       <div id="scene-controls">

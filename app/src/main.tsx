@@ -8,7 +8,7 @@ import './styles/index.css';
 // no flash (persistedSignal hydrates synchronously).
 import '@/state/stores/settings/theme';
 import { normalizeBootRoute } from '@/router/location';
-import { App } from '@/layout/App/App';
+import { App } from '@/App';
 
 // Settle the route BEFORE the first render so the first paint is already the
 // right one: no chrome flash behind the landing, no landing over a deep link.

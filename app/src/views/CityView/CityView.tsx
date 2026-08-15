@@ -3,14 +3,15 @@
 // here rather than at the root: the URL⇄view binding, the selection announcer,
 // and the syntax theme the file preview reads.
 
+import './CityView.css';
 import { useEffect } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 
-import { AppHeader } from '@/layout/AppHeader/AppHeader';
-import { AppFooter } from '@/layout/AppFooter/AppFooter';
-import { CenterPane } from '@/layout/CenterPane/CenterPane';
-import { LeftSidebar } from '@/layout/LeftSidebar/LeftSidebar';
-import { RightSidebar } from '@/layout/RightSidebar/RightSidebar';
+import { CityHeader } from '@/chrome/CityHeader/CityHeader';
+import { CityFooter } from '@/chrome/CityFooter/CityFooter';
+import { CityStage } from '@/chrome/CityStage/CityStage';
+import { LeftSidebar } from '@/chrome/LeftSidebar/LeftSidebar';
+import { RightSidebar } from '@/chrome/RightSidebar/RightSidebar';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
@@ -51,18 +52,18 @@ export function CityView() {
 
   return (
     <>
-      <a class="skip-link" href="#app-body">
+      <a class="skip-link" href="#city-body">
         Skip to content
       </a>
       {/* The header owns the control; which read a refresh means in the mode
           you are in is the fetch layer's call. */}
-      <AppHeader onSwitchSource={() => goHome()} onRefresh={refreshCurrentSource} />
-      <main id="app-body" tabIndex={-1}>
+      <CityHeader onSwitchSource={() => goHome()} onRefresh={refreshCurrentSource} />
+      <main id="city-body" tabIndex={-1}>
         <LeftSidebar />
-        <CenterPane />
+        <CityStage />
         <RightSidebar />
       </main>
-      <AppFooter
+      <CityFooter
         onRunCollisionCheck={runCollisionCheck}
         onRunStemDiagnostic={runStemDiagnostic}
         onRunTreeGroundingCheck={runTreeGroundingCheck}

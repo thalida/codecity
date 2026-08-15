@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { AppFooter } from '@/layout/AppFooter/AppFooter';
+import { CityFooter } from '@/chrome/CityFooter/CityFooter';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { flush } from '../_helpers/preact';
 
-describe('AppFooter', () => {
+describe('CityFooter', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -20,7 +20,7 @@ describe('AppFooter', () => {
   });
 
   it('shows the running build version in the app line, on the right', async () => {
-    render(<AppFooter />, container);
+    render(<CityFooter />, container);
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -29,14 +29,14 @@ describe('AppFooter', () => {
 
   // The header is the project, the footer is the app.
   it('holds no project state: the freshness readout lives in the header', async () => {
-    render(<AppFooter />, container);
+    render(<CityFooter />, container);
     await flush();
 
     expect(container.querySelector('.freshness-status')).toBeNull();
   });
 
   it('credits the creator on the right, linked to thalida.com', async () => {
-    render(<AppFooter />, container);
+    render(<CityFooter />, container);
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -51,15 +51,15 @@ describe('AppFooter', () => {
   });
 
   it('no longer reads as a code comment', async () => {
-    render(<AppFooter />, container);
+    render(<CityFooter />, container);
     await flush();
 
-    expect(container.querySelector('#app-footer')!.textContent).not.toContain('//');
+    expect(container.querySelector('#city-footer')!.textContent).not.toContain('//');
   });
 
   // Both are app-level, so both belong here rather than in the project header.
   it('holds the shortcuts button and the about link', async () => {
-    render(<AppFooter />, container);
+    render(<CityFooter />, container);
     await flush();
 
     const shortcuts = container.querySelector('[aria-label="Shortcuts and gestures"]')!;

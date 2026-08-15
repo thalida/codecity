@@ -1,0 +1,29 @@
+/* ── App shell ─────────────────────────────────────────────────────────────── */
+
+html,
+body {
+  width: 100%;
+  /* dvh, not 100%: mobile toolbars minimise and the layout viewport doesn't
+     follow, leaving the shell short by the toolbar's height. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  /* Panes scroll; the page never does. Otherwise a tree scrolled to its end
+     arms pull-to-refresh. */
+  overscroll-behavior: none;
+  background: var(--cc-bg-app);
+  color: var(--cc-text-strong);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-md);
+  line-height: var(--cc-lh-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* The one element both routes render into; each view lays itself out. */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}

@@ -1,6 +1,6 @@
 /* ── Center pane (WebGL canvas + hover tooltip) ────────────────────────────── */
 
-#center-pane {
+#city-stage {
   flex: 1 1 0;
   min-width: 0; /* allow the canvas to shrink below its intrinsic 0 size */
   position: relative; /* canvas fills this box */
