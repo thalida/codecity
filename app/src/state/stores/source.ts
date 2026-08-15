@@ -9,7 +9,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
 import { ROUTES } from '@/constants/routes';
-import { navigate, hrefFor, ROUTE_SEARCH } from '@/state/route';
+import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/state/route';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
@@ -67,7 +67,7 @@ export function clearSourceUrl(): void {
 }
 
 // Reflect the applied source so reload/share reopens it, moving to /city if the
-// load began at home. Replaces: asking for the project was the push.
+// load began at home.
 effect(() => {
   const cur = CURRENT_SOURCE.value;
   if (!cur) return;
@@ -75,7 +75,10 @@ effect(() => {
   params.set(URL_PARAMS.SRC, cur.src);
   if (cur.branch) params.set(URL_PARAMS.BRANCH, cur.branch);
   else params.delete(URL_PARAMS.BRANCH);
-  navigate(hrefFor(ROUTES.CITY, params), { replace: true });
+  // From the switcher this is a place you went, so it pushes and Back returns
+  // to the list; already on /city (a re-scan, a deep link) is the same place.
+  const fromHome = ROUTE_PATH.peek() === ROUTES.HOME;
+  navigate(hrefFor(ROUTES.CITY, params), { replace: !fromHome });
 });
 
 export interface SourceInfo {
