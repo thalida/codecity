@@ -1,3 +1,9 @@
+// One of four answers to "which tree does this surface show":
+//   manifest         HEAD, the project you opened            (fetched)
+//   scrubbedManifest a real scan AT the scrubbed commit      (fetched)
+//   presentPaths     the paths alive at that commit          (derived)
+//   paneManifest     what the tree and search show           (derived)
+//
 // state/stores/manifest.ts — the current manifest and the world-rebuild status
 // behind the header's freshness readout and the loading overlay. Session-scoped:
 // a rehydrated REBUILD_STATUS would strand it on "rebuilding…" after a reload.

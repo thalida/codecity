@@ -11,7 +11,7 @@ import {
   hideLoadingOverlay,
   setLoadingStep,
   setLoadingStepTail,
-} from '@/state/stores/loading';
+} from '@/state/stores/loadingOverlay';
 import { ScanPhase } from '@/api/manifest';
 import {
   LoadingStep,

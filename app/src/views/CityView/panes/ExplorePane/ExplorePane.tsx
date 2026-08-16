@@ -15,7 +15,7 @@ import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
+import { PANE_MANIFEST } from '@/state/stores/paneManifest';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.
@@ -87,7 +87,7 @@ export function ExplorePane({
         />
       ) : (
         // README reads HEAD (fetches the current checkout), never the scrubbed union.
-        <ReadmeTab manifest={HISTORY_MANIFEST} />
+        <ReadmeTab manifest={PANE_MANIFEST} />
       )}
     </Pane>
   );

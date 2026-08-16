@@ -8,7 +8,8 @@ import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
-import { goHome } from '@/state/stores/home';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { IS_PHONE } from '@/state/stores/viewport';
 import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
@@ -37,7 +38,7 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
           rootLabel={si.label}
           branch={si.branch}
           src={si.src}
-          onSwitchSource={onSwitchSource ?? (() => goHome())}
+          onSwitchSource={onSwitchSource ?? (() => navigate(ROUTES.HOME))}
         />
         {/* Dropped on a phone: a repo path on a phone's clipboard has nowhere
             to go, and the room buys the repo name back. */}

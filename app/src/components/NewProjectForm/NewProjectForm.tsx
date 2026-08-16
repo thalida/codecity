@@ -39,9 +39,6 @@ export interface NewProjectFormProps {
   errorCode?: ScanErrorCode;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
-  /** Fired when the user edits the source field, so the host can drop a stale
-   *  open-error banner (the form itself owns no such error). */
-  onDirty?: () => void;
 }
 
 const ERROR_ID = 'new-project-error';
@@ -53,8 +50,10 @@ export function NewProjectForm({
   errorCode,
   prefill,
   onSubmit,
-  onDirty,
 }: NewProjectFormProps) {
+  // Editing the source retires the last attempt's banner. Local, not a write
+  // back to SOURCE_ERROR: that failure is still the reason this route is open.
+  const [retired, setRetired] = useState(false);
   const [source, setSource] = useState(prefill?.src ?? '');
   const [branch, setBranch] = useState(prefill?.branch ?? '');
   const [resolvedUrl, setResolvedUrl] = useState(
@@ -86,12 +85,14 @@ export function NewProjectForm({
   const showStandingNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
   // A remote repo the server couldn't reach. Shown regardless of what the field
   // now reads as, because it answers the attempt the user just made.
-  const failedToReach = errorCode === 'repo-not-found' || branchErrorCode === 'repo-not-found';
+  const openError = retired ? undefined : error;
+  const failedToReach =
+    (!retired && errorCode === 'repo-not-found') || branchErrorCode === 'repo-not-found';
 
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
   function onSourceInput(v: string) {
-    onDirty?.(); // editing the source clears any stale open-error banner
+    setRetired(true);
     setSource(v);
     if (v.trim() && srcKind(v) === SourceKind.Remote) {
       setBranch('');
@@ -106,7 +107,7 @@ export function NewProjectForm({
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
   const fieldError = urlError ?? (isRemote ? branchError : null);
   const canSubmit = !loading && activeSrc.length > 0 && !fieldError && !pathBlocked;
-  const hasError = Boolean(fieldError) || pathBlocked || Boolean(error);
+  const hasError = Boolean(fieldError) || pathBlocked || Boolean(openError);
 
   function submit(skipCache = false) {
     if (!canSubmit) return;
@@ -161,11 +162,11 @@ export function NewProjectForm({
             allowLocal={allowLocalRepos}
             reason={NoticeReason.PathBlocked}
           />
-        ) : fieldError || error ? (
+        ) : fieldError || openError ? (
           // Live validation beats the message from the last submit, which the
-          // next keystroke clears anyway (onDirty).
+          // next keystroke retires anyway.
           <p id={ERROR_ID} role="alert" class="new-project-error">
-            {fieldError ?? error}
+            {fieldError ?? openError}
           </p>
         ) : (
           showStandingNotice && (

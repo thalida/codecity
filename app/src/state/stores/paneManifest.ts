@@ -1,3 +1,9 @@
+// One of four answers to "which tree does this surface show":
+//   manifest         HEAD, the project you opened            (fetched)
+//   scrubbedManifest a real scan AT the scrubbed commit      (fetched)
+//   presentPaths     the paths alive at that commit          (derived)
+//   paneManifest     what the tree and search show           (derived)
+//
 // The manifest the sidebar tree + search read: while scrubbing, the union
 // filtered to the paths present at the scrubbed commit; else the HEAD manifest.
 // (README stays on HEAD — it reads MANIFEST directly.)
@@ -22,7 +28,7 @@ function _filterPresent(node: TreeNode, present: ReadonlySet<string>): TreeNode 
   return { ...node, children };
 }
 
-export const HISTORY_MANIFEST: ReadonlySignal<ManifestValue> = computed(() => {
+export const PANE_MANIFEST: ReadonlySignal<ManifestValue> = computed(() => {
   const bundle = TIMELINE_BUNDLE.value;
   if (!TIMELINE_MODE.value || !bundle) return MANIFEST.value;
 

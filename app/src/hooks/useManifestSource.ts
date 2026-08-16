@@ -36,7 +36,7 @@ import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loading';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
@@ -130,6 +130,9 @@ let loadController: AbortController | null = null;
 // The one way to load a source. The poll below is a separate op that shares
 // only the MANIFEST sink and yields to this via the generation.
 export async function loadSource(payload: SourcePayload): Promise<void> {
+  // This attempt supersedes the last failure, so nothing outlives it to explain
+  // a load that is no longer the current one.
+  SOURCE_ERROR.value = null;
   // A source switch always exits Timeline; the city layer reacts to the flip.
   if (TIMELINE_MODE.peek()) resetTimelineMode();
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll

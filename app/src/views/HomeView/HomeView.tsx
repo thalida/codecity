@@ -9,15 +9,14 @@ import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'luci
 import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
-import { HOME_OPTS, clearHomeError } from '@/state/stores/home';
-import { LOADING_OVERLAY } from '@/state/stores/loading';
+import { LOADING_OVERLAY } from '@/state/stores/loadingOverlay';
 import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { RECENTS } from '@/state/stores/source';
+import { RECENTS, SOURCE_ERROR } from '@/state/stores/source';
 import { stepForPhase } from '@/constants/loadingSteps';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
@@ -33,7 +32,7 @@ export function HomeView() {
   useHomeBackdrop();
   // The one way this view opens a project, whichever list or form asked.
   const open = (payload: SourcePayload): void => void loadSource(payload);
-  const opts = HOME_OPTS.value;
+  const failed = SOURCE_ERROR.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
 
@@ -134,14 +133,13 @@ export function HomeView() {
                 <NewProjectForm
                   // Remount on a new prefill so a failed submit restores what
                   // was typed instead of clearing it.
-                  key={opts.prefill?.src ?? ''}
+                  key={failed?.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   hosted={SERVER_CONFIG.value.hosted}
-                  error={opts.error}
-                  errorCode={opts.errorCode}
-                  prefill={opts.prefill}
+                  error={failed?.error}
+                  errorCode={failed?.code}
+                  prefill={failed?.prefill}
                   onSubmit={open}
-                  onDirty={clearHomeError}
                 />
               </section>
               <section class="landing-card landing-card--sources surface-glass">

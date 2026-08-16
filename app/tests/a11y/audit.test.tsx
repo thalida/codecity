@@ -18,7 +18,8 @@ import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
 import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
 import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
-import { goHome } from '@/state/stores/home';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/modals';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
@@ -86,7 +87,7 @@ const SURFACES: Surface[] = [
   {
     name: 'HomeView',
     mount: (c) => {
-      goHome();
+      navigate(ROUTES.HOME);
       render(<HomeView />, c);
     },
   },
@@ -99,7 +100,7 @@ const SURFACES: Surface[] = [
       DISCOVER.value = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
-      goHome();
+      navigate(ROUTES.HOME);
       render(<HomeView />, c);
       openByLabel(c, 'More ways to open');
     },

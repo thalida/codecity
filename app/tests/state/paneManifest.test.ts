@@ -3,7 +3,7 @@ import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
+import { PANE_MANIFEST } from '@/state/stores/paneManifest';
 
 // At commit 2: present.txt present, gone.txt deleted, future/y.txt not yet created.
 const bundle = {
@@ -64,7 +64,7 @@ test('only present-at-scrub paths survive (deleted + future dropped, empty dirs 
   TIMELINE_MODE.value = true;
   setScrubPos(2);
 
-  const p = paths(HISTORY_MANIFEST.value);
+  const p = paths(PANE_MANIFEST.value);
   expect(p.has('present.txt')).toBe(true);
   expect(p.has('gone.txt')).toBe(false); // deleted at commit 2
   expect(p.has('future/y.txt')).toBe(false); // not created until commit 3
@@ -77,7 +77,7 @@ test('present-only regardless of the ruins / future toggles', () => {
   setScrubPos(2);
   RUINS.value = { ...RUINS.value, ENABLED: true };
 
-  const p = paths(HISTORY_MANIFEST.value);
+  const p = paths(PANE_MANIFEST.value);
   expect(p.has('gone.txt')).toBe(false);
   expect(p.has('future/y.txt')).toBe(false);
   expect(p.has('present.txt')).toBe(true);

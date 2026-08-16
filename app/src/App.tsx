@@ -9,12 +9,11 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
-import { goHome } from '@/state/stores/home';
 import { SOURCE_ERROR } from '@/state/stores/source';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { attachLoadingReactions } from '@/state/loadingReactions';
-import { attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
+import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
 export function App() {
@@ -27,11 +26,10 @@ export function App() {
   useEffect(() => attachRouteHistory(), []);
   useEffect(() => attachLoadingReactions(), []);
 
-  // A failure sends you back to the landing, carrying what to say about it.
+  // A failure sends you back to the landing, which reads SOURCE_ERROR itself to
+  // explain what happened.
   useSignalEffect(() => {
-    const err = SOURCE_ERROR.value;
-    if (!err) return;
-    goHome({ prefill: err.prefill, error: err.error, errorCode: err.code });
+    if (SOURCE_ERROR.value) navigate(ROUTES.HOME);
   });
 
   return (

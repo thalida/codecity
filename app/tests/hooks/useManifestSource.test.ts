@@ -15,7 +15,7 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loading';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
@@ -61,6 +61,19 @@ describe('useManifestSource loadSource cancellation', () => {
       // header has to live exactly as long as the overlay.
       expect(PENDING_SOURCE_LABEL.value, 'cleared with the stream, not the overlay').toBe('o/r');
     });
+  });
+
+  it('a new attempt retires the last failure, so it cannot outlive what explained it', async () => {
+    SOURCE_ERROR.value = {
+      error: 'repository not found',
+      prefill: { src: 'https://github.com/o/gone' },
+    };
+
+    const p = loadSource({ src: 'https://github.com/o/r' });
+    expect(SOURCE_ERROR.value, 'cleared as the attempt starts, not when it lands').toBeNull();
+
+    cancelLoad();
+    await p;
   });
 
   it('canceling a load leaves SOURCE_ERROR null and CURRENT_SOURCE unchanged', async () => {

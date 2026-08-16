@@ -2,7 +2,7 @@
 // the one predicate the scene's input handlers read to stay out of their way.
 
 import { signal, computed } from '@preact/signals';
-import { ON_HOME } from './home';
+import { ON_HOME } from '@/router/paths';
 
 /** Whether the keyboard/mouse shortcuts reference modal is open. */
 export const SHORTCUTS_OPEN = signal(false);

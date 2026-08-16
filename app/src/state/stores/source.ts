@@ -21,8 +21,7 @@ import {
 } from '@/utils/sources';
 import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { isEmptyManifest } from '@/utils/manifest';
-import type { ScanErrorCode } from '@/api/manifest';
-import type { Manifest } from '@/types';
+import type { Manifest, SourceError } from '@/types';
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
@@ -32,13 +31,7 @@ export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(nu
 
 /** The last load failure, or null. A fetch outcome, not a UI command: App
  *  reacts by opening the picker, and clears it when the user acts. */
-export const SOURCE_ERROR = signal<{
-  error: string;
-  /** The server's machine-readable reason, where it gave one. The view keys
-   *  its remedy on this rather than on the message text. */
-  code?: ScanErrorCode;
-  prefill?: { src: string; branch?: string };
-} | null>(null);
+export const SOURCE_ERROR = signal<SourceError | null>(null);
 
 /** What is on screen: the project you opened, or the featured repo the landing
  *  renders. Lists mark rows against this, so one repo marks the same way. */

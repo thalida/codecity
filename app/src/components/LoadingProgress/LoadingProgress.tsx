@@ -14,7 +14,7 @@ import {
   LOADING_STEP_LABELS,
   stepRuns,
 } from '@/constants/loadingSteps';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loading';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 
 export interface LoadingProgressProps {
   activeStep: LoadingStep;

@@ -1,3 +1,9 @@
+// One of four answers to "which tree does this surface show":
+//   manifest         HEAD, the project you opened            (fetched)
+//   scrubbedManifest a real scan AT the scrubbed commit      (fetched)
+//   presentPaths     the paths alive at that commit          (derived)
+//   paneManifest     what the tree and search show           (derived)
+//
 // The manifest reconstructed AT the scrubbed commit, for the one surface the
 // union can't serve: folder rollups (counts, size, ext breakdown, date span)
 // are all-time in the union, so they have to come from a real scan of that

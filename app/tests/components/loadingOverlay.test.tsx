@@ -8,7 +8,7 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/loading';
+} from '@/state/stores/loadingOverlay';
 
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { navigate } from '@/router/location';

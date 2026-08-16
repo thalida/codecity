@@ -1,5 +1,7 @@
-// state/stores/loading.ts — the full-page loading overlay: what it is showing,
-// which step it is on, and how to back out of the load behind it.
+// state/stores/loadingOverlay.ts — what the overlay is SHOWING: which step row
+// is lit, its tail text, and how to back out of the load behind it. Derived, not
+// reported: loadingReactions maps SCAN_PROGRESS (the server) and REBUILD_STATUS
+// (the scene) onto this, and is its only writer.
 
 import { signal } from '@preact/signals';
 import { LOADING_STEPS, firstStepFor, type LoadingStep } from '@/constants/loadingSteps';

@@ -19,8 +19,7 @@ vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
   cancelLoad: vi.fn(),
 }));
 import { HomeView } from '@/views/HomeView/HomeView';
-import { HOME_OPTS, goHome } from '@/state/stores/home';
-import { setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/loading';
+import { setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { navigate } from '@/router/location';
@@ -29,7 +28,7 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
+import { RECENTS, CURRENT_SOURCE, SOURCE_ERROR } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
@@ -53,7 +52,7 @@ describe('HomeView', () => {
     render(null, container);
     document.body.removeChild(container);
     navigate(ROUTES.HOME, { replace: true });
-    HOME_OPTS.value = {};
+    SOURCE_ERROR.value = null;
     CURRENT_SOURCE.value = null;
     SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
@@ -127,7 +126,7 @@ describe('HomeView', () => {
 
   it('drops a stale error banner once a new load starts', async () => {
     loadedCity();
-    goHome({ error: 'repository not found' });
+    SOURCE_ERROR.value = { error: 'repository not found' };
     render(<HomeView />, container);
     await flush();
     expect(container.textContent).toMatch(/repository not found/i);
@@ -139,10 +138,10 @@ describe('HomeView', () => {
 
   it('drops a stale error banner as soon as the user edits the source', async () => {
     loadedCity();
-    goHome({
+    SOURCE_ERROR.value = {
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
-    });
+    };
     render(<HomeView />, container);
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
@@ -334,7 +333,7 @@ describe('HomeView', () => {
     });
 
     it('names the city on screen once it has actually painted', async () => {
-      goHome();
+      navigate(ROUTES.HOME);
       render(<HomeView />, container);
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
@@ -356,7 +355,7 @@ describe('HomeView', () => {
     const renderLanding = async (opts: { dismissible: boolean }) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
-      goHome();
+      navigate(ROUTES.HOME);
       render(<HomeView />, container);
       await flush();
       return container.querySelector('.landing-hero')!;

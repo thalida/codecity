@@ -18,8 +18,9 @@ import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnn
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import { goHome } from '@/state/stores/home';
-import { LOADING_CANCEL } from '@/state/stores/loading';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
+import { LOADING_CANCEL } from '@/state/stores/loadingOverlay';
 import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
 import {
   clearSelection,
@@ -58,7 +59,7 @@ export function CityView() {
       </a>
       {/* The header owns the control; which read a refresh means in the mode
           you are in is the fetch layer's call. */}
-      <CityHeader onSwitchSource={() => goHome()} onRefresh={refreshCurrentSource} />
+      <CityHeader onSwitchSource={() => navigate(ROUTES.HOME)} onRefresh={refreshCurrentSource} />
       <main id="city-body" tabIndex={-1}>
         <CitySidebarLeft />
         <CityStage />

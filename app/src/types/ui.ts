@@ -22,14 +22,14 @@ export interface SourcePayload {
   skipCache?: boolean;
 }
 
-/** What to tell the landing when something sends you there: what to prefill,
- *  and what went wrong. Not visibility, which is the route. */
-export interface HomeOpts {
-  prefill?: SourcePayload;
-  error?: string;
+/** A load that failed: what went wrong, and what was being opened. The landing
+ *  reads it to explain itself and to refill the form. */
+export interface SourceError {
+  error: string;
   /** The failure's machine-readable reason, where the server gave one, so the
    *  form can offer a remedy instead of only echoing the message. */
-  errorCode?: ScanErrorCode;
+  code?: ScanErrorCode;
+  prefill?: SourcePayload;
 }
 
 /** Options for showing the loading overlay. */

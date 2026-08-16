@@ -1,4 +1,9 @@
-// state/stores/scanProgress.ts — Canonical streaming-progress signal written by
+// state/stores/scanProgress.ts — what the SERVER is doing right now: clone
+// percent, files scanned, which phase. The fetch layer is its only writer. The
+// scene's own progress is REBUILD_STATUS in stores/manifest, and what the
+// overlay shows is stores/loadingOverlay, which loadingReactions derives.
+//
+// Canonical streaming-progress signal written by
 // the fetch layer (useManifestSource) while a source loads. The loading overlay
 // is a REACTION to this (state/loadingReactions.ts) — the fetch layer no longer
 // pokes LOADING_OVERLAY directly.

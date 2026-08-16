@@ -1,3 +1,9 @@
+// One of four answers to "which tree does this surface show":
+//   manifest         HEAD, the project you opened            (fetched)
+//   scrubbedManifest a real scan AT the scrubbed commit      (fetched)
+//   presentPaths     the paths alive at that commit          (derived)
+//   paneManifest     what the tree and search show           (derived)
+//
 // Union paths present at the current scrub commit (live files + their ancestor
 // dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 

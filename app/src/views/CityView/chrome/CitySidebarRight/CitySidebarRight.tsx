@@ -15,7 +15,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
+import { PANE_MANIFEST } from '@/state/stores/paneManifest';
 import {
   SCRUBBED_MANIFEST,
   loadManifestAt,
@@ -79,7 +79,7 @@ export function CitySidebarRight() {
   const fileState = useComputed<FilePreviewPaneState>(() => {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
-    const m = HISTORY_MANIFEST.value as Manifest | DirNode | null;
+    const m = PANE_MANIFEST.value as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
