@@ -17,12 +17,6 @@
   flex-direction: column;
   gap: var(--cc-space-6);
 }
-/* When the toast is up, drop the first stat below it so it isn't covered on
-   load (matches the file pane's code clearance). */
-.street-body.has-stale-note .street-content {
-  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
-}
-
 /* Activity span: oldest file created → newest change. */
 .street-dates {
   display: flex;
@@ -100,10 +94,4 @@
   justify-self: end;
   color: var(--cc-text-primary);
   white-space: nowrap;
-}
-
-/* Positioning context for the floating <TimelineStaleNote>, which sits at an
-   identical inset from every pane edge because these bodies carry none. */
-.street-body {
-  position: relative;
 }

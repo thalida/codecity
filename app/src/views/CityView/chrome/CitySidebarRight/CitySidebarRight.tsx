@@ -1,10 +1,9 @@
-// layout/CitySidebarRight.tsx — the right panel: its width, its resize handle, and
+// chrome/CitySidebarRight.tsx — the right panel: its width, its resize handle, and
 // which of the three panes the selection calls for. Their view-state is computed
 // from the picker and MANIFEST, so a live-update poll re-derives them.
 
 import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import {
@@ -15,13 +14,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST, PRESENT_PATHS } from '@/state/stores/scrub';
-import {
-  SCRUBBED_MANIFEST,
-  loadManifestAt,
-  resetScrubbedManifest,
-} from '@/state/stores/scrubbedManifest';
-import { SETTLED_COMMIT, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { PANE_MANIFEST, PRESENT_PATHS, scrubbedDirFor } from '@/state/stores/scrub';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -104,47 +97,25 @@ export function CitySidebarRight() {
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
-    // Folder rollups are all-time in the union, so in Timeline they come from a
-    // real scan of the scrubbed commit; until it lands, the union is the fallback.
-    const scrubbed = TIMELINE_MODE.value ? SCRUBBED_MANIFEST.value : null;
-    const m = (scrubbed ?? MANIFEST.value) as Manifest | DirNode | null;
+    const m = MANIFEST.value as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
-    const fresh = findNodeByPath(m, sel.dir.path);
+    // In Timeline the rollups are re-added at the settled commit from the same
+    // per-blob numbers the buildings use, so the pane cannot disagree with them.
+    const fresh = TIMELINE_MODE.value
+      ? scrubbedDirFor(sel.dir.path)
+      : findNodeByPath(m, sel.dir.path);
     return {
       directory: fresh?.type === NodeKind.Directory ? fresh : sel.dir,
       rootLabel: SOURCE_INFO.value.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      inTimeline: TIMELINE_MODE.value && !SCRUBBED_MANIFEST.value,
       // The same set the sidebar tree filters on, so a road the tree has dropped
-      // can't still read as live here. Its rollups are the union's either way.
+      // can't still read as live here.
       isAbsent: TIMELINE_MODE.value && !PRESENT_PATHS.value.has(sel.dir.path),
     };
   });
-
-  // Reconstructing a commit is expensive, so only fetch it when a street pane is
-  // actually open to read it, and only once the scrub has settled.
-  const streetDir = useComputed(() => {
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    return sel?.kind === NodeKind.Directory ? sel.dir.path : null;
-  });
-  const scrubSha = useComputed(() => {
-    if (!TIMELINE_MODE.value) return null;
-    return TIMELINE_BUNDLE.value?.commits?.[SETTLED_COMMIT.value]?.sha ?? null;
-  });
-  const needsScrubbedManifest = streetDir.value !== null;
-  const scrubShaValue = scrubSha.value;
-  const srcValue = SOURCE_INFO.value.src;
-  const branchValue = SOURCE_INFO.value.branch;
-  useEffect(() => {
-    if (!needsScrubbedManifest || !scrubShaValue || !srcValue) {
-      if (!scrubShaValue) resetScrubbedManifest();
-      return;
-    }
-    void loadManifestAt(srcValue, branchValue, scrubShaValue);
-  }, [needsScrubbedManifest, scrubShaValue, srcValue, branchValue]);
 
   // Two facts, not one: closing used to deselect, throwing away the outline
   // because you wanted the details out of the way.

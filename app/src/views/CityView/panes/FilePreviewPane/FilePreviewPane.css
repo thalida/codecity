@@ -12,12 +12,6 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-/* Drops the first line clear of the stale-data toast, which floats over
-   everything past it as you scroll. */
-.editor-body.has-stale-note .code-editor {
-  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
-}
-
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
 
@@ -301,10 +295,4 @@
   color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
   word-break: break-word;
-}
-
-/* Positioning context for the floating <TimelineStaleNote>, which sits at an
-   identical inset from every pane edge because these bodies carry none. */
-.editor-body {
-  position: relative;
 }

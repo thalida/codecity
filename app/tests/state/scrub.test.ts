@@ -12,6 +12,7 @@ import {
   PANE_MANIFEST,
   scrubbedBlobShaFor,
   scrubbedStatsFor,
+  scrubbedDirFor,
 } from '@/state/stores/scrub';
 import { makeBundle, PRESENCE_BUNDLE } from '../_helpers/scrub';
 
@@ -108,4 +109,129 @@ test('displayed stats describe the blob being served, across unchanged commits',
   expect(scrubbedBlobShaFor('f.txt')).toBe('big');
   expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
   expect(scrubbedStatsFor('f.txt')?.bytes).toBe(200);
+});
+
+// ── Folder rollups ───────────────────────────────────────────────────
+
+// a.txt is written at c0 and rewritten at c2; b.md arrives at c1. Nothing is
+// ever deleted, so the union IS the state at HEAD and the two must agree there.
+const C0 = '2024-01-01T00:00:00Z';
+const C1 = '2024-02-01T00:00:00Z';
+const C2 = '2024-03-01T00:00:00Z';
+
+const HEAD_SRC_ROLLUPS = {
+  children_count: 2,
+  children_file_count: 2,
+  children_dir_count: 0,
+  descendants_count: 2,
+  descendants_file_count: 2,
+  descendants_dir_count: 0,
+  descendants_size: 500, // a.txt 300 at c2 + b.md 200
+  descendants_created_min: C0,
+  descendants_modified_max: C2,
+  // Tied on count, so extension ascending.
+  descendants_ext_breakdown: [
+    { ext: 'md', count: 1, size: 200 },
+    { ext: 'txt', count: 1, size: 300 },
+  ],
+};
+
+const steady = makeBundle({
+  commits: [
+    { sha: 'a', date: C0 },
+    { sha: 'b', date: C1 },
+    { sha: 'c', date: C2 },
+  ],
+  unionManifest: {
+    tree: {
+      name: '',
+      path: '',
+      type: NodeKind.Directory,
+      children: [
+        {
+          name: 'src',
+          path: 'src',
+          type: NodeKind.Directory,
+          ...HEAD_SRC_ROLLUPS,
+          children: [
+            {
+              name: 'a.txt',
+              path: 'src/a.txt',
+              type: NodeKind.File,
+              extension: 'txt',
+              size: 300,
+              lines: 30,
+              created: C0,
+              modified: C2,
+            },
+            {
+              name: 'b.md',
+              path: 'src/b.md',
+              type: NodeKind.File,
+              extension: 'md',
+              size: 200,
+              lines: 20,
+              created: C1,
+              modified: C1,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  deltas: [
+    { sha: 'a', changes: [{ path: 'src/a.txt', sha: 'a1' }] },
+    { sha: 'b', changes: [{ path: 'src/b.md', sha: 'b1' }] },
+    { sha: 'c', changes: [{ path: 'src/a.txt', sha: 'a2' }] },
+  ],
+  blobLines: { a1: 10, b1: 20, a2: 30 },
+  blobSizes: { a1: 100, b1: 200, a2: 300 },
+} as unknown as TimelineBundle as Partial<TimelineBundle>);
+
+function rollups(d: unknown): Record<string, unknown> {
+  const node = d as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(HEAD_SRC_ROLLUPS).map((k) => [k, node[k]]));
+}
+
+test('at HEAD the derived rollups equal the ones the backend authored', () => {
+  TIMELINE_BUNDLE.value = steady;
+  TIMELINE_MODE.value = true;
+  setScrubPos(2);
+
+  expect(rollups(scrubbedDirFor('src'))).toEqual(HEAD_SRC_ROLLUPS);
+});
+
+test('earlier commits count only what existed, at the size it was then', () => {
+  TIMELINE_BUNDLE.value = steady;
+  TIMELINE_MODE.value = true;
+  setScrubPos(0);
+
+  const d = scrubbedDirFor('src')!;
+  expect(d.descendants_file_count).toBe(1); // b.md does not exist yet
+  expect(d.descendants_size).toBe(100); // a.txt before its rewrite, not 300
+  expect(d.descendants_ext_breakdown).toEqual([{ ext: 'txt', count: 1, size: 100 }]);
+});
+
+test('the newest change never runs ahead of the scrub', () => {
+  TIMELINE_BUNDLE.value = steady;
+  TIMELINE_MODE.value = true;
+  setScrubPos(1);
+
+  // The union says a.txt was last touched at C2. Reading that here is what put
+  // a future date on a folder you scrubbed into the past.
+  expect(scrubbedDirFor('src')!.descendants_modified_max).toBe(C1);
+});
+
+test('a deleted file leaves the folder totals, and an emptied folder is gone', () => {
+  atCommitTwo();
+
+  const src = scrubbedDirFor('src')!;
+  expect(src.descendants_file_count).toBe(1); // gone.txt deleted at this commit
+  expect(scrubbedDirFor('future')).toBeNull(); // nothing in it exists yet
+});
+
+test('null in Live, where MANIFEST is already the answer', () => {
+  TIMELINE_BUNDLE.value = steady;
+  TIMELINE_MODE.value = false;
+  expect(scrubbedDirFor('src')).toBeNull();
 });

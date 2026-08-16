@@ -99,21 +99,6 @@ describe('StreetPane', () => {
     expect(container.querySelector('.pane-stats')).toBeNull(); // nor in the footer
   });
 
-  it('says all-time stats, not deleted, when the road is merely unscrubbed', async () => {
-    mount();
-    state.value = { directory: dir('src'), inTimeline: true };
-    await flush();
-
-    const note = container.querySelector('.timeline-stale-note');
-    expect(note!.textContent).toContain('All-time folder stats');
-  });
-
-  it('shows no note for a road that is present', async () => {
-    mount();
-    await setDirectory(dir('src'));
-    expect(container.querySelector('.timeline-stale-note')).toBeNull();
-  });
-
   it('lists every extension as a ranked row sorted by count desc', async () => {
     mount();
     const d = dir(

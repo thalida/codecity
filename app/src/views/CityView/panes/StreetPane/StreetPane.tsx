@@ -7,7 +7,6 @@ import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane/Pane';
-import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange, FolderX } from 'lucide-preact';
 import { KindBadge } from '@/components/Badge/Badge';
@@ -34,9 +33,6 @@ export interface StreetPaneState {
   /** Gone by the scrubbed commit. Every figure here would be the union's
    *  all-time one, which is worse than none, so the body says only that. */
   isAbsent?: boolean;
-  /** In Timeline mode the folder stats are the union (all-time), not the scrubbed
-   *  commit — show a note saying so. */
-  inTimeline?: boolean;
 }
 
 export interface StreetPaneProps {
@@ -55,7 +51,6 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
     rootPath = '',
     remoteUrl,
     branch = '',
-    inTimeline,
     isAbsent,
   } = state.value;
 
@@ -108,18 +103,13 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
           ? undefined
           : 'Excluding the project root would leave nothing to look at'
       }
-      bodyClass={`street-body${inTimeline && !isAbsent ? ' has-stale-note' : ''}`}
+      bodyClass="street-body"
       footerSlot={isAbsent ? null : <PaneStats items={directoryStatItems(d)} />}
     >
       {isAbsent ? (
         <PaneEmpty icon={FolderX} title="Directory not available" modifier="empty-state--absent" />
       ) : (
         <>
-          {inTimeline && (
-            <TimelineStaleNote>
-              All-time folder stats, not based on the timeline commit.
-            </TimelineStaleNote>
-          )}
           <div class="street-content pane-inset">
             {dateRange && (
               <div class="street-dates" title="Oldest file created → newest change">
