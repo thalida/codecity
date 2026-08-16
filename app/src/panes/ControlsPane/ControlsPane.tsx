@@ -7,8 +7,7 @@ import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
 import { DynamicSection, type SectionNode } from './partials';
 import { VIEW_SECTION } from './partials/View';
-import { SKY_SECTION } from './partials/Sky';
-import { ISLAND_SECTION } from './partials/Island';
+import { WORLD_SECTION } from './partials/World';
 import { BUILDINGS_SECTION } from './partials/Buildings';
 import { STREETS_SECTION } from './partials/Streets';
 import { FOOTPRINT_SECTION } from './partials/Footprint';
@@ -21,14 +20,13 @@ import { ActionsBar } from './ActionsBar/ActionsBar';
 import { Pane } from '@/components/Pane/Pane';
 import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
 
-/** Hoisted out of the render so a test can assert the invariant: every field
- *  under here stages into Save/Discard/Reset, with no write-through. */
+/** Every section the pane shows, hoisted so a test can assert the invariant:
+ *  each field stages into Save/Discard/Reset, none writes through. */
 // Ordered outside-in: where you look from, then the world, then the city, then
 // what lives around it, then whole-frame passes.
-export const WORLD_SECTIONS: SectionNode[] = [
+export const CONTROLS_SECTIONS: SectionNode[] = [
   VIEW_SECTION,
-  SKY_SECTION,
-  ISLAND_SECTION,
+  WORLD_SECTION,
   STREETS_SECTION,
   FOOTPRINT_SECTION,
   BUILDINGS_SECTION,
@@ -63,7 +61,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       bodyClass="pane-inset"
       footerSlot={<ActionsBar />}
     >
-      {WORLD_SECTIONS.map((node) => (
+      {CONTROLS_SECTIONS.map((node) => (
         <DynamicSection key={`${collapseNonce}-${node.key}`} node={node} />
       ))}
     </Pane>

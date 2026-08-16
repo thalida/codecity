@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { DynamicSection, type SectionChild, type FieldRef } from '@/panes/ControlsPane/partials';
 import { TREES_SECTION } from '@/panes/ControlsPane/partials/Trees';
 import { BUILDINGS_SECTION } from '@/panes/ControlsPane/partials/Buildings';
-import { WORLD_SECTIONS } from '@/panes/ControlsPane/ControlsPane';
+import { CONTROLS_SECTIONS } from '@/panes/ControlsPane/ControlsPane';
 import { CAMERA } from '@/state/stores/settings/camera';
 import { SHOWCASE } from '@/state/stores/settings/showcase';
 import { SCENE } from '@/state/stores/settings/scene';
@@ -30,9 +30,9 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
   return out;
 }
 
-// Every store the World tab is responsible for surfacing. A store added here
-// but left unplaced (or a field dropped while moving a section) fails below.
-const WORLD_STORES: [string, object][] = [
+// Every store the controls pane is responsible for surfacing. A store added
+// here but left unplaced, or a field dropped in a move, fails below.
+const CONTROLS_STORES: [string, object][] = [
   ['CAMERA', CAMERA],
   ['SHOWCASE', SHOWCASE],
   ['SCENE', SCENE],
@@ -56,10 +56,10 @@ const WORLD_STORES: [string, object][] = [
 ];
 
 describe('World tab coverage', () => {
-  const refs = WORLD_SECTIONS.flatMap((s) => collectRefs(s.children ?? []));
+  const refs = CONTROLS_SECTIONS.flatMap((s) => collectRefs(s.children ?? []));
 
   it('places every field of every World store exactly once', () => {
-    for (const [name, store] of WORLD_STORES) {
+    for (const [name, store] of CONTROLS_STORES) {
       const placed = refs.filter((r) => r.store === (store as unknown)).map((r) => r.key);
       expect(placed.slice().sort(), name).toEqual(getFieldKeys(store).sort());
       expect(new Set(placed).size, `${name} placed a field twice`).toBe(placed.length);
@@ -67,14 +67,14 @@ describe('World tab coverage', () => {
   });
 
   it('places nothing from a store outside that set', () => {
-    const known = new Set(WORLD_STORES.map(([, s]) => s as unknown));
+    const known = new Set(CONTROLS_STORES.map(([, s]) => s as unknown));
     expect(refs.filter((r) => !known.has(r.store))).toEqual([]);
   });
 
   it('has no write-through fields: every one stages into the footer', () => {
     // An autosave store here would skip staging AND be ignored by Reset all
     // (stageResetAll / anyResettable both bow out of autosave stores).
-    const writeThrough = WORLD_SECTIONS.flatMap((s) =>
+    const writeThrough = CONTROLS_SECTIONS.flatMap((s) =>
       collectRefs(s.children ?? [])
         .filter((r) => isAutosave(r.store as object))
         .map((r) => `${s.key}.${r.key}`)
@@ -91,7 +91,7 @@ describe('World tab coverage', () => {
         walk(c.children);
       }
     };
-    for (const s of WORLD_SECTIONS) {
+    for (const s of CONTROLS_SECTIONS) {
       keys.push(s.key);
       walk(s.children ?? []);
     }
