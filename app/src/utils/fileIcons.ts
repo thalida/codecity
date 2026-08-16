@@ -14,13 +14,8 @@ import {
   GENERIC_FOLDER,
 } from '../constants/fileIcons';
 
-/**
- * Resolve the Material icon basename: exact filename > extension > generic
- * (filename hints carry richer semantics than the bare extension — package.json
- * → npm, not json). A binary "data" file with no specific match falls back to the
- * hex "raw bytes" glyph instead of the generic document — but a known binary type
- * (audio, font, database, …) keeps its own icon.
- */
+/** Icon basename by exact filename, then extension, then generic: package.json
+ *  means npm, not json. An unmatched binary gets the raw-bytes glyph. */
 export function getFileIconName(
   file:
     | FileNode

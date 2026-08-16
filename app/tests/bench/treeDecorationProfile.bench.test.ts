@@ -11,8 +11,8 @@ import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
 import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import { makeRng, genNestedTree, bboxOf, genCommits } from '../tests/_helpers/layoutTreeFixtures';
-import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
+import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 describe('tree decoration profile', () => {
   function runOne(label: string, commitCount: number) {
@@ -20,9 +20,8 @@ describe('tree decoration profile', () => {
     const tree = genNestedTree('root', 'root', 30000, 0, rng);
     const commits = genCommits(commitCount, makeRng(7));
     const busyness = { avg: 3, busy: 6 };
-    // Backend-precomputed in production; derive it here outside the timed
-    // regions so the renderer/firefly timings exclude the stats pass. layoutCity
-    // needs the file ranges to size buildings (else all collapse to min-width).
+    // Derived outside the timed regions so they exclude the stats pass;
+    // layoutCity needs the ranges or every building collapses to min-width.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
     const layout = layoutCity({ tree, stats });
     const bbox = bboxOf(layout);

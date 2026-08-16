@@ -1,17 +1,13 @@
-// layoutProfile.bench.test.ts — phase-breakdown profiler for layoutCity on a
-// Linux-kernel-sized tree (~93k files / ~5k dirs). Reproduces issue #63's
-// ~70–80s cold-load cost so we can see WHERE the time goes before refactoring.
-//
-// The Linux kernel's cost is dominated by a few enormous top-level dirs
-// (drivers/, arch/, fs/), so we generate a power-law-skewed tree rather than a
-// balanced one — that skew is what makes placeChild's per-directory work blow
-// up. Not committed as a perf gate; it's a diagnostic driver.
+// Phase breakdown for layoutCity on a Linux-kernel-sized tree (~93k files).
+// The tree is power-law skewed, not balanced, because a few enormous top-level
+// dirs are what make placeChild's per-directory work blow up. A diagnostic
+// driver, not a perf gate.
 
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { setLayoutProfiling, getLayoutProfile } from '@/city/layout/profiling';
 import { NodeKind } from '@/types';
-import { makeRng, genWeightedTree } from '../tests/_helpers/layoutTreeFixtures';
+import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 
 function countFilesDirs(node: any): { files: number; dirs: number } {
   let files = 0;

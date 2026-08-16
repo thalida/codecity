@@ -1,14 +1,7 @@
-// layout.bench.test.ts — perf smoke harness for layoutCity.
-//
-// Builds synthetic trees of various shapes, times layoutCity, logs ms.
-// This is a smoke harness — no assertions on absolute timings (those vary
-// per machine), but a future regression that 10×s the time will be
-// visible in the test output.
-//
-// File is named .bench.test.ts (not just .bench.ts) so vitest's
-// `tests/**/*.test.{js,ts}` include glob picks it up. Vitest's dedicated
-// `bench()` API is overkill for what we need here — a single timed run
-// per shape is enough to flag a regression.
+// layout.bench.test.ts — times layoutCity over synthetic trees of several
+// shapes and logs the milliseconds. No absolute assertions: they vary per
+// machine, and a regression that 10x's the time shows up in the output. One
+// timed run per shape, so vitest's bench() API buys nothing here.
 
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
@@ -45,11 +38,8 @@ function flatTree(n: number) {
   return mkDir('root', files);
 }
 
-// Builds a balanced tree producing exactly fan^depth files. The labels in
-// the spec ("d4f5 (625 files)") follow this convention: depth==1 means a
-// single level of fanning out files under root. Each non-leaf level
-// branches into `fan` subdirectories; the leaf level (depth==1 in the
-// recursion) holds `fan` files.
+// A balanced tree of exactly fan^depth files: every non-leaf level branches
+// into `fan` dirs, and the leaf level holds `fan` files.
 function deepChildren(depth: number, fan: number, basePath: string): any[] {
   if (depth === 1) {
     return Array.from({ length: fan }, (_, i) => mkFile(`f${i}.ts`, 0));
@@ -64,10 +54,8 @@ function deepTree(depth: number, fan: number): any {
   return mkDir('root', deepChildren(depth, fan, 'root'), 'root');
 }
 
-// 60s ceiling per case — generous upper bound so a slow CI machine still
-// passes, but a 100×s regression that pushes a case past the ceiling will
-// fail loudly. Absolute timings are still useful (logged below) for spotting
-// smaller regressions in the printed test output.
+// Generous enough that a slow machine passes, tight enough that a 100x
+// regression fails loudly. Smaller ones show up in the logged timings.
 const PERF_TIMEOUT_MS = 60_000;
 
 describe('layoutCity perf smoke', () => {
@@ -78,9 +66,8 @@ describe('layoutCity perf smoke', () => {
     const ms = (t1 - t0).toFixed(1);
     const nBuildings = layout.buildings.length;
 
-    // World bbox sanity: max(W, H) of all rect extents. Useful as a
-    // baseline for compactness comparisons; logged but not asserted
-    // against absolute thresholds (varies with synthetic tree shapes).
+    // A compactness baseline, logged rather than asserted: it moves with the
+    // synthetic tree's shape.
     let xMin = Infinity,
       xMax = -Infinity,
       yMin = Infinity,

@@ -70,15 +70,11 @@ describe('TreePane', () => {
     const rootPath = ((initialManifest as { tree?: { path?: string }; path?: string }).tree?.path ??
       (initialManifest as { path?: string }).path ??
       '.') as string;
-    // Seed expansion with the root path so the root's children render on
-    // the first synchronous pass (matches the component's mount-time
-    // selection→expansion bridge, which fires the same value). Tests that
-    // don't flush before querying rely on the root being expanded already.
+    // Seeded so the root's children render on the first synchronous pass,
+    // which is what the mount-time bridge would do anyway.
     expanded = signal<Set<string>>(new Set([rootPath]));
-    // act() flushes Preact's effect queue synchronously, so the
-    // component's selection→expansion bridge (an effect installed via
-    // useEffect) is live before tests mutate selectedPath. Without it the
-    // bridge wouldn't run until a later rAF/timeout tick.
+    // act() flushes the effect queue, so the selection→expansion bridge is
+    // live before a test moves selectedPath.
     act(() => {
       render(
         <TreeTab
@@ -190,9 +186,8 @@ describe('TreePane', () => {
     expect(Array.from(topLevelItems, (li) => li.dataset.path)).not.toContain('.');
   });
 
-  // Structural assertions migrated from the deleted buildTree helper. They
-  // exercise the same render path via the live <TreeTab> instead of a
-  // test-only bare-tree builder exported from production.
+  // Structural assertions through the live component, rather than a
+  // test-only tree builder exported from production.
   it('sorts top-level children alphabetically (files + dirs intermingled)', () => {
     const pane = mount(TEST_TREE);
     const rootList = pane.querySelector('ul.tree-root')!;
@@ -203,9 +198,8 @@ describe('TreePane', () => {
 
   it('renders every file across nesting once its branch is expanded', async () => {
     const pane = mount(TEST_TREE);
-    // Selecting into src expands its ancestor chain, surfacing src/utils.ts
-    // alongside the two top-level files. (Single-branch-open, so for a
-    // fixture with one nested dir this is the whole tree.)
+    // Selecting into src opens its ancestor chain, which for this fixture is
+    // the whole tree.
     selectedPath.value = 'src/utils.ts';
     await flush();
     expect(pane.querySelectorAll('.tree-file').length).toBe(3);

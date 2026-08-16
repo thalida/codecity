@@ -9,10 +9,8 @@ import { isMediaFile } from '@/utils/fileKind';
 import { isEmptyFile } from '@/utils/fileKind';
 import { isDataBuilding } from '@/utils/fileKind';
 
-// Structural shapes — kept lenient so test fixtures (which omit fields the
-// helpers don't read, like name/path on intermediate nodes) stay
-// compatible. Real callers pass full Manifest / TreeNode / FileNode
-// instances which structurally satisfy these.
+// Lenient on purpose, so a fixture omitting fields these helpers never read
+// still satisfies them structurally.
 export interface FileLike {
   type?: string;
   name?: string;
@@ -32,13 +30,8 @@ export interface DirLike {
 }
 export type TreeLike = FileLike | DirLike;
 
-// getStreetWidth(count, tiers?) -> number
-//
-// Given a descendant count and (optionally) a tier list, return the
-// world-unit street width. The tier list defaults to STREET_TIERS.get().
-// Each tier entry is { min_descendants, width }. Walk the list and pick
-// the tier with the highest min_descendants that `count` meets. The last
-// tier (largest min_descendants) acts as the catch-all for big directories.
+// The widest tier whose min_descendants the count meets; the last tier is the
+// catch-all for big directories.
 export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
   const arr = tiers && tiers.length ? tiers : STREET_TIERS.value.TIERS;
   let chosen = arr[0].width;
@@ -57,16 +50,8 @@ function _safeRange(r: RangeStat | undefined): RangeStat {
   return r;
 }
 
-// computeFileStats(stats?) -> { lines: { min, max }, bytes: { min, max } }
-//
-// Returns the project's own line-count and byte-size ranges read directly
-// from the backend-pre-computed manifest.stats (no tree walk). Both ranges
-// are needed up front so every building can be normalised into the project's
-// actual range (smallest → MIN_*, largest → MAX_*).
-//
-// When stats is absent or a range is the empty sentinel {min:0,max:0}
-// (EMPTY_REPO_STATS), falls back to {min:1,max:1} so the renderer never
-// divides by zero — matching the old empty-tree behaviour exactly.
+// The project's own line and byte ranges, off manifest.stats. An empty range
+// falls back to {min:1,max:1} rather than dividing by zero.
 export function computeFileStats(stats: RepoStats | null | undefined): {
   lines: RangeStat;
   bytes: RangeStat;
@@ -77,16 +62,8 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
   };
 }
 
-// getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
-//
-// Floors and width are project-relative: the smallest file lands at MIN_*, and
-// the range is spread by sqrt (lines) / log (bytes) so the bottom of the range
-// reads clearly while the long tail compresses. The TOP of the range is a
-// per-repo ceiling anchored to the ABSOLUTE size of the biggest file
-// (FULL_HEIGHT_LINES / FULL_WIDTH_KB): a repo whose largest file is small tops
-// out below MAX_* (short/narrow city) instead of always stretching to the cap,
-// while the per-repo relative order is retained. Without a stats object, the
-// corresponding dimension falls back to MIN_*.
+// Project-relative, but the ceiling is anchored to the biggest file's ABSOLUTE
+// size: a repo of small files reads as a short city, not a full one.
 type Dims = typeof BUILDING_DIMENSIONS.value;
 
 /** Floors from line count, sqrt-normalized. Full cap only when the largest file
@@ -168,11 +145,8 @@ export function getBuildingDimensions(
 
   const width = widthForBytes(file.size, byteStats, dims);
 
-  // Media files (image/video) override the lines-driven height: the
-  // building's silhouette mirrors the image's natural aspect ratio
-  // instead. Width still comes from bytes; height snaps to a whole-
-  // floor count so the facade shader's window tiling stays consistent
-  // with regular buildings. Missing dims → 1:1 aspect (square fallback).
+  // Media takes its silhouette from the image's aspect instead of its lines.
+  // Height still snaps to whole floors, or the window tiling breaks.
   let h = height;
   let outFloors = floors;
   if (empty) {
@@ -206,35 +180,21 @@ export function getBuildingDimensions(
   };
 }
 
-// HeightContext — project-wide stats needed to reproduce getBuildingDimensions
-// for a single file without re-running the full layout. Derive it once from
-// the new manifest's tree via makeHeightContext(), then pass to
-// recomputeBuildingDimensions() for each building in Phase 2.
+// Enough project-wide stats to re-derive one building's dimensions without
+// re-running the layout.
 export interface HeightContext {
   lineStats: RangeStat;
   byteStats: RangeStat;
 }
 
-// makeHeightContext(stats?) → HeightContext
-//
-// Returns the project-wide line + byte ranges needed by
-// recomputeBuildingDimensions, read from the pre-computed manifest.stats.
-// Thin wrapper over computeFileStats with a named return type so call sites
-// are self-documenting.
+// computeFileStats with a named return type, so call sites read for themselves.
 export function makeHeightContext(stats: RepoStats | null | undefined): HeightContext {
   const fs = computeFileStats(stats);
   return { lineStats: fs.lines, byteStats: fs.bytes };
 }
 
-// recomputeBuildingDimensions(file, ctx) → { w, d, h, floors }
-//
-// Re-derives a single building's dimensions (height, footprint, floor count)
-// from its FileNode and the project-wide HeightContext. Delegates to
-// getBuildingDimensions with the context stats unpacked.
-//
-// Use this in Phase 2 of applyManifest so that the cached layout (which holds
-// skeleton-era placeholder dimensions) is updated to reflect the final
-// manifest's real per-file sizes and line counts.
+// One building's dimensions from the context, for the pass that turns a cached
+// layout's skeleton-era placeholders into the final manifest's real sizes.
 export function recomputeBuildingDimensions(
   file: FileLike,
   ctx: HeightContext
@@ -242,12 +202,7 @@ export function recomputeBuildingDimensions(
   return getBuildingDimensions(file, ctx.lineStats, ctx.byteStats);
 }
 
-// -----------------------------------------------------------------------------
-// _streetWidthForDir(dir) -> number
-//
-// Maps a directory's descendants to a tier and returns the visual width of
-// its street. Larger directories get wider boulevards.
-// -----------------------------------------------------------------------------
+// A directory's descendants → its street width: bigger dirs, wider boulevards.
 export function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
   return getStreetWidth(count, STREET_TIERS.value.TIERS);

@@ -10,12 +10,8 @@ import {
 import type { FilePreviewPaneState } from '@/panes/FilePreviewPane/FilePreviewPane';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
-// Settling a FilePreviewPane render for a TEXT file involves three interleaved
-// schedulers: the body useEffect (mounts .preview-shell, kicks off
-// fetchFileText()), the fetch chain (fetch() then resp.text()), and a
-// requestAnimationFrame that builds the code editor. jsdom's rAF fires on a
-// ~16ms timer, so draining only microtasks races the rAF callback — drainAsync
-// alternates microtask drains with real macrotask yields to cover all hops.
+// A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
+// rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../_helpers/preact';
 
 const FILE_NODE: FileNode = {
@@ -56,9 +52,8 @@ describe('FilePreviewPane', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    // Text path fetches via fetchFileText → fetch() → resp.text(). Default
-    // every fetch to a small text body so the code editor renders without a
-    // real server. Individual tests can override globalThis.fetch.
+    // A small text body by default, so the editor renders without a server;
+    // individual tests override globalThis.fetch.
     globalThis.fetch = (async () =>
       new Response('export const x = 1;\nconst y = 2;\n', {
         status: 200,
@@ -76,9 +71,8 @@ describe('FilePreviewPane', () => {
     mount();
     const pane = container.querySelector('.pane') as HTMLElement;
     expect(pane.classList.contains('pane')).toBe(true);
-    // Pane renders the body as `.pane-body editor-body`; the original
-    // factory used `.pane editor-body`. The .editor-body marker is what the
-    // assertion targets and it is unchanged.
+    // .editor-body is the marker the assertion targets, whichever wrapper
+    // class the pane puts around it.
     expect(pane.querySelector('.editor-body')).not.toBeNull();
   });
 
@@ -90,9 +84,8 @@ describe('FilePreviewPane', () => {
 
   it('starts in the empty state (no file) with "No file" title', async () => {
     mount();
-    // The empty-state body is mounted imperatively in a useEffect (the
-    // original factory built it synchronously), so it appears one commit
-    // later — drain before asserting on the body content.
+    // The empty state is mounted from an effect, so it lands one commit
+    // later: drain before asserting on the body.
     await drainAsync();
     expect(container.querySelector('.empty-state')).not.toBeNull();
     expect(container.querySelector('.text-pane-title')!.textContent).toBe('No file');
@@ -101,9 +94,8 @@ describe('FilePreviewPane', () => {
   it('setFile(file) replaces the empty state with preview content and shows the filename', async () => {
     mount();
     await setFile(FILE_NODE);
-    // .empty-state can re-appear inside the shell after a fetch failure, but
-    // the body should no longer be ONLY a state message — a .preview-shell
-    // wrapper is the file path's first child.
+    // An .empty-state can reappear inside the shell after a failure, but the
+    // body must no longer be ONLY a state message.
     expect(container.querySelector('.preview-shell')).not.toBeNull();
     // The title is a path breadcrumb; its leaf segment is the filename.
     expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('index.ts');
@@ -195,9 +187,8 @@ describe('FilePreviewPane', () => {
   it('falls through to preview (no "too large" state) for a 10 MB file', async () => {
     mount();
     await setFile({ ...FILE_NODE, size: 10 * 1024 * 1024 });
-    // 10 MB is below the 100 MB cap → no client-side "too large" gate; the
-    // preview-shell scaffold gets mounted while the fetch flies (the
-    // rendering tier is selected after the response arrives).
+    // Below the cap, so no "too large" gate: the shell mounts while the fetch
+    // flies, and the tier is picked once it answers.
     expect(container.querySelector('.preview-shell')).not.toBeNull();
     const stateTitle = container.querySelector('.text-card-title');
     if (stateTitle) expect(stateTitle.textContent).not.toContain('too large');
@@ -227,9 +218,8 @@ describe('FilePreviewPane', () => {
       'version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 4\n'
     );
 
-    // jsdom ships no FontFace/document.fonts and the component now fetches the
-    // bytes itself, so stub a controllable FontFace plus a fetch that returns a
-    // chosen byte body. `loads` controls whether FontFace.load() resolves.
+    // jsdom ships no FontFace, so this stubs one plus a byte-returning fetch;
+    // `loads` decides whether FontFace.load() resolves.
     let origFontFace: unknown;
     let origFonts: unknown;
     let loadCalls = 0;

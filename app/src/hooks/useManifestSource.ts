@@ -390,9 +390,8 @@ export function attachRouteLoad(): () => void {
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
-/** Boot the fetch pipeline on mount. Nothing to hand back: loadSource,
- *  refreshCurrentSource and cancelLoad are module functions, so a view calls
- *  the one it needs rather than App threading it down as a prop. */
+/** Boot the fetch pipeline on mount. Nothing to hand back: loadSource and
+ *  friends are module functions, so each view calls the one it needs. */
 export function useManifestSource(): void {
   useEffect(() => {
     let cancelled = false;

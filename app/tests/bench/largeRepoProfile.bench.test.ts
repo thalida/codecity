@@ -1,32 +1,6 @@
-// largeRepoProfile.bench.test.ts — per-phase profiler for the manifest→city
-// apply pipeline at scale. Issue #75: a Linux-scale repo (~80k files / 100k+
-// commits) hangs on render, and PostHog (image-heavy, not huge) lags on load.
-// These two workloads stress different phases, so we time each phase for both
-// and let the numbers pick the fix order — no guessing.
-//
-// Phases timed (mirrors the real apply order in city/state + the components):
-//   1. layoutCity            — the worker's compute (sync here; jsdom has no Worker)
-//   2. structuredClone       — the worker postMessage payload cost (full vs slim)
-//   3. bbox                   — the state/index.ts computed (street rects + footprints)
-//   4. buildCellsFromLayout   — buildings assembly (spatial grid + per-cell InstancedMesh)
-//   5. ad-panel registration  — media/billboard synchronous CPU cost (per media building)
-//   6. street labels          — one canvas + measureText + CanvasTexture per street
-//   7. picker raycast         — a pointer-move pick against every building instance
-//
-// Which numbers to trust: phases 1–5 and 7 are pure JS / three math and
-// translate directly to the browser. Phase 6 is NOT representative in absolute
-// terms — jsdom's `canvas` backend (node-canvas/Cairo, CPU) rasterizes
-// measureText/strokeText/fillText ~100x slower than a browser's GPU canvas, so
-// its ms is inflated. The machine-independent part of the label phase (the
-// geometry/mesh allocation) is small (~17ms for 24k planes measured
-// separately); the real browser cost is the texture COUNT (no cache, no LOD),
-// not the per-canvas time this bench reports.
-//
-// Not timed here (already covered): the decoration pass lives in
-// treeDecorationProfile.bench; async image decode + GPU texture upload need a
-// real browser/GPU and can't run in jsdom — reasoned about in the issue instead.
-//
-// Diagnostic driver, not a perf gate — no absolute-timing assertions.
+// Per-phase profiler for the manifest → city apply pipeline at scale. What each
+// phase measures, and which numbers are browser-representative, is in the
+// README beside this file. Diagnostic driver: no timing assertions.
 
 import { describe, it } from 'vitest';
 import * as THREE from 'three';
@@ -38,8 +12,8 @@ import { createStreetLabels } from '@/city/components/streets/streetLabels';
 import { isMediaFile } from '@/utils/fileKind';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout } from '@/types';
-import { makeRng, genWeightedTree } from '../tests/_helpers/layoutTreeFixtures';
-import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
+import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 function countFiles(node: any): number {
   let n = 0;
@@ -69,10 +43,8 @@ function tagMediaFiles(node: any, fraction: number, rng: () => number): number {
   return tagged;
 }
 
-// bbox: faithful copy of the state/index.ts computed (street rects + building
-// footprints + Y height). Mirrored here so the bench times the exact work
-// without constructing a full CityState/layoutClient. Halo omitted (default 0).
-// Mirrors the inlined direct-min/max bbox in city/state/index.ts.
+// A copy of the state/index.ts computed, so the bench times that work without
+// standing up a whole CityState. Halo omitted (default 0).
 function computeBbox(layout: CityLayout): THREE.Box3 {
   const box = new THREE.Box3();
   const min = box.min;
@@ -108,9 +80,8 @@ function computeBbox(layout: CityLayout): THREE.Box3 {
   return box;
 }
 
-// Build a media-stripped shallow clone of the buildings so buildCellsFromLayout
-// measures pure cell assembly without firing the async fetch/decode path (which
-// isolates media registration into its own timed region below).
+// Media stripped, so this measures cell assembly without firing the async
+// fetch/decode path: media gets its own timed region below.
 function stripMedia(buildings: Building[]): Building[] {
   return buildings.map((b) => ({ ...b, file: { ...b.file, mediaKind: undefined } }) as Building);
 }
@@ -147,9 +118,8 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const tree = genWeightedTree('root', 'root', fileBudget, 0, rng);
   const files = countFiles(tree);
   const media = mediaFraction > 0 ? tagMediaFiles(tree, mediaFraction, makeRng(0xbeef)) : 0;
-  // Commit-count only shapes the decoration pass (trees/fireflies), which is
-  // profiled by treeDecorationProfile.bench; here we exercise the layout +
-  // buildings + media + picker phases, so commits aren't needed for stats.
+  // Commit count only shapes the decoration pass, which treeDecorationProfile
+  // owns; nothing here reads it.
   const stats = { ...commitStats([]), ...fileStats(tree) };
 
   // ── 1. layout compute ──
@@ -188,11 +158,8 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const cellOut = buildCellsFromLayout(bounds, plainBuildings);
   const ta1 = performance.now();
 
-  // ── 5. media ad-panel registration (synchronous CPU: matrix build + attr writes) ──
-  // Also validates the distance-LOD fix for the "zoom out + rotate hangs" report:
-  // at a zoomed-far-out camera the LOD must hide the panel mesh so its
-  // transparent overdraw drops to zero (drawnOutMs proxy = instances that would
-  // draw). At a close camera the panels stay visible (feature intact).
+  // ── 5. media ad-panel registration ──
+  // Also the "zoom out + rotate hangs" check: far out, LOD drops the overdraw.
   let mediaRegMs = 0;
   let drawnNoLod = 0;
   let drawnLodFar = 0;
