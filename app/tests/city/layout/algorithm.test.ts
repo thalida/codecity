@@ -5,7 +5,7 @@ import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 import type { RepoStats } from '@/types';
-import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 import type { StreetTier } from '@/state/settings/fields/streets';
 import {
   assertNoOverlap,

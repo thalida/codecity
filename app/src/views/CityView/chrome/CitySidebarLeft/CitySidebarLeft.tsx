@@ -14,7 +14,6 @@ import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/city/sceneHandl
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { isEmptyManifest } from '@/utils/manifest';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
@@ -124,7 +123,7 @@ export function CitySidebarLeft() {
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
-  const manifestIsEmpty = useComputed(() => isEmptyManifest(MANIFEST.value));
+  const manifestIsEmpty = useComputed(() => !MANIFEST.value);
 
   const onIconClick = (tab: SidebarTab) => {
     if (!collapsed.value && tab === activeTab.value) {

@@ -11,7 +11,7 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane/Pane';
-import { isEmptyManifest, relPathIn } from '@/utils/manifest';
+import { relPathIn } from '@/utils/manifest';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
@@ -65,7 +65,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
     let cancelled = false;
 
     const doFetch = (m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null) => {
-      if (isEmptyManifest(m)) {
+      if (!m) {
         setBody({ kind: InfoBodyKind.NoProject });
         return;
       }

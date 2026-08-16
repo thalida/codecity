@@ -40,7 +40,6 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import { isEmptyManifest } from '@/utils/manifest';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -284,7 +283,7 @@ export function setupLiveUpdates(): () => void {
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
     const current = MANIFEST.peek();
-    if (isEmptyManifest(current)) return;
+    if (!current) return;
     const applied = (current as Manifest).content_signature;
     inFlight = true;
     try {

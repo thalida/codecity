@@ -20,7 +20,6 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest, SourceError } from '@/types';
 
 // ── Currently-loaded source ──────────────────────────────────────────
@@ -104,7 +103,7 @@ export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
 export const SOURCE_INFO = computed<SourceInfo>(() => {
   const cur = CURRENT_SOURCE.value;
   const m = MANIFEST.value;
-  if (!cur || isEmptyManifest(m)) {
+  if (!cur || !m) {
     return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
   }
   const manifest = m as Manifest;

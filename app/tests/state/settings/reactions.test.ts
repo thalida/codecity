@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
@@ -30,7 +29,7 @@ describe('attachSettingsReactions routing', () => {
 
   afterEach(() => {
     detach();
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
   });
 
   const flush = async () => {

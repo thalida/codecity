@@ -14,7 +14,6 @@ import {
   markError,
 } from '@/state/stores/progress';
 import { routeSignature, ChangeRoute } from '@/state/settings/schema';
-import { isEmptyManifest } from '@/utils/manifest';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
@@ -50,7 +49,7 @@ export function attachSettingsReactions({
       invalidateLayoutCache();
       // peek, not .value: a tracked read here double-applies with City's render
       // effect. MANIFEST is only the "project loaded?" proxy.
-      if (isEmptyManifest(MANIFEST.peek())) {
+      if (!MANIFEST.peek()) {
         markIdle(); // no world to rebuild — settle immediately
         return;
       }

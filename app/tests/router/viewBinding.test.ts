@@ -23,7 +23,6 @@ import {
   setTodayMs,
   resetTimelineMode,
 } from '@/state/stores/timeline';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
@@ -59,8 +58,8 @@ describe('view URL', () => {
     vi.clearAllMocks();
     navigate(ROUTES.HOME, { replace: true });
     CURRENT_SOURCE.value = null;
-    MANIFEST.value = EMPTY_MANIFEST;
-    BUILT_MANIFEST.value = EMPTY_MANIFEST;
+    MANIFEST.value = null;
+    BUILT_MANIFEST.value = null;
     PICKER_SELECTION_KEY.value = null;
     resetTimelineMode();
   });

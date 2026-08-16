@@ -14,7 +14,6 @@ import { SCENE_HANDLE, type SceneHandle } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
-import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
 function prefersReducedMotion(): boolean {
@@ -50,7 +49,7 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
   // city you were looking at a moment ago.
   const loaded = MANIFEST.peek();
   const current = CURRENT_SOURCE.peek();
-  if (current && !isEmptyManifest(loaded)) {
+  if (current && loaded) {
     out.push({
       src: current.src,
       branch: current.branch,

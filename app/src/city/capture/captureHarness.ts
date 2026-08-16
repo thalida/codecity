@@ -9,7 +9,6 @@ import { isDebugMode } from '@/utils/debugMode';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
-import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
 import { SHOTS, type ShotOverrides } from './shots';
@@ -52,7 +51,7 @@ export function initCaptureHarness(): void {
     if (
       posed ||
       !handle ||
-      isEmptyManifest(manifest) ||
+      !manifest ||
       REBUILD_STATUS.value !== RebuildStatus.Idle
     )
       return;

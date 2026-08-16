@@ -17,7 +17,6 @@ import {
   stepForPhase,
   transferTail,
 } from '@/constants/progress';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 
@@ -69,7 +68,7 @@ export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 
 /** The manifest the city on screen was built from. Idle doesn't say WHOSE city
  *  landed (the empty boot city settles into it too), so read this instead. */
-export const BUILT_MANIFEST = signal<ManifestValue>(EMPTY_MANIFEST);
+export const BUILT_MANIFEST = signal<ManifestValue>(null);
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);

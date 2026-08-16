@@ -6,7 +6,6 @@ import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
@@ -36,7 +35,7 @@ describe('RecentsList', () => {
     document.body.removeChild(container);
     RECENTS.value = [];
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
     SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false };
   });
 

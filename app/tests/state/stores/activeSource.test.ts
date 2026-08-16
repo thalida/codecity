@@ -9,7 +9,6 @@ import {
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
 import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -48,12 +47,12 @@ describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
 describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
   });
 
   it('is empty when nothing is applied', () => {
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
     expect(SOURCE_INFO.value).toEqual({
       label: '',
       branch: undefined,

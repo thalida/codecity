@@ -3,7 +3,6 @@
 // actual listener wiring rather than a stand-in for it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { navigate } from '@/router/location';
@@ -52,7 +51,7 @@ describe('scene keydown handler — modal suppression', () => {
   });
 
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    const handle = await createCity(makeCanvas());
     cities.push(handle);
     return handle;
   }

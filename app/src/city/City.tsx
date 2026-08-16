@@ -13,8 +13,6 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
 export enum CityVariant {
@@ -43,7 +41,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
 
     // Start the scene empty; the apply-effect below paints the first real
     // manifest as soon as the fetch layer publishes it.
-    createCity(canvas, EMPTY_MANIFEST)
+    createCity(canvas)
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).
@@ -70,7 +68,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // to the decoration pass, and reframing to the city composer.
         unsubApply = effect(() => {
           const m = MANIFEST.value as Manifest;
-          if (isEmptyManifest(m)) return; // nothing to build yet
+          if (!m) return; // nothing to build yet
           // Live's bridge from manifest to scene; Timeline packs its own union
           // city. Peeked, so leaving the mode doesn't repack what it committed.
           if (TIMELINE_MODE.peek()) return;

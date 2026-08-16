@@ -17,7 +17,7 @@ import {
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';

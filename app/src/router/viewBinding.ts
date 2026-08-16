@@ -21,7 +21,6 @@ import {
 } from '@/state/stores/timeline';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { isEmptyManifest } from '@/utils/manifest';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
 
@@ -74,7 +73,7 @@ function installViewFollow(followed: Signal<boolean>): () => void {
     const params = ROUTE_PARAMS.value;
     const onCity = ROUTE_PATH.value === ROUTES.CITY;
     const source = CURRENT_SOURCE.value;
-    const built = !isEmptyManifest(BUILT_MANIFEST.value);
+    const built = BUILT_MANIFEST.value !== null;
     // Nothing to select in, and no bundle to scrub, until there is a city.
     if (!onCity || !source || !built) return;
 

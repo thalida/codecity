@@ -3,7 +3,6 @@ import { render } from 'preact';
 import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 
@@ -34,7 +33,7 @@ describe('SceneModeToggle', () => {
     render(null, container);
     document.body.removeChild(container);
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST as never);
+    setManifest(null);
     TIMELINE_MODE.value = false;
     vi.clearAllMocks();
   });

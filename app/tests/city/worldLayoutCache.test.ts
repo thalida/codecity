@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 
@@ -25,7 +24,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     detach = null;
     // Restore so other tests don't see a drifted BUILDING_GAP.
     STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap };
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
   });
 
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {

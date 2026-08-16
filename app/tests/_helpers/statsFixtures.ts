@@ -1,5 +1,5 @@
 import type { RepoStats, FileLeader, CommitEntry, RangeStat } from '@/types';
-import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { EMPTY_REPO_STATS } from '../_helpers/manifestFixtures';
 
 interface TreeLike {
   type?: string;

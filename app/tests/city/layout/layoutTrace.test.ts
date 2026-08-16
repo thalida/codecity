@@ -9,7 +9,7 @@ import type { VariantTrace } from '@/city/layout/stemSolver';
 import { WorldOccupancy } from '@/city/layout/occupancyIndex';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
-import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {

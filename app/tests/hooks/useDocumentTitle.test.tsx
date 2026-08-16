@@ -3,7 +3,6 @@ import { render } from 'preact';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { setManifest } from '@/state/stores/manifest';
 
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
 import { drainAsync } from '../_helpers/preact';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
@@ -21,7 +20,7 @@ let container: HTMLDivElement;
 describe('useDocumentTitle', () => {
   beforeEach(() => {
     PENDING_SOURCE_LABEL.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
     document.title = 'codecity';
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -30,7 +29,7 @@ describe('useDocumentTitle', () => {
     render(null, container);
     container.remove();
     PENDING_SOURCE_LABEL.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
   });
 
   it('shows plain codecity with no source', async () => {

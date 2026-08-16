@@ -4,7 +4,6 @@ import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySid
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { setManifest } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { flush, drainAsync } from '../../../_helpers/preact';
 
 const TEST_TREE = {
@@ -50,7 +49,7 @@ describe('CitySidebarLeft', () => {
     render(null, container);
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
-    setManifest(EMPTY_MANIFEST as never);
+    setManifest(null);
     CURRENT_SOURCE.value = null;
   });
 

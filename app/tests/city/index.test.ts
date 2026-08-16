@@ -2,7 +2,6 @@
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
@@ -21,10 +20,8 @@ describe('createCity', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    // applyManifest's deferred decoration pass awaits a real rAF, so the stub
-    // must actually fire its callback (a no-op stub hangs the boot apply). The
-    // frame loop also self-arms via rAF; cap total invocations so the loop runs
-    // a few frames then stops instead of recursing forever.
+    // The stub must fire its callback (the decoration pass awaits a real rAF),
+    // and cap invocations, since the frame loop self-arms the same way.
     let calls = 0;
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
@@ -49,8 +46,8 @@ describe('createCity', () => {
     return canvas;
   }
 
-  it('builds on EMPTY_MANIFEST and returns the expected handle shape', async () => {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+  it('builds with no manifest and returns the expected handle shape', async () => {
+    const handle = await createCity(makeCanvas());
 
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
@@ -58,20 +55,19 @@ describe('createCity', () => {
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    const handle = await createCity(makeCanvas());
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
   });
 
   // loadSource flips TIMELINE_MODE off without touching the scene, so this
-  // effect is the only thing that tears the union city and scrub controller
-  // down — for the toggle button and a source switch alike.
+  // effect is the only thing that tears the union city down.
   describe('Timeline-mode scene teardown', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.
     it('reacts to TIMELINE_MODE going true→false by uninstalling the controller', async () => {
-      const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+      const handle = await createCity(makeCanvas());
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
@@ -85,7 +81,7 @@ describe('createCity', () => {
     });
 
     it('no-ops when no controller was ever installed', async () => {
-      const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+      const handle = await createCity(makeCanvas());
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
       TIMELINE_MODE.value = true;
