@@ -291,6 +291,26 @@ describe('view URL', () => {
         expect(loadTimelineScene).not.toHaveBeenCalled();
       });
 
+      // The reported hang: the follow woke on its own writes and re-asked for the
+      // restored commit, dragging the scrub back under the user every frame.
+      it('lets the user scrub away from the commit it restored', async () => {
+        TIMELINE_BUNDLE.value = makeCommitBundle(4);
+        TIMELINE_MODE.value = true;
+        setScrubPos(1);
+        attach('?src=%2Frepos%2Fcodecity&mode=timeline&commit=c1');
+        commitWorld();
+        await flush();
+        vi.clearAllMocks();
+
+        setScrubPos(2);
+        await flush();
+        setScrubPos(3);
+        await flush();
+
+        // Nothing re-issued: the scrub is the user's, not the URL's.
+        expect(viewCommitInTimeline).not.toHaveBeenCalled();
+      });
+
       it('back to a different selection re-applies it', async () => {
         await loadedAndFollowed('&sel=file:a.ts');
 

@@ -3,7 +3,7 @@
 // the URL (replace only, off the SETTLED scrub position, or a drag buries your
 // history), and the URL writes the view, which is what Back and Forward need.
 
-import { signal, effect, type Signal } from '@preact/signals';
+import { signal, effect, untracked, type Signal } from '@preact/signals';
 
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
 import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
@@ -66,9 +66,13 @@ function applySelection(selection: PickerSelectionKey | null): void {
   else showPath(selection.path);
 }
 
-/** Put the view the URL describes on screen whenever it says something the view
- *  does not. PEEKS the live view, so the reflection cannot feed back here. */
+/** Put the view the URL describes on screen. Reads the live view untracked and
+ *  acts only on what the URL newly asks for: the reflection writes this URL. */
 function installViewFollow(followed: Signal<boolean>): () => void {
+  // What the URL asked for last pass. The actions below are async, so re-acting
+  // on a request already carried out re-issues it forever (see the test).
+  let asked: { mode: boolean; commit: string | null; selection: string | null } | null = null;
+
   return effect(() => {
     const params = ROUTE_PARAMS.value;
     const onCity = ROUTE_PATH.value === ROUTES.CITY;
@@ -80,9 +84,21 @@ function installViewFollow(followed: Signal<boolean>): () => void {
     const wantTimeline = params.get(VIEW_PARAMS.MODE) === TIMELINE_MODE_PARAM;
     const wantCommit = params.get(VIEW_PARAMS.COMMIT);
     const wantSelection = params.get(VIEW_PARAMS.SELECTION);
-    const modeDiffers = wantTimeline !== TIMELINE_MODE.peek();
-    const commitDiffers = wantTimeline && !!wantCommit && wantCommit !== settledCommitSha();
-    const selectionDiffers = wantSelection !== selectionParam(PICKER_SELECTION_KEY.peek());
+    // settledCommitSha reads signals this effect's own action writes, so the
+    // whole comparison is untracked: tracked, it wakes on its own work.
+    const [modeOff, commitOff, selectionOff] = untracked(() => [
+      wantTimeline !== TIMELINE_MODE.peek(),
+      wantTimeline && !!wantCommit && wantCommit !== settledCommitSha(),
+      wantSelection !== selectionParam(PICKER_SELECTION_KEY.peek()),
+    ]);
+
+    // A dimension is acted on when the view is off it AND the URL is asking for
+    // something it has not already been asked for.
+    const fresh = asked;
+    asked = { mode: wantTimeline, commit: wantCommit, selection: wantSelection };
+    const modeDiffers = modeOff && (fresh === null || fresh.mode !== wantTimeline);
+    const commitDiffers = commitOff && (fresh === null || fresh.commit !== wantCommit);
+    const selectionDiffers = selectionOff && (fresh === null || fresh.selection !== wantSelection);
 
     // The common case, and the gate must open NOW rather than a microtask
     // later, or the view it protects has moved on by the time it does.
