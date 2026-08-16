@@ -1,21 +1,16 @@
-// repoLabel.test.ts — verifies the createRepoLabel(ctx) COMPONENT builds
-// the correct mesh tree, that its settings effect pushes fresh REPO_LABEL
-// values into uniforms + transform (replacing the old refresh() path) and
-// re-applies on REPO_LABEL mutation, that tick() advances uTime AND
-// billboards the panel toward the camera, and that dispose() releases GPU
-// resources + stops the effect.
-
+// The repo-label component: its mesh tree, the settings effect that pushes
+// REPO_LABEL into uniforms and transform, tick's billboarding, and dispose
+// releasing GPU resources and stopping the effect.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
-import { REPO_LABEL } from '@/state/stores/settings/gem';
+import { REPO_LABEL } from '@/state/settings/fields/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { resetBuildingsConfig, makeSceneContext } from '../../../_helpers/cityFixtures';
 import type { FrameContext } from '@/city/types';
 
-// Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,
-// FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
-// the assertions stay stable when production defaults change.
+// The positioning math assumes MAX_FLOORS=96 and FLOOR_HEIGHT=16 (maxBldgH
+// 1536); resetBuildingsConfig pins both against production defaults moving.
 function resetStore() {
   REPO_LABEL.value = {
     ENABLED: true,
@@ -81,10 +76,8 @@ describe('createRepoLabel()', () => {
     ) as THREE.Mesh;
     // beamLength = max(0, heightWorld - BEAM_FOOT_FALLBACK) = max(0, 768 - 10) = 758
     expect(beam.scale.y).toBeCloseTo(758);
-    // groupWorldY = 768 + 50 = 818 (panel center)
-    // beamTopWorld = 768, beamBottomWorld = 10
-    // beamCenterWorld = (768 + 10) / 2 = 389
-    // beam.position.y = 389 - 818 = -429
+    // panel centre 818, beam centre (768 + 10) / 2 = 389, so the beam sits at
+    // 389 - 818 = -429.
     expect(beam.position.y).toBeCloseTo(-429);
   });
 
@@ -175,11 +168,8 @@ describe('createRepoLabel()', () => {
   });
 
   it('setRepoName with a wider name repoints the panel uniform at the new texture', () => {
-    // Three.js cannot resize a CanvasTexture's GPU allocation in place;
-    // textCanvas.redrawRepoName swaps RepoNameTexture.texture when the
-    // canvas width changes. setRepoName must follow that swap by updating
-    // the panel material's uMap uniform — otherwise the panel keeps
-    // sampling the disposed old texture and the new name never appears.
+    // A CanvasTexture cannot resize in place, so redrawRepoName swaps it and
+    // setRepoName must follow: otherwise the panel samples the disposed one.
     label!.setRepoName('a');
     const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
@@ -196,9 +186,7 @@ describe('createRepoLabel()', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
     REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 100 };
-    // Stand-in for the gem — a THREE.Object3D with a settable position.y.
-    // (In real use this is the gem THREE.Group; renderLoop mutates its
-    // .position.y each frame.)
+    // Stand-in for the gem's THREE.Group, whose position.y renderLoop mutates.
     const fakeGem = new THREE.Object3D();
     fakeGem.position.y = 25; // gem center, dynamic
     label!.setGem(fakeGem);
@@ -260,9 +248,8 @@ describe('createRepoLabel()', () => {
     label!.dispose();
     label = null;
 
-    // HEIGHT_PCT drives _applyTransform, which writes group.position with no
-    // null guard, so a subscription that outlived dispose would show up here.
-    // OPACITY would not: it only reaches the materials, behind their guards.
+    // HEIGHT_PCT writes group.position with no null guard, so a subscription
+    // outliving dispose shows up here. OPACITY would not: it is guarded.
     REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: REPO_LABEL.value.HEIGHT_PCT + 25 };
 
     expect(group.position.y).toBe(y);

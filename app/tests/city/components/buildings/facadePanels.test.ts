@@ -6,8 +6,8 @@ import {
   MAX_PAGES,
   PANEL_TEX_SIZE,
 } from '@/city/components/buildings/facadePanelTextureArray';
-import { BLOOM } from '@/state/stores/settings/effects';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BLOOM } from '@/state/settings/fields/effects';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';
 
@@ -298,12 +298,8 @@ describe('InstancedFacadePanels — binary fingerprint panels', () => {
 });
 
 describe('FacadePanelTextureArray storage', () => {
-  // Regression: a media-heavy repo (Infisical: 2,604 media files →
-  // adCapacity ≈ 3,906) previously triggered V8 `RangeError: Array buffer
-  // allocation failed` because the constructor pre-allocated
-  // PANEL_TEX_SIZE² × 4 × capacity bytes on the CPU. With the old 512px
-  // size that was ~3.81 GB. The texture data is uploaded layer-by-layer
-  // via the renderer; the contiguous CPU buffer is never needed.
+  // Regression: pre-allocating PANEL_TEX_SIZE² x 4 x capacity on the CPU was
+  // ~3.81 GB on a media-heavy repo. Layers upload one at a time.
   it('does not pre-allocate a contiguous CPU buffer for any page', () => {
     const arr = new FacadePanelTextureArray(4000);
     for (const tex of arr.textures) {
@@ -317,15 +313,10 @@ describe('FacadePanelTextureArray storage', () => {
     expect(PANEL_TEX_SIZE).toBeLessThanOrEqual(128);
   });
 
-  // Regression: a single DataArrayTexture's depth is capped at the
-  // hardware's MAX_ARRAY_TEXTURE_LAYERS (typical: 2048; spec minimum:
-  // 256). Infisical's ~3.9k capacity exceeded that on the user's GPU,
-  // causing texStorage3D to fail. FacadePanelTextureArray now pages across
-  // multiple DataArrayTextures so every requested layer is renderable.
+  // Regression: one DataArrayTexture is capped at MAX_ARRAY_TEXTURE_LAYERS
+  // (spec minimum 256), so a ~3.9k capacity failed texStorage3D. Now paged.
   it('pages capacity across multiple DataArrayTextures when it exceeds the per-page limit', () => {
-    // In the test env, _detectMaxArrayLayers falls back to 256 (no
-    // WebGL2 context). Requesting 1000 layers should produce
-    // ceil(1000 / 256) = 4 pages.
+    // No WebGL2 here, so the detect falls back to 256: 1000 layers is 4 pages.
     const arr = new FacadePanelTextureArray(1000);
     expect(arr.textures.length).toBeGreaterThan(1);
     const totalDepth = arr.textures.reduce((sum, tex) => sum + (tex.image.depth ?? 0), 0);
@@ -334,17 +325,15 @@ describe('FacadePanelTextureArray storage', () => {
 
   it('pads shaderTextures to MAX_PAGES for the fixed-size shader sampler array', () => {
     const arr = new FacadePanelTextureArray(1);
-    // shaderTextures must be exactly MAX_PAGES long regardless of how
-    // many pages are actually in use — the shader's uPanelArrays uniform
-    // is declared at MAX_PAGES and every slot needs a bound sampler.
+    // Always MAX_PAGES long however few are in use: uPanelArrays is declared at
+    // MAX_PAGES and every slot needs a bound sampler.
     expect(arr.shaderTextures.length).toBe(8);
   });
 });
 
 describe('InstancedFacadePanels distance LOD (updateLOD)', () => {
-  // A large media building at the origin. viewportHeightPx fixed at 800. A
-  // no-op onStartLoad keeps updateLOD's visibility logic from firing real
-  // image loads (fetch/decode) during these visibility-only tests.
+  // The no-op onStartLoad keeps updateLOD from firing real image loads during
+  // visibility-only tests.
   function adsAtOrigin(): InstancedFacadePanels {
     const ads = new InstancedFacadePanels(4, { onStartLoad: () => {} });
     ads.registerMediaBuilding(fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 }));
@@ -449,10 +438,8 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
   it('loads a big building at the frustum edge whose CENTER is off-frame', () => {
     const started: string[] = [];
     const ads = new InstancedFacadePanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
-    // The panel sits ~20 units up (bottom offset), so aim the camera near that
-    // height. Building x=15 at z=-10 is past the frustum's right plane (~11 wide
-    // at that distance) — its CENTER is off-frame, but it's close so its
-    // bounding sphere still crosses in.
+    // x=15 is past the frustum's right plane (~11 wide here), so the centre is
+    // off-frame while the bounding sphere still crosses in.
     ads.registerMediaBuilding(mediaAt('edge.png', 15, -10));
     const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
     cam.position.set(0, 20, 5);
@@ -504,10 +491,8 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
     expect(started).toContain('close.png');
     expect(started).not.toContain('background.png');
 
-    // Background panels are collapsed to zero-scale (no overdraw); foreground
-    // keeps its real size. Measure the matrix's X-axis column length directly:
-    // THREE's Matrix4.decompose returns a bogus [1,1,1] for an all-zero matrix,
-    // so it can't be used to detect the collapse.
+    // Measure the X-axis column directly: Matrix4.decompose returns a bogus
+    // [1,1,1] for an all-zero matrix, so it cannot detect the collapse.
     const m = new THREE.Matrix4();
     const xAxisLen = (slot: number): number => {
       ads.mesh.getMatrixAt(slot, m);
@@ -553,13 +538,8 @@ describe('InstancedFacadePanels emission + tint refresh', () => {
 });
 
 describe('sampleLayer page dispatch', () => {
-  // The page count lives in exactly one place (MAX_PAGES → the
-  // FACADE_PANEL_MAX_PAGES #define). GLSL ES 3.00 / WebGL2 forbids indexing a
-  // sampler array with a non-constant expression, so the shader MUST
-  // dispatch with constant indices (`uPanelArrays[0]`, `[1]`, …) gated by
-  // `#if FACADE_PANEL_MAX_PAGES > N` — never a runtime/loop index, which fails
-  // to compile on real drivers (vitest can't compile GLSL, so guard the
-  // source shape here).
+  // WebGL2 forbids a non-constant sampler-array index, so the shader must
+  // dispatch with literal indices. vitest cannot compile GLSL: guard the shape.
   it('dispatches over the sampler array with constant indices', () => {
     const ads = new InstancedFacadePanels(4);
     const mat = ads.mesh.material as unknown as {

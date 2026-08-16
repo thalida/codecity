@@ -1,29 +1,17 @@
-// state/stores/settings/streets.ts — Everything visual + layout-y about a
-// street: asphalt, sidewalks, road labels, and the two route-highlight path
-// lines (STREETS, schema-driven), plus how streets are sized + packed
-// (STREET_TIERS + STREET_LAYOUT, worker-threaded object stores).
-//
-// Asphalt + sidewalk + path-line fields are material-refresh;
-// the label fields are rebuild-required (label textures bake at build time).
-// Each field states its own route — settingsReactions.ts derives its rebuild/refresh
-// signatures from that metadata (see state/schema).
-//
-// Designer constants that were never UI controls (asphalt width fraction,
-// label font/elevation, path-line elevations) live in constants/streets.ts.
-
+// state/settings/fields/streets.ts — everything visual and layout-y about a
+// street. Three stores, because the two the layout worker reads have to cross a
+// thread boundary. Designer constants that were never controls are in
+// city/constants/streets.ts.
 import {
   settingSignal,
   FieldKind,
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 // ─── Street surface + label + path-line visuals (one flat store) ───────────
-// Keys are prefixed by sub-feature (ASPHALT_ / SIDEWALK_ / LABEL_ / PATH_ /
-// HOVER_PATH_) so the flat map stays unambiguous where names would collide
-// (COLOR, OPACITY, …). The route differs per group: LABEL_* rebuilds (the
-// label canvas dims depend on them); everything else refreshes.
+// Prefixed keys, or COLOR and OPACITY collide. LABEL_* rebuilds, the rest refresh.
 const STREETS_FIELDS = {
   ASPHALT_COLOR: {
     route: ChangeRoute.Refresh,
@@ -131,11 +119,7 @@ export const STREETS = settingSignal('STREETS', STREETS_FIELDS);
 export type StreetsConfig = ConfigOf<typeof STREETS_FIELDS>;
 
 // ─── Street width tiers ────────────────────────────────────────────────────
-// Step-function mapping a directory's descendant count to its street width.
-// The first matching tier from the top wins. Wider streets read as more
-// important directories from the air. Worker-threaded (the layout worker reads
-// it), so it stays its own object store; the ordered array lives under the
-// single TIERS field (FieldKind.TierWidths renders one width slider per tier).
+// Descendant count → width, first tier winning. Its own store: the worker reads it.
 export interface StreetTier {
   min_descendants: number;
   width: number;
@@ -163,9 +147,7 @@ export const STREET_TIERS = settingSignal('STREET_TIERS', STREET_TIERS_FIELDS);
 export type StreetTiersConfig = ConfigOf<typeof STREET_TIERS_FIELDS>;
 
 // ─── Street layout / packing distances (world units) ──────────────────────
-// How buildings + child streets are packed along their parent street. All
-// rebuild-required (changing any of these reshapes the entire layout), and
-// worker-threaded (the layout worker reads them) so it stays its own store.
+// All rebuild-routed; its own store because the layout worker reads it.
 const STREET_LAYOUT_FIELDS = {
   BUILDING_GAP: {
     route: ChangeRoute.Rebuild,

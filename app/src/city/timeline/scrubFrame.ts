@@ -2,8 +2,8 @@
 // and the picker. Everything downstream takes a ScrubFrame value.
 
 import { SCRUB_POS } from '@/state/stores/timeline';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
 import type { FileNode, RangeStat, Street, TimelineBundle } from '@/types';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';

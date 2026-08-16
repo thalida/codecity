@@ -1,9 +1,9 @@
 // city/layout/dimensions.ts — file/building sizing and street width derivation.
 // Pure functions over manifest stats and settings stores; no DOM or Three.js.
 
-import { STREET_TIERS } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import type { StreetTier } from '@/state/stores/settings/streets';
+import { STREET_TIERS } from '@/state/settings/fields/streets';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import type { StreetTier } from '@/state/settings/fields/streets';
 import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile } from '@/utils/fileKind';
 import { isEmptyFile } from '@/utils/fileKind';

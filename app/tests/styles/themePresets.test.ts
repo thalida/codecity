@@ -7,11 +7,10 @@ import {
   SURFACE_PRESETS,
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME_DEFAULT,
-} from '@/state/stores/settings/theme';
+} from '@/state/settings/fields/theme';
 
-// `new URL('literal', import.meta.url)` is Vite's static asset-URL pattern —
-// it gets rewritten to a dev-server URL, not a file:// path. Resolve via
-// __dirname (matches shader-source tests elsewhere in tests/) instead.
+// new URL(literal, import.meta.url) is Vite's asset pattern and resolves to a
+// dev-server URL, not a path, so read through __dirname.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(resolve(__dirname, '../../src/styles/themes.css'), 'utf8');
 

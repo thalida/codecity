@@ -1,4 +1,4 @@
-// state/stores/settings/scrubber.ts — how the Timeline scrubber lays commits
+// state/settings/fields/scrubber.ts — how the Timeline scrubber lays commits
 // along its track. World-tab (draft-backed) store; ChangeRoute.Live.
 
 import {
@@ -7,7 +7,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const SCRUBBER_FIELDS = {
   INDEX_WEIGHT: {

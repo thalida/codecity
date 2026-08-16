@@ -1,12 +1,7 @@
-// state/stores/settings/updates.ts — Live-update polling. When ENABLED, the
-// frontend re-fetches /api/manifest every POLL_SECONDS and re-renders in place
-// when the manifest's content_signature changes (the tree's mtime/size/dirty
-// state shifted).
-//
-// Default ON at a 5s poll so the city tracks edits out of the box.
-// Schema-driven (see state/schema); POLL_SECONDS is clamped to a
-// hard [min, max] range at the caller (manifestPoll), where those bounds live.
-
+// state/settings/fields/updates.ts — live-update polling: re-fetch the manifest
+// every POLL_SECONDS and re-render in place when its content_signature moves.
+// On by default so the city tracks edits out of the box. manifestPoll owns the
+// hard bounds POLL_SECONDS is clamped to.
 import { computed } from '@preact/signals';
 import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
 import {
@@ -16,7 +11,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const LIVE_UPDATES_FIELDS = {
   ENABLED: {
@@ -43,11 +38,8 @@ export const LIVE_UPDATES = settingSignal('LIVE_UPDATES', LIVE_UPDATES_FIELDS);
 markAutosave(LIVE_UPDATES);
 export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;
 
-/**
- * Whether the poll is actually running: the toggle AND a local source.
- * Remote is excluded on cost, not impossibility: ensure_clone fetch+resets on
- * every open, so polling one means a `git fetch` every few seconds.
- */
+/** The toggle AND a local source. Remote is excluded on cost: ensure_clone
+ *  fetches on every open, so polling one means a git fetch every few seconds. */
 export const LIVE_UPDATES_ACTIVE = computed<boolean>(
   () => LIVE_UPDATES.value.ENABLED && CURRENT_SOURCE_IS_LOCAL.value
 );

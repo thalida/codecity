@@ -27,8 +27,8 @@ import {
   stageResetAll,
   anyResettable,
   DRAFTS_REV,
-} from '@/state/settingsDrafts';
-import { HAS_ANY_NON_DEFAULT } from '@/state/settingsSchema';
+} from '@/state/settings/drafts';
+import { HAS_ANY_NON_DEFAULT } from '@/state/settings/schema';
 
 /** Every section the pane shows, hoisted so a test can assert the invariant:
  *  each field stages into Save/Discard/Reset, none writes through. */

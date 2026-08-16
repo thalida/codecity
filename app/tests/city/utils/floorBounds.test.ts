@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getWorldBounds } from '@/city/utils/floorBounds';
-import { WORLD } from '@/state/stores/settings/island';
+import { WORLD } from '@/state/settings/fields/island';
 import { bbox } from '../../_helpers/cityFixtures';
 
-// All formulas below assume the default GROUND_BUFFER_PERCENT of 30 and
-// MIN_BUFFER floor of 800. We pin both via beforeEach so the test stays
-// stable when the defaults shift again.
+// The formulas assume GROUND_BUFFER_PERCENT 30 and a MIN_BUFFER of 800, pinned
+// in beforeEach against the defaults shifting again.
 describe('worldBounds', () => {
   beforeEach(() => {
     WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 30 };
@@ -57,9 +56,8 @@ describe('worldBounds', () => {
   });
 
   it('cityHeight feeds the characteristic-size calc for tiny-tall cities', () => {
-    // 100-wide footprint but a 5000-unit tall building.
-    // characteristic = max(100, 100, 5000) = 5000, buffer = 5000*0.30 = 1500.
-    // halfWidth = 100/2 + 1500 = 1550.
+    // A 100-wide footprint under a 5000-tall building: characteristic 5000,
+    // buffer 1500, halfWidth 50 + 1500.
     const b = getWorldBounds(bbox(0, 0, 100, 100), 5000);
     expect(b.halfWidth).toBe(1550);
     expect(b.halfDepth).toBe(1550);

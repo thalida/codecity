@@ -1,4 +1,4 @@
-// state/stores/settings/scene.ts — Scene backdrop: sky color, stars, aurora,
+// state/settings/fields/scene.ts — Scene backdrop: sky color, stars, aurora,
 // atmospheric fog. Ground sizing lives in ./island.ts, which it dimensions.
 // Schema-driven (see state/schema); every field is a material refresh.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const SCENE_FIELDS = {
   // ── Sky ──

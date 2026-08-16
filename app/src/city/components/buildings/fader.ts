@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';

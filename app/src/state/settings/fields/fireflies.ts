@@ -1,4 +1,4 @@
-// state/stores/settings/fireflies.ts — the motes orbiting each commit tree, one
+// state/settings/fields/fireflies.ts — the motes orbiting each commit tree, one
 // per author. BOB displaces an orb, PULSE modulates its brightness, and
 // SCALE_MIN/MAX set the spread between a light and a heavy contributor.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const FIREFLIES_FIELDS = {
   ENABLED: {

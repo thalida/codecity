@@ -1,15 +1,11 @@
 // components/AppearanceMenu/AppearanceMenu.tsx — how the app looks, in the
 // footer: the header is the project, the footer is the app, and a theme is not
-// a fact about the repo you have open.
-//
-// Autosave like everything else in a popover: these apply on pick, so there is
-// no Save step to explain and nothing to discard.
-
+// a fact about the repo you have open. Autosave, so there is no Save to explain.
 import { Palette } from 'lucide-preact';
 import { SwatchRow } from '@/components/SwatchRow/SwatchRow';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { SyntaxThemeRow } from '@/components/SyntaxThemeRow/SyntaxThemeRow';
-import { DRAFTS_REV } from '@/state/settingsDrafts';
+import { DRAFTS_REV } from '@/state/settings/drafts';
 import {
   ACCENT_THEME,
   ACCENT_THEME_DEFAULT,
@@ -17,7 +13,7 @@ import {
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
   SURFACE_PRESETS,
-} from '@/state/stores/settings/theme';
+} from '@/state/settings/fields/theme';
 
 const PANEL_LABEL = 'Appearance';
 

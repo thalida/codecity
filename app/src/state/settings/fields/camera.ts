@@ -1,4 +1,4 @@
-// state/stores/settings/camera.ts — the default framing. The camera always looks
+// state/settings/fields/camera.ts — the default framing. The camera always looks
 // at the root gem, and these set where it looks from. Live: the rig subscribes
 // and snaps to the pose itself, so nothing rebuilds.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const CAMERA_FIELDS = {
   ELEVATION: {

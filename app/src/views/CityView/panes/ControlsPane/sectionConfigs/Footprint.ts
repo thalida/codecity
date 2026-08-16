@@ -4,7 +4,7 @@
 // after Streets) — the slab frames the whole city, it isn't a street surface.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
 
 export const FOOTPRINT_SECTION: SectionNode = {
   key: 'footprint',

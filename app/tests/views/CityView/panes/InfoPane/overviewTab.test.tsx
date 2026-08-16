@@ -14,7 +14,7 @@ vi.mock('@/state/stores/scene', () => ({ focusPath, focusCommit }));
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).
 const treesState = vi.hoisted(() => ({ ENABLED: true }));
-vi.mock('@/state/stores/settings/trees', () => ({
+vi.mock('@/state/settings/fields/trees', () => ({
   TREES: {
     get value() {
       return treesState;

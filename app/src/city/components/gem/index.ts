@@ -6,8 +6,8 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { GEM } from '@/state/stores/settings/gem';
-import { BLOOM } from '@/state/stores/settings/effects';
+import { GEM } from '@/state/settings/fields/gem';
+import { BLOOM } from '@/state/settings/fields/effects';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';

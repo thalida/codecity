@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/stores/settings/theme';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/fields/theme';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
-import { getFieldKeys } from '@/state/settingsSchema';
+import { getFieldKeys } from '@/state/settings/schema';
 
 beforeEach(() => {
   LIVE_UPDATES.value = getDefault(LIVE_UPDATES);

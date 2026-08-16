@@ -1,7 +1,7 @@
 // views/ControlsPane/sections/Gem.ts — the root gem and its repo label.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/stores/settings/gem';
+import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/settings/fields/gem';
 
 export const GEM_SECTION: SectionNode = {
   key: 'gem',

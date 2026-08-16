@@ -13,8 +13,8 @@ import {
   SCRUB_DRAGGING,
   setScrubPos,
 } from '@/state/stores/timeline';
-import { ACCENT_THEME } from '@/state/stores/settings/theme';
-import { SCRUBBER } from '@/state/stores/settings/scrubber';
+import { ACCENT_THEME } from '@/state/settings/fields/theme';
+import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/scene';
 import {

@@ -1,4 +1,4 @@
-// state/stores/settings/island.ts — Floating-island world-plane. ISLAND is the
+// state/settings/fields/island.ts — Floating-island world-plane. ISLAND is the
 // island itself (silhouette, depth, baked colors, hemispheric lighting); WORLD
 // sizes the ground it's cut from. Schema-driven (see state/schema); applied via
 // the island component's settings effect (city/components/island/index.ts).
@@ -9,7 +9,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const ISLAND_FIELDS = {
   // ── Geometry ──

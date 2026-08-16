@@ -5,16 +5,16 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/stores/settings/trees';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { ISLAND } from '@/state/stores/settings/island';
+import { TREES } from '@/state/settings/fields/trees';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { ISLAND } from '@/state/settings/fields/island';
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
 import type { Building, CityBbox, Street } from '@/types';
-import type { IslandConfig } from '@/state/stores/settings/island';
+import type { IslandConfig } from '@/state/settings/fields/island';
 
 interface Rect {
   minX: number;

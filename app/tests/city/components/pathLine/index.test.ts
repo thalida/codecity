@@ -10,7 +10,7 @@ import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
-import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
@@ -41,12 +41,8 @@ const SRC_STREET = {
   dir: { name: 'src', path: 'src', type: NodeKind.Directory },
 } as unknown as Street;
 
-// A cityState seeded with SRC_STREET (isRoot, dir 'src') so its computeds
-// resolve: rootStreet → a non-null gemWorldPos anchor, and streetsByDirMap →
-// { src: SRC_STREET }. cityRevision drives the renderer's rebuild effect. We
-// also spy gemWorldPos.peek() — the renderer peeks it once per line-update
-// pass, so the count is the same observable the old getGemWorldPos() dep seam
-// gave the untracked-discipline tests.
+// Seeded with SRC_STREET so the computeds resolve. gemWorldPos.peek() is spied
+// because one peek per line-update pass is what the untracked tests observe.
 function makeSeeded(): {
   cityState: ReturnType<typeof createCityState>;
   counters: { gemPosCalls: number };
@@ -165,9 +161,8 @@ describe('createPathLine() component door', () => {
 
     const before = counters.gemPosCalls;
     hover.value = dirTarget();
-    // Exactly one _updateHoverPathLine pass (the hover effect). If the theme
-    // effect had tracked picker.hover through refreshMaterials, it would
-    // re-run too and the counter would advance by 2.
+    // One pass, from the hover effect. Had the theme effect tracked picker.hover
+    // through refreshMaterials, this would advance by 2.
     expect(counters.gemPosCalls).toBe(before + 1);
   });
 

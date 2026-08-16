@@ -23,9 +23,9 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
-import { CAMERA } from '@/state/stores/settings/camera';
-import { SHOWCASE } from '@/state/stores/settings/showcase';
-import { GEM_SIZING } from '@/state/stores/settings/gem';
+import { CAMERA } from '@/state/settings/fields/camera';
+import { SHOWCASE } from '@/state/settings/fields/showcase';
+import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { showcaseRadius } from './showcaseRadius';
 

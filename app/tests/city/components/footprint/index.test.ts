@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import {

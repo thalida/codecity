@@ -5,8 +5,8 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
-import { BLOOM } from '@/state/stores/settings/effects';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
+import { BLOOM } from '@/state/settings/fields/effects';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { mediaKindOf, MediaKind } from '@/utils/fileKind';

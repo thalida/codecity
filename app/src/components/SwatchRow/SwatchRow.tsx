@@ -1,16 +1,12 @@
-// components/SwatchRow/SwatchRow.tsx — one theme axis as a row of colour
-// swatches: a radiogroup with one tab stop, where arrow keys move focus AND
-// selection (the WAI-ARIA radio pattern).
-//
-// A chip carries the same data-cc-* attribute its preset uses, so its colour
-// resolves from themes.css with no duplicated hex. Reset is hand-rolled because
-// ResetButton only supports keyed object stores and these are scalar signals.
-
+// components/SwatchRow/SwatchRow.tsx — one theme axis as a radiogroup of colour
+// chips, arrow keys moving focus and selection together. Each chip carries the
+// data-cc-* attribute its preset uses, so no hex is duplicated. Reset is
+// hand-rolled: ResetButton only handles keyed stores, and these are scalars.
 import './SwatchRow.css';
 import { useRef } from 'preact/hooks';
 import { RotateCcw } from 'lucide-preact';
-import { getEffective, setDraft, stageReset } from '@/state/settingsDrafts';
-import type { ThemePresetOption } from '@/state/stores/settings/theme';
+import { getEffective, setDraft, stageReset } from '@/state/settings/drafts';
+import type { ThemePresetOption } from '@/state/settings/fields/theme';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
 
 interface SignalLike {
@@ -43,9 +39,8 @@ export function SwatchRow({
     0,
     options.findIndex((o) => o.value === current)
   );
-  // Accent chips show the flat accent; surface chips show the full surface
-  // ladder as a gradient (app -> chrome -> sidebar) so the otherwise near-black
-  // tint reads at the lighter sidebar end and the presets are distinguishable.
+  // Surface chips show the whole ladder as a gradient: the tint is near-black
+  // at the app end and only tells presets apart at the sidebar end.
   const chipVar =
     axis === 'accent'
       ? 'var(--cc-accent)'

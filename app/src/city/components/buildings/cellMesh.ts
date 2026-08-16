@@ -4,7 +4,7 @@
 // vertex and index buffers stay shared.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient } from '@/types/index';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';

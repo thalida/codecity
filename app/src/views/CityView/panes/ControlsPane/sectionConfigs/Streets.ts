@@ -3,7 +3,7 @@
 // and Trees.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/settings/fields/streets';
 
 export const STREETS_SECTION: SectionNode = {
   key: 'streets',

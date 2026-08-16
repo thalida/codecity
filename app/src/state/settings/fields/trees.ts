@@ -1,4 +1,4 @@
-// state/stores/settings/trees.ts — one tree per commit, oldest nearest the gem.
+// state/settings/fields/trees.ts — one tree per commit, oldest nearest the gem.
 // Height follows age, width follows files changed, colour follows how many
 // commits shared that day.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const TREES_FIELDS = {
   ENABLED: {

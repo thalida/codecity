@@ -1,16 +1,11 @@
-// components/Subgroup.tsx — A labeled group of control rows.
-//
-// Collapsible by default: a <details> with a chevron + a group-level reset that
-// stages every field beneath it back to its default (shown only when resetKeys
-// is non-empty, enabled iff one differs from default — draft-driven, no DOM
-// scraping). Pass collapsible={false} for a plain always-open group with no
-// reset (e.g. a small cluster like "Stars", or the Live-updates pair).
-
+// components/Subgroup.tsx — a labelled group of control rows, collapsible with a
+// group-level reset over the fields beneath it. collapsible={false} gives a
+// plain always-open cluster with no reset.
 import './Subgroup.css';
 import type { ComponentChildren } from 'preact';
 import { useSignal } from '@preact/signals';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
-import { stageReset } from '@/state/settingsDrafts';
+import { stageReset } from '@/state/settings/drafts';
 import { useAnyResettable, type ResettableRef } from '@/hooks/useSettings';
 
 export interface SubgroupProps {
@@ -40,11 +35,8 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
     );
   }
 
-  // A disclosure, NOT a <details>: the header is a flex row with a real
-  // aria-expanded toggle button and the reset button as SIBLINGS. (An
-  // interactive control nested inside <summary> is unreliable for keyboard/AT.)
-  // The body is wrapped so it can carry a tree-style indent guide and is hidden
-  // by .is-open when collapsed.
+  // A disclosure, not <details>: an interactive control nested in <summary> is
+  // unreliable for keyboard and AT, so toggle and reset are siblings.
   return (
     <div
       class={

@@ -7,7 +7,7 @@ import {
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
-} from '@/state/stores/settings/theme';
+} from '@/state/settings/fields/theme';
 import { flush } from '../_helpers/preact';
 
 describe('AppearanceMenu', () => {

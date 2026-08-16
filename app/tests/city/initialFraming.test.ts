@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { STREET_TIERS } from '@/state/stores/settings/streets';
+import { STREET_TIERS } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 import { mkDir } from '../_helpers/cityFixtures';
 

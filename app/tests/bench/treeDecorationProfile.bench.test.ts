@@ -10,7 +10,7 @@ import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
 import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 

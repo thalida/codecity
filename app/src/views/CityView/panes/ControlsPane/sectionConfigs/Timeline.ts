@@ -2,8 +2,8 @@
 // before the scrubbed commit. Draft-backed like the rest of the World tab.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { RUINS } from '@/state/stores/settings/ruins';
-import { SCRUBBER } from '@/state/stores/settings/scrubber';
+import { RUINS } from '@/state/settings/fields/ruins';
+import { SCRUBBER } from '@/state/settings/fields/scrubber';
 
 export const TIMELINE_SECTION: SectionNode = {
   key: 'timeline',

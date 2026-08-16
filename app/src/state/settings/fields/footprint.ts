@@ -1,4 +1,4 @@
-// state/stores/settings/footprint.ts — the asphalt slab under the city. One
+// state/settings/fields/footprint.ts — the asphalt slab under the city. One
 // quad per layout rect, each inflated by HALO_WIDTH so the overlapping quads
 // compose into one continuous silhouette. Tree placement reads HALO_WIDTH too,
 // so candidates inside the slab fall out of the existing rbush overlap check.
@@ -9,7 +9,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 // Its own object store because HALO_WIDTH is threaded into the tree-placement
 // worker.

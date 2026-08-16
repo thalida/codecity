@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/city/components/island';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { ISLAND } from '@/state/stores/settings/island';
+import { ISLAND } from '@/state/settings/fields/island';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneContext } from '@/city/types';
 

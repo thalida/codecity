@@ -1,18 +1,11 @@
-// components/Section.tsx — Top-level collapsible section in the
-// settings panel. Header row contains the section name plus a reset icon that
-// stages-resets every field in the section. The section reset is shown only
-// when the section has resettable fields (`resetKeys`) and enabled iff at least
-// one of them differs from its default — both computed from the draft layer (no
-// DOM scraping). Clicking stages a reset for each field; Save still applies.
-//
-// Open/closed state is intentionally NOT persisted: the left sidebar resets
-// every <details> to closed when the Controls tab becomes visible.
-
+// components/Section.tsx — a collapsible settings section, with a header reset
+// that stages a reset for every field under it. Open state is deliberately not
+// persisted: the sidebar closes them all when the Controls tab appears.
 import './Section.css';
 import { type ComponentChildren } from 'preact';
 import { useSignal } from '@preact/signals';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
-import { stageReset } from '@/state/settingsDrafts';
+import { stageReset } from '@/state/settings/drafts';
 import { useAnyResettable, type ResettableRef } from '@/hooks/useSettings';
 
 export interface SectionProps {
@@ -23,9 +16,8 @@ export interface SectionProps {
   /** The (store, key) refs of every field under this section. Drives the
    *  header reset button; omit (bespoke sections) to render no section reset. */
   resetKeys?: ResettableRef[];
-  /** Custom reset for sections not backed by the settings-draft system (e.g. the
-   *  excludes list): the header reset button calls this instead of stageReset,
-   *  enabled iff `resetEnabled`. Takes precedence over `resetKeys`. */
+  /** Reset for sections outside the draft system (the excludes list). Takes
+   *  precedence over `resetKeys`. */
   onReset?: () => void;
   resetEnabled?: boolean;
   /** Tooltip + aria-label for the reset button when the default draft-reset copy
@@ -57,11 +49,8 @@ export function Section({
   // per World-tab open. Mount on first open; stay mounted so reopening is free.
   const everOpened = useSignal(defaultOpen ?? false);
 
-  // A disclosure, NOT a <details>: the header is a flex row with a real
-  // aria-expanded toggle button and the reset button as SIBLINGS. (An
-  // interactive control nested inside <summary> is unreliable for keyboard/AT.)
-  // The body is wrapped so it can carry a tree-style indent guide (a vertical
-  // rule under the chevron) and is hidden by .is-open when collapsed.
+  // A disclosure, not <details>: an interactive control nested in <summary> is
+  // unreliable for keyboard and AT, so toggle and reset are siblings.
   return (
     <div class={open.value ? 'controls-section is-open' : 'controls-section'}>
       <div class="row controls-section-summary">

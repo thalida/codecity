@@ -6,10 +6,10 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { BLOOM } from '@/state/stores/settings/effects';
-import { SCENE } from '@/state/stores/settings/scene';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { BLOOM } from '@/state/settings/fields/effects';
+import { SCENE } from '@/state/settings/fields/scene';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 

@@ -1,17 +1,9 @@
-// state/settingsDrafts.ts — in-memory draft layer between the controls panel
-// and the real signals. Widgets read getEffective() and write
-// setDraft(); the Save button calls commit() to flush every draft into
-// its signal (which triggers the existing persist + commit-reaction
-// effects). Discard clears drafts without touching signals. Page
-// reload drops drafts (in-memory only — the standard "unsaved changes"
-// pattern).
-//
-// Storage shape: Map<storeRef, Map<key | null, value>>. For scalar-valued
-// signals (no sub-key), key = null and the inner map has at most one entry.
+// state/settings/drafts.ts — the in-memory layer between the controls panel and
+// the real signals: what Save flushes and Discard throws away. See README.md.
 
 import { signal } from '@preact/signals';
-import { getDefault } from './persist';
-import { forEachSettingStore, isAutosave } from './settingsSchema';
+import { getDefault } from '@/state/persist';
+import { forEachSettingStore, isAutosave } from './schema';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
@@ -23,13 +15,8 @@ type DraftKey = string | null;
 
 const _drafts: Map<SignalLike, Map<DraftKey, unknown>> = new Map();
 
-/**
- * Monotonic revision counter — bumped on every draft mutation
- * (set / stage / commit / discard). Preact components read this with
- * `DRAFTS_REV.value` to make `getEffective` lookups reactive: pair it
- * with a `store.value` read in the same render and the component
- * re-renders on either a draft change or an underlying signal change.
- */
+/** Bumped on every draft mutation, so a component pairing this with a
+ *  `store.value` read re-renders on either. See README.md. */
 export const DRAFTS_REV = signal(0);
 
 function _emit(): void {
@@ -107,10 +94,8 @@ export function stageResetAll(): void {
   if (touched) _emit();
 }
 
-/** True iff "Reset all" would change anything — i.e. any registered store has
- *  an effective (draft-aware) value differing from its default. Same iteration
- *  as stageResetAll, but read-only. Callers wanting reactivity should also read
- *  DRAFTS_REV.value + the committed signals (see ActionsBar). */
+/** True iff "Reset all" would change anything. Read-only twin of stageResetAll;
+ *  for reactivity read DRAFTS_REV.value and the committed signals too. */
 export function anyResettable(): boolean {
   let any = false;
   forEachSettingStore((store) => {
@@ -158,9 +143,8 @@ export function commit(): void {
     _emit();
     return;
   }
-  // Snapshot the entries first; clearing _drafts before the writes makes
-  // any synchronous signal effect that re-reads getEffective
-  // see the freshly-committed value instead of the lingering draft.
+  // Snapshot first: clearing before the writes makes a synchronous effect that
+  // re-reads getEffective see the committed value, not the draft.
   const entries: Array<[SignalLike, DraftKey, unknown]> = [];
   for (const [store, perStore] of _drafts) {
     for (const [key, value] of perStore) {

@@ -6,7 +6,7 @@
 import './HueMapField.css';
 import { useId } from 'preact/hooks';
 import { useEffective, useDefault } from '@/hooks/useSettings';
-import { setDraft } from '@/state/settingsDrafts';
+import { setDraft } from '@/state/settings/drafts';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
 import { SettingRow } from '../SettingRow/SettingRow';

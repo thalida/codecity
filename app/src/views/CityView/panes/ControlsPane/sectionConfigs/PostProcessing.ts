@@ -2,7 +2,7 @@
 // shared highlight color the selected outline and path line both chase.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
+import { RAINBOW, BLOOM } from '@/state/settings/fields/effects';
 
 export const POST_PROCESSING_SECTION: SectionNode = {
   key: 'post-processing',

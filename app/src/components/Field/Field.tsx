@@ -3,7 +3,7 @@
 // per-kind wrapper would duplicate lives once in the store.
 
 import { useId } from 'preact/hooks';
-import { FieldKind, getFieldDef } from '@/state/settingsSchema';
+import { FieldKind, getFieldDef } from '@/state/settings/schema';
 import { useField } from '@/hooks/useSettings';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
 import { TierWidthsField } from '@/components/TierWidthsField/TierWidthsField';

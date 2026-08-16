@@ -1,16 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { attachSettingsReactions } from '@/state/settingsReactions';
+import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/build';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { TREES } from '@/state/stores/settings/trees';
-import { GEM } from '@/state/stores/settings/gem';
+import { TREES } from '@/state/settings/fields/trees';
+import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
 
-// Routing contract: a "rebuild" key change → rebuildScene; a "refresh"
-// (material) key change → the 'rebuilding' status flash only (NOT rebuildScene
-// — the actual refresh is reactive via component/postFx effects); a "live" key
-// (read per-frame, e.g. gem animation) → neither.
+// The routing contract: rebuild keys call rebuildScene, refresh keys only flash
+// the status (the refresh itself is reactive), live keys do neither.
 
 describe('attachSettingsReactions routing', () => {
   let detach: () => void;

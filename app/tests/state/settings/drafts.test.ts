@@ -11,11 +11,11 @@ import {
   isDirty,
   DRAFTS_REV,
   _resetForTests,
-} from '@/state/settingsDrafts';
+} from '@/state/settings/drafts';
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore, _unregisterForTests } from '@/state/settingsSchema';
-import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { markSettingStore, _unregisterForTests } from '@/state/settings/schema';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 
 interface FooConfig {
   COLOR: string;
@@ -27,16 +27,12 @@ describe('drafts', () => {
   let BAR: Signal<number>;
 
   beforeEach(() => {
-    // Each test gets fresh stores + fresh draft state. persistedSignal
-    // creates + registers the store; the default snapshot is taken here,
-    // before any setKey. Re-using the same name overwrites the prior
-    // registration.
+    // The default snapshot is taken here, before any setKey; reusing a name
+    // overwrites the prior registration.
     localStorage.clear();
     _resetForTests();
-    // Unregister the previous run's stores first — each test gets a fresh
-    // signal instance, and without this the old ones (possibly left at a
-    // non-default committed value by a prior test) leak into later
-    // anyResettable()/stageResetAll() sweeps forever.
+    // Without this the previous run's instances, possibly left non-default,
+    // leak into later anyResettable()/stageResetAll() sweeps forever.
     if (FOO) _unregisterForTests(FOO);
     if (BAR) _unregisterForTests(BAR);
     FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
@@ -122,9 +118,8 @@ describe('drafts', () => {
     });
 
     it('clears the draft entry when default equals committed', () => {
-      // COLOR is currently at its default. setDraft to '#ff0000', then
-      // stageReset puts the default back — and since default === committed,
-      // the draft entry is dropped (not dirty).
+      // stageReset puts the default back, and since default === committed the
+      // draft entry is dropped rather than left dirty.
       setDraft(FOO, 'COLOR', '#ff0000');
       stageReset(FOO, 'COLOR');
       expect(isDirty()).toBe(false);
@@ -161,9 +156,8 @@ describe('drafts', () => {
       // FOO is all default; only BAR is overridden.
       BAR.value = 42;
       stageResetAll();
-      // Only BAR should have been staged.
-      // We can't directly read the draft map, but we know isDirty must
-      // be true and getEffective(BAR) returns default.
+      // The draft map is not readable from here, so assert via isDirty and
+      // getEffective(BAR).
       expect(isDirty()).toBe(true);
       expect(getEffective(BAR, null)).toBe(10);
       // Discard everything; nothing changes in committed stores.
@@ -213,9 +207,8 @@ describe('drafts', () => {
     it('clears drafts before firing store subscribers (synchronous subscribers see committed value, not lingering draft)', () => {
       let observedInsideSubscribe: unknown = null;
       setDraft(FOO, 'COLOR', '#ff0000');
-      // Install subscriber AFTER setting the draft but BEFORE commit, so it
-      // only fires on the commit-driven write. Signals fire subscribers
-      // synchronously — capture only the LAST value observed.
+      // Subscribe after the draft but before commit, so it fires only on the
+      // commit write; subscribers run synchronously, so keep the last value.
       const unsub = FOO.subscribe(() => {
         observedInsideSubscribe = getEffective(FOO, 'COLOR');
       });

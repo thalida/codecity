@@ -1,22 +1,16 @@
-// state/stores/settings/effects.ts — Cross-cutting visual effects shared
-// between multiple consumers (rainbow chase + HDR bloom). Keeping them in one
-// place means tweaking the look (e.g. "slower rainbows") doesn't require
-// chasing the same values through per-target stores.
-//
-// Schema-driven (see state/schema). Both consumers read fresh per
-// frame, so changes are hot.
-
+// state/settings/fields/effects.ts — effects with more than one consumer
+// (rainbow chase, HDR bloom), together so tuning the look does not mean chasing
+// the same value through per-target stores. Both read fresh per frame.
 import {
   settingSignal,
   FieldKind,
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
-// Chasing-rainbow used by BOTH the selected building's neon outline and the
-// gem→selection neon path line. Hue cycles at SPEED rad/ms; SATURATION +
-// LIGHTNESS set palette intensity.
+// Shared by the selected building's outline and the gem-to-selection path line.
+// Hue cycles at SPEED rad/ms.
 const RAINBOW_FIELDS = {
   SPEED: {
     route: ChangeRoute.Live,
@@ -51,11 +45,8 @@ const RAINBOW_FIELDS = {
 export const RAINBOW = settingSignal('RAINBOW', RAINBOW_FIELDS);
 export type RainbowConfig = ConfigOf<typeof RAINBOW_FIELDS>;
 
-// Bloom (UnrealBloomPass) — screen-space neon glow for HDR pixels. THRESHOLD is
-// the luma cutoff above which a pixel blooms; the HDR pipeline writes lit
-// windows above 1.0 so they cross it while matte walls (capped at 1.0) don't.
-// ENABLED off bypasses the pass AND keeps windows/gem/ads LDR (pre-HDR "flat"
-// look) for side-by-side comparison; other knobs persist.
+// THRESHOLD is the luma cutoff: lit windows are written above 1.0 and cross it,
+// matte walls cap at 1.0 and do not. ENABLED off also keeps everything LDR.
 const BLOOM_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,

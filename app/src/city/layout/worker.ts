@@ -5,9 +5,9 @@
 
 import { layoutCity } from './algorithm';
 import { createPackReporter } from './packProgress';
-import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { GEM_SIZING } from '@/state/stores/settings/gem';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { GEM_SIZING } from '@/state/settings/fields/gem';
 import type { LayoutRequest, LayoutResponse } from './protocol';
 
 function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {

@@ -3,7 +3,7 @@
 // and Trees.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 
 // One selection-fade tier subgroup (DEFAULT / LEVEL1..4).
 function fadeTier(label: string, prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4') {

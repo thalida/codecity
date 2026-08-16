@@ -1,24 +1,18 @@
-// state/stores/settings/theme.ts — Interface theme: accent + surface presets.
-// Two persisted choices applied by overriding root custom properties via
-// data-cc-accent / data-cc-surface on <html>; themes.css holds the per-preset
-// token blocks and every color-mix variant in tokens.css cascades from them.
-// Mirrors syntaxTheme.ts: plain persistedSignal + autosave (no draft/Save
-// step). The applier is a module-scope effect (not a component) so it runs
-// before the first render — main.tsx imports this before render() and
-// persistedSignal hydrates synchronously, so the first paint is already themed.
-
+// state/settings/fields/theme.ts — accent + surface presets, applied by setting
+// data-cc-accent / data-cc-surface on <html>. The applier is a module-scope
+// effect rather than a component so the first paint is already themed: main.tsx
+// imports this before render() and persistedSignal hydrates synchronously.
 import { effect } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore, markAutosave } from '@/state/settingsSchema';
+import { markSettingStore, markAutosave } from '@/state/settings/schema';
 
 export interface ThemePresetOption {
   value: string;
   label: string;
 }
 
-// Accent presets in rainbow (hue) order. `purple` is the default; the applier
-// omits the attribute for it so tokens.css :root stays the page source (the
-// picker chip still previews purple via themes.css's [data-cc-accent='purple']).
+// Hue order. The applier omits the attribute for the default `purple`, so
+// tokens.css :root stays the source; the picker chip previews it either way.
 export const ACCENT_PRESETS: ThemePresetOption[] = [
   { value: 'amber', label: 'Amber' },
   { value: 'green', label: 'Green' },

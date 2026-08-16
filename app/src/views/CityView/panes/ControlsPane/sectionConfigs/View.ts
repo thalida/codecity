@@ -2,8 +2,8 @@
 // because both are just an elevation/azimuth pair.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { CAMERA } from '@/state/stores/settings/camera';
-import { SHOWCASE } from '@/state/stores/settings/showcase';
+import { CAMERA } from '@/state/settings/fields/camera';
+import { SHOWCASE } from '@/state/settings/fields/showcase';
 
 export const VIEW_SECTION: SectionNode = {
   key: 'view',

@@ -6,8 +6,8 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { REPO_LABEL } from '@/state/stores/settings/gem';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { REPO_LABEL } from '@/state/settings/fields/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';

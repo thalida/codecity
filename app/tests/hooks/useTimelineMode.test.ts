@@ -6,11 +6,16 @@ import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL, BUILD_PROGRESS } from '@/state/stores/build';
+import {
+  REBUILD_STATUS,
+  RebuildStatus,
+  REBUILD_DETAIL,
+  BUILD_PROGRESS,
+} from '@/state/stores/build';
 import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/loadingOverlay';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { BuildStage } from '@/constants/buildStages';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';

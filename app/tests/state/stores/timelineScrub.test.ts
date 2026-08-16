@@ -15,7 +15,7 @@ import {
   scrubbedStatsFor,
   scrubbedDirFor,
 } from '@/state/stores/timeline';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
 
 function paths(m: unknown): Set<string> {

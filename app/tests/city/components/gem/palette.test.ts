@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { paletteColors, gemFaceColors, type GemFacePalette } from '@/city/components/gem/palette';
-import { GEM } from '@/state/stores/settings/gem';
+import { GEM } from '@/state/settings/fields/gem';
 
 const PALETTE: GemFacePalette = {
   FACE_1: '#ff0000',

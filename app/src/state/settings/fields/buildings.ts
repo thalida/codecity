@@ -1,4 +1,4 @@
-// state/stores/settings/buildings.ts — two stores: BUILDING_DIMENSIONS, which
+// state/settings/fields/buildings.ts — two stores: BUILDING_DIMENSIONS, which
 // the workers reconstruct off-thread and so stands alone, and BUILDINGS, every
 // main-thread visual knob. Each field states its own route.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 import { DEFAULT_HUE_EXT_MAP } from '@/constants/buildings';
 import { FadeDetail } from '@/types';
 

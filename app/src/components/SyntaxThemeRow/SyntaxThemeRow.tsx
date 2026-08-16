@@ -3,12 +3,12 @@
 
 import { useId } from 'preact/hooks';
 import { RotateCcw } from 'lucide-preact';
-import { getEffective, setDraft, stageReset } from '@/state/settingsDrafts';
+import { getEffective, setDraft, stageReset } from '@/state/settings/drafts';
 import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
-} from '@/state/stores/settings/syntaxTheme';
+} from '@/state/settings/fields/syntaxTheme';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
 
 export interface SyntaxThemeRowProps {

@@ -2,7 +2,7 @@
 // halves (a fixture missing a branch under-enforces silently); globs, not lists.
 
 import { describe, it, expect } from 'vitest';
-import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settingsSchema';
+import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settings/schema';
 
 // Self-registration happens on import; glob so a new store is covered the day
 // it lands rather than whenever someone remembers to add it here.
@@ -16,10 +16,8 @@ const SOURCES = import.meta.glob('../../src/**/*.{ts,tsx}', {
   eager: true,
 }) as Record<string, string>;
 
-// Object keys whose string values reach the user. `label` and `sublabel` cover
-// the split-button menus, whose copy is the whole point of those controls;
-// `label` also catches aria-labels, which reach the user through a screen
-// reader and deserve the same treatment.
+// Keys whose strings reach the user: the split-button menus' copy, and the
+// aria-labels a screen reader reads out.
 const COPY_KEYS = ['tip', 'description', 'placeholder', 'hint', 'label', 'sublabel'];
 
 describe('user-facing copy', () => {

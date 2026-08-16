@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
 import { lightColorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../../_helpers/commits';

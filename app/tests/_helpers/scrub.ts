@@ -2,7 +2,7 @@
 // cares about as a literal rather than driving SCRUB_POS and four settings
 // stores into position.
 
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import type { ScrubFrame } from '@/city/timeline/scrubFrame';

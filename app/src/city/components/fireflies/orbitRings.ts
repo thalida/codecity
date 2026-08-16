@@ -1,30 +1,9 @@
-// city/components/fireflies/orbitRings.ts — selection/hover ring around the tree
-// for the currently hovered + currently selected commits.
-//
-// Shape: two slots (hover + selected). Each slot owns N Meshes — one
-// per author orb on the active commit — built lazily when commitIndex
-// is non-null AND visible per the reconciliation rule. Multi-author
-// commits emit multiple per-author orbits (different orbitRadius /
-// orbitTilt per author); the slot renders one ring per orbit so a
-// hovered 3-co-author tree shows all three orbits, not just one.
-//
-// Coloring:
-//   • Hover slot — each mesh gets its OWN MeshBasicMaterial colored as
-//     that orb's `lightRgb` (pastel of the author's firefly hue). A
-//     hovered 3-co-author tree shows three orbits in three pastel tints.
-//   • Selected slot — one shared MeshBasicMaterial with
-//     vertexColors: true. Each TubeGeometry carries a `color` attribute
-//     that update(timeMs) rewrites every frame to produce the shared
-//     RAINBOW chase used by the tree-canopy outline.
-//
-//   setHoveredCommit(idx):  update hover.commitIndex, reconcile.
-//   setSelectedCommit(idx): update selected slot (and reconcile hover).
-//   update(timeMs):  advance the selected-slot rainbow chase.
-//   refresh():  re-read FIREFLIES.ORBIT_RING_ENABLED visibility.
-//   dispose():  drop both slots' geometries + materials.
-
+// city/components/fireflies/orbitRings.ts — the ring around a hovered or
+// selected commit's tree. Two slots, each holding one mesh per author orb, so a
+// three-co-author commit shows three orbits. Hover tints each ring with its
+// author's pastel; selected shares one vertexColors material for the chase.
 import * as THREE from 'three';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { FireflyPlacement } from './firefliesPlacement';
 
@@ -59,17 +38,11 @@ export interface OrbitRings {
   setHoveredCommit(commitIndex: number | null): void;
   /** Highlight the ring for the given commitIndex as selected. Pass null to clear. */
   setSelectedCommit(commitIndex: number | null): void;
-  /**
-   * Advance the rainbow chase on selected rings. `timeMs` matches the
-   * tree-outline renderer's convention: `performance.now()` (milliseconds).
-   * Cheap no-op when no selected meshes exist.
-   */
+  /** Advance the chase on selected rings. `timeMs` is performance.now(), the
+   *  tree-outline renderer's convention. */
   update(timeMs: number): void;
-  /**
-   * Reapply current config to the active slots. Note: ORBIT_RING_THICKNESS
-   * is baked into geometry, so a thickness change only takes effect on
-   * the next slot rebuild. ORBIT_RING_ENABLED visibility is honored here.
-   */
+  /** Reapply config to the active slots. Thickness is baked into geometry, so
+   *  it only lands on the next rebuild. */
   refresh(): void;
   /** No-op for tube-based rings; kept for interface symmetry. */
   onResize(width: number, height: number): void;
@@ -86,9 +59,8 @@ interface HoverSlot {
 
 interface SelectedSlot {
   commitIndex: number | null;
-  /** Currently-rendered meshes — one per author orb on the active commit.
-   *  All share a single vertexColors: true material; per-mesh color is in
-   *  the geometry's `color` attribute, rewritten every frame. */
+  /** One mesh per author orb. They share one material, so per-mesh colour lives
+   *  in the geometry's `color` attribute. */
   meshes: THREE.Mesh[];
   /** Shared material for all selected meshes — vertexColors: true so the
    *  per-vertex rainbow buffer takes effect. */
@@ -117,11 +89,8 @@ function ensureColorBuffer(geom: THREE.BufferGeometry): Float32Array {
   return attr.array as Float32Array;
 }
 
-/** Write the per-frame rainbow chase into a TubeGeometry's `color` buffer.
- *  TubeGeometry vertex ordering is (tubularSegments + 1) × (radialSegments + 1),
- *  indexed as `j * radialSlices + i` where j is the tubular slice and i
- *  is the cross-section slice. All vertices on a given tubular slice share
- *  the same hue so the chase rotates smoothly along the ring. */
+/** TubeGeometry is indexed `j * radialSlices + i`. Every vertex on a tubular
+ *  slice takes the same hue, so the chase rotates smoothly. */
 function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
   const geom = mesh.geometry as THREE.BufferGeometry;
   const buf = ensureColorBuffer(geom);
@@ -164,9 +133,8 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     };
   }
 
-  // Build the placement lookup once. Pure pointer work — no geometry.
-  // Multiple orbs share a commitIndex on multi-author commits (one orb
-  // per author), so the value is a list, not a single placement.
+  // A list, not one placement: a multi-author commit has one orb per author
+  // sharing its commitIndex.
   const placementsByCommit = new Map<number, FireflyPlacement[]>();
   for (const orb of orbs) {
     let list = placementsByCommit.get(orb.commitIndex);

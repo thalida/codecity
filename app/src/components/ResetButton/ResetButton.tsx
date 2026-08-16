@@ -4,7 +4,7 @@
 
 import './ResetButton.css';
 import { RotateCcw } from 'lucide-preact';
-import { stageReset } from '@/state/settingsDrafts';
+import { stageReset } from '@/state/settings/drafts';
 import { getDefault } from '@/state/persist';
 import { useAnyDiffersFromDefault } from '@/hooks/useSettings';
 
@@ -19,9 +19,8 @@ function _formatDefaultValue(v: unknown): string {
   return String(v);
 }
 
-/** Default title: "Default: a – b – …" over however many keys the row covers,
- *  or "Reset to default" when there's nothing to show. Scales to any key count
- *  — no per-arity special-casing. */
+/** "Default: a - b - …" over however many keys the row covers, with no
+ *  per-arity special-casing. */
 function _defaultTitle(defaults: unknown[]): string {
   if (defaults.length === 0) return 'Reset to default';
   return `Default: ${defaults.map(_formatDefaultValue).join(' – ')}`;

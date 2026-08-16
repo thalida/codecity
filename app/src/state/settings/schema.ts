@@ -1,26 +1,13 @@
-// state/settingsSchema.ts — Schema-driven settings core.
-//
-// A setting store is a FLAT map of field definitions: each key carries what
-// the field intrinsically *is* (kind, default, label, tip, bounds/options) —
-// independent of where it's shown. settingSignal() derives the persisted
-// default object from those `default`s and hands it to the existing
-// persistedSignal (unchanged persistence/drafts), and registers the field map
-// so the controls panel can look a field up by (store, key).
-//
-// The persisted *type* is derived from the same map via ConfigOf<> — the
-// schema is the single source for both the defaults and the config type; no
-// separate default object, no hand-written interface to drift.
-//
-// Arrangement (which section/subgroup a field sits in, nesting, order) is NOT
-// here — that lives in the controls UI layer (views/ControlsPane/partials).
+// state/settings/schema.ts — how a setting is DECLARED, and the machinery that
+// turns a declaration into a live signal. A field says what it IS; where it is
+// SHOWN belongs to the controls layer. See README.md.
 
 import { computed, type Signal } from '@preact/signals';
 import { persistedSignal, getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
 
-/** A Select field's choices. Defined here (not imported from the view's
- *  SegmentedSelect) so state/ stays view-independent — the option array a
- *  store declares is structurally identical to what the widget renders. */
+/** A Select field's choices, declared here rather than imported from the view
+ *  so state/ stays view-independent. Structurally what the widget renders. */
 export interface SelectOption {
   value: string;
   label: string;
@@ -41,23 +28,16 @@ export enum FieldKind {
   HueMap = 'hueMap',
 }
 
-/** What changing a field requires the scene to do. Drives settingsReactions.ts's
- *  rebuild/material-refresh signatures (auto-generated from this metadata):
- *   Refresh — material/uniform update only (reactive effect, no rebuild). The default.
- *   Rebuild — full world applyManifest (structural/geometry/layout change).
- *   Live    — neither; read fresh per frame (e.g. gem/firefly animation) or
- *             driven elsewhere (e.g. live-update polling). */
+/** What changing a field requires of the scene. reactions.ts generates its
+ *  signatures from this, so nothing keeps a per-store key list. See README.md. */
 export enum ChangeRoute {
   Refresh = 'refresh',
   Rebuild = 'rebuild',
   Live = 'live',
 }
 
-/** One field's intrinsic definition. `default`'s type flows through to the
- *  store's config type (see ConfigOf). min/max/step apply to numeric kinds;
- *  options to Select. `route` is REQUIRED — every field states what changing it
- *  triggers, so the store file is legible at a glance and settingsReactions.ts can
- *  generate its rebuild/refresh signatures from it. */
+/** One field's intrinsic definition; `default`'s type flows through to the
+ *  store's config type. `route` is required, and reactions.ts reads it. */
 export interface FieldDef<T = unknown> {
   kind: FieldKind;
   route: ChangeRoute;
@@ -77,30 +57,22 @@ export type FieldMap = Record<string, FieldDef>;
  *  { KEY: typeof KEY.default }. */
 export type ConfigOf<F extends FieldMap> = { [K in keyof F]: F[K]['default'] };
 
-// store signal → its field map, for (store, key) lookups from the panel and
-// for reactions' route-driven signatures. A Map (not WeakMap) so it's
-// iterable; the stores are module-level singletons, never GC'd.
+// store signal → its field map. A Map, not WeakMap, so it is iterable; the
+// stores are module-level singletons and are never collected.
 const _FIELDS = new Map<object, FieldMap>();
 
-// The set of stores the SETTINGS panel owns — every settingSignal store, plus a
-// few hand-registered ones (e.g. SYNTAX_THEME, a plain persistedSignal). This is
-// deliberately NARROWER than persist's all-persisted registry: the panel's
-// "Reset all" / draft / non-default machinery iterates ONLY these, so
-// non-settings persisted state (recents, sidebar width/collapsed) is never
-// reset or counted by the settings UI.
+// Deliberately narrower than persist's registry, so Reset-all never touches
+// recents or sidebar width. See README.md.
 const _SETTING_STORES = new Set<object>();
 
-/** Register a store as panel-owned settings (so Reset-all / draft staging act
- *  on it). settingSignal calls this automatically; settings that use a plain
- *  persistedSignal instead (e.g. SYNTAX_THEME) call it explicitly. */
+/** Register a store as panel-owned. settingSignal does this automatically; a
+ *  plain persistedSignal (SYNTAX_THEME) calls it explicitly. */
 export function markSettingStore(store: object): void {
   _SETTING_STORES.add(store);
 }
 
-/** Test-only: drop a store from the registry. Tests that create disposable
- *  per-test stores via persistedSignal + markSettingStore must unregister the
- *  previous instance before making a new one, or it leaks into later
- *  assertions like anyResettable()/HAS_ANY_NON_DEFAULT forever. */
+/** Test-only. A disposable per-test store must unregister before the next one
+ *  is made, or it leaks into anyResettable()/HAS_ANY_NON_DEFAULT forever. */
 export function _unregisterForTests(store: object): void {
   _SETTING_STORES.delete(store);
   _FIELDS.delete(store);
@@ -114,10 +86,8 @@ export function forEachSettingStore(cb: (store: { value: unknown }) => void): vo
 
 const _AUTOSAVE_STORES = new WeakSet<object>();
 
-/** Mark a settings store as write-through: its widgets apply on change
- *  (bypassing the draft/Save layer) instead of staging drafts. Used by the
- *  autosave tabs (Updates, Appearance) whose settings are cheap and want instant
- *  feedback. */
+/** Write-through: widgets apply on change instead of staging drafts. The
+ *  autosave tabs (Updates, Appearance) are cheap and want instant feedback. */
 export function markAutosave(store: object): void {
   _AUTOSAVE_STORES.add(store);
 }
@@ -126,10 +96,8 @@ export function isAutosave(store: object): boolean {
   return _AUTOSAVE_STORES.has(store);
 }
 
-/** True when ANY settings store (including autosave stores) holds a
- *  (committed) non-default value. No longer the source of the Reset-all
- *  button's enabled state (that's anyResettable(), which skips autosave
- *  stores) — this is read by ActionsBar purely as a reactivity signal. */
+/** True when any store holds a committed non-default value, autosave included.
+ *  Read purely as a reactivity signal; Reset-all keys off anyResettable(). */
 export const HAS_ANY_NON_DEFAULT = computed(() => {
   for (const s of _SETTING_STORES) {
     const store = s as { value: unknown };
@@ -145,14 +113,8 @@ function clampToBounds(n: number, def: FieldDef): number {
   return n;
 }
 
-// Validate one hydrated field value against its definition → a safe value:
-// numerics must be finite and are clamped to [min, max]; a RangePair must be a
-// two-number array (each end clamped); a toggle must be a boolean; a select must
-// be a declared option; anything else (Color string, TierWidths/HueMap) is kept
-// only when its basic shape matches the default. Everything off falls back to
-// the default. Guards against out-of-range / stale / tampered persisted values
-// (e.g. a Number field cleared to 0 below its min → 0 floor height → NaN
-// geometry, or a select option that was renamed).
+// One hydrated value against its definition, falling back to the default.
+// Guards stale or tampered localStorage; the cases are in README.md.
 function sanitizeField(value: unknown, def: FieldDef): unknown {
   const fallback = def.default;
   switch (def.kind) {
@@ -178,17 +140,8 @@ function sanitizeField(value: unknown, def: FieldDef): unknown {
   }
 }
 
-/**
- * Create a persisted settings store from a flat field map. Derives the default
- * object from each field's `default`, wraps persistedSignal (so persistence,
- * hydration, diff-vs-default, drafts and getDefault all behave exactly as
- * before), validates the hydrated value against the schema, and registers the
- * field map for panel lookups.
- *
- * The returned signal's value type is ConfigOf<F> — inferred from the map, so
- * `STORE.value.KEY` is typed and a `satisfies`/ConfigOf alias gives the config
- * type with nothing stated twice.
- */
+/** A persisted settings store from a flat field map: defaults, validation and
+ *  panel registration all derived from it. See README.md. */
 export function settingSignal<F extends FieldMap>(key: string, fields: F): Signal<ConfigOf<F>> {
   const def = {} as ConfigOf<F>;
   for (const k in fields) {
@@ -196,10 +149,8 @@ export function settingSignal<F extends FieldMap>(key: string, fields: F): Signa
   }
   const sig = persistedSignal<ConfigOf<F>>(key, def);
 
-  // Sanitize the hydrated value against the schema: clamp out-of-range numerics
-  // and reset corrupt/stale fields to their default. Rewrites (and re-persists)
-  // only when something was off, so a tampered or out-of-date localStorage entry
-  // can never feed an invalid value into the scene.
+  // Re-persist only when something was actually off, so a stale entry cannot
+  // feed an invalid value into the scene.
   const current = sig.peek() as Record<string, unknown>;
   const cleaned: Record<string, unknown> = { ...current };
   let changed = false;
@@ -233,15 +184,8 @@ interface ValueStore {
   value: Record<string, unknown>;
 }
 
-/**
- * Build a change-signature string over every registered settingSignal field
- * whose `route` matches (default Refresh). The returned string changes iff a
- * routed field's value changes — so a computed wrapping this notifies (and the
- * reaction fires) ONLY for the relevant route, with no cross-firing.
- *
- * Reads each matching field's `store.value[key]`, which subscribes the calling
- * computed to that store. Call inside reactions' computed().
- */
+/** A string that changes iff a field with this route changes, so the wrapping
+ *  computed notifies for one route only. Call inside a computed(). */
 export function routeSignature(route: ChangeRoute): string {
   let sig = '';
   for (const [store, fields] of _FIELDS) {

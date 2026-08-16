@@ -1,24 +1,18 @@
-// state/stores/settingsIndicators.ts — "how customized is this render": the
-// dirty dot on the Settings activity-bar icon.
-//
-// A setting counts as changed when its committed value differs from its
-// registered default. Only what the Settings pane can take you to counts —
-// stores that live in a chrome-bar popover are excluded by name, since the
-// dot's whole job is pointing at the pane.
+// state/settings/indicators.ts — the dirty dot on the Settings icon. Only what
+// the pane can take you to counts, since pointing there is the dot's whole job.
 
 import { computed } from '@preact/signals';
-import { forEachSettingStore, getFieldKeys } from '@/state/settingsSchema';
+import { forEachSettingStore, getFieldKeys } from '@/state/settings/schema';
 import { getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import { ACCENT_THEME, SURFACE_THEME } from '@/state/stores/settings/theme';
-import { SYNTAX_THEME } from '@/state/stores/settings/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/fields/theme';
+import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
 
 type AnyStore = { value: unknown };
 
-/** Registered, but not in the Settings pane: scan settings live in the header's
- *  scan menu, appearance in the footer's. Listed so the "everything else" rule
- *  below can't sweep them back into a count they aren't reachable from. */
+/** Registered but reachable from a chrome-bar popover, not the pane. Listed so
+ *  the "everything else" rule below cannot sweep them back in. */
 const POPOVER_STORES: AnyStore[] = [
   LIVE_UPDATES as AnyStore,
   ACCENT_THEME as AnyStore,
@@ -26,9 +20,8 @@ const POPOVER_STORES: AnyStore[] = [
   SYNTAX_THEME as AnyStore,
 ];
 
-/** Number of a store's fields that differ from default. Scalar stores (the theme
- *  pickers register no field map) count as one whole value; field-map stores
- *  count per field. Reads `store.value`, so callers inside a computed track it. */
+/** How many of a store's fields differ from default. A scalar store (no field
+ *  map) counts as one. Reads store.value, so a calling computed tracks it. */
 function changedFieldCount(store: AnyStore): number {
   const keys = getFieldKeys(store);
   if (keys.length === 0) {

@@ -5,7 +5,7 @@
 
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
-import { CAMERA } from '@/state/stores/settings/camera';
+import { CAMERA } from '@/state/settings/fields/camera';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 

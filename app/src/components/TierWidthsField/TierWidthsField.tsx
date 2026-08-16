@@ -5,8 +5,8 @@
 
 import { useId } from 'preact/hooks';
 import { useEffective, useDefault } from '@/hooks/useSettings';
-import { setDraft } from '@/state/settingsDrafts';
-import type { StreetTier } from '@/state/stores/settings/streets';
+import { setDraft } from '@/state/settings/drafts';
+import type { StreetTier } from '@/state/settings/fields/streets';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
 import { SettingRow } from '@/components/SettingRow/SettingRow';

@@ -4,7 +4,7 @@
 // tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
-import { TREES } from '@/state/stores/settings/trees';
+import { TREES } from '@/state/settings/fields/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';

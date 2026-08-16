@@ -3,7 +3,7 @@
 // implementation here would only restate the formula under test.
 import { describe, it, expect, afterEach } from 'vitest';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
-import { RAINBOW } from '@/state/stores/settings/effects';
+import { RAINBOW } from '@/state/settings/fields/effects';
 
 const DEFAULT = RAINBOW.peek();
 

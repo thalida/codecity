@@ -1,4 +1,4 @@
-// state/stores/settings/gem.ts — root-of-repo gem + its repo-label hologram, in
+// state/settings/fields/gem.ts — root-of-repo gem + its repo-label hologram, in
 // three stores: GEM (visual, GLOW_* sub-feature), GEM_SIZING (radius, threaded
 // into the layout worker, so separate like WORLD), and REPO_LABEL (the banner,
 // its own component). Non-tunable constants live with their consumers.
@@ -9,7 +9,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 import { oklchToHex } from '@/city/utils/color/colors';
 import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/constants/gem';
 

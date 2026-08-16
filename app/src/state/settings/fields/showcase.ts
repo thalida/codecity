@@ -1,4 +1,4 @@
-// state/stores/settings/showcase.ts — the hero turntable the switcher and the
+// state/settings/fields/showcase.ts — the hero turntable the switcher and the
 // featured city drive the world into: a ground-level orbit circling the root
 // gem. All Live-routed: no rebuild reaction, the rig drives the update itself.
 
@@ -8,7 +8,7 @@ import {
   ChangeRoute,
   type ConfigOf,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 
 const SHOWCASE_FIELDS = {
   ELEVATION: {

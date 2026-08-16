@@ -3,7 +3,7 @@
 // by the city's own lighting.
 
 import * as THREE from 'three';
-import { ISLAND } from '@/state/stores/settings/island';
+import { ISLAND } from '@/state/settings/fields/island';
 
 import vertSrc from './island.vert.glsl?raw';
 import fragSrc from './island.frag.glsl?raw';

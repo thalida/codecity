@@ -2,9 +2,9 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/stores/settings/trees';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { WORLD } from '@/state/stores/settings/island';
+import { TREES } from '@/state/settings/fields/trees';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { WORLD } from '@/state/settings/fields/island';
 import type { CityLayout } from '@/types';
 import {
   bbox,

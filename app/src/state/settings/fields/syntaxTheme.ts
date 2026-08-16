@@ -2,7 +2,7 @@
 // <link> href so it applies without a reload.
 
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore, markAutosave } from '@/state/settingsSchema';
+import { markSettingStore, markAutosave } from '@/state/settings/schema';
 
 export interface SyntaxThemeOption {
   value: string;

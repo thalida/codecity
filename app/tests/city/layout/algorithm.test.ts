@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '@/city/layout/algorithm';
 import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 import type { RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
-import type { StreetTier } from '@/state/stores/settings/streets';
+import type { StreetTier } from '@/state/settings/fields/streets';
 import {
   assertNoOverlap,
   assertStemOrder,
@@ -144,10 +144,7 @@ describe('getStreetWidth', () => {
 });
 
 // ---- getBuildingDimensions ----
-//
-// Heights are sqrt-normalized across the project's line-count range:
-// smallest file → min_floors, largest → max_floors, midrange via sqrt.
-// Without lineStats, the safe default is min_floors.
+// Height is sqrt-normalized over the line-count range; see README.md.
 describe('getBuildingDimensions', () => {
   it('null/zero data returns min_floors and min width', () => {
     const dim = getBuildingDimensions({ lines: null, size: null });
@@ -204,10 +201,7 @@ describe('getBuildingDimensions', () => {
   });
 
   it('midrange file uses sqrt-interpolated floors within the repo ceiling', () => {
-    // Biggest file is 1000 lines (< 2000) → repo ceiling ≈ 21.5 floors.
-    // sMin=sqrt(10)=3.162, sMax=sqrt(1000)=31.62, sLines=sqrt(100)=10
-    // t = (10 - 3.162) / (31.62 - 3.162) ≈ 0.240
-    // floors ≈ round(1 + 0.240 * (21.5 - 1)) = round(5.93) = 6
+    // 6 floors: the worked derivation is in README.md.
     const dim = getBuildingDimensions({ lines: 100, size: 1000 }, { min: 10, max: 1000 });
     expect(dim.floors).toBe(6);
   });
@@ -231,8 +225,7 @@ describe('getBuildingDimensions', () => {
   });
 
   // ---- Width / byteStats ----
-  // Width is log-normalized over the project's own byte range, mirroring
-  // the floors-from-lines mapping.
+  // Log-normalized over the byte range, mirroring floors-from-lines.
   it('without byteStats falls back to MIN_WIDTH', () => {
     const dim = getBuildingDimensions({ lines: 80, size: 2000 }, { min: 10, max: 1000 });
     expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
@@ -267,11 +260,7 @@ describe('getBuildingDimensions', () => {
 });
 
 // ---- getBuildingDimensions for media files ----
-//
-// Media files (image/video) get an aspect-driven height: building's
-// silhouette mirrors the image. Width still comes from bytes; height
-// = floors × FLOOR_HEIGHT where floors snaps to round(width × aspect
-// / FLOOR_HEIGHT). Missing dims → square fallback (aspect = 1).
+// Aspect-driven height, so the silhouette mirrors the image. See README.md.
 describe('getBuildingDimensions — media files', () => {
   const PNG = '.png';
   // mediaKind is the backend-computed classification the layout reads
@@ -366,19 +355,15 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 1000 },
       { min: 10, max: 10000 }
     );
-    // Lines-derived via sqrt interpolation, not byte-aspect-derived: a 9999:1
-    // aspect would clamp to 0.4 and give a 1-floor building, but the media_*
-    // fields are ignored outright, so 100 lines lands at 6 floors.
+    // The media_* fields are ignored outright without a media kind, so this
+    // goes back through the sqrt path: 100 lines, 6 floors, not 1.
     expect(dim.floors).toBe(6);
     expect(dim.h).toBe(60);
   });
 });
 
 // ---- computeFileStats ----
-//
-// Reads pre-computed ranges from manifest.stats — no tree walk.
-// Falls back to {min:1,max:1} (safe-for-division default) when stats are
-// absent or carry the empty sentinel {min:0,max:0}.
+// Reads manifest.stats rather than walking the tree. See README.md.
 describe('computeFileStats', () => {
   const REAL_STATS: RepoStats = {
     ...EMPTY_REPO_STATS,
@@ -463,11 +448,8 @@ describe('layoutCity', () => {
     expect(hasLabel).toBe(true);
   });
 
-  // Side distribution: a directory full of files should populate both sides
-  // of its street, not stack everything onto side 0. We check via building
-  // orient (the building's door faces back toward the street, so files on
-  // the primary side have orient='s' or 'e' and files on the secondary side
-  // have orient='n' or 'w' depending on street orientation).
+  // Read off orient, since a door faces back toward its street: primary side
+  // is s/e, secondary n/w. See README.md.
   it('files distribute across both sides of the street', () => {
     const file = (n: string) => ({
       name: n,
@@ -497,11 +479,8 @@ describe('layoutCity', () => {
     expect(secondary).toBe(true);
   });
 
-  // The occupancy-based packer enforces a monotonic priorStemX across both
-  // sides: alphabetically-earlier children must sit at lower along-axis
-  // positions than later ones, regardless of which side they land on. With
-  // best-fit area balancing, a flat run of equal-size files distributes
-  // across both sides while maintaining alphabetical along-axis order.
+  // Monotonic priorStemX across BOTH sides: alphabetical order holds whichever
+  // side a child lands on. See README.md.
   it('files in a flat dir are alphabetically ordered along the street', () => {
     const file = (n: string) => ({
       name: n,
@@ -541,9 +520,8 @@ describe('layoutCity', () => {
     }
   });
 
-  // With best-fit area balancing, equal-size files still pair symmetrically:
-  // the first file on side 0 makes side 1 the smaller-area side, and the next
-  // equal-size file lands on side 1 at the same stem-x.
+  // Equal-size files pair symmetrically: the first makes side 1 the smaller
+  // side, so the next lands there at the same stem-x.
   it('files on opposite sides sit directly across (paired)', () => {
     const file = (n: string) => ({
       name: n,
@@ -578,12 +556,8 @@ describe('layoutCity', () => {
   });
 });
 
-// ---- Deeply-nested orient correctness ----
-//
-// Exercises the mirror-orient fix. Builds a tree deep enough that a grandchild
-// file goes through TWO levels of mirroring (x-parent primary side → y-subdir
-// primary side → x-sub-subdir with a file), then verifies every building's
-// orient still points toward its own street after all the coordinate flips.
+// A grandchild through TWO levels of mirroring still points at its own street.
+// The tree shape is in README.md.
 describe('orient correctness for mirrored subtrees', () => {
   function makeFile(name) {
     return {
@@ -610,13 +584,7 @@ describe('orient correctness for mirrored subtrees', () => {
     };
   }
 
-  // Tree: root has several subdirs spanning all sideIdx combinations.
-  // aaaa/ (ci=0) -> primary side of root: negateY
-  //   inner/ (ci=0) -> primary side of aaaa: negateX
-  //     f1.ts (file, orient='s' locally after being in inner-x-street)
-  //     f2.ts
-  // bbbb/ (ci=1) -> secondary side of root: no mirror
-  //   f3.ts
+  // Subdirs spanning every sideIdx combination; the tree is drawn in README.md.
   const TREE = makeDir('root', [
     makeDir('aaaa', [makeDir('inner', [makeFile('f1.ts'), makeFile('f2.ts')])]),
     makeDir('bbbb', [makeFile('f3.ts')]),
@@ -735,13 +703,8 @@ describe('layout invariants (current packer baseline)', () => {
   });
 
   it('big subtree at root extends backward instead of pushing root forward', () => {
-    // C+D fitting: a big subtree under root has alongLow ≪ 0; without the
-    // alongLow clamp at root, big sits at low stem-x and its content
-    // extends back into the gem-area open space rather than pushing the
-    // parent street's length forward to host its bbox right reach. The
-    // contract: no overlap, alphabetical stems, AND root street's length
-    // stays much smaller than the worst-case "stack every bbox sequentially"
-    // bound.
+    // Without the alongLow clamp at root, big's content extends back into the
+    // gem-area open space instead of pushing the street forward. See README.md.
     const big = mkDir('big', [
       mkFile('aa.ts'),
       mkFile('bb.ts'),
@@ -760,26 +723,14 @@ describe('layout invariants (current packer baseline)', () => {
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
     const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
-    // Under the max(W,H) side selection, big's stem lands at roughly 56% of
-    // root's road (≈61 units on a ~108-unit road) — not "close to the
-    // start" in v2's sense, but still well within the road and well below
-    // the open far end. The contract here is that big's stem must stay well
-    // within the road (well below the open end) so root's road doesn't have
-    // to extend past it to host big's bbox right-reach.
+    // big's stem must stay well within the road so root never extends past it
+    // to host the bbox reach. See README.md.
     expect(bigStreet[along]).toBeLessThan(rootStreet.length * 0.75);
   });
 
   it('B re-compute does not lengthen root street vs pre-compute baseline', () => {
-    // Verifies the root street length stays bounded under the packer with the
-    // depth=0 two-pass and its guard active. The original concern (B
-    // re-compute lengthening root) is now mostly absorbed by the packer's
-    // max(W,H) side selection: pre-compute and re-compute often pick the
-    // same chosenStemX, so the guard's contribution is small for this
-    // tree shape. The guard remains in the code as a defense-in-depth for
-    // tree shapes where the packer scoring can still produce divergent passes.
-    //
-    // Tree shape: root has 1 deep subdir (aaa) followed by 3 small
-    // siblings. Measured root length under the packer is ~115.4.
+    // Root length stays bounded with the depth-0 two-pass guard active; the
+    // guard is now defense in depth. See README.md.
     const tree = mkDir('root', [
       mkDir('aaa', [
         mkDir('inner', [
@@ -801,10 +752,8 @@ describe('layout invariants (current packer baseline)', () => {
     assertNoOverlap(layout);
     assertStemOrder(layout);
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
-    // Measured ~115.4 under the packer with the prior STREET_TIERS defaults; after
-    // widening tiers (0→32, 4→48, 8→80, 16→96) the natural length is
-    // ~264. Threshold scaled to ~300 to keep ~36u headroom while still
-    // catching a 2× regression.
+    // ~264 natural under the current STREET_TIERS, so 300 leaves ~36u headroom
+    // and still catches a 2x regression. See README.md.
     expect(rootStreet.length).toBeLessThan(300);
   });
 
@@ -820,12 +769,8 @@ describe('layout invariants (current packer baseline)', () => {
 });
 
 describe('quickjs-scenario regression', () => {
-  // Reproduces the failure from screenshots: node_modules has a quickjs
-  // child whose own src/ subdir picked the side facing node_modules,
-  // forcing the quickjs road to extend back. With the packer, src/ should
-  // mirror or pick the other side, keeping quickjs road short.
-  // Three levels deep, so paths re-prefix all the way down and
-  // descendants_count accumulates. The shared mkDir only does one level.
+  // Three levels deep on purpose: paths re-prefix all the way down and
+  // descendants_count accumulates, which mkDir's one level cannot. See README.md.
   function mkDeepDir(name: string, children: any[], path?: string): any {
     const dirPath = path || name;
     const prefixed = children.map((c) => {
@@ -848,16 +793,7 @@ describe('quickjs-scenario regression', () => {
   }
 
   it('quickjs road stays short when its src/ branch has space to mirror', () => {
-    // Tree:
-    //   root/
-    //     a-other-pkg/   (medium subdir, alphabetically first under root)
-    //       file1.ts ... file10.ts
-    //     node_modules/  (big subdir, alphabetically next)
-    //       big1.ts ... big8.ts
-    //       quickjs/
-    //         qf1.ts qf2.ts qf3.ts
-    //         src/
-    //           sf1.ts sf2.ts
+    // The tree is drawn in README.md.
     const tree = mkDeepDir('root', [
       mkDeepDir(
         'a-other-pkg',
@@ -889,12 +825,8 @@ describe('quickjs-scenario regression', () => {
     expect(quickjsStreet).toBeDefined();
     expect(nodeModStreet).toBeDefined();
 
-    // The bug case: quickjs road extends way past where qf1, qf2, qf3
-    // alone would justify, because src/ branched back toward node_modules.
-    // For 3 files (each ~8-16 units wide with updated STREET_TIERS) plus
-    // end pads, a non-pathological quickjs road length is ~156. The bug
-    // produced lengths 2-3× that. We assert quickjs.length < 210 — well
-    // above the legitimate floor, well below the bug regime.
+    // A healthy quickjs road is ~156; the bug produced 2-3x that, so 210 sits
+    // above the floor and below the bug regime. See README.md.
     expect(quickjsStreet!.length).toBeLessThan(210);
   });
 });
@@ -913,10 +845,8 @@ describe('layoutCity end-to-end', () => {
     assertTJunctionsValid(layout);
   });
 
-  // estimateDirReaches: bottom-up pre-pass that sizes the phantom in each
-  // child recursion. Must approximate (or upper-bound) the actual placement's
-  // along/perp extents — undersizing the phantom reintroduces the
-  // grandchild-overlaps-ancestor bug.
+  // estimateDirReaches sizes the phantom for each child recursion; undersizing
+  // it brings back grandchild-overlaps-ancestor. See README.md.
   describe('estimateDirReaches matches actual layout', () => {
     it('flat tree: estimated alongReach >= actual road length', () => {
       const tree = mkDir('root', [
@@ -982,13 +912,8 @@ describe('layoutCity end-to-end', () => {
     });
   });
 
-  // Stress test that mirrors the firecrawl/Linux-scale shape: a long-road
-  // ancestor (apps) whose alphabetically-first child (api) has a deep
-  // subtree extending along the ancestor's road. Before the
-  // estimateDirAlongReach fix, the phantom seeded into api's local occupancy
-  // was sized with parentMaxBoundary*2 + 1000 at recursion start (when api
-  // was apps' first child, parentMaxBoundary was tiny); deep grandchildren
-  // placed past the phantom could land on top of apps' trunk.
+  // The firecrawl/Linux-scale shape: a long-road ancestor whose first child has
+  // a deep subtree running along that road. See README.md.
   it('long-road ancestor body does not overlap deep grandchildren in first-alpha subtree', () => {
     function mkSizedFile(name: string, sizeBytes: number, lines: number): any {
       return {
@@ -1036,17 +961,14 @@ describe('layoutCity end-to-end', () => {
     const layout = layoutCity({ tree });
     const apps = layout.streets.find((s) => s.dir?.name === 'apps');
     expect(apps).toBeDefined();
-    // Sanity: apps' trunk should be long enough that any phantom-too-short
-    // bug would surface (apps must extend well past the original
-    // parentMaxBoundary*2 + 1000 ≈ 1000 reach).
+    // apps' trunk must pass the old ~1000 reach, or a too-short phantom would
+    // not surface here at all.
     expect(apps!.length).toBeGreaterThan(2000);
     assertNoOverlap(layout);
   });
 });
 
-// Geometry-only projection (buildings + streets), safe to JSON-compare: avoids
-// the file/dir refs (dir.children is cyclic) while capturing everything the
-// layout output actually determines.
+// Geometry only, so it is JSON-comparable: dir.children is cyclic.
 function geometryDigest(layout: ReturnType<typeof layoutCity>): string {
   return JSON.stringify({
     buildings: layout.buildings.map((b) => [b.x, b.y, b.w, b.d, b.h, b.floors, b.file?.path]),

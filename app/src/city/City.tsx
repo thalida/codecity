@@ -7,7 +7,7 @@ import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@/city';
-import { attachSettingsReactions } from '@/state/settingsReactions';
+import { attachSettingsReactions } from '@/state/settings/reactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/build';

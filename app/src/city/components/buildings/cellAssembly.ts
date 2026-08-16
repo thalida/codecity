@@ -10,7 +10,7 @@ import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile } from '@/utils/fileKind';
 import { isDataBuilding } from '@/utils/fileKind';
 import { isEmptyFile } from '@/utils/fileKind';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
 

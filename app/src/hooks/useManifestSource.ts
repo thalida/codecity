@@ -15,8 +15,15 @@ import {
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
-import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE, activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/source';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
+import {
+  RECENTS,
+  SOURCE_ERROR,
+  commitSource,
+  CURRENT_SOURCE,
+  activeExcludePathsFor,
+  ACTIVE_EXCLUDES,
+} from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { markError, markRebuilding } from '@/state/stores/build';

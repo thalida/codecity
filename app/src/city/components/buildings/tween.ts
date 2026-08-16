@@ -4,7 +4,7 @@
 // else, and the fader writes iFade, so the two can't conflict by construction.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
 
 /** Narrow resolver surface the tween queue needs from the buildings

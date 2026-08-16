@@ -2,8 +2,8 @@
 // the island it stands on, and the sky and haze around it.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { ISLAND, WORLD } from '@/state/stores/settings/island';
-import { SCENE } from '@/state/stores/settings/scene';
+import { ISLAND, WORLD } from '@/state/settings/fields/island';
+import { SCENE } from '@/state/settings/fields/scene';
 
 export const WORLD_SECTION: SectionNode = {
   key: 'world',

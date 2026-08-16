@@ -6,13 +6,12 @@ import {
   FieldKind,
   ChangeRoute,
   type FieldMap,
-} from '@/state/settingsSchema';
+} from '@/state/settings/schema';
 import { getDefault } from '@/state/persist';
 import { STORAGE_PREFIX } from '@/constants/storage';
 
-// settingSignal derives the persisted default object from each field's
-// `default`, registers the field map for (store, key) lookups, and otherwise
-// behaves like persistedSignal (hydration / diff-vs-default / getDefault).
+// settingSignal derives the defaults and registers the field map, and is
+// otherwise persistedSignal.
 
 describe('settingSignal', () => {
   const STORE = settingSignal('TEST_SCHEMA_STORE', {
@@ -63,10 +62,8 @@ describe('settingSignal', () => {
   });
 });
 
-// settingSignal validates the hydrated value against the schema on load: clamps
-// out-of-range numerics, resets corrupt/stale fields to default. Guards a
-// tampered/out-of-date localStorage entry from feeding an invalid value (the
-// 0-floor-height → NaN-geometry class of bug) into the scene.
+// Validation on load keeps a stale localStorage entry from feeding the scene an
+// invalid value: the 0-floor-height to NaN-geometry class of bug.
 describe('settingSignal hydration validation', () => {
   const FIELDS: FieldMap = {
     N: {

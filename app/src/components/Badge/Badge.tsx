@@ -12,8 +12,8 @@ import {
   FILE_TAG_LIGHTNESS,
 } from '@/utils/colors';
 import { NodeKind } from '@/types';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { STREETS } from '@/state/stores/settings/streets';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
+import { STREETS } from '@/state/settings/fields/streets';
 
 // The luminance check reads the same saturation and lightness the CSS paints,
 // so it judges the colour actually on screen.

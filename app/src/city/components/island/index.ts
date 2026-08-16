@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import { ISLAND } from '@/state/stores/settings/island';
+import { ISLAND } from '@/state/settings/fields/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';

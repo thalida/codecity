@@ -4,7 +4,7 @@
 // with an ellipsis rather than shrink further.
 
 import * as THREE from 'three';
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS } from '@/state/settings/fields/streets';
 import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/constants/streets';
 import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';

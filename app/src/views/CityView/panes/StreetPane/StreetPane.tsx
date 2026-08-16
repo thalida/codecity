@@ -15,7 +15,7 @@ import { directoryStatItems } from '@/components/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
 import { extHueColor } from '@/city/components/buildings/color';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';
 import { ROOT_PATH } from '@/constants/manifest';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
