@@ -18,13 +18,13 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.core.config import CACHE_ROOT, quiet
+from api.core.config import CACHE_ROOT
+from api.core.progress import Throttle, log
 
 # Cancellation is signalled by the same threading.Event the scan honors, so a
 # client disconnect aborts the clone phase too. the scan package does not import
@@ -71,19 +71,12 @@ __all__ = [
 
 
 def _log(msg: str) -> None:
-    if not quiet():
-        print(f"[clone] {msg}", file=sys.stderr, flush=True)
+    log(msg, prefix="clone")
 
 
 # Where git clones are cached: a `clones/` subdir under the shared cache root
 # (config.CACHE_ROOT). Tests monkeypatch clone.CLONES_ROOT.
 CLONES_ROOT = CACHE_ROOT / "clones"
-
-
-# The server forwards every progress callback as one NDJSON event, and git
-# emits ~1% steps on a big clone. Short enough to feel live, long enough to
-# coalesce those.
-CLONE_PROGRESS_THROTTLE_S = 0.25
 
 
 _CLONE_PROGRESS_RE = re.compile(
@@ -333,49 +326,28 @@ def _run_git_streaming(
     # Wall-clock of the last stderr line we forwarded. The watchdog
     # treats anything older than _STALL_HEARTBEAT_SECS as a stall.
     last_output_at = [time.monotonic()]
-    # Throttle state for on_progress. A stage change always passes, so the
-    # client sees counting → receiving → resolving regardless of the window.
-    # Last-seen is tracked alongside last-emitted so each stage's terminal 100%
-    # gets flushed rather than dropped inside the window, which would leave the
-    # UI frozen at whatever percent happened to pass.
-    last_progress_at = [0.0]
-    last_emitted_payload: list[CloneProgress | None] = [None]
-    last_seen_payload: list[CloneProgress | None] = [None]
+    progress: Throttle[CloneProgress] = Throttle(on_progress)
+    last_stage: list[str | None] = [None]
     proc_done = threading.Event()
 
     def _maybe_emit_progress(line: str) -> None:
-        if on_progress is None:
-            return
         parsed = _parse_clone_progress_line(line)
         if parsed is None:
             return
-        now = time.monotonic()
-        prev = last_emitted_payload[0]
-        same_stage = prev is not None and prev.stage == parsed.stage
-        # Stage change: flush the previous stage's terminal value first
-        # so the UI sees e.g. "resolving 100%" before "receiving 1%".
-        if not same_stage and prev is not None:
-            last_seen = last_seen_payload[0]
-            if last_seen is not None and last_seen != prev:
-                on_progress(last_seen)
-                last_emitted_payload[0] = last_seen
-        last_seen_payload[0] = parsed
-        if same_stage and now - last_progress_at[0] < CLONE_PROGRESS_THROTTLE_S:
-            return
-        on_progress(parsed)
-        last_progress_at[0] = now
-        last_emitted_payload[0] = parsed
+        # A stage change flushes the previous stage's terminal value and then
+        # bypasses the window, so the client sees "resolving 100%" before
+        # "receiving 1%" rather than the old stage frozen at whatever percent
+        # happened to fall outside it.
+        changed = last_stage[0] is not None and last_stage[0] != parsed.stage
+        if changed:
+            progress.flush()
+        last_stage[0] = parsed.stage
+        progress.send(parsed, force=changed)
 
     def _flush_progress() -> None:
-        """Emit the most recently seen payload if it wasn't emitted.
-        Called at end-of-stream so the terminal value (e.g. 100%) reaches
-        the UI even when the throttle suppressed it."""
-        if on_progress is None:
-            return
-        last_seen = last_seen_payload[0]
-        if last_seen is not None and last_seen != last_emitted_payload[0]:
-            on_progress(last_seen)
-            last_emitted_payload[0] = last_seen
+        """Called at end-of-stream so each stage's terminal value reaches the
+        UI even when the throttle suppressed it."""
+        progress.flush()
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None

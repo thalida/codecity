@@ -1,8 +1,8 @@
 """Read-only git-object plumbing for reconstructing a past ref.
 
 Everything here uses `git ls-tree` / `cat-file` / `rev-parse` — it never
-checks out, resets, or otherwise writes to the repo. `-c safe.directory=*`
-mirrors meta.run_git so we can read repos the process doesn't own.
+checks out, resets, or otherwise writes to the repo. Invocation goes through cmd.git_argv, which
+carries the safe.directory bypass.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable, NamedTuple
 
+from api.git.cmd import git_argv
 from api.utils.binfmt import detect_binary_type
 from api.utils.content import count_lines, is_binary_bytes
 from api.utils.media import probe_media_dims_from_bytes
@@ -26,14 +27,6 @@ _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 # still absent, e.g. a monster file the hydrate skipped) degrades to 0 lines, not
 # a hang.
 _GIT_ENV = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
-
-
-def git_argv(root: Path, *args: str) -> list[str]:
-    """The `-c safe.directory=* -C <root>` prefix shared by every git
-    invocation in this module, and by the timeline's history walk. Callers add
-    the ref-injection guard (`--end-of-options`) themselves; for why
-    safe.directory is bypassed at all, see meta.run_git's docstring."""
-    return ["git", "-c", "safe.directory=*", "-C", str(root), *args]
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:

@@ -1,11 +1,10 @@
 """Timeline bundle: one git-history walk → per-commit blob deltas, replayed
-client-side for smooth scrubbing. Read-only; reuses gitobj's git plumbing."""
+client-side for smooth scrubbing. Read-only; reuses git/objects' plumbing."""
 
 from __future__ import annotations
 
 import hashlib
 import subprocess
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
@@ -32,7 +31,7 @@ from api.git.meta import (
     reconstructed_repo_info,
 )
 from api.scan.manifest import wrap_manifest
-from api.core.progress import SCAN_PROGRESS_THROTTLE_S, log
+from api.core.progress import Throttle, log
 from api.core.exceptions import NotAGitRepoError
 from api.scan.signatures import derive_tree_signals, hash_file_entry
 from api.scan.skiprules import SkipRules
@@ -107,7 +106,7 @@ def walk_deltas(
     newest_first: list[CommitDelta] = []
     cur: CommitDelta | None = None
     commits = 0
-    last_emit = 0.0
+    ticks: Throttle[dict[str, object]] = Throttle(on_progress)
     assert proc.stdout is not None
     try:
         for raw in proc.stdout:
@@ -120,13 +119,7 @@ def walk_deltas(
                 commits += 1
                 if commits % _HISTORY_HEARTBEAT_EVERY == 0:
                     log(f"  walked {commits:,} commits…")
-                    if on_progress is not None:
-                        now = time.monotonic()
-                        if now - last_emit >= SCAN_PROGRESS_THROTTLE_S:
-                            on_progress(
-                                {"stage": TimelineStage.HISTORY, "commits": commits}
-                            )
-                            last_emit = now
+                    ticks.send({"stage": TimelineStage.HISTORY, "commits": commits})
                 continue
             if not line.startswith(":") or cur is None:
                 continue
@@ -151,10 +144,9 @@ def walk_deltas(
             proc.kill()
         proc.wait()
     log(f"  done — {commits:,} commits walked")
-    if on_progress is not None:
-        on_progress(
-            {"stage": TimelineStage.HISTORY, "commits": commits}
-        )  # final, unthrottled
+    # Forced: the true total must land even if the last tick fell inside the
+    # throttle window, or the row sits on a stale count for the rest of the run.
+    ticks.send({"stage": TimelineStage.HISTORY, "commits": commits}, force=True)
     newest_first.reverse()
     return newest_first
 

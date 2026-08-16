@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-import subprocess
 
 from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
 from api.core.security import TRUST
 from api.git import build_authors_list
+from api.git.cmd import run_git
 
 router = APIRouter(prefix="/api", tags=["commit"])
 
@@ -30,24 +30,10 @@ def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
             404, "no scan root registered yet: fetch /api/manifest first"
         )
     for root in roots:
-        try:
-            out = subprocess.check_output(
-                [
-                    "git",
-                    "-c",
-                    "safe.directory=*",
-                    "-C",
-                    str(root),
-                    "show",
-                    "-s",
-                    f"--format={_FMT}",
-                    sha.strip(),
-                ],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-        except subprocess.CalledProcessError:
-            continue
+        # Empty stdout covers every failure run_git swallows — a sha this root
+        # doesn't have, an unreadable repo, no git binary — and the short split
+        # below rejects it the same way a partial line would.
+        out = run_git(root, "show", "-s", f"--format={_FMT}", sha.strip())
         parts = out.rstrip("\n").split("\x00", 5)
         if len(parts) < 6:
             continue

@@ -12,26 +12,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from api.cache import cache_load_git_history, cache_save_git_history
+from api.git.cmd import git_argv, run_git
 from api.models.manifest import CommitEntry, RepoInfo
 from api.core.progress import log
-
-
-def run_git(root: Path, *args: str) -> str:
-    """stdout, or "" on failure.
-
-    ``safe.directory=*`` because codecity scans arbitrary repos, including
-    ones whose owner isn't the process uid (bind-mounted CI workspaces). Git
-    2.35+ otherwise refuses with "dubious ownership" and the empty stdout
-    surfaces downstream as a manifest with 0 files and 0 commits."""
-    try:
-        return subprocess.run(
-            ["git", "-c", "safe.directory=*", "-C", str(root), *args],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout
-    except FileNotFoundError:
-        return ""
 
 
 def is_git_repo(root: Path) -> bool:
@@ -103,12 +86,8 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
     *current path* appeared — the right semantic for an age signal, since the
     user sees a building for a path, not for a file identity."""
     log("  starting git log walk (full history)…")
-    log_argv = [
-        "git",
-        "-c",
-        "safe.directory=*",
-        "-C",
-        str(root),
+    log_argv = git_argv(
+        root,
         "log",
         "--format=COMMIT:%aI%x09%P%x09%H%x09%an%x09"
         "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
@@ -118,7 +97,7 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
         # Diff merges so a merge still reports a file count; its A/M events are
         # skipped below.
         "--diff-merges=first-parent",
-    ]
+    )
     if ref is not None:
         log_argv.append(ref)  # a resolved sha; limits the walk to its ancestors
     try:
