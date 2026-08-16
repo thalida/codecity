@@ -1,6 +1,7 @@
-// views/ControlsPane/partials/PostProcessing.ts — full-frame passes, plus the
+// views/ControlsPane/sections/PostProcessing.ts — full-frame passes, plus the
 // shared highlight color the selected outline and path line both chase.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
 
 export const POST_PROCESSING_SECTION: SectionNode = {

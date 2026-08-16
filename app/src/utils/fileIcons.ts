@@ -4,7 +4,7 @@
 // in components/NodeIcon.tsx so both key off the same names.
 
 import type { DirNode, FileNode } from '../types';
-import { isDataBuilding } from './binaryKind';
+import { isDataBuilding } from './fileKind';
 import {
   EXT_ICON,
   NAME_ICON,

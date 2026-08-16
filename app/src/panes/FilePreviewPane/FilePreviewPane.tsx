@@ -32,7 +32,7 @@ import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
-import { isDataBuilding } from '@/utils/binaryKind';
+import { isDataBuilding } from '@/utils/fileKind';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.

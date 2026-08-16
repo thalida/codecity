@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { DynamicSection, type SectionChild, type FieldRef } from '@/panes/ControlsPane/partials';
-import { TREES_SECTION } from '@/panes/ControlsPane/partials/Trees';
-import { BUILDINGS_SECTION } from '@/panes/ControlsPane/partials/Buildings';
+import { DynamicSection } from '@/components/DynamicSection/DynamicSection';
+import type { SectionChild, FieldRef } from '@/types/controls';
+import { TREES_SECTION } from '@/panes/ControlsPane/sectionConfigs/Trees';
+import { BUILDINGS_SECTION } from '@/panes/ControlsPane/sectionConfigs/Buildings';
 import { CONTROLS_SECTIONS } from '@/panes/ControlsPane/ControlsPane';
 import { CAMERA } from '@/state/stores/settings/camera';
 import { SHOWCASE } from '@/state/stores/settings/showcase';

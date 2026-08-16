@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isEmptyFile } from '@/utils/emptyKind';
+import { isEmptyFile } from '@/utils/fileKind';
 
 describe('isEmptyFile', () => {
   it('is true for a 0-byte text file', () => {
@@ -24,9 +24,8 @@ describe('isEmptyFile', () => {
   });
 
   it('is true for a text file replayed to 0 lines, whose union `size` is non-zero', () => {
-    // Timeline: getBuildingDimensions is called with {...file, lines: linesAt(pos)}.
-    // The union node's `size` is a max-over-history footprint, not the size at
-    // this commit, so only the replayed `lines` can say the file was empty here.
+    // A union node's `size` is a max-over-history footprint, so only the
+    // replayed `lines` can say the file was empty at this commit.
     expect(isEmptyFile({ size: 500, lines: 0, binary: false })).toBe(true);
   });
 

@@ -1,5 +1,6 @@
-// views/ControlsPane/partials/Trees.ts — one tree per commit.
-import { field, type SectionNode } from '.';
+// views/ControlsPane/sections/Trees.ts — one tree per commit.
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { TREES } from '@/state/stores/settings/trees';
 
 export const TREES_SECTION: SectionNode = {

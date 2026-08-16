@@ -1,7 +1,8 @@
-// views/ControlsPane/partials/Streets.ts — road sizing, packing, and surface
+// views/ControlsPane/sections/Streets.ts — road sizing, packing, and surface
 // visuals. Hover/selected states live under Interaction, matching Buildings
 // and Trees.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 
 export const STREETS_SECTION: SectionNode = {

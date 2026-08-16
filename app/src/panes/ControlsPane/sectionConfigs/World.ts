@@ -1,6 +1,7 @@
-// panes/ControlsPane/partials/World.ts — everything the city sits on and in:
-// how much ground there is, the island cut from it, and the sky around it.
-import { field, type SectionNode } from '.';
+// panes/ControlsPane/sectionConfigs/World.ts — everything the city sits on and in:
+// the island it stands on, and the sky and haze around it.
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { ISLAND, WORLD } from '@/state/stores/settings/island';
 import { SCENE } from '@/state/stores/settings/scene';
 
@@ -10,15 +11,13 @@ export const WORLD_SECTION: SectionNode = {
   description: 'The ground the city stands on, and everything behind it.',
   children: [
     {
-      key: 'world-size',
-      label: 'Size',
-      children: [field(WORLD, 'GROUND_BUFFER_PERCENT')],
-    },
-    {
       key: 'island',
       label: 'Island',
       children: [
         field(ISLAND, 'ENABLED'),
+        // How much bigger than the city the island is cut: its size, whatever
+        // store it lives in.
+        field(WORLD, 'GROUND_BUFFER_PERCENT'),
         {
           key: 'island-shape',
           label: 'Shape',
@@ -72,9 +71,9 @@ export const WORLD_SECTION: SectionNode = {
       ],
     },
     {
-      // Sun lighting is fixed in code, so haze is all there is to tune here.
-      key: 'atmosphere',
-      label: 'Atmosphere',
+      // Sun lighting is fixed in code, so the haze is all there is to tune.
+      key: 'ground-haze',
+      label: 'Ground haze',
       children: [
         field(SCENE, 'FOG_ENABLED'),
         field(SCENE, 'FOG_COLOR'),

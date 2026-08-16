@@ -35,7 +35,7 @@ import { layoutCity } from '@/city/layout/algorithm.js';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { createStreetLabels } from '@/city/components/streets/streetLabels';
-import { isMediaFile } from '@/utils/mediaKind';
+import { isMediaFile } from '@/utils/fileKind';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout } from '@/types';
 import { makeRng, genWeightedTree } from '../tests/_helpers/layoutTreeFixtures';

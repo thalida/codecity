@@ -1,6 +1,7 @@
-// views/ControlsPane/partials/View.ts — the two camera poses, as siblings
+// views/ControlsPane/sections/View.ts — the two camera poses, as siblings
 // because both are just an elevation/azimuth pair.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { CAMERA } from '@/state/stores/settings/camera';
 import { SHOWCASE } from '@/state/stores/settings/showcase';
 

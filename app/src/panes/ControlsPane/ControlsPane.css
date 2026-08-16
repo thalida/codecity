@@ -75,3 +75,33 @@
 .controls-disclosure-toggle[aria-expanded='true'] .chevron {
   transform: rotate(90deg);
 }
+
+/* ── The pane's action bar ── */
+
+/* A sibling of .pane-body, not inside it, so it stays put while the form
+   scrolls. Reset all left; Discard + Save paired right. */
+.controls-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-5) var(--cc-pane-inset);
+  border-top: 1px solid var(--cc-border-subtle);
+}
+.controls-actions-left,
+.controls-actions-right {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+}
+/* Buttons inside the sticky controls action bar share an icon-text layout. */
+.controls-actions .btn-primary,
+.controls-actions .btn-secondary {
+  gap: var(--cc-space-3);
+}
+.controls-button-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}

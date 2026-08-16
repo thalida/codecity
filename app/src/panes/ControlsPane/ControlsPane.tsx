@@ -5,20 +5,30 @@
 
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
-import { DynamicSection, type SectionNode } from './partials';
-import { VIEW_SECTION } from './partials/View';
-import { WORLD_SECTION } from './partials/World';
-import { BUILDINGS_SECTION } from './partials/Buildings';
-import { STREETS_SECTION } from './partials/Streets';
-import { FOOTPRINT_SECTION } from './partials/Footprint';
-import { GEM_SECTION } from './partials/Gem';
-import { TREES_SECTION } from './partials/Trees';
-import { FIREFLIES_SECTION } from './partials/Fireflies';
-import { POST_PROCESSING_SECTION } from './partials/PostProcessing';
-import { TIMELINE_SECTION } from './partials/Timeline';
-import { ActionsBar } from './ActionsBar/ActionsBar';
+import { DynamicSection } from '@/components/DynamicSection/DynamicSection';
+import type { SectionNode } from '@/types/controls';
+import { VIEW_SECTION } from './sectionConfigs/View';
+import { WORLD_SECTION } from './sectionConfigs/World';
+import { BUILDINGS_SECTION } from './sectionConfigs/Buildings';
+import { STREETS_SECTION } from './sectionConfigs/Streets';
+import { FOOTPRINT_SECTION } from './sectionConfigs/Footprint';
+import { GEM_SECTION } from './sectionConfigs/Gem';
+import { TREES_SECTION } from './sectionConfigs/Trees';
+import { FIREFLIES_SECTION } from './sectionConfigs/Fireflies';
+import { POST_PROCESSING_SECTION } from './sectionConfigs/PostProcessing';
+import { TIMELINE_SECTION } from './sectionConfigs/Timeline';
 import { Pane } from '@/components/Pane/Pane';
 import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
+import { RotateCcw } from 'lucide-preact';
+import {
+  commit as commitDrafts,
+  discard as discardDrafts,
+  isDirty as draftsAreDirty,
+  stageResetAll,
+  anyResettable,
+  DRAFTS_REV,
+} from '@/state/settingsDrafts';
+import { HAS_ANY_NON_DEFAULT } from '@/state/settingsSchema';
 
 /** Every section the pane shows, hoisted so a test can assert the invariant:
  *  each field stages into Save/Discard/Reset, none writes through. */
@@ -44,6 +54,52 @@ export interface ControlsPaneProps {
   collapsed?: boolean;
 }
 
+/** The sticky Reset all | Discard · Save bar. Both signals are tracked, so it
+ *  re-renders on a draft OR a committed change. */
+function actionBar() {
+  void DRAFTS_REV.value;
+  void HAS_ANY_NON_DEFAULT.value;
+  const dirty = draftsAreDirty();
+  const canReset = anyResettable();
+
+  return (
+    <div class="controls-actions surface-sidebar">
+      <div class="controls-actions-left">
+        <button
+          type="button"
+          class="btn-secondary controls-button"
+          title="Stage every overridden value back to its default. Click Save to apply."
+          disabled={!canReset}
+          onClick={() => stageResetAll()}
+        >
+          <RotateCcw class="icon controls-button-icon" />
+          Reset all
+        </button>
+      </div>
+      <div class="controls-actions-right">
+        <button
+          type="button"
+          class="btn-secondary controls-button"
+          title="Drop all unsaved changes."
+          disabled={!dirty}
+          onClick={() => discardDrafts()}
+        >
+          Discard
+        </button>
+        <button
+          type="button"
+          class="btn-primary controls-button"
+          title="Apply unsaved changes to the scene."
+          disabled={!dirty}
+          onClick={() => commitDrafts()}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
   // Sections/subgroups own their open-state locally; bumping this nonce on
   // collapse remounts them so each reopens collapsed.
@@ -59,7 +115,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       paneClass="controls-pane"
       headerSlot={<PaneHeader title="World settings" onClose={onClose} />}
       bodyClass="pane-inset"
-      footerSlot={<ActionsBar />}
+      footerSlot={actionBar()}
     >
       {CONTROLS_SECTIONS.map((node) => (
         <DynamicSection key={`${collapseNonce}-${node.key}`} node={node} />

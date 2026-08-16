@@ -1,8 +1,9 @@
-// views/ControlsPane/partials/Footprint.ts — City footprint section
+// views/ControlsPane/sections/Footprint.ts — City footprint section
 // declaration. The dark paved apron slab that follows the city silhouette,
 // inflated outward from every layout rect. Its own top-level section (sits
 // after Streets) — the slab frames the whole city, it isn't a street surface.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 
 export const FOOTPRINT_SECTION: SectionNode = {

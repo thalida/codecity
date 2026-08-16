@@ -1,6 +1,7 @@
-// views/ControlsPane/partials/Timeline.ts — how the scene shows a file deleted
+// views/ControlsPane/sections/Timeline.ts — how the scene shows a file deleted
 // before the scrubbed commit. Draft-backed like the rest of the World tab.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
 

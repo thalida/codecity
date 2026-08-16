@@ -1,7 +1,8 @@
-// views/ControlsPane/partials/Buildings.ts — per-file boxes. Hover/selected
+// views/ControlsPane/sections/Buildings.ts — per-file boxes. Hover/selected
 // states and the enter transition live under Interaction, matching Streets
 // and Trees.
-import { field, type SectionNode } from '.';
+import { field } from '@/utils/field';
+import type { SectionNode } from '@/types/controls';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 
 // One selection-fade tier subgroup (DEFAULT / LEVEL1..4).

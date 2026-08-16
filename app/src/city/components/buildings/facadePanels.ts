@@ -9,8 +9,8 @@ import { BLOOM } from '@/state/stores/settings/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { mediaKindOf, MediaKind } from '@/utils/mediaKind';
-import { isDataBuilding } from '@/utils/binaryKind';
+import { mediaKindOf, MediaKind } from '@/utils/fileKind';
+import { isDataBuilding } from '@/utils/fileKind';
 import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
