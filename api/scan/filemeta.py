@@ -12,7 +12,7 @@ from typing import NamedTuple
 
 from api.utils.binfmt import detect_binary_type
 from api.cache import BlobEntry, FileEntry, cache_load_files, cache_save_files
-from api.utils.content import BINARY_CHUNK, is_binary_bytes
+from api.utils.content import BINARY_CHUNK, count_lines_at, is_binary_bytes
 from api.utils.dates import epoch_to_iso
 from api.utils.media import probe_media_dims
 from api.models.manifest import DirNode, FileNode
@@ -66,24 +66,6 @@ def is_binary(path: Path) -> bool:
     return is_binary_bytes(chunk)
 
 
-def line_count(path: Path) -> int:
-    try:
-        total = 0
-        last_byte = b""
-        with path.open("rb") as fh:
-            while True:
-                chunk = fh.read(1 << 20)
-                if not chunk:
-                    break
-                total += chunk.count(b"\n")
-                last_byte = chunk[-1:]
-        if last_byte and last_byte != b"\n":
-            total += 1
-        return total
-    except OSError:
-        return 0
-
-
 def _binary_type(path: Path) -> str | None:
     try:
         with path.open("rb") as fh:
@@ -113,7 +95,7 @@ class FileMeta(NamedTuple):
         width, height = probe_media_dims(path)
         return cls(
             binary=binary,
-            lines=0 if binary else line_count(path),
+            lines=0 if binary else count_lines_at(path),
             media_width=width,
             media_height=height,
             binary_type=_binary_type(path) if binary else None,

@@ -8,6 +8,8 @@ That shared rule is why these live here rather than in either caller.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 # Bytes sampled when deciding binary-ness. Enough to catch a NUL or a dense run
 # of control bytes; small enough that a multi-GB file costs one short read.
 BINARY_CHUNK = 8192
@@ -27,11 +29,33 @@ def is_binary_bytes(chunk: bytes) -> bool:
     return non_text / len(head) > 0.30
 
 
-def count_lines(data: bytes) -> int:
-    """Line count: newlines + 1 for an unterminated final line (empty → 0).
+def _line_total(newlines: int, last_byte: bytes) -> int:
+    """The counting rule itself: newlines, plus one for a final line that was
+    never terminated. Empty input is zero lines, not one.
 
-    filemeta.line_count streams the identical rule over a file handle, so a
-    file reports the same height Live and in Timeline."""
-    if not data:
+    Stated once because a file read off disk and the same file read out of a
+    git blob take different paths to get here, and a building would change
+    height between Live and Timeline if the two ever disagreed."""
+    if not last_byte:
         return 0
-    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+    return newlines + (0 if last_byte == b"\n" else 1)
+
+
+def count_lines(data: bytes) -> int:
+    """Lines in a buffer already in memory — a git blob."""
+    return _line_total(data.count(b"\n"), data[-1:])
+
+
+def count_lines_at(path: Path) -> int:
+    """Lines in a file on disk, read in chunks so a multi-GB file costs no more
+    memory than a small one. 0 if it can't be read."""
+    try:
+        newlines = 0
+        last_byte = b""
+        with path.open("rb") as fh:
+            while chunk := fh.read(1 << 20):
+                newlines += chunk.count(b"\n")
+                last_byte = chunk[-1:]
+        return _line_total(newlines, last_byte)
+    except OSError:
+        return 0
