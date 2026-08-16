@@ -1,11 +1,12 @@
-// Regression for issue #62: the camera snaps to a NEW source's city once it
-// applies (not the empty boot), and never on a same-source re-apply. The snap
-// rides cityRevision, gated on a CURRENT_SOURCE_KEY change.
+// Regression for issue #62: the camera snaps to a NEW source's city once it is
+// built (not the empty boot), and never on a same-source re-apply. The snap
+// rides BUILT_MANIFEST, gated on a CURRENT_SOURCE_KEY change.
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { CURRENT_SOURCE } from '@/state/stores/source';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 import { STREET_TIERS } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 import { mkDir } from '../_helpers/cityFixtures';
@@ -28,6 +29,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
+import type { City } from '@/city/types';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -79,6 +81,13 @@ describe('initial-load framing (issue #62)', () => {
     STREET_TIERS.value = { TIERS: [{ min_descendants: 0, width }] };
   }
 
+  /** Apply, then wait out the decoration pass that ends the build: the framing
+   *  rides the finished city, and the tree placement lands a few ticks later. */
+  async function build(handle: City, m: Manifest): Promise<void> {
+    await handle.applyManifest(m);
+    await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+  }
+
   it('frames the city on initial load, not the empty boot', async () => {
     const handle = await createCity(makeCanvas());
     try {
@@ -87,7 +96,7 @@ describe('initial-load framing (issue #62)', () => {
 
       // The fetch layer commits the source, then the real manifest applies.
       CURRENT_SOURCE.value = { src: 'test://repo' };
-      await handle.applyManifest(makeManifest());
+      await build(handle, makeManifest());
       const loadPos = handle.rig.camera.position.clone();
 
       // What R produces now = the real city's framing.
@@ -110,7 +119,7 @@ describe('initial-load framing (issue #62)', () => {
     const handle = await createCity(makeCanvas());
     try {
       const bootPos = handle.rig.camera.position.clone();
-      await handle.applyManifest(makeManifest());
+      await build(handle, makeManifest());
       const loadPos = handle.rig.camera.position.clone();
 
       handle.rig.reset();
@@ -129,14 +138,14 @@ describe('initial-load framing (issue #62)', () => {
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();
-      await handle.applyManifest(m);
+      await build(handle, m);
       const posLoaded = handle.rig.camera.position.clone();
 
       // A same-source rebuild that moves the framing must leave the camera
       // where it is: the source key didn't change.
       setRootWidth(500);
       handle.invalidateLayoutCache();
-      await handle.applyManifest(m);
+      await build(handle, m);
       expect(handle.rig.camera.position.distanceTo(posLoaded)).toBeLessThan(0.5);
 
       // Confirm the framing genuinely changed (R re-frames to the new width).

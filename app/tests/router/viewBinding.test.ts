@@ -228,9 +228,23 @@ describe('view URL', () => {
       expect(goToPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
-      markDecorating(); // the committed manifest's city lands
+      markIdle(); // the committed manifest's city lands
       await flush();
       expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx', FocusMode.Recenter);
+    });
+
+    // Trees are placed at the END of the decoration pass: a commit restored
+    // while it runs has no tree, so the camera has nothing to centre on.
+    it('waits for the whole build, not the paint the decoration starts from', async () => {
+      attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
+      commitSource(SRC, undefined, LOADED);
+      markDecorating(); // city on screen, trees still in flight
+      await flush();
+      expect(goToCommit).not.toHaveBeenCalled();
+
+      markIdle(); // trees placed, build over
+      await flush();
+      expect(goToCommit).toHaveBeenCalledWith('abc123', FocusMode.Recenter);
     });
 
     // Back and Forward land here: the URL moves under a city that is already up,

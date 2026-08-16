@@ -9,6 +9,7 @@ import { effect, untracked } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
+import { BUILT_MANIFEST } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -128,11 +129,11 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe only on a real source change. Tracks cityRevision, not bbox —
-  // the final manifest is a reuse apply that leaves bbox frozen.
+  // Reframe only on a real source change, and off the finished build rather than
+  // the apply that starts it: a camera aimed mid-build is aimed at half a city.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
-    void cityState.cityRevision.value;
+    void BUILT_MANIFEST.value;
     const key = CURRENT_SOURCE_KEY.peek();
     if (key === null || key === lastReframedSourceKey) return;
     // No city yet: claiming the key here would make the first real one, which
