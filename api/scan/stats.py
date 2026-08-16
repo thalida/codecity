@@ -23,6 +23,7 @@ from api.models.manifest import (
     RepoStats,
 )
 from api.scan.treebuild import iter_dir_nodes, iter_file_nodes
+from api.utils.dates import day_of
 
 
 # ── Commit-day aggregates ────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ def commit_day_counts(commits: list[CommitEntry]) -> dict[str, int]:
     """Calendar day → number of commits on that day."""
     per_day: dict[str, int] = {}
     for c in commits:
-        day = c.date[:10]
+        day = day_of(c.date)
         per_day[day] = per_day.get(day, 0) + 1
     return per_day
 
@@ -48,7 +49,7 @@ def annotate_same_day_totals(
     sharing its calendar date. Both the commit pane's badge and the scene
     tree-color read this one field (#35)."""
     for c in commits:
-        c.same_day_total = day_counts[c.date[:10]]
+        c.same_day_total = day_counts[day_of(c.date)]
 
 
 def busyness_thresholds(day_counts: dict[str, int]) -> BusynessThresholds:
@@ -252,7 +253,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         # Each row carries its date's full same_day_total, so max() per date
         # deduplicates instead of multi-counting. It is 0 until manifest-wrap
         # bakes it; treat that as the 1 this commit contributes itself.
-        d = c.date[:10]  # calendar day: `date` carries a full timestamp
+        d = day_of(c.date)
         day_totals[d] = max(day_totals.get(d, 0), c.same_day_total or 1)
         if oldest_commit is None or d < oldest_commit:
             oldest_commit = d

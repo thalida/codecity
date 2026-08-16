@@ -26,6 +26,9 @@ GZIP_MIN_BYTES = 256
 # Paths accepted per POST /api/images or /api/fingerprints; served over
 # /api/config so the client chunks to the same number instead of guessing.
 MAX_BATCH_PATHS = 64
+# Bound on one batch image response; anything larger is omitted and the client
+# falls back to the streaming GET /api/file.
+MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
 # Commits carried on the manifest wire. Matches the renderer's tree cap
 # (treePlacement.ts TREE_MAX_CELLS) — beyond it the array is parsed only to
 # be skipped. Aggregates are still computed over the full history.

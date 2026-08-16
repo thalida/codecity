@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
@@ -15,6 +14,7 @@ from api.cache import cache_load_git_history, cache_save_git_history
 from api.git.cmd import git_argv, run_git
 from api.models.manifest import CommitEntry, RepoInfo
 from api.core.progress import log
+from api.utils.dates import to_utc_iso
 
 
 def is_git_repo(root: Path) -> bool:
@@ -50,19 +50,6 @@ def build_authors_list(primary: str, trailers_raw: str) -> list[str]:
         seen.add(name)
         out.append(name)
     return out
-
-
-def _iso_to_utc(iso: str) -> str:
-    """git's %aI carries the author's offset; normalize to the Z-suffixed form
-    the filesystem dates use so lexical order == chronological order."""
-    try:
-        return (
-            datetime.fromisoformat(iso)
-            .astimezone(timezone.utc)
-            .strftime("%Y-%m-%dT%H:%M:%SZ")
-        )
-    except ValueError:
-        return iso
 
 
 class GitHistory(NamedTuple):
@@ -155,7 +142,7 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
                     flush_current()
                 # maxsplit=5 keeps tabs in the subject. %P is space-separated.
                 parts = line[len("COMMIT:") :].split("\t", 5)
-                current_date = _iso_to_utc(parts[0])
+                current_date = to_utc_iso(parts[0])
                 current_is_merge = " " in (parts[1] if len(parts) > 1 else "")
                 current_sha = parts[2] if len(parts) > 2 else ""
                 current_author = parts[3] if len(parts) > 3 else ""

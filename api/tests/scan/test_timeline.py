@@ -224,11 +224,8 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     equals the live scan's dateRanges for the same repo, so weathering at HEAD
     normalizes identically. Compared as epoch ms, which is what the client
     consumes."""
-    from api.scan.timeline import (
-        _iso_ms,
-        compute_commit_date_ranges,
-        walk_deltas,
-    )
+    from api.scan.timeline import compute_commit_date_ranges, walk_deltas
+    from api.utils.dates import iso_to_ms
     from api.git.meta import collect_git_history
     from api.scan.scanner import scan_tree
 
@@ -252,10 +249,10 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     assert ranges[-1] == DateRangeMs(
-        minCreated=_iso_ms(live_dates.minCreated),
-        maxCreated=_iso_ms(live_dates.maxCreated),
-        minModified=_iso_ms(live_dates.minModified),
-        maxModified=_iso_ms(live_dates.maxModified),
+        minCreated=iso_to_ms(live_dates.minCreated),
+        maxCreated=iso_to_ms(live_dates.maxCreated),
+        minModified=iso_to_ms(live_dates.minModified),
+        maxModified=iso_to_ms(live_dates.maxModified),
     )
     # One range per commit, and the created span never runs backwards.
     assert len(ranges) == len(deltas)

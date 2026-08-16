@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import mimetypes
-import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -18,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from api.core.config import MAX_BATCH_PATHS, MAX_FILE_BYTES
+from api.core.config import MAX_BATCH_IMAGE_BYTES, MAX_BATCH_PATHS, MAX_FILE_BYTES
 from api.models.responses import (
     ImageBatchEntry,
     FileTooLargeResponse,
@@ -28,14 +27,9 @@ from api.core.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
 from api.git import read_blob
 from api.utils.media import is_media
+from api.utils.shas import is_object_sha
 
 router = APIRouter(prefix="/api", tags=["file"])
-
-# Bound on one batch response; omitted paths fall back to GET /api/file. Lives
-# in config.py because /api/config publishes it.
-_MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
-
-_SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
 class PathBatchRequest(BaseModel):
@@ -52,7 +46,7 @@ def _read_versioned(target: Path, sha: str | None) -> bytes | None:
     """
     if sha is None:
         return target.read_bytes() if target.is_file() else None
-    if not _SHA_RE.fullmatch(sha):
+    if not is_object_sha(sha):
         return None
     root = TRUST.root_for(target)
     return read_blob(root, sha) if root else None
@@ -65,7 +59,7 @@ def get_file(
         None, description="Blob sha to read instead of the working tree"
     ),
 ) -> Response:
-    if sha is not None and not _SHA_RE.fullmatch(sha):
+    if sha is not None and not is_object_sha(sha):
         raise HTTPException(400, "sha must be 40 hex characters")
     try:
         # With a sha the path need not exist (it names a past commit's file);
@@ -118,7 +112,7 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
 
     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-    root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
+    root, missing, non-image, or larger than MAX_BATCH_IMAGE_BYTES are silently
     omitted; the client falls back to the streaming GET for those. Videos are
     never batched (they stream their poster frame), so this is images only.
     """
@@ -133,7 +127,7 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
         if not guessed or not guessed.startswith("image/"):
             continue
         body = _read_versioned(target, sha)
-        if body is None or len(body) > _MAX_BATCH_IMAGE_BYTES:
+        if body is None or len(body) > MAX_BATCH_IMAGE_BYTES:
             continue
         out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out

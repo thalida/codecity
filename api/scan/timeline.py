@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
 
@@ -32,6 +31,7 @@ from api.git.meta import (
 )
 from api.scan.manifest import wrap_manifest
 from api.core.progress import Throttle, log
+from api.utils.dates import iso_to_ms
 from api.core.exceptions import NotAGitRepoError
 from api.scan.signatures import derive_tree_signals, hash_file_entry
 from api.scan.skiprules import SkipRules
@@ -314,18 +314,6 @@ def compute_commit_line_ranges(
     return ranges
 
 
-def _iso_ms(value: str | None) -> int | None:
-    """Epoch ms for a Z-suffixed UTC stamp, or None. Semantics match JS
-    Date.parse, since these values are compared against client-side dates."""
-    if not value:
-        return None
-    try:
-        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
-    except ValueError:
-        return None
-    return int(parsed.replace(tzinfo=timezone.utc).timestamp() * 1000)
-
-
 def compute_commit_date_ranges(
     deltas: list[CommitDelta],
     commits: list[CommitEntry],
@@ -338,12 +326,12 @@ def compute_commit_date_ranges(
     commit; range[HEAD] equals the live manifest's dateRanges (weathering
     normalizes against these). replay.ts walks the same deltas for a different
     output (per-frame scrub index) — neither is a copy of the other."""
-    commit_ms = [_iso_ms(c.date) or 0 for c in commits]
+    commit_ms = [iso_to_ms(c.date) or 0 for c in commits]
     # Parsed once per path, not once per (commit, path): the inner loop below
     # runs commits x files-present times, ~98M on a big repo, and re-parsing an
     # ISO stamp that many times is most of what made this the slowest step.
-    created_ms = {p: _iso_ms(v) for p, v in git_created.items()}
-    modified_ms = {p: _iso_ms(v) for p, v in git_modified.items()}
+    created_ms = {p: iso_to_ms(v) for p, v in git_created.items()}
+    modified_ms = {p: iso_to_ms(v) for p, v in git_modified.items()}
 
     final_idx: dict[str, int] = {}
     genesis_idx: dict[str, int] = {}

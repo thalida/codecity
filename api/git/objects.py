@@ -8,17 +8,15 @@ carries the safe.directory bypass.
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 from pathlib import Path
 from typing import Callable, NamedTuple
 
 from api.git.cmd import git_argv
 from api.utils.binfmt import detect_binary_type
+from api.utils.shas import is_object_sha
 from api.utils.content import count_lines, is_binary_bytes
 from api.utils.media import probe_media_dims_from_bytes
-
-_SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 # GIT_NO_LAZY_FETCH=1: on a blobless (--filter=blob:none) clone a missing
 # historical blob reports "missing" instead of triggering a per-object promisor
@@ -55,7 +53,7 @@ def resolve_ref(root: Path, ref: str) -> str | None:
         .stdout.decode("ascii", "replace")
         .strip()
     )
-    return out if _SHA40.match(out) else None
+    return out if is_object_sha(out) else None
 
 
 class TreeBlob(NamedTuple):

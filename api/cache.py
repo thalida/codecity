@@ -27,7 +27,6 @@ import gzip
 import hashlib
 import json
 import os
-import re
 import tempfile
 from enum import StrEnum
 from pathlib import Path
@@ -36,6 +35,7 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 from pydantic import ValidationError
 
 from api.core.config import CACHE_ROOT
+from api.utils.shas import is_object_sha
 from api.models.manifest import CommitEntry, Manifest, TimelineBundle
 
 KEY_SEP = "__"  # between the repo key and the entry name
@@ -105,9 +105,6 @@ _MANIFEST_SCHEMA_VERSION = 26
 _MANIFEST_CACHE_VERSION: str = (
     f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
 )
-
-# Full 40-char lowercase hex SHA; rejects corrupt/hand-edited sha fields.
-_SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
@@ -352,7 +349,7 @@ def cache_load_git_history(
             and isinstance(files, int)
             and not isinstance(files, bool)
             and isinstance(sha, str)
-            and _SHA_HEX_RE.fullmatch(sha) is not None
+            and is_object_sha(sha)
             and isinstance(authors, list)
             and all(isinstance(a, str) for a in cast(list[object], authors))
             and isinstance(subject, str)

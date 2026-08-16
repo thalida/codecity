@@ -7,13 +7,13 @@ from __future__ import annotations
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
 from api.utils.binfmt import detect_binary_type
 from api.cache import BlobEntry, FileEntry, cache_load_files, cache_save_files
 from api.utils.content import BINARY_CHUNK, is_binary_bytes
+from api.utils.dates import epoch_to_iso
 from api.utils.media import probe_media_dims
 from api.models.manifest import DirNode, FileNode
 from api.core.progress import log
@@ -38,10 +38,6 @@ def extension(name: str) -> str:
 
 
 # ── Stat + content ───────────────────────────────────────────────────────────
-
-
-def epoch_to_iso(epoch: float) -> str:
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class StatFields(NamedTuple):

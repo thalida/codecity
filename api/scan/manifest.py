@@ -6,7 +6,6 @@ through wrap_manifest, so they differ only in the tree they pass and what
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from api.core.config import MAX_WIRE_COMMITS
@@ -20,16 +19,13 @@ from api.models.manifest import (
     ScanStage,
 )
 from api.scan.signatures import TreeSignals
+from api.utils.dates import utc_now_iso
 from api.scan.stats import (
     annotate_same_day_totals,
     busyness_thresholds,
     commit_day_counts,
     compute_repo_stats,
 )
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def sample_commits(commits: list[CommitEntry]) -> list[CommitEntry]:
