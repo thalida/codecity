@@ -221,6 +221,29 @@ def test_commit_leaders_authors_and_streak():
     assert [a["name"] for a in s["authors"]] == ["Ada", "Bo"]
 
 
+def test_newest_commit_is_the_last_one_that_day():
+    """Several commits share the newest day, which is a normal working day. The
+    leader must be the LAST of them: comparing truncated dates kept the first,
+    so the almanac named a commit two behind HEAD."""
+    same_day = [
+        {
+            "date": f"2026-08-15T0{i}:00:00Z",
+            "files": 1,
+            "sha": sha,
+            "authors": ["Ada"],
+            "subject": sha,
+            "same_day_total": 3,
+        }
+        for i, sha in enumerate(["aaa", "bbb", "ccc"])
+    ]
+    s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), same_day)
+
+    assert s["newestCommit"]["sha"] == "ccc"
+    assert s["oldestCommit"]["sha"] == "aaa"
+    # The day range is still a day, whatever the timestamps carry.
+    assert s["commitDates"] == {"oldest": "2026-08-15", "newest": "2026-08-15"}
+
+
 def test_empty_tree_and_no_commits():
     s = compute_repo_stats(_dir("repo", "", []), [])
     assert s["maxLinesFile"] is None

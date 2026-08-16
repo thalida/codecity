@@ -239,7 +239,11 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
 
     grandest = sparsest = None  # commits, by files changed
     oldest_commit = newest_commit = None  # commit-date range
-    first = last = None  # the commits AT those ends, so the almanac can link them
+    # The walk yields oldest first, so the ends ARE the leaders. Picking them by
+    # comparing dates instead would tie on a day with several commits and keep
+    # whichever came first, which is not the newest.
+    first = commits[0] if commits else None
+    last = commits[-1] if commits else None
     author_counts: Counter[str] = Counter()
     day_totals: dict[str, int] = {}  # date → that date's same_day_total
     for c in commits:
@@ -254,9 +258,9 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         d = c["date"][:10]  # calendar day: `date` carries a full timestamp
         day_totals[d] = max(day_totals.get(d, 0), c.get("same_day_total", 1))  # type: ignore[misc]
         if oldest_commit is None or d < oldest_commit:
-            oldest_commit, first = d, c
+            oldest_commit = d
         if newest_commit is None or d > newest_commit:
-            newest_commit, last = d, c
+            newest_commit = d
 
     busiest_day: DayLeader | None = None
     if day_totals:
