@@ -495,8 +495,11 @@ def _run_git_streaming(
 def _run_net_git(
     *args: str,
     before_retry: Callable[[], None] | None = None,
+    cwd: Path | None = None,
+    progress_dir: Path | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
+    on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
-    **stream_kwargs: object,
 ) -> str:
     """_run_git_streaming for the big network ops, hardened against the flaky
     transfers that plague very large repos:
@@ -518,8 +521,11 @@ def _run_net_git(
                 *(() if attempt == 0 else _HTTP1_1),
                 *_NO_AUTO_MAINTENANCE,
                 *args,
+                cwd=cwd,
+                progress_dir=progress_dir,
+                on_progress=on_progress,
+                on_heartbeat=on_heartbeat,
                 cancel_event=cancel_event,
-                **stream_kwargs,
             )
         except CloneError as e:
             last_err = e

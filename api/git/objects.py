@@ -32,17 +32,17 @@ BINARY_CHUNK = 8192
 _TEXT_CHARACTERS = bytes({7, 8, 9, 10, 11, 12, 13, 27}) + bytes(range(0x20, 0x100))
 
 
-def _git_argv(root: Path, *args: str) -> list[str]:
+def git_argv(root: Path, *args: str) -> list[str]:
     """The `-c safe.directory=* -C <root>` prefix shared by every git
-    invocation in this module — the ref-injection guard (`--end-of-options`
-    callers add themselves) and the safe.directory bypass (see _run_git's
-    docstring in scan.py) live in exactly one place."""
+    invocation in this module, and by the timeline's history walk. Callers add
+    the ref-injection guard (`--end-of-options`) themselves; for why
+    safe.directory is bypassed at all, see meta.run_git's docstring."""
     return ["git", "-c", "safe.directory=*", "-C", str(root), *args]
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
-        _git_argv(root, *args),
+        git_argv(root, *args),
         capture_output=True,
         check=False,
         env=_GIT_ENV,
@@ -160,7 +160,7 @@ def _lfs_smudge(root: Path, pointer: bytes) -> bytes | None:
     failed smudge echoes the pointer back)."""
     try:
         proc = subprocess.run(
-            _git_argv(root, "lfs", "smudge"),
+            git_argv(root, "lfs", "smudge"),
             input=pointer,
             capture_output=True,
             check=False,
@@ -239,7 +239,7 @@ def _stats_into(
 ) -> None:
     """One `cat-file --batch` over `unique`, parsed into `result`."""
     proc = subprocess.run(
-        _git_argv(root, "cat-file", "--batch"),
+        git_argv(root, "cat-file", "--batch"),
         input="\n".join(unique).encode("ascii"),
         capture_output=True,
         check=False,
@@ -296,7 +296,7 @@ def blob_sizes_batch(root: Path, shas: list[str]) -> dict[str, int]:
     if not unique:
         return {}
     proc = subprocess.run(
-        _git_argv(root, "cat-file", "--batch-check"),
+        git_argv(root, "cat-file", "--batch-check"),
         input="\n".join(unique).encode("ascii"),
         capture_output=True,
         check=False,

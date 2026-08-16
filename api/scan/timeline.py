@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable, NamedTuple
 
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
-from api.git.objects import _git_argv, blob_sizes_batch, blob_stats_batch
+from api.git.objects import blob_sizes_batch, blob_stats_batch, git_argv
 from api.manifest_types import (
     CommitEntry,
     DateRangeMs,
@@ -23,7 +23,12 @@ from api.manifest_types import (
 from api.media import media_kind
 from api.models.events import TimelineStage
 from api.scan.filemeta import basename, extension
-from api.git.meta import collect_git_history, is_git_repo, reconstructed_repo_info
+from api.git.meta import (
+    collect_git_history,
+    empty_repo_info,
+    is_git_repo,
+    reconstructed_repo_info,
+)
 from api.scan.manifest import wrap_manifest
 from api.progress import SCAN_PROGRESS_THROTTLE_S, log
 from api.errors import NotAGitRepoError
@@ -76,7 +81,7 @@ def walk_deltas(
     commits (also time-throttled, for repos where git log outpaces that
     count), plus a final tick with the true total."""
     log("walking commit history for timeline deltas…")
-    argv = _git_argv(
+    argv = git_argv(
         root,
         "log",
         "--format=COMMIT:%H",
@@ -280,13 +285,7 @@ def build_union_manifest(
     repo_info = (
         reconstructed_repo_info(Path(root_abs), head_sha)
         if head_sha
-        else {
-            "branch": None,
-            "remote_url": None,
-            "head_sha": None,
-            "head_subject": None,
-            "dirty": False,
-        }
+        else empty_repo_info()
     )
     # Uncapped: the scrubber indexes the bundle's commits and the city the
     # union manifest's, so sampling one would slide every tree off its commit.

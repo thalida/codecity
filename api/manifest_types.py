@@ -199,8 +199,8 @@ class DirLeader(TypedDict):
     depth: int
     children: int
     descendants: int
-    created: Optional[str]
-    modified: Optional[str]
+    created: str | None
+    modified: str | None
 
 
 class CommitLeader(TypedDict):
@@ -272,8 +272,12 @@ class RepoStats(TypedDict):
     maxDepthDir: DirLeader | None
     maxChildrenDir: DirLeader | None
     minChildrenDir: DirLeader | None
+    oldestCreatedDir: DirLeader | None
+    newestCreatedDir: DirLeader | None
     maxFilesPerCommit: CommitLeader | None
     minFilesPerCommit: CommitLeader | None
+    oldestCommit: CommitLeader | None
+    newestCommit: CommitLeader | None
     # Full history; Manifest.commits may carry a sample of it.
     commitCount: int
     commitDates: CommitDateRange

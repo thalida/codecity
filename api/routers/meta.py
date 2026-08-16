@@ -77,7 +77,9 @@ def _with_featured(repos: list[DiscoverEntry]) -> list[DiscoverEntry]:
         return repos
     rest = [r for r in repos if r.url != featured]
     existing = next((r for r in repos if r.url == featured), None)
-    label = existing.label if existing else label_from_source(featured)
+    # `or featured`: a URL we can't derive a label from still gets a row, named
+    # by the URL itself, rather than an unlabelled one.
+    label = existing.label if existing else label_from_source(featured) or featured
     return [DiscoverEntry(url=featured, label=label, featured=True), *rest]
 
 

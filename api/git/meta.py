@@ -290,19 +290,28 @@ def parse_dirty_paths(porcelain_z: str) -> set[str]:
     return dirty
 
 
-def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
-    """The manifest's `repo` field plus the dirty-path set.
+def empty_repo_info() -> RepoInfo:
+    """A footer with nothing to report: no branch, no remote, no HEAD, clean.
 
-    The porcelain status dominates on a large dirty tree, so it runs once here
-    and both results are returned together — `repo.dirty` is just
-    `bool(dirty_paths)`."""
-    info: RepoInfo = {
+    Every field of RepoInfo is nullable precisely for this case, so the shape
+    is written once here — it is both what _collect_repo_info fills in and what
+    the timeline ships for a history with no commits to describe."""
+    return {
         "branch": None,
         "remote_url": None,
         "head_sha": None,
         "head_subject": None,
         "dirty": False,
     }
+
+
+def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
+    """The manifest's `repo` field plus the dirty-path set.
+
+    The porcelain status dominates on a large dirty tree, so it runs once here
+    and both results are returned together — `repo.dirty` is just
+    `bool(dirty_paths)`."""
+    info = empty_repo_info()
 
     branch = run_git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch and branch != "HEAD":

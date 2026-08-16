@@ -14,7 +14,7 @@ request rather than the next restart.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,9 +46,10 @@ class Settings(BaseSettings):
     def _strip_whitespace(cls, data: Any) -> Any:
         """`CODECITY_QUIET=1 ` should not take the process down. Padding is
         easy to leave behind in a hand-edited file and never meaningful here."""
-        if isinstance(data, dict):
-            return {k: v.strip() if isinstance(v, str) else v for k, v in data.items()}
-        return data
+        if not isinstance(data, dict):
+            return data
+        raw = cast(dict[str, Any], data)
+        return {k: v.strip() if isinstance(v, str) else v for k, v in raw.items()}
 
     # Gates local-path scans. Off by default: the api serves any root it's
     # been given, so filesystem access is opt-in.
