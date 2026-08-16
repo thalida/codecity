@@ -11,11 +11,8 @@ from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
-# Optional-but-non-nullable: the field may be absent, but when present is never
-# null. The Python type stays Optional (so the default is None and validators
-# can check `is None`), while the emitted JSON schema is the bare non-nullable
-# type — matching the true wire (absent-or-value, never null). Shared with
-# api/models/events.py.
+# Optional-but-non-nullable: may be absent, never null when present. The two
+# kinds of optional here are not interchangeable — see the README.
 OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
 OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
 
@@ -72,9 +69,8 @@ class FileNode(BaseModel):
     # otherwise — never null); see OptionalInt above.
     media_width: OptionalInt = None
     media_height: OptionalInt = None
-    # Friendly magic-byte type for binary files ("SQLite database",
-    # "WebAssembly module"); absent for non-binary or unrecognized files.
-    # See api/utils/binfmt.py:detect_binary_type.
+    # Friendly magic-byte type ("SQLite database"), absent for non-binary or
+    # unrecognized files. See utils/binfmt.py:detect_binary_type.
     binaryType: OptionalStr = None
 
     @model_validator(mode="after")
@@ -113,9 +109,8 @@ class DirNode(BaseModel):
 TreeNode = Annotated[Union[FileNode, DirNode], Field(discriminator="type")]
 
 
-# All four string fields are required-nullable: the scanner always emits them
-# (null for a fresh repo with no HEAD / no remote), so they're present-but-
-# nullable on the wire, not optional.
+# Required-nullable: the scanner always emits all four, null for a fresh repo
+# with no HEAD or no remote.
 class RepoInfo(BaseModel):
     branch: Optional[str]
     remote_url: Optional[str]
@@ -138,10 +133,8 @@ class BusynessThresholds(BaseModel):
     busy: int
 
 
-# All four fields are required-nullable: the scanner always emits them (null
-# for a tree with zero files), so they're present-but-nullable on the wire,
-# not optional. camelCase matches the frontend DateRanges + the fullPath
-# precedent.
+# Required-nullable: always emitted, null for a tree with zero files. camelCase
+# matches the frontend's DateRanges and the fullPath precedent.
 class DateRanges(BaseModel):
     minCreated: Optional[str] = Field(
         description="Earliest resolved create date (ISO), or null for an empty tree"
@@ -265,14 +258,8 @@ class RepoStats(BaseModel):
     authors: list[AuthorStat]
 
 
-# Three signatures form a ladder, each a superset of the one before:
-#   structure_signature: paths + nesting only. Drives icon-atlas assignment
-#     and skeleton/final render stability.
-#   layout_signature: structure, plus per-file size. Gates layout reuse (a
-#     size-only change can still skip a full relayout if paths didn't move).
-#   content_signature: structure, plus size, mtime, dirty, and repo HEAD. The
-#     full change-detection fingerprint: drives the live-update poll and is
-#     the manifest cache key.
+# Three signatures, each a superset of the one before; what computes them and
+# why they must agree across build paths is in api/scan/README.md.
 class Manifest(BaseModel):
     root: str
     scanned_at: str

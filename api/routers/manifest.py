@@ -126,9 +126,8 @@ def cached_manifest(
     if kind is SourceKind.INVALID:
         raise HTTPException(400, "unrecognized source: pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
-        # The clone dir is keyed on the branch AS PASSED, so a repo first opened
-        # without one (server-resolved default) lives somewhere else than the
-        # branch the client later recorded for it. Both are the same repo here.
+        # The clone dir keys on the branch AS PASSED, so a repo first opened
+        # without one lives elsewhere than the branch recorded for it later.
         roots = [clone_dir_for(src, branch)]
         if branch:
             roots.append(clone_dir_for(src, None))
@@ -222,9 +221,8 @@ async def timeline(
                 if cached is not None:
                     _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
                     return
-            # A blobless remote clone has no historical blob content — backfill it
-            # before the walk so blob resolution reads local objects rather than
-            # hanging on a per-blob promisor fetch. Never touches a local repo.
+            # Backfill a blobless clone before the walk, or blob resolution
+            # hangs on per-blob fetches. Never touches a local repo.
             if is_remote:
                 hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
                 # All-history, so blob resolution reads real content at every
@@ -297,9 +295,8 @@ def _sse_error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
     )
 
 
-# Documented SSE event union: surfacing all five event models in the
-# OpenAPI `responses` registers each as a schema component (richer Scalar
-# docs) AND transitively pulls Manifest -> tree types via the manifest events.
+# Naming all five in `responses` registers each as a schema component, and
+# transitively pulls Manifest -> tree types in behind the manifest events.
 SSEEvent = Union[
     CloneProgressEvent,
     ScanProgressEvent,
@@ -342,10 +339,8 @@ async def manifest(
     excludes = _norm_excludes(exclude)
 
     async def gen() -> AsyncIterator[dict[str, Any]]:
-        # Classify + (for local) validate WITHOUT cloning. The git clone runs
-        # on the worker thread below so its progress streams live and a
-        # mid-clone disconnect cancels it. Failures become error EVENTS, not
-        # 4xx (EventSource can't read 4xx bodies).
+        # Validate WITHOUT cloning: the clone runs on the worker below so its
+        # progress streams. Failures here are error EVENTS, not 4xx.
         if not src:
             yield _sse_error("missing 'src' query param")
             return
@@ -353,10 +348,8 @@ async def manifest(
         if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source: pass a local path or a git URL")
             return
-        # The PENDING label — the ONLY name derivation left in this route. Before
-        # the repo is scanned, `src` is all we have; the scanner bakes the
-        # canonical tree.name later (from the git remote). Emitted on progress
-        # events so the client shows a name during load without re-deriving it.
+        # The PENDING label, and the only name derivation in this route: the
+        # scanner bakes the canonical tree.name later. See the README.
         pending_label = label_from_source(src)
         local_path: Path | None = None
         if kind is SourceKind.LOCAL:
@@ -431,20 +424,13 @@ async def manifest(
                 built["path"] = path
                 TRUST.register(path)
 
-                # A no_cache scan means "rebuild everything for this source" —
-                # evict the per-HEAD timeline bundle too, so re-entering Timeline
-                # mode rebuilds fresh rather than serving a stale/older-code one.
+                # no_cache means rebuild EVERYTHING for this source, so the
+                # per-HEAD timeline bundle has to go too.
                 if not use_cache:
                     cache_clear_timeline(path.resolve())
 
-                # Time-travel: reconstruct the manifest as of `ref` instead of
-                # scanning the working tree. Resolve to a sha FIRST — it's both
-                # the cache key and the early "bad ref" error, and it keeps only
-                # a validated sha flowing into reconstruct_manifest (which
-                # re-validates internally too, so this is defense-in-depth, not
-                # the sole guard). No skeleton events: the city is already
-                # drawn for the live tree, so scan-progress/manifest-partial
-                # would just flash placeholders over it.
+                # Resolve to a sha FIRST: it is both the cache key and the
+                # early "bad ref" error. No skeleton events — see the README.
                 if ref is not None:
                     sha = resolve_ref(path, ref)
                     if sha is None:
@@ -467,10 +453,8 @@ async def manifest(
 
                 _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
-                # Warm-cache short-circuit. The signature costs a full stat-walk
-                # of the tree, and scan_tree computes the same value as it walks
-                # — so only pay for it up front when there's a cache to look up,
-                # and take the scan's own below otherwise.
+                # The signature costs a full stat-walk and scan_tree computes
+                # the same value anyway, so only pay when a cache exists.
                 if use_cache:
                     sig = signature_tree(
                         str(path), use_cache=use_cache, extra_exclude_paths=excludes

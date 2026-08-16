@@ -54,9 +54,8 @@ _LOCAL_DISABLED_ERROR = "local repositories are disabled"
 class ResolveError(Exception):
     status: int
     message: str
-    # Set only where the UI answers the failure differently. Carried here so a
-    # caller that flattens a clone exception into a ResolveError doesn't lose
-    # which failure it was.
+    # Set only where the UI answers the failure differently, and carried here so
+    # flattening a clone exception into a ResolveError doesn't lose which it was.
     code: ErrorCode | None = None
 
 

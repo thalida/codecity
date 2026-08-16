@@ -90,10 +90,8 @@ def get_file(
     # Mime comes off the path's extension either way — a blob carries no name.
     guessed, _ = mimetypes.guess_type(str(target))
     if is_media(guessed) and guessed:
-        # Already-compressed media (image/video/audio/pdf): a set Content-
-        # Encoding makes the app-wide GZipMiddleware skip it, so we don't burn
-        # CPU re-deflating incompressible bytes for ~0 benefit. 'identity' =
-        # the body is sent as-is (RFC 9110 §8.4.1).
+        # A set Content-Encoding makes the app-wide GZipMiddleware skip this, so
+        # already-compressed bytes aren't re-deflated for nothing.
         return Response(
             content=body,
             media_type=guessed,

@@ -122,9 +122,8 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
                 sha=current_sha,
                 authors=build_authors_list(current_author, current_trailers),
                 subject=current_subject,
-                # Overwritten by annotate_same_day_totals at manifest-wrap,
-                # which always runs before a commit list is emitted. Zero is
-                # the "not counted yet" value, never a shipped one.
+                # Baked by annotate_same_day_totals at manifest-wrap, which
+                # always runs before a commit list is emitted.
                 same_day_total=0,
             )
         )

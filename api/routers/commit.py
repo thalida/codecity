@@ -30,9 +30,8 @@ def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
             404, "no scan root registered yet: fetch /api/manifest first"
         )
     for root in roots:
-        # Empty stdout covers every failure run_git swallows — a sha this root
-        # doesn't have, an unreadable repo, no git binary — and the short split
-        # below rejects it the same way a partial line would.
+        # Empty stdout covers every failure run_git swallows, and the short
+        # split below rejects it the same way it rejects a partial line.
         out = run_git(root, "show", "-s", f"--format={_FMT}", sha.strip())
         parts = out.rstrip("\n").split("\x00", 5)
         if len(parts) < 6:

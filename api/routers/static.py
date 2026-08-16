@@ -45,10 +45,8 @@ def make_static_router(static_dir: Path) -> APIRouter:
             return FileResponse(index, media_type="text/html")
         raise HTTPException(status_code=404, detail="not found")
 
-    # Register via add_api_route (not the @router.get decorator) so `serve` is
-    # referenced rather than a dangling nested function — no pyright ignore.
-    # include_in_schema=False: this is the SPA file server, not an API endpoint,
-    # so the `/{full_path}` catch-all stays out of the OpenAPI schema / Scalar docs.
+    # add_api_route, not @router.get, so `serve` is referenced rather than a
+    # dangling nested function. Out of the schema: it is a file server.
     router.add_api_route(
         "/{full_path:path}",
         serve,

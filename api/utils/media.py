@@ -26,9 +26,8 @@ from typing import Any, BinaryIO, Literal
 
 # ── MIME classification ─────────────────────────────────────────────────
 
-# Content-Types we keep verbatim — the browser uses real <img>/<video>/etc.
-# tags for these. Everything else gets coerced to text/plain so the
-# frontend's preview pane renders the bytes as code, IDE-style.
+# Kept verbatim so the browser uses a real <img>/<video> tag. Everything else is
+# coerced to text/plain and rendered as code.
 _MEDIA_PREFIXES = ("image/", "video/", "audio/")
 _MEDIA_EXACT = {"application/pdf"}
 
@@ -165,11 +164,8 @@ def _dims_from_svg_bytes(data: bytes) -> tuple[int | None, int | None]:
 
 
 def _svg_dims_from_element(root: ET.Element) -> tuple[int | None, int | None]:
-    # The extension-gated disk probe only ever reaches here for a real
-    # .svg file, but the bytes probe has no extension to gate on, so any
-    # well-formed XML document would otherwise be mistaken for one — a
-    # pom.xml, an Android layout, etc. Requiring an <svg> root (namespace
-    # stripped) is a no-op for genuine SVGs and a hard reject for the rest.
+    # The bytes probe has no extension to gate on, so without this any
+    # well-formed XML — a pom.xml, an Android layout — would parse as an SVG.
     if root.tag.rsplit("}", 1)[-1] != "svg":
         return None, None
 
@@ -208,9 +204,8 @@ def _parse_svg_length(value: str | None) -> int | None:
     v = value.strip()
     if not v or v.endswith("%"):
         return None
-    # Walk back from the end to find where the numeric prefix ends.
-    # Stop at digits and "." only — stopping at "e"/"E" prevents
-    # scientific-notation strings from silently parsing as a number.
+    # Digits and "." only: stopping at "e"/"E" too would let scientific
+    # notation parse silently as a number.
     i = len(v)
     while i > 0 and not (v[i - 1].isdigit() or v[i - 1] == "."):
         i -= 1

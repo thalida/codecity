@@ -18,12 +18,8 @@ from api.utils.shas import is_object_sha
 from api.utils.content import count_lines, is_binary_bytes
 from api.utils.media import probe_media_dims_from_bytes
 
-# GIT_NO_LAZY_FETCH=1: on a blobless (--filter=blob:none) clone a missing
-# historical blob reports "missing" instead of triggering a per-object promisor
-# fetch — which for thousands of blobs hangs for minutes. The timeline hydrates
-# the clone up front (clone.hydrate_blobs); this guarantees the fallback (a blob
-# still absent, e.g. a monster file the hydrate skipped) degrades to 0 lines, not
-# a hang.
+# GIT_NO_LAZY_FETCH=1 so a blob the hydrate skipped reports "missing" and reads
+# as 0 lines, rather than triggering a per-object fetch that hangs. See README.
 _GIT_ENV = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
 
 
@@ -78,10 +74,8 @@ def ls_tree_files(root: Path, commit_sha: str) -> list[TreeBlob]:
         if len(parts) < 4 or parts[1] != "blob":
             continue  # skip submodules (commit) / trees
         if parts[0] == "120000":
-            # A committed symlink is git type "blob" too, but the live scan's
-            # _live_list_children only keeps is_file()/is_dir() with
-            # follow_symlinks=False, which excludes symlinks entirely. Skip
-            # them here so reconstruction matches the live scan.
+            # A committed symlink is git type "blob" too, and the live scan
+            # excludes symlinks — skip them so the two trees agree.
             continue
         sha = parts[2]
         size = 0 if parts[3] == "-" else int(parts[3])
@@ -164,10 +158,8 @@ def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int
     return (resolved, declared) if resolved is not None else (b"", declared)
 
 
-# Blobs per `cat-file --batch` call. One call for all of them buffers every
-# blob's CONTENT in memory at once (gigabytes on a big history) and can report
-# nothing until git has finished; chunking bounds both, and the extra spawns are
-# noise next to the work.
+# One call for every blob would buffer all their CONTENT at once, gigabytes on
+# a big history, and report nothing until git finished. Chunking bounds both.
 _STATS_CHUNK = 2000
 
 

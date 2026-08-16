@@ -15,11 +15,8 @@ from pydantic import BaseModel, WithJsonSchema
 from api.core.constants import ErrorCode, TimelineStage
 from api.models.manifest import Manifest, OptionalInt, OptionalStr, TimelineBundle
 
-# These progress fields are absent-or-value, never null on the wire — same
-# optional-but-non-nullable treatment as the manifest's optional fields.
-# 'updating' is git's checkout phase ("Updating files: N%"); a heartbeat
-# (no percent) instead carries mb_on_disk during the otherwise-silent
-# promisor blob fetch of a --filter=blob:none clone.
+# 'updating' is git's checkout phase ("Updating files: N%"). A heartbeat during
+# the silent promisor fetch carries mb_on_disk instead of a percent.
 _CLONE_STAGES = ["receiving", "resolving", "counting", "updating"]
 _OptionalStage = Annotated[
     Optional[Literal["receiving", "resolving", "counting", "updating"]],

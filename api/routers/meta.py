@@ -85,9 +85,8 @@ def _with_featured(repos: list[DiscoverEntry]) -> list[DiscoverEntry]:
 
 @router.get("/discover", response_model=DiscoverResponse)
 def discover() -> DiscoverResponse:
-    # Switching Discover off hides the tab, featured row included. It does not
-    # touch the landing's backdrop, which reads the same env var off /api/config
-    # because rendering a city is not a Discover feature.
+    # Hides the tab, featured row included. The landing's backdrop is
+    # unaffected: rendering a city is not a Discover feature.
     if not discover_enabled():
         return DiscoverResponse(repos=[])
     return DiscoverResponse(repos=_with_featured(_curated_repos()))

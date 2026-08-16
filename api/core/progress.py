@@ -17,9 +17,8 @@ from typing import Callable, Generic, TypeVar
 
 from api.core.config import quiet
 
-# Long enough to coalesce a per-file tick — thousands/sec on a warm fs cache —
-# and short enough that the client still reads as live. Shared by every
-# progress emitter; git's own clone output arrives at a comparable rate.
+# Long enough to coalesce a per-file tick (thousands/sec on a warm fs cache),
+# short enough to still read as live. git's clone output arrives at a like rate.
 PROGRESS_THROTTLE_S = 0.25
 
 T = TypeVar("T")

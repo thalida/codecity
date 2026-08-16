@@ -73,9 +73,8 @@ def detect_binary_type(head: bytes) -> str | None:
 
 # Head bytes sampled — never the whole file (a big .wasm/.so reads its head).
 FINGERPRINT_SAMPLE_BYTES = 1 << 16  # 64 KiB
-# Emitted at the frontend PANEL_TEX_SIZE so the texture pipeline never downscales
-# it (which averages the sparse marks into near-invisibility). Byte pairs bin to
-# EDGE cells per axis (value >> 1), which also makes each cell denser.
+# The frontend's PANEL_TEX_SIZE, so the texture pipeline never downscales it and
+# averages the sparse marks into near-invisibility.
 _DIGRAM_EDGE = 128
 # Any byte-pair that occurs at all is at least this opaque, so a sparse pattern
 # still reads clearly over the wall rather than fading to nothing.

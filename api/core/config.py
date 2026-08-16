@@ -29,14 +29,12 @@ MAX_BATCH_PATHS = 64
 # Bound on one batch image response; anything larger is omitted and the client
 # falls back to the streaming GET /api/file.
 MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
-# Commits carried on the manifest wire. Matches the renderer's tree cap
-# (treePlacement.ts TREE_MAX_CELLS) — beyond it the array is parsed only to
-# be skipped. Aggregates are still computed over the full history.
+# Matches the renderer's tree cap (treePlacement.ts TREE_MAX_CELLS); beyond it
+# the array is parsed only to be skipped. Aggregates still see every commit.
 MAX_WIRE_COMMITS = 100_000
 
-# parents[1] is the `api` package, not this module's `core/` directory: the
-# bundled list sits at api/discover.json, which is the path CODECITY_DISCOVER_FILE
-# documents as its default.
+# parents[1] is the `api` package, not this module's core/ — the bundled list
+# sits at api/discover.json, the path CODECITY_DISCOVER_FILE documents.
 DISCOVER_FILE = Path(__file__).resolve().parents[1] / "discover.json"
 
 
@@ -60,24 +58,19 @@ class Settings(BaseSettings):
     # Gates local-path scans. Off by default: the api serves any root it's
     # been given, so filesystem access is opt-in.
     allow_local_repos: bool = False
-    # Marks the public deployment, where a local path can never resolve.
     # Distinct from `not allow_local_repos`: an unmounted local instance can
-    # enable local paths in ten seconds, a hosted one never can, and the two
-    # need different advice.
+    # enable local paths in ten seconds, a hosted one never can.
     hosted: bool = False
     # The landing's Discover tab, and the curated list behind it.
     discover: bool = True
     discover_file: Path = DISCOVER_FILE
-    # The repo the landing puts front and centre: rendered behind the page and
-    # flagged in Discover. Off by default, so a fresh install never clones
-    # anything for decoration the visitor didn't ask for. The public deployment
-    # sets it, where one warm cache serves everybody.
+    # Rendered behind the landing and flagged in Discover. Off by default: a
+    # fresh install shouldn't clone anything for decoration nobody asked for.
     featured_repo: str = ""
     # Silences disconnect/scan logs.
     quiet: bool = False
-    # Root for every on-disk cache — the single source of truth for where
-    # codecity stores things. cache.py hangs its manifest/file-stat/git-history
-    # subdirs off this; clone.py its `clones/` dir.
+    # Root for every on-disk cache. cache/paths.py hangs its subdirs off this,
+    # git/clone.py its `clones/` dir.
     cache_root: Path = Path.home() / ".cache" / "codecity"
 
 

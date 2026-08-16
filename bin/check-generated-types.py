@@ -49,11 +49,8 @@ def main() -> int:
             capture_output=True,
             check=True,
         )
-        # The committed copy is prettier-formatted and prettierignored, so
-        # format the fresh one the same way or every line reads as changed.
-        # --config explicitly: prettier resolves config from the FILE's
-        # directory, and this one is in a temp dir with no .prettierrc, which
-        # silently means double quotes and a whole-file diff.
+        # Format the fresh copy the way the committed one is, or every line
+        # reads as changed. --config because prettier resolves it per-FILE.
         subprocess.run(
             [
                 "npx",
