@@ -79,7 +79,6 @@ function makeSceneHandle() {
         return null;
       },
     },
-    focusByPath() {},
     picker: {
       selection,
       hover,
@@ -89,14 +88,14 @@ function makeSceneHandle() {
       setSelection(t: PickTarget | null) {
         selection.value = t;
       },
-      // focusPath selects before it moves the camera, so a handle without this
-      // isn't one the commands can drive.
-      selectByPath() {},
+      // focusPath selects before it moves the camera, and focuses what the
+      // select resolved, so a handle without this isn't one the commands drive.
+      selectByPath() {
+        return selection.value;
+      },
     },
     rig: {
-      focusBuilding() {},
-      focusStreet() {},
-      focusTree() {},
+      focusSelection() {},
     },
   };
 }

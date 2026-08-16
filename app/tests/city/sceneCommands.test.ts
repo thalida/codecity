@@ -23,6 +23,15 @@ const FILE_TARGET = {
   file: { name: 'a.ts', path: 'src/a.ts', type: NodeKind.File },
 } as unknown as PickTarget;
 
+const COMMIT_TARGET = {
+  kind: NodeKind.Commit,
+  commit: { sha: 'abc1234' },
+} as unknown as PickTarget;
+
+// The picker resolves a ref once and hands back the target; the commands pass
+// that target to the rig. UNRESOLVED stands for a ref that matches nothing.
+const UNRESOLVED = 'no-such-node';
+
 function makeHandle() {
   const selection = signal<PickTarget | null>(null);
   const calls: string[] = [];
@@ -30,23 +39,22 @@ function makeHandle() {
     calls,
     picker: {
       selection,
-      selectByPath(path: string) {
+      selectByPath(path: string): PickTarget | null {
         calls.push(`selectByPath:${path}`);
+        if (path === UNRESOLVED) return null;
         selection.value = FILE_TARGET;
+        return FILE_TARGET;
       },
-      selectByCommit(sha: string) {
+      selectByCommit(sha: string): PickTarget | null {
         calls.push(`selectByCommit:${sha}`);
+        if (sha === UNRESOLVED) return null;
+        selection.value = COMMIT_TARGET;
+        return COMMIT_TARGET;
       },
-    },
-    focusByPath(path: string, mode: FocusMode = FocusMode.Overhead) {
-      calls.push(`focusByPath:${path}:${mode}`);
     },
     rig: {
-      focusTree(sha: string, mode: FocusMode = FocusMode.Overhead) {
-        calls.push(`focusTree:${sha}:${mode}`);
-      },
-      focusSelection(_sel: PickTarget, mode: FocusMode = FocusMode.Overhead) {
-        calls.push(`focusSelection:${mode}`);
+      focusSelection(sel: PickTarget, mode: FocusMode = FocusMode.Overhead) {
+        calls.push(`focusSelection:${sel.kind}:${mode}`);
       },
     },
   };
@@ -68,7 +76,7 @@ describe('scene navigation commands', () => {
 
   it('goToPath selects, moves the camera, and shows the details', () => {
     goToPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:overhead']);
+    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
@@ -86,13 +94,13 @@ describe('scene navigation commands', () => {
 
   it('focusPath selects, moves the camera, and clears the panel away', () => {
     focusPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:overhead']);
+    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
   it('focusCommit does the same for a commit', () => {
     focusCommit('abc1234');
-    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusTree:abc1234:overhead']);
+    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusSelection:commit:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
@@ -105,11 +113,32 @@ describe('scene navigation commands', () => {
 
     expect(handle.calls).toEqual([
       'selectByPath:src/a.ts',
-      'focusByPath:src/a.ts:recenter',
+      'focusSelection:file:recenter',
       'selectByCommit:abc1234',
-      'focusTree:abc1234:recenter',
-      'focusSelection:recenter',
+      'focusSelection:commit:recenter',
+      'focusSelection:commit:recenter', // the live selection, left by goToCommit
     ]);
+  });
+
+  // Nothing to look at means nothing happens: the chrome does not move for a
+  // node the picker could not resolve.
+  it('leaves the camera and the chrome alone for a ref that resolves to nothing', () => {
+    goToPath(UNRESOLVED);
+    focusPath(UNRESOLVED);
+    focusCommit(UNRESOLVED);
+
+    expect(handle.calls).toEqual([
+      `selectByPath:${UNRESOLVED}`,
+      `selectByPath:${UNRESOLVED}`,
+      `selectByCommit:${UNRESOLVED}`,
+    ]);
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+  });
+
+  it('focusSelection no-ops when nothing is selected', () => {
+    focusSelection();
+    expect(handle.calls).toEqual([]);
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
   it('every command no-ops before the scene boots', () => {

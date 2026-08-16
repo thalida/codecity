@@ -36,7 +36,7 @@ import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
 import type { City, SceneComponent, SceneContext } from './types';
-import { createCameraRig, type FocusMode } from './render/cameraRig';
+import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
@@ -287,11 +287,6 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
-    /** Focus the camera on the node at `path`: resolve via the picker, dispatch
-     *  to the rig. */
-    focusByPath(path: string, mode?: FocusMode): void {
-      rig.focusSelection(picker.targetForPath(path), mode);
-    },
     /** Scene-internal read/debug API — what the view layer can't get from the
      *  canonical MANIFEST signal (the live tree renderer + the two diagnostics). */
     world: {

@@ -3,7 +3,7 @@
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
-import type { CameraRig, FocusMode } from '../render/cameraRig';
+import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -70,9 +70,6 @@ export interface City {
   /** The stages that apply would run, for a caller whose own work comes first. */
   buildStagesFor(m: Manifest): BuildStage[];
   invalidateLayoutCache(): void;
-  /** Point the camera at the node at `path`, framed per `mode` (default: the
-   *  overhead swing every explicit Focus command means). */
-  focusByPath(path: string, mode?: FocusMode): void;
   world: CityWorld;
   /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
    *  is built here because it needs the components' mesh/attr resolvers. */

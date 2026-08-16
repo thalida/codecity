@@ -424,33 +424,19 @@ export function createCameraRig({
     else _focusTopDown(center, fitW, fitD, fitH, durationRatio);
   }
 
-  function focusBuilding(
-    _mesh: THREE.Object3D,
-    b: Building,
-    mode: FocusMode = FocusMode.Overhead
-  ): void {
+  function _focusBuilding(b: Building, mode: FocusMode): void {
     const center = new THREE.Vector3(b.x, b.h / 2, b.y);
     _focus(center, b.w, b.d, b.h, BUILDING_FOCUS_RATIO, mode);
   }
 
-  function focusStreet(
-    s: Street,
-    hitPoint: THREE.Vector3 | null,
-    mode: FocusMode = FocusMode.Overhead
-  ): void {
-    let tx = s.x;
-    let tz = s.y;
-    if (hitPoint) {
-      if (s.orientation === StreetAxis.X) tx = hitPoint.x;
-      else tz = hitPoint.z;
-    }
-    const center = new THREE.Vector3(tx, 0, tz);
+  function _focusStreet(s: Street, mode: FocusMode): void {
+    const center = new THREE.Vector3(s.x, 0, s.y);
     const fitW = s.orientation === StreetAxis.X ? s.length : s.width;
     const fitD = s.orientation === StreetAxis.X ? s.width : s.length;
     _focus(center, fitW, fitD, 0, STREET_FOCUS_RATIO, mode);
   }
 
-  function focusTree(sha: string, mode: FocusMode = FocusMode.Overhead): void {
+  function _focusTree(sha: string, mode: FocusMode): void {
     const b = deps.getTreeBoundsBySha(sha);
     if (!b) return;
     const center = new THREE.Vector3(b.x, b.height / 2, b.z);
@@ -546,9 +532,9 @@ export function createCameraRig({
    *  know the per-target focus mechanics. */
   function focusSelection(sel: PickTarget | null, mode: FocusMode = FocusMode.Overhead): void {
     if (!sel) return;
-    if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data, mode);
-    else if (sel.kind === NodeKind.Directory) focusStreet(sel.street, null, mode);
-    else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha, mode);
+    if (sel.kind === NodeKind.File) _focusBuilding(sel.data, mode);
+    else if (sel.kind === NodeKind.Directory) _focusStreet(sel.street, mode);
+    else if (sel.kind === NodeKind.Commit) _focusTree(sel.commit.sha, mode);
   }
 
   // ── Showcase mode ────────────────────────────────────────────────
@@ -651,9 +637,6 @@ export function createCameraRig({
     controls,
     update,
     reset,
-    focusBuilding,
-    focusStreet,
-    focusTree,
     focusSelection,
     captureView,
     captureAnchors,

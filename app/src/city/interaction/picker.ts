@@ -230,11 +230,12 @@ export function createPicker({
     return null;
   }
 
-  // Resolve a path and set it as the selection. Used by tree-row clicks and
-  // breadcrumb-segment clicks. No-op if the path doesn't match anything.
-  function selectByPath(path: string): void {
+  // No-op if the path doesn't match anything. Returns what it resolved, so a
+  // caller that also aims the camera reuses this resolve instead of its own.
+  function selectByPath(path: string): PickTarget | null {
     const target = targetForPath(path);
     if (target) setSelection(target);
+    return target;
   }
 
   // Resolve a commit sha to its live tree target and select it. No-op if
@@ -262,9 +263,11 @@ export function createPicker({
     return commit ? { kind: NodeKind.Commit, commit } : null;
   }
 
-  function selectByCommit(sha: string): void {
+  /** selectByPath for a sha, returning the target the same way. */
+  function selectByCommit(sha: string): PickTarget | null {
     const target = _commitTarget(sha);
     if (target) setSelection(target);
+    return target;
   }
 
   // Resolve a path and set it as the hover target (tree-row hover → city
