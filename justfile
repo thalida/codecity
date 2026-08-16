@@ -105,24 +105,32 @@ test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
 
 # ── Format / lint / typecheck ────────────────────────────────────
-# Both run locally (like `gen-types`) so reformatted files stay owned by you,
-# not the container's root. Prettier only from the root: elsewhere it resolves
-# a different version and misses .prettierignore (#165).
+# Runs locally (like `gen-types`) so reformatted files stay owned by you, not
+# the container's root. Prettier only from the root: elsewhere it resolves a
+# different version and misses .prettierignore (#165).
 fmt:
     uv run ruff format api bin scripts
     npx prettier --write .
 
-# Check both formatters, in containers, exactly as the pre-push gate does.
-fmt-check:
+# Every non-test check the pre-push gate runs, in containers, so the recipe and
+# the gate can't diverge. Split api/app the way `test` is.
+lint: lint-api lint-app
+
+# ruff = lint + format check; pyright = strict types over api/. Both read their
+# config from pyproject.toml; pyright's binary version is pinned in .env.
+lint-api:
     docker compose -f docker-compose.test.yml run --rm ruff
-    docker compose -f docker-compose.test.yml run --rm prettier
+    docker compose -f docker-compose.test.yml run --rm pyright
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
-lint: fmt-check
+# Prettier needs its own service: the app-scoped vitest one can't see the
+# root config.
+lint-app:
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
          sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+    docker compose -f docker-compose.test.yml run --rm prettier
 
 # ── Codegen ──────────────────────────────────────────────────────
 # Regenerate app/src/types/manifest.generated.ts from the live OpenAPI schema.

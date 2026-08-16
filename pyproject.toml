@@ -57,6 +57,13 @@ include = ["api"]
 exclude = ["api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
+# Without this pyright resolves imports against whatever `python` is first on
+# PATH. That happens to be the uv venv locally, but in the test container it is
+# the system interpreter, where fastapi and pydantic don't exist — 253 phantom
+# "could not be resolved" errors. uv puts the venv at <root>/.venv in both
+# places, so naming it here makes the two runs agree.
+venvPath = "."
+venv = ".venv"
 
 [tool.coverage.run]
 source = ["api"]

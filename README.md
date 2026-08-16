@@ -219,7 +219,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 | `just dev`       | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
 | `just url`       | print this worktree's dev URL (`open $(just url)`)              |
 | `just test`      | pytest + vitest in containers                                   |
-| `just lint`      | ruff, eslint, prettier, and typecheck                           |
+| `just lint`      | ruff, pyright, eslint, prettier, and typecheck                   |
 | `just gen-types` | regenerate the frontend wire types from the OpenAPI schema      |
 | `just clean`     | tear down this worktree's containers and volumes                |
 

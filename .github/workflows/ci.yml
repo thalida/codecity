@@ -52,8 +52,14 @@ jobs:
           docker compose -f docker-compose.test.yml run --rm pytest \
             --cov-report=xml:/srv/api/coverage.xml
 
-      - name: Python format check (ruff)
+      - name: Python lint + format check (ruff)
         run: docker compose -f docker-compose.test.yml run --rm ruff
+
+      # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
+      # automatically — no `env:` mirror needed here, unlike NPM_VERSION
+      # (which the shell steps below interpolate themselves).
+      - name: Python typecheck (pyright)
+        run: docker compose -f docker-compose.test.yml run --rm pyright
 
       - name: Run vitest with coverage
         # Override the default compose command (which runs `npm test`) to
