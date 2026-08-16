@@ -14,9 +14,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
-    # Runtime import would cycle: importing api.git.objects runs api/git's
-    # __init__, which imports git.meta, which imports this package.
-    from api.git.objects import BlobStats
+    # Runtime import would cycle: api.git's __init__ imports git.meta, which
+    # imports this package.
+    from api.git import BlobStats
 
 
 class FileEntry(TypedDict):

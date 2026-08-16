@@ -16,7 +16,16 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, NamedTuple
 
 from api.core.constants import ScanEvent
-from api.git import objects as gitobj
+from api.git import (
+    GitState,
+    blob_stats_batch,
+    collect_git_history,
+    collect_git_state,
+    is_git_repo,
+    ls_tree_files,
+    reconstructed_repo_info,
+    resolve_ref,
+)
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
 from api.scan.filemeta import (
     FileMeta,
@@ -24,13 +33,6 @@ from api.scan.filemeta import (
     extension,
     populate_file_metadata,
     stat_fields,
-)
-from api.git.meta import (
-    GitState,
-    collect_git_history,
-    collect_git_state,
-    is_git_repo,
-    reconstructed_repo_info,
 )
 from api.scan.manifest import utc_now_iso, wrap_manifest
 from api.models.manifest import (
@@ -280,7 +282,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
 
     Raises ValueError for a ref that doesn't resolve to a commit."""
     root_abs, root_path = _resolved_git_root(root)
-    commit_sha = gitobj.resolve_ref(root_path, ref)
+    commit_sha = resolve_ref(root_path, ref)
     if commit_sha is None:
         raise ValueError(f"ref does not resolve to a commit: {ref!r}")
 
@@ -288,9 +290,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
     # doesn't jump around as the ref moves.
     rules = SkipRules.load(root_path)
     blobs = [
-        b
-        for b in gitobj.ls_tree_files(root_path, commit_sha)
-        if not rules.skips_path(b.path)
+        b for b in ls_tree_files(root_path, commit_sha) if not rules.skips_path(b.path)
     ]
     by_path = {b.path: b for b in blobs}
 
@@ -301,11 +301,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         b.sha for b in blobs if media_kind(extension(basename(b.path)))
     )
     misses = [b.sha for b in blobs if b.sha not in cached]
-    fresh = (
-        gitobj.blob_stats_batch(root_path, misses, media_shas=media_shas)
-        if misses
-        else {}
-    )
+    fresh = blob_stats_batch(root_path, misses, media_shas=media_shas) if misses else {}
     for sha, stats in fresh.items():
         cached[sha] = blob_entry(stats)
     if fresh:

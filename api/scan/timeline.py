@@ -9,7 +9,15 @@ from pathlib import Path
 from typing import Callable, NamedTuple
 
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
-from api.git.objects import blob_sizes_batch, blob_stats_batch, git_argv
+from api.git import (
+    blob_sizes_batch,
+    blob_stats_batch,
+    collect_git_history,
+    empty_repo_info,
+    git_argv,
+    is_git_repo,
+    reconstructed_repo_info,
+)
 from api.utils.media import media_kind
 from api.core.constants import TimelineStage
 from api.models.manifest import (
@@ -23,12 +31,6 @@ from api.models.manifest import (
     TimelineDelta,
 )
 from api.scan.filemeta import basename, extension
-from api.git.meta import (
-    collect_git_history,
-    empty_repo_info,
-    is_git_repo,
-    reconstructed_repo_info,
-)
 from api.scan.manifest import wrap_manifest
 from api.core.progress import Throttle, log
 from api.utils.dates import iso_to_ms

@@ -8,8 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
 from api.core.security import TRUST
-from api.git import build_authors_list
-from api.git.cmd import run_git
+from api.git import build_authors_list, run_git
 
 router = APIRouter(prefix="/api", tags=["commit"])
 
