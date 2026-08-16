@@ -74,7 +74,7 @@ class FileNode(BaseModel):
     media_height: OptionalInt = None
     # Friendly magic-byte type for binary files ("SQLite database",
     # "WebAssembly module"); absent for non-binary or unrecognized files.
-    # See api/binfmt.py:detect_binary_type.
+    # See api/utils/binfmt.py:detect_binary_type.
     binaryType: OptionalStr = None
 
     @model_validator(mode="after")

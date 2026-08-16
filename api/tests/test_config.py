@@ -1,4 +1,4 @@
-"""Tests for api.config — the typed CODECITY_* settings and the live reads."""
+"""Tests for api.core.config — the typed CODECITY_* settings and the live reads."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest import mock
 
 from pydantic import ValidationError
 
-from api.config import (
+from api.core.config import (
     DISCOVER_FILE,
     Settings,
     discover_enabled,

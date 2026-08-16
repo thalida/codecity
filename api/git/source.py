@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from api.config import local_repos_allowed
+from api.core.config import local_repos_allowed
 from api.core.constants import ErrorCode
 from api.git.clone import (
     BranchNotFoundError,

@@ -12,7 +12,7 @@ from typing import Callable, NamedTuple
 
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
 from api.git.objects import blob_sizes_batch, blob_stats_batch, git_argv
-from api.media import media_kind
+from api.utils.media import media_kind
 from api.core.constants import TimelineStage
 from api.models.manifest import (
     CommitEntry,
@@ -32,8 +32,8 @@ from api.git.meta import (
     reconstructed_repo_info,
 )
 from api.scan.manifest import wrap_manifest
-from api.progress import SCAN_PROGRESS_THROTTLE_S, log
-from api.errors import NotAGitRepoError
+from api.core.progress import SCAN_PROGRESS_THROTTLE_S, log
+from api.core.exceptions import NotAGitRepoError
 from api.scan.signatures import derive_tree_signals, hash_file_entry
 from api.scan.skiprules import SkipRules
 from api.scan.treebuild import build_file_node, build_tree, dir_children_from_paths

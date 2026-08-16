@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from api.config import MAX_WIRE_COMMITS
+from api.core.config import MAX_WIRE_COMMITS
 from api.git.source import label_from_source
 from api.models.manifest import (
     CommitEntry,

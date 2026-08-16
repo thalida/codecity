@@ -83,7 +83,7 @@ def _reset_trust() -> Iterator[None]:
     """Isolate the process-global TRUST set per test. create_app() does not
     reset it (the factory must be side-effect-free on session auth state — see
     api/app.py), so tests reset it here rather than relying on the factory."""
-    from api.security import TRUST
+    from api.core.security import TRUST
 
     TRUST.reset()
     yield

@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.security import TRUST
+from api.core.security import TRUST
 
 
 def _git(*args: str, cwd: Path) -> str:

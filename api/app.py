@@ -14,11 +14,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from api.config import GZIP_MIN_BYTES
+from api.core.config import GZIP_MIN_BYTES
 from api.models.responses import ErrorResponse
 from api.routers import branches, commit, file, manifest, meta
-from api.sse_compression import SSEGZipMiddleware
-from api.static import make_static_router
+from api.core.middleware import SSEGZipMiddleware
+from api.routers.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
 

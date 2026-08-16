@@ -31,7 +31,7 @@ from api.models.events import (
     TimelineProgressEvent,
 )
 from api.models.manifest import Manifest, SignatureResponse
-from api.security import TRUST
+from api.core.security import TRUST
 from api.cache import (
     cache_clear_timeline,
     cache_load_manifest,

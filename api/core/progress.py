@@ -6,7 +6,7 @@ import sys
 import time
 from typing import Callable
 
-from api.config import quiet
+from api.core.config import quiet
 
 # Long enough to coalesce tick(), which fires once per file — thousands/sec on
 # a warm fs cache.

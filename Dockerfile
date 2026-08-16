@@ -97,7 +97,7 @@ HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
 # script into /srv/.venv/bin (read-only for the non-root runtime user).
 # Zombie reaping + signal propagation are handled by Docker's --init.
 # `python -m api` launches a single uvicorn process (api.app:app) — single
-# process by design, see api/security.py (the allowed_roots trust set is
+# process by design, see api/core/security.py (the allowed_roots trust set is
 # in-memory; multi-worker would split it).
 ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
 # --host is explicit because the CLI defaults to loopback (an unauthenticated

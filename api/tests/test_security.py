@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api.security import (
+from api.core.security import (
     OutsideRootError,
     NoRootsRegisteredError,
     TrustStore,

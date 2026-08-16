@@ -39,9 +39,9 @@ from api.models.manifest import (
     Manifest,
     SignatureResponse,
 )
-from api.media import media_kind
-from api.progress import Heartbeat, log
-from api.errors import NotAGitRepoError, check_cancel
+from api.utils.media import media_kind
+from api.core.progress import Heartbeat, log
+from api.core.exceptions import NotAGitRepoError, check_cancel
 from api.scan.signatures import (
     derive_tree_signals,
     hash_file_entry,

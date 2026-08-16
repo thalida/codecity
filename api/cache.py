@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 from pydantic import ValidationError
 
-from api.config import CACHE_ROOT
+from api.core.config import CACHE_ROOT
 from api.models.manifest import CommitEntry, Manifest, TimelineBundle
 
 KEY_SEP = "__"  # between the repo key and the entry name

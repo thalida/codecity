@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter
 
 from api import __version__
-from api.config import (
+from api.core.config import (
     MAX_BATCH_PATHS,
     discover_enabled,
     discover_file,

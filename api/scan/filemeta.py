@@ -11,13 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
-from api.binfmt import detect_binary_type
+from api.utils.binfmt import detect_binary_type
 from api.cache import BlobEntry, FileEntry, cache_load_files, cache_save_files
-from api.git.objects import BINARY_CHUNK, is_binary_bytes
-from api.media import probe_media_dims
+from api.utils.content import BINARY_CHUNK, is_binary_bytes
+from api.utils.media import probe_media_dims
 from api.models.manifest import DirNode, FileNode
-from api.progress import log
-from api.errors import ScanCancelledError, check_cancel
+from api.core.progress import log
+from api.core.exceptions import ScanCancelledError, check_cancel
 from api.scan.treebuild import iter_file_nodes
 
 # ── Names ────────────────────────────────────────────────────────────────────

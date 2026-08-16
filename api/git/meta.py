@@ -1,7 +1,7 @@
 """Repo-level git metadata: the history walk, the working-tree snapshot, and
 the footer fields for a reconstructed ref.
 
-Complements gitobj.py, which reads the object database."""
+Complements objects.py, which reads the object database."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import NamedTuple
 
 from api.cache import cache_load_git_history, cache_save_git_history
 from api.models.manifest import CommitEntry, RepoInfo
-from api.progress import log
+from api.core.progress import log
 
 
 def run_git(root: Path, *args: str) -> str:

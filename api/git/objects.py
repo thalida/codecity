@@ -2,7 +2,7 @@
 
 Everything here uses `git ls-tree` / `cat-file` / `rev-parse` — it never
 checks out, resets, or otherwise writes to the repo. `-c safe.directory=*`
-mirrors scan._run_git so we can read repos the process doesn't own.
+mirrors meta.run_git so we can read repos the process doesn't own.
 """
 
 from __future__ import annotations
@@ -13,8 +13,9 @@ import subprocess
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.binfmt import detect_binary_type
-from api.media import probe_media_dims_from_bytes
+from api.utils.binfmt import detect_binary_type
+from api.utils.content import count_lines, is_binary_bytes
+from api.utils.media import probe_media_dims_from_bytes
 
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
@@ -25,11 +26,6 @@ _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 # still absent, e.g. a monster file the hydrate skipped) degrades to 0 lines, not
 # a hang.
 _GIT_ENV = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
-# Unprefixed: scan.py's _is_binary(path) delegates to is_binary_bytes below so
-# the live scan and the time-travel reconstruction classify file content
-# identically. _TEXT_CHARACTERS stays private — only is_binary_bytes needs it.
-BINARY_CHUNK = 8192
-_TEXT_CHARACTERS = bytes({7, 8, 9, 10, 11, 12, 13, 27}) + bytes(range(0x20, 0x100))
 
 
 def git_argv(root: Path, *args: str) -> list[str]:
@@ -109,24 +105,6 @@ class BlobStats(NamedTuple):
     media_height: int | None
     binary_type: str | None
     size: int  # real byte size (resolved for git-lfs, else the blob size)
-
-
-def is_binary_bytes(chunk: bytes) -> bool:
-    head = chunk[:BINARY_CHUNK]
-    if not head:
-        return False
-    if b"\x00" in head:
-        return True
-    non_text = sum(1 for b in head if b not in _TEXT_CHARACTERS)
-    return non_text / len(head) > 0.30
-
-
-def count_lines(data: bytes) -> int:
-    """Line count: newlines + 1 for an unterminated final line (empty → 0).
-    scan._line_count streams the identical rule so Live == Timeline."""
-    if not data:
-        return 0
-    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
 
 
 # A git-lfs blob is a pointer, not content; resolve it so the timeline reads the

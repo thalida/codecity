@@ -24,12 +24,12 @@ import time
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.config import CACHE_ROOT, quiet
+from api.core.config import CACHE_ROOT, quiet
 
 # Cancellation is signalled by the same threading.Event the scan honors, so a
-# client disconnect aborts the clone phase too. scan.py does not import clone,
-# so this import is cycle-free.
-from api.errors import ScanCancelledError
+# client disconnect aborts the clone phase too. the scan package does not import
+# clone, so this import is cycle-free.
+from api.core.exceptions import ScanCancelledError
 
 
 class CloneError(RuntimeError):
@@ -761,7 +761,7 @@ def _fresh_clone(
     pack_dir = target / ".git" / "objects" / "pack"
     # --filter=blob:none: HEAD's tree is still fully checked out and all commit
     # and tree history is kept, so per-file dates survive. Only historical file
-    # contents are skipped, which scan.py never reads. Later fetches inherit the
+    # contents are skipped, which the live scan never reads. Later fetches inherit the
     # filter via promisor config.
     #
     # --progress: stderr isn't a TTY here, so git needs telling.

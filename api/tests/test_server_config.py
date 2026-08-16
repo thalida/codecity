@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.config import MAX_BATCH_PATHS, Settings
+from api.core.config import MAX_BATCH_PATHS, Settings
 
 FEATURED = Settings.model_fields["featured_repo"].default
 

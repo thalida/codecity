@@ -31,7 +31,10 @@ MAX_BATCH_PATHS = 64
 # be skipped. Aggregates are still computed over the full history.
 MAX_WIRE_COMMITS = 100_000
 
-DISCOVER_FILE = Path(__file__).parent / "discover.json"
+# parents[1] is the `api` package, not this module's `core/` directory: the
+# bundled list sits at api/discover.json, which is the path CODECITY_DISCOVER_FILE
+# documents as its default.
+DISCOVER_FILE = Path(__file__).resolve().parents[1] / "discover.json"
 
 
 class Settings(BaseSettings):

@@ -72,7 +72,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
         from api.scan.scanner import scan_tree
-        from api.errors import ScanCancelledError
+        from api.core.exceptions import ScanCancelledError
 
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
@@ -85,7 +85,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
     def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
         import threading
         from api.scan.scanner import scan_tree
-        from api.errors import ScanCancelledError
+        from api.core.exceptions import ScanCancelledError
 
         with TemporaryDirectory() as td:
             root = Path(td)
@@ -315,7 +315,7 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         """scan_tree must raise NotAGitRepoError on a non-git directory.
         Server enforces this at the HTTP boundary; the scanner check is
         defense-in-depth so direct callers fail fast."""
-        from api.errors import NotAGitRepoError
+        from api.core.exceptions import NotAGitRepoError
 
         with tempfile.TemporaryDirectory() as td:
             Path(td, "a.txt").write_text("hello")

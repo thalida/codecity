@@ -17,7 +17,7 @@ The submodules, roughly in the order a scan touches them:
     timeline    the per-commit delta bundle
 """
 
-from api.errors import NotAGitRepoError, ScanCancelledError
+from api.core.exceptions import NotAGitRepoError, ScanCancelledError
 from .scanner import reconstruct_manifest, scan_tree, signature_tree
 from .timeline import ASSEMBLE_STEPS, assemble_tick, build_timeline_bundle
 

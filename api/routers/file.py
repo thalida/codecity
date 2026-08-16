@@ -18,16 +18,16 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from api.config import MAX_BATCH_PATHS, MAX_FILE_BYTES
+from api.core.config import MAX_BATCH_PATHS, MAX_FILE_BYTES
 from api.models.responses import (
     ImageBatchEntry,
     FileTooLargeResponse,
     FingerprintEntry,
 )
-from api.security import NoRootsRegisteredError, OutsideRootError, TRUST
-from api.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
+from api.core.security import NoRootsRegisteredError, OutsideRootError, TRUST
+from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
 from api.git import read_blob
-from api.media import is_media
+from api.utils.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 

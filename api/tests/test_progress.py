@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from api.progress import Heartbeat  # noqa: F401
+from api.core.progress import Heartbeat  # noqa: F401
 
 
 def test_heartbeat_calls_progress_callback_throttled():

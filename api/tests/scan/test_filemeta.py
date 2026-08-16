@@ -12,7 +12,7 @@ from unittest import mock
 import pytest
 
 from api.scan.filemeta import extension, is_binary, line_count
-from api.git.objects import BINARY_CHUNK, is_binary_bytes
+from api.utils.content import BINARY_CHUNK, is_binary_bytes
 from api.tests.conftest import (
     CacheRedirectMixin,
     FIXTURE,
@@ -40,7 +40,7 @@ def test_extension(name, expected):
     assert extension(name) == expected
 
 
-# The heuristic is pure and public (gitobj.is_binary_bytes); _is_binary only
+# The heuristic is pure and public (utils.content.is_binary_bytes); _is_binary only
 # adds the read. Classification is tested against bytes, with no filesystem.
 @pytest.mark.parametrize(
     ("label", "content", "expected"),
@@ -264,8 +264,8 @@ def test_line_count_is_exact_not_sampled_over_5mb(tmp_path):
     """A >5MB file is counted EXACTLY, not sample-extrapolated. The first 1MB is
     newline-free (the old sample window), so the dropped estimator would have
     returned 1; the exact stream count returns the true total. Matches
-    gitobj.count_lines so a file's Live count equals its Timeline blob count."""
-    from api.git.objects import count_lines
+    utils.content.count_lines so a file's Live count equals its Timeline blob count."""
+    from api.utils.content import count_lines
 
     content = (
         b"x" * (1024 * 1024) + b"y\n" * 2_500_000
