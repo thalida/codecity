@@ -15,7 +15,7 @@ import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { PANE_MANIFEST } from '@/state/stores/scrub';
+import { PANE_MANIFEST } from '@/state/stores/timeline';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.

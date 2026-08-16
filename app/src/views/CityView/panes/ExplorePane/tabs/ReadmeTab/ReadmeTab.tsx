@@ -12,7 +12,7 @@ import { Marked } from 'marked';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane/Pane';
 import { isEmptyManifest, relPathIn } from '@/utils/manifest';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/scrub';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load

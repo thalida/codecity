@@ -6,7 +6,7 @@ import type { FileNode, DirNode } from '@/types';
 import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
-import { scrubbedStatsFor } from '@/state/stores/scrub';
+import { scrubbedStatsFor } from '@/state/stores/timeline';
 import type { PaneStatItem } from './PaneStats';
 
 /** Direct and recursive counts as one item, collapsing to a single number when

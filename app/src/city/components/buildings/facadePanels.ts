@@ -16,7 +16,7 @@ import {
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/scrub';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { fileUrl } from '@/api/file';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';

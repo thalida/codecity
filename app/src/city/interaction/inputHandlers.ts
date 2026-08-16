@@ -16,7 +16,7 @@ import { OVERLAY_OPEN } from '@/state/stores/modals';
 import { openSelectionPane } from '@/state/stores/sidebars';
 import { focusSelection } from '@/state/stores/scene';
 import { NodeKind } from '@/types';
-import { scrubbedStatsFor } from '@/state/stores/scrub';
+import { scrubbedStatsFor } from '@/state/stores/timeline';
 import type { PickTarget } from '@/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';

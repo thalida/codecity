@@ -12,7 +12,7 @@ import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST } from '@/state/stores/scrub';
+import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';

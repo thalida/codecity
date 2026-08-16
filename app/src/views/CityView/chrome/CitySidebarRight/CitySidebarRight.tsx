@@ -14,10 +14,14 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST, PRESENT_PATHS, scrubbedDirFor } from '@/state/stores/scrub';
+import {
+  PANE_MANIFEST,
+  PRESENT_PATHS,
+  TIMELINE_MODE,
+  scrubbedDirFor,
+} from '@/state/stores/timeline';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
 import { addExclude } from '@/state/stores/excludes';

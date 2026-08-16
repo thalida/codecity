@@ -5,15 +5,17 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { RUINS } from '@/state/stores/settings/ruins';
 import {
+  TIMELINE_MODE,
+  TIMELINE_BUNDLE,
+  setScrubPos,
   PRESENT_PATHS,
   PANE_MANIFEST,
   scrubbedBlobShaFor,
   scrubbedStatsFor,
   scrubbedDirFor,
-} from '@/state/stores/scrub';
+} from '@/state/stores/timeline';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
 
 function paths(m: unknown): Set<string> {
