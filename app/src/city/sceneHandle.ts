@@ -4,7 +4,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { createCity } from './index';
-import { FocusMode } from './render/cameraRig';
+import type { FocusMode } from './render/cameraRig';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
@@ -60,51 +60,51 @@ export function clearSelection(): void {
 
 /** Focus a node, selecting it first if it isn't: an almanac row is a Focus
  *  button for something you haven't picked yet. Re-selecting is identity. */
-export function focusPath(path: string): void {
+export function focusPath(path: string, mode?: FocusMode): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByPath(path);
-  handle.focusByPath(path);
+  handle.focusByPath(path, mode);
   revealCity();
 }
 
 /** focusPath for a commit's tree, by sha. */
-export function focusCommit(sha: string): void {
+export function focusCommit(sha: string, mode?: FocusMode): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByCommit(sha);
-  handle.rig.focusTree(sha);
+  handle.rig.focusTree(sha, mode);
   revealCity();
 }
 
 /** Focus whatever is selected, whichever kind. Here rather than in the key
  *  handler: a keystroke and a Focus button are the same request. */
-export function focusSelection(): void {
+export function focusSelection(mode?: FocusMode): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   const sel = handle.picker.selection.peek();
   if (!sel) return; // nothing to look at, so nothing to clear out of the way
-  handle.rig.focusSelection(sel);
+  handle.rig.focusSelection(sel, mode);
   revealCity();
 }
 
 /** Go to a node named in a list. The details open, unlike the Focus commands:
  *  there you act on what's in front of you, here you asked for the name. */
-export function goToPath(path: string): void {
+export function goToPath(path: string, mode?: FocusMode): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByPath(path);
-  handle.focusByPath(path);
+  handle.focusByPath(path, mode);
   openSelectionPane();
   collapseDrawerOnPhone();
 }
 
 /** goToPath for a commit's tree, by sha (almanac landmarks). */
-export function goToCommit(sha: string): void {
+export function goToCommit(sha: string, mode?: FocusMode): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByCommit(sha);
-  handle.rig.focusTree(sha);
+  handle.rig.focusTree(sha, mode);
   openSelectionPane();
   collapseDrawerOnPhone();
 }
@@ -116,27 +116,6 @@ export function showCommit(sha: string): void {
   if (!handle) return;
   handle.picker.selectByCommit(sha);
   openSelectionPane();
-}
-
-/** Restore a selection the URL names: pick it out, open its details, and slide
- *  the city until it sits centred, under the angle and zoom the load framed. */
-export function restorePath(path: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByPath(path);
-  handle.focusByPath(path, FocusMode.Recenter);
-  openSelectionPane();
-  collapseDrawerOnPhone();
-}
-
-/** restorePath for a commit's tree, by sha. */
-export function restoreCommit(sha: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByCommit(sha);
-  handle.rig.focusTree(sha, FocusMode.Recenter);
-  openSelectionPane();
-  collapseDrawerOnPhone();
 }
 
 /** Reset the camera framing to the current mode's default pose. */

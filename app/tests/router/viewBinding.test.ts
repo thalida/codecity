@@ -4,8 +4,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // put back. Partial, since the timeline entry points read the rest.
 vi.mock('@/city/sceneHandle', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/city/sceneHandle')>()),
-  restorePath: vi.fn(),
-  restoreCommit: vi.fn(),
+  goToPath: vi.fn(),
+  goToCommit: vi.fn(),
   clearSelection: vi.fn(),
 }));
 
@@ -19,7 +19,8 @@ vi.mock('@/hooks/useTimelineMode', async (importOriginal) => ({
 }));
 
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import { restorePath, restoreCommit, clearSelection } from '@/city/sceneHandle';
+import { goToPath, goToCommit, clearSelection } from '@/city/sceneHandle';
+import { FocusMode } from '@/city/render/cameraRig';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -186,26 +187,26 @@ describe('view URL', () => {
   describe('restore', () => {
     it('selects the file the URL names, once the city is built', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
-      expect(restorePath).not.toHaveBeenCalled(); // no city yet — nothing to select in
+      expect(goToPath).not.toHaveBeenCalled(); // no city yet — nothing to select in
 
       commitWorld();
       await flush();
-      expect(restorePath).toHaveBeenCalledWith('app/src/main.tsx');
+      expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx', FocusMode.Recenter);
     });
 
     it('goes to the commit a commit selection names', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
       commitWorld();
       await flush();
-      expect(restoreCommit).toHaveBeenCalledWith('abc123');
+      expect(goToCommit).toHaveBeenCalledWith('abc123', FocusMode.Recenter);
     });
 
     it('ignores a selection it cannot read, and drops it from the URL', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=nonsense');
       commitWorld();
       await flush();
-      expect(restorePath).not.toHaveBeenCalled();
-      expect(restoreCommit).not.toHaveBeenCalled();
+      expect(goToPath).not.toHaveBeenCalled();
+      expect(goToCommit).not.toHaveBeenCalled();
       expect(params().has('sel')).toBe(false);
     });
 
@@ -213,7 +214,7 @@ describe('view URL', () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
       commitWorld('/repos/somewhere-else');
       await flush();
-      expect(restorePath).not.toHaveBeenCalled();
+      expect(goToPath).not.toHaveBeenCalled();
       expect(params().has('sel')).toBe(false);
     });
 
@@ -224,12 +225,12 @@ describe('view URL', () => {
       markIdle(); // the empty boot city settles, before any source
       commitSource(SRC, undefined, LOADED);
       await flush();
-      expect(restorePath).not.toHaveBeenCalled();
+      expect(goToPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
       markDecorating(); // the committed manifest's city lands
       await flush();
-      expect(restorePath).toHaveBeenCalledWith('app/src/main.tsx');
+      expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx', FocusMode.Recenter);
     });
 
     // Back and Forward land here: the URL moves under a city that is already up,
@@ -317,12 +318,12 @@ describe('view URL', () => {
         navigate('/city?src=%2Frepos%2Fcodecity&sel=file:b.ts');
         await flush();
 
-        expect(restorePath).toHaveBeenCalledWith('b.ts');
+        expect(goToPath).toHaveBeenCalledWith('b.ts', FocusMode.Recenter);
       });
 
       it('back past a selection clears it', async () => {
         await loadedAndFollowed('&sel=file:b.ts');
-        // restorePath is stubbed, so stand the picker up by hand: without it there is
+        // goToPath is stubbed, so stand the picker up by hand: without it there is
         // no selection for the URL to disagree with.
         PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: 'b.ts' };
         await flush();
@@ -340,12 +341,12 @@ describe('view URL', () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
       commitWorld();
       await flush();
-      expect(restorePath).toHaveBeenCalledTimes(1);
+      expect(goToPath).toHaveBeenCalledTimes(1);
 
       dispose?.();
       dispose = attachViewUrlReactions();
       await flush();
-      expect(restorePath).toHaveBeenCalledTimes(1);
+      expect(goToPath).toHaveBeenCalledTimes(1);
     });
   });
 });

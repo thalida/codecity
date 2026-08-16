@@ -1,7 +1,7 @@
-// Three kinds of "take me to this node", split by what the control you clicked
+// Two kinds of "take me to this node", split by what the control you clicked
 // showed you. A focus icon promises the city, so those commands clear the panel
 // out of the way; a name in a list promises the thing itself, so those open the
-// details; a URL is neither, so it gets the details with no overhead swing.
+// details. Both take the focus mode: only the framing differs by caller.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
@@ -9,9 +9,9 @@ import {
   SCENE_HANDLE,
   focusPath,
   focusCommit,
+  focusSelection,
   goToPath,
-  restorePath,
-  restoreCommit,
+  goToCommit,
 } from '@/city/sceneHandle';
 import { FocusMode } from '@/city/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
@@ -44,6 +44,9 @@ function makeHandle() {
     rig: {
       focusTree(sha: string, mode: FocusMode = FocusMode.Overhead) {
         calls.push(`focusTree:${sha}:${mode}`);
+      },
+      focusSelection(_sel: PickTarget, mode: FocusMode = FocusMode.Overhead) {
+        calls.push(`focusSelection:${mode}`);
       },
     },
   };
@@ -93,27 +96,29 @@ describe('scene navigation commands', () => {
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
-  // A link nobody clicked in-app: it gets the node centred, but under the
-  // camera angle the load framed, not the overhead swing Focus means.
-  it('restorePath selects, centres without reframing, and shows the details', () => {
-    restorePath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:recenter']);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
-  });
+  // What the URL restore asks for: the same commands, framed so the camera
+  // keeps the angle it loaded at instead of swinging overhead.
+  it('passes a focus mode through to the scene, whichever command carries it', () => {
+    goToPath('src/a.ts', FocusMode.Recenter);
+    goToCommit('abc1234', FocusMode.Recenter);
+    focusSelection(FocusMode.Recenter);
 
-  it('restoreCommit does the same for a commit', () => {
-    restoreCommit('abc1234');
-    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusTree:abc1234:recenter']);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(handle.calls).toEqual([
+      'selectByPath:src/a.ts',
+      'focusByPath:src/a.ts:recenter',
+      'selectByCommit:abc1234',
+      'focusTree:abc1234:recenter',
+      'focusSelection:recenter',
+    ]);
   });
 
   it('every command no-ops before the scene boots', () => {
     SCENE_HANDLE.value = null;
     goToPath('src/a.ts');
+    goToCommit('abc1234');
     focusPath('src/a.ts');
     focusCommit('abc1234');
-    restorePath('src/a.ts');
-    restoreCommit('abc1234');
+    focusSelection();
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 });
