@@ -18,10 +18,8 @@
   padding: var(--cc-space-3) var(--cc-space-5) var(--cc-space-4); /* side padding runs the underline wider than the label */
   border: 0;
   border-bottom: 2px solid transparent;
-  /* No negative margin to overlap the divider: overflow-x:auto forces this strip
-   * into a scroll container, and a 1px vertical overflow makes focusing a tab
-   * scroll it 1px, shifting the underline off the divider permanently. The
-   * underline sits flush above the divider instead. */
+  /* No negative margin: overflow-x makes this a scroll container, so a 1px
+   * overflow would shift the underline off the divider on first focus. */
   background: transparent;
   color: var(--cc-text-strong); /* a tab is pressable; grey is for readouts */
   font: inherit;

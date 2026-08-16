@@ -1,9 +1,7 @@
 /* ── Slider ── */
 
-/* Slider — the range input grows into available space; the readout is
- * auto-sized to its content (with a small floor so short numbers don't
- * collapse). No fixed widths anywhere — this row scales cleanly from a
- * narrow sidebar up to the max width. */
+/* The range grows into the space; the readout sizes to its content with a
+ * floor. No fixed widths, so the row scales with the sidebar. */
 .setting-slider-wrap {
   flex: 1 1 auto;
   min-width: 0;

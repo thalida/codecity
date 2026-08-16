@@ -35,9 +35,8 @@
   padding-inline: var(--popover-inset);
   font-size: var(--cc-font-xs);
 }
-/* Wraps between chips, not inside them: the key caps are inline-block, so a
-   break can only land in the " / " and " + " joins. Holding the whole modifier
-   run on one line is what made this column eat the panel. */
+/* Wraps between chips, not inside them: the caps are inline-block, so a break
+   can only land in the " / " and " + " joins. */
 .shortcuts-list dt {
   color: var(--cc-text-primary);
   min-width: 0;

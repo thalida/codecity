@@ -4,7 +4,7 @@ import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
-import type { RepoStats } from '@/types';
+import type { RepoStats, CityLayout } from '@/types';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 import type { StreetTier } from '@/state/settings/fields/streets';
 import {
@@ -22,7 +22,6 @@ import {
   genNestedTree,
 } from '../../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../../_helpers/statsFixtures';
-import type { CityLayout } from '@/types';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

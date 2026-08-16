@@ -6,10 +6,7 @@
  *  field does not reset the camera. Matches the uppercase Element.tagName. */
 export const TEXT_INPUT_TAGS: readonly string[] = ['INPUT', 'TEXTAREA'];
 
-/**
- * One shortcut binding: a primary key + optional aliases (e.g. lowercase
- * plus uppercase, plus 'Home' as a synonym for reset).
- */
+/** One binding: a primary key plus aliases (case, and 'Home' for reset). */
 export interface KeyBinding {
   /** Display label shown in the help table (one entry per visual key). */
   label: string;
@@ -18,9 +15,8 @@ export interface KeyBinding {
 }
 
 export const KEY_BINDINGS: Record<string, KeyBinding> = {
-  /** Reset the camera framing to the current mode's default pose.
-   *  Mirrors clicking the gem in the city.
-   *  Does NOT rebuild the city manifest — reload the page for that. */
+  /** Reset the framing to the mode's default pose, as clicking the gem does.
+   *  Does NOT rebuild the manifest: reload the page for that. */
   RESET_VIEW: { label: 'R', keys: ['r', 'R', 'Home'] },
   /** Focus camera on the current selection. */
   FOCUS_SELECTION: { label: 'F', keys: ['f', 'F'] },

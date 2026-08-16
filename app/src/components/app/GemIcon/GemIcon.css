@@ -1,8 +1,7 @@
 /* ── Gem icon ──────────────────────────────────────────────────────────────── */
 
-/* .gem-icon — sizing for the codecity gem, an inline <svg> whose per-face
-   palette fills render directly (see the GemIcon component). Same 1em sizing
-   as .icon so it slots into header buttons without throwing off alignment. */
+/* Same 1em sizing as .icon, so the gem slots into header buttons without
+   throwing off their alignment. */
 .gem-icon {
   display: inline-block;
   width: 1em;

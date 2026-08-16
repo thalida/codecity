@@ -11,7 +11,6 @@ export { DEFAULT_SERVER_CONFIG };
 
 export const SERVER_CONFIG = signal<ServerConfig>(DEFAULT_SERVER_CONFIG);
 
-// Empty until the fetch lands, and empty forever if the server has Discover
-// switched off. The tab keys its visibility off this being non-empty, so there
-// is no separate "loaded yet?" flag to keep in step.
+// Empty until the fetch lands, and forever if Discover is off. The tab keys its
+// visibility off that, so there is no "loaded yet?" flag to keep in step.
 export const DISCOVER = signal<readonly DiscoverEntry[]>([]);

@@ -1,11 +1,7 @@
 /* ── RangePair ── */
 
-/* Dual-thumb range — two stacked native range inputs share a single
- * absolutely-positioned visual track. Both inputs span the full container
- * height and have their runnable-track set to fill that height too — so
- * webkit naturally centers each thumb vertically on the input box, which
- * is the same vertical center as the visual track (top:50%/translateY).
- * Result: thumbs sit ON the track, never below it. */
+/* Two stacked native ranges over one visual track. Both fill the container
+ * height, so webkit's own centring puts each thumb ON the track. */
 .setting-range-pair {
   position: relative;
   flex: 1 1 auto;
@@ -35,10 +31,8 @@
   box-shadow: var(--cc-glow-accent);
 }
 
-/* Both range inputs overlay the pair container exactly. The track itself
- * is transparent (we draw the visible track above), so each input only
- * contributes its thumb to the visual. pointer-events:none on the input
- * lets clicks pass through except where the thumb itself sits. */
+/* Each input contributes only its thumb: its own track is transparent, and
+ * pointer-events pass through everywhere but the thumb. */
 .setting-range-pair input[type='range'] {
   position: absolute;
   inset: 0;
@@ -51,9 +45,8 @@
   margin: var(--cc-space-0);
   padding: var(--cc-space-0);
 }
-/* The transparent overlay input spans the whole container, so a default
- * focus outline would frame the entire pair. Suppress that and put the
- * keyboard ring on the thumb instead, where the focused value actually is. */
+/* The overlay input spans the pair, so its default outline would frame both.
+ * The ring goes on the thumb, where the focused value is. */
 .setting-range-pair input[type='range']:focus {
   outline: none;
 }
@@ -66,10 +59,8 @@
   outline-offset: 2px;
 }
 
-/* Filled track HEIGHT = pair container height. Webkit centers the thumb
- * on the runnable-track midline, so a full-height track means the thumb's
- * vertical center aligns with the input's vertical center — and that's
- * the same center as our visible track element above. */
+/* Full-height: webkit centres the thumb on the runnable-track midline, which
+ * is then the same centre as the visible track. */
 .setting-range-pair input[type='range']::-webkit-slider-runnable-track {
   background: transparent;
   height: 100%;
@@ -81,10 +72,8 @@
   border: none;
 }
 
-/* Thumb. webkit needs an explicit margin-top of -((thumb - track)/2) to
- * sit centered on a track of the same height — but since we set the
- * runnable-track to fill the input, the natural centering takes over and
- * no margin nudge is needed. */
+/* No margin nudge: the full-height runnable-track means webkit's natural
+ * centring already lands it. */
 .setting-range-pair input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;

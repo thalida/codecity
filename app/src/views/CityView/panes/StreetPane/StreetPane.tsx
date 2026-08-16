@@ -14,7 +14,7 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
-import { nodeUrl } from '@/utils/commit';
+import { nodeUrl } from '@/utils/remoteUrls';
 import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';

@@ -1,25 +1,15 @@
-// views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets.ts — Resolve README image/asset references to servable
-// URLs. The README is rendered in the Info panel via marked; its relative
-// image paths (e.g. ./docs/banner.png) would otherwise resolve against the
-// app origin and 404. We rewrite repo-relative refs to route through
-// /api/file, resolved against the README's own directory.
+// readmeAssets.ts — README asset refs to URLs the browser can load. A relative
+// image path would resolve against the app origin and 404, so repo-relative
+// refs are rewritten through /api/file, against the README's own directory.
 
 import { fileUrl } from '@/api/file';
 
-// Skip rewriting for anything already addressable as-is: a URL with a scheme
-// (http:, https:, data:, blob:, mailto:, …), a protocol-relative URL (//host),
-// or a bare fragment (#anchor).
+// Already addressable as-is: a scheme, a protocol-relative //host, or a bare
+// #anchor.
 const _ABSOLUTE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 
-/**
- * Resolve a README asset `href` to a URL the browser can load. Absolute URLs
- * pass through untouched; repo-relative paths are resolved against the
- * README's directory and routed through the /api/file endpoint.
- *
- * `readmeFullPath` is the README's absolute server path (posix). A leading
- * slash on `href` is treated as repo-root-relative — since the only README we
- * render is the repo-root one, that's the README's own directory.
- */
+/** Absolute URLs pass through; repo-relative ones route through /api/file. A
+ *  leading slash is repo-root-relative, which is this README's own directory. */
 export function resolveReadmeAssetUrl(href: string, readmeFullPath: string): string {
   if (!href || _ABSOLUTE.test(href)) return href;
   const dir = readmeFullPath.slice(0, readmeFullPath.lastIndexOf('/'));
@@ -42,15 +32,8 @@ export function resolveReadmeAssetUrl(href: string, readmeFullPath: string): str
 // before `src` keeps it from matching attributes like `data-src`.
 const _IMG_SRC = /(<img\b[^>]*?\ssrc\s*=\s*)(["'])(.*?)\2/gi;
 
-/**
- * Rewrite the `src` of any raw-HTML <img> tags in a rendered-README HTML
- * fragment, the same way resolveReadmeAssetUrl handles markdown image refs.
- *
- * READMEs commonly use `<img src="…">` directly (for width/align control) rather
- * than markdown `![](…)`. marked emits those as `html` tokens, which the
- * image-token hook never sees — so their relative paths would 404 against the
- * app origin. Run this on the text of each html token.
- */
+/** The same rewrite for raw-HTML <img> tags: marked emits those as `html`
+ *  tokens, which the image-token hook never sees. Run it per html token. */
 export function rewriteHtmlImageUrls(html: string, readmeFullPath: string): string {
   return html.replace(
     _IMG_SRC,

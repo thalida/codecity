@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commitUrl, nodeUrl } from '@/utils/commit';
+import { commitUrl, nodeUrl } from '@/utils/remoteUrls';
 
 describe('commitUrl', () => {
   it('appends /commit/<sha> for a github URL', () => {

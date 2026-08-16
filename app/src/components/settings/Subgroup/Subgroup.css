@@ -11,18 +11,14 @@
   padding-top: var(--cc-space-0);
 }
 
-/* Subgroup label spacing — the inline label <div> at the top of a
-   non-collapsible subgroup adds breathing room above its rows. Typography
-   (color, weight, size) comes from .text-label. */
+/* Breathing room above a non-collapsible subgroup's rows. Typography comes
+   from .text-label. */
 .setting-subgroup > .text-label {
   margin-bottom: var(--cc-space-4);
 }
 
-/* Collapsible subgroup variant — a button-driven disclosure (see Subgroup.tsx)
- * whose header doubles as the subgroup label. Same Lucide chevron + hover row
- * treatment as .controls-section-summary so the open/closed affordance is
- * consistent at every level of the panel; nesting is shown by the indent guide
- * on .controls-disclosure-body (ControlsPane.css). */
+/* A button-driven disclosure whose header doubles as the label. Same chevron
+ * and hover treatment as a section, so the affordance reads at every level. */
 .setting-subgroup-collapsible > .setting-subgroup-summary {
   /* Sticky header stacked below the sticky section header (offset = section
    * header height, set on .controls-pane). Opaque bg so rows don't show through. */

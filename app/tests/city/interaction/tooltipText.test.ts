@@ -6,8 +6,7 @@ import {
 } from '@/city/interaction/tooltipText';
 import { NodeKind } from '@/types';
 import { commits as buildCommits } from '../../_helpers/commits';
-import type { FileNode, DirNode } from '@/types';
-import type { PickTarget } from '@/types';
+import type { FileNode, DirNode, PickTarget } from '@/types';
 
 // Minimal FileNode/DirNode factories — the formatter only reads a handful of
 // fields, but the types require the full shape, so fill the rest with inert

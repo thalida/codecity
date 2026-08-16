@@ -1,8 +1,7 @@
 /* ── ResetButton ── */
 
-/* Tiny accent reset buttons (controls section + subgroup + setting row).
-   Two near-identical rules from the audit consolidated into a shared
-   ruleset; no new component class. */
+/* The section, subgroup and row resets share one ruleset rather than a new
+   component class. */
 .controls-section-reset,
 .controls-subgroup-reset,
 .setting-row-reset {
@@ -40,10 +39,8 @@
   color: var(--cc-accent-bg);
   cursor: default;
 }
-/* Section and subgroup resets are flex siblings of the disclosure toggle in the
- * header row (NOT inside it — see Section.tsx / Subgroup.tsx). The toggle's
- * flex:1 already pushes them to the far right; the row's align-items:center
- * keeps them vertically centered. */
+/* Siblings of the disclosure toggle, not inside it: its flex:1 already pushes
+ * these to the far right. */
 .controls-section-reset,
 .controls-subgroup-reset {
   flex-shrink: 0;

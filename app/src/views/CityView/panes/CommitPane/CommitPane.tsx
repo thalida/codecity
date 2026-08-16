@@ -12,7 +12,7 @@ import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { commitUrl } from '@/utils/commit';
+import { commitUrl } from '@/utils/remoteUrls';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';

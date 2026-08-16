@@ -1,8 +1,7 @@
 /* ── HueMapField ── */
 
-/* Hue preview — sits at the right end of a hue slider row, showing the
- * current hue as a solid swatch (S/L are fixed mid-range so it reads
- * as a pure-hue chip rather than a final building color). */
+/* Hue preview. S/L are fixed mid-range so it reads as a pure-hue chip rather
+ * than a final building colour. */
 .setting-hue-preview {
   display: inline-block;
   width: 18px;

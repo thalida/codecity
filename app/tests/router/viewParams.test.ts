@@ -1,8 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { readUrlView } from '@/router/viewParams';
-import { normalizeBootRoute } from '@/router/location';
+import { normalizeBootRoute, HREF, navigate, ROUTE_PARAMS } from '@/router/location';
 import { NodeKind } from '@/types';
-import { HREF, navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
 function boot(href: string) {
