@@ -4,10 +4,11 @@
 // the chip renders before a project loads: gem alone, still opening it.
 
 import './ProjectSwitcher.css';
+import { BranchPill } from '@/components/BranchPill/BranchPill';
 import { ChevronsUpDown } from 'lucide-preact';
 import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
-import { HostingIcon } from '@/components/HostingIcon';
+import { HostingIcon } from '@/components/HostingIcon/HostingIcon';
 
 export interface ProjectSwitcherProps {
   rootLabel: string;
@@ -49,7 +50,7 @@ export function ProjectSwitcher({ rootLabel, branch, src, onSwitchSource }: Proj
           <span class="project-switcher-name">{name}</span>
         </span>
       )}
-      {branch && <span class="app-header-branch-pill">@{branch}</span>}
+      {branch && <BranchPill branch={branch} />}
       <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
     </button>
   );

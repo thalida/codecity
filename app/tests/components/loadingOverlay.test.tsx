@@ -109,7 +109,7 @@ describe('LoadingOverlay', () => {
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     showLoadingOverlay({ kind: SourceKind.Remote, branch: 'main' });
     await flush();
-    expect(container.querySelector('.app-header-branch-pill')?.textContent).toBe('@main');
+    expect(container.querySelector('.branch-pill')?.textContent).toBe('@main');
   });
 
   it('git mode starts with resolving active', async () => {

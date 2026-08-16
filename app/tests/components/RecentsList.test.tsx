@@ -85,7 +85,7 @@ describe('RecentsList', () => {
 
     const rows = container.querySelectorAll('.source-list-item');
     expect(rows).toHaveLength(1);
-    expect(container.querySelector('.app-header-branch-pill')).toBeNull();
+    expect(container.querySelector('.branch-pill')).toBeNull();
     expect(container.querySelector('.source-row--active')).toBeTruthy();
   });
 

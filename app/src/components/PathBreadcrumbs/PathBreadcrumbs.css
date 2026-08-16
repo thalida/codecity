@@ -1,4 +1,4 @@
-.app-header-crumbs {
+.crumbs {
   flex: 0 1 auto;
   min-width: 0;
   display: flex;
@@ -10,7 +10,7 @@
 
 /* The filename truncates only once every crumb has been hidden whole:
    applyMiddleEllipsis keeps hiding while this one is losing characters. */
-.app-header-seg.is-leaf {
+.crumb.is-leaf {
   min-width: 6ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -28,15 +28,15 @@
 
 /* Display-only segment (no onSegmentClick handler): plain text, not a button.
    Muted for parents, strong for the leaf (the file-ending, most important). */
-.app-header-seg--static {
+.crumb--static {
   color: var(--cc-text-muted);
   white-space: nowrap;
 }
-.app-header-seg--static.is-leaf {
+.crumb--static.is-leaf {
   color: var(--cc-text-strong);
 }
 
-.app-header-sep {
+.crumb-sep {
   flex: 0 0 auto;
   color: var(--cc-text-faint);
   font-size: var(--cc-font-sm);
@@ -45,7 +45,7 @@
 
 /* Middle-truncation ellipsis placeholder. Shown when middle crumbs are
    hidden to prevent overflow; hover reveals the hidden segment names. */
-.app-header-ellipsis {
+.crumb-ellipsis {
   flex: 0 0 auto;
   color: var(--cc-text-muted);
   padding: 0 var(--cc-space-1);

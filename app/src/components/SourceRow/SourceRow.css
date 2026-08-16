@@ -47,7 +47,7 @@
   font-weight: var(--cc-fw-medium);
   white-space: nowrap;
 }
-.source-row-label-row .app-header-branch-pill {
+.source-row-label-row .branch-pill {
   margin-left: 0;
 }
 .source-row-branch {

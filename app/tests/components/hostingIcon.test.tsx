@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { HostingIcon } from '@/components/HostingIcon';
+import { HostingIcon } from '@/components/HostingIcon/HostingIcon';
 import { flush } from '../_helpers/preact';
 
 describe('HostingIcon', () => {

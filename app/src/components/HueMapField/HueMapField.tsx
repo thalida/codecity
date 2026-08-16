@@ -11,7 +11,7 @@ import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
 import { SettingRow } from '../SettingRow/SettingRow';
 import { fileTagHsl } from '@/utils/colors';
-import type { FieldProps } from '../Field';
+import type { FieldProps } from '@/components/Field/Field';
 
 export function HueMapField({ store, fieldKey }: FieldProps) {
   const map = useEffective<Record<string, number>>(store, fieldKey) ?? {};

@@ -28,7 +28,7 @@
 }
 /* The flex gap spaces the pill; drop its header-context margin. The branch is
    short and fixed, so the name is what gives way. */
-.loading-header .app-header-branch-pill {
+.loading-header .branch-pill {
   margin-left: 0;
   flex: none;
 }

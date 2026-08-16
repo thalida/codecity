@@ -7,7 +7,7 @@ import { Fragment } from 'preact';
 import { EyeOff, RefreshCcwDot, RefreshCw, RotateCcw } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { FreshnessStatus, useFreshness } from '@/components/FreshnessStatus/FreshnessStatus';
-import { Field } from '@/components/Field';
+import { Field } from '@/components/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';

@@ -3,7 +3,7 @@
 
 import { Section } from '@/components/Section/Section';
 import { Subgroup } from '@/components/Subgroup/Subgroup';
-import { Field } from '@/components/Field';
+import { Field } from '@/components/Field/Field';
 import type { ComponentChildren } from 'preact';
 import type { FieldRef, GroupNode, SectionChild, SectionNode } from '@/types/controls';
 

@@ -4,6 +4,7 @@
 // ProjectsView's inline progress, so the phase→step mapping has one definition.
 
 import './LoadingProgress.css';
+import { BranchPill } from '@/components/BranchPill/BranchPill';
 
 import { SourceKind } from '@/utils/sources';
 import {
@@ -48,7 +49,7 @@ export function LoadingProgress({
         <span class="loading-pending-label" title={pendingLabel ?? undefined}>
           {pendingLabel}
         </span>
-        {branch && <span class="app-header-branch-pill">@{branch}</span>}
+        {branch && <BranchPill branch={branch} />}
       </div>
       <div class="loading-spinner" />
       <div class="loading-status" role="status" aria-live="polite">

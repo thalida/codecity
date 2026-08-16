@@ -32,7 +32,7 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
 
   return (
     <header id="city-header" class="surface-chrome">
-      <ChromeCluster class="app-header-project">
+      <ChromeCluster class="city-header-project">
         <ProjectSwitcher
           rootLabel={si.label}
           branch={si.branch}
@@ -60,7 +60,7 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
       {hasProject && (
         // Still a cluster around the one item: ScanMenu renders no wrapper, so
         // this is what its panel anchors to.
-        <ChromeCluster class="app-header-freshness">
+        <ChromeCluster class="city-header-freshness">
           <ScanMenu onRefresh={onRefresh} />
         </ChromeCluster>
       )}

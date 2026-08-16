@@ -20,14 +20,14 @@
 
 /* Shrinkable, so a long repo name truncates rather than pushing the freshness
    cluster off. The id outranks .chrome-cluster's `flex: none`, which loads later. */
-#city-header .app-header-project {
+#city-header .city-header-project {
   flex: 0 1 auto;
   min-width: 0;
 }
 
 /* Freshness cluster pinned to the far right, opposite the project controls:
    how fresh the city is, and everything that acts on it, behind one press. */
-.app-header-freshness {
+.city-header-freshness {
   margin-left: auto;
 }
 

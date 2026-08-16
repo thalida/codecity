@@ -1,9 +1,7 @@
 /* ── Sidebar scrollbars ─────────────────────────────────────────────────────── */
 
-/* Scrollbars — shared rules for both sidebars.
-   Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
-   scrollbar-width / scrollbar-color (set further down on the scrolling
-   children that actually overflow). */
+/* Scrollbars for both sidebars. Firefox's scrollbar-width / -color are set
+   further down, on the children that actually overflow. */
 #right-sidebar ::-webkit-scrollbar,
 #left-sidebar ::-webkit-scrollbar {
   width: 4px;
@@ -39,4 +37,35 @@
 #left-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
+}
+
+/* ── Resize handles: the sidebar is the only thing that has any ── */
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: transparent;
+}
+.resize-handle--left {
+  left: -3px;
+  z-index: 101;
+}
+.resize-handle--right {
+  right: -3px;
+  z-index: 91;
+}
+.resize-handle:hover,
+.resize-handle.dragging {
+  background: var(--cc-accent-bg-strong);
+}
+
+/* Unhittable by thumb and in the screen-edge swipe path (COARSE_POINTER_QUERY);
+   nothing to drag once the sidebars are viewport-width drawers (PHONE_MAX_PX). */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
+  .resize-handle {
+    display: none;
+  }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
-import { Field } from '@/components/Field';
+import { Field } from '@/components/Field/Field';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { flush } from '../_helpers/preact';
 
@@ -78,9 +78,8 @@ describe('SettingRow layout B', () => {
     );
   });
 
-  // A <label> with no `for` implicitly labels its first labelable descendant,
-  // which in a row with a reset button is the reset: it took the row's name and
-  // lit up on hover anywhere in the row.
+  // A <label> with no `for` labels its first labelable descendant, which in
+  // this row is the reset button: it took the row's name.
   it('is only a <label> when there is a control to point it at', async () => {
     mount(
       <SettingRow label="Accent">

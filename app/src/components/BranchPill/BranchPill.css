@@ -1,0 +1,17 @@
+/* The "@branch" chip, wherever a repo is named. */
+
+.branch-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--cc-space-3);
+  margin-left: var(--cc-space-3);
+  border-radius: var(--cc-radius-md);
+  /* Neutral, not accent: accent marks what's pressable in these bars, and the
+     branch is a label on the name beside it. */
+  background: var(--cc-overlay-bg);
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-2xs);
+  font-family: var(--cc-font-mono);
+  white-space: nowrap;
+}

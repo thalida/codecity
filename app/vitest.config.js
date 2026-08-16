@@ -4,15 +4,8 @@ import preact from '@preact/preset-vite';
 
 const appDir = import.meta.dirname;
 
-// Two projects share the same `@/` alias and jsdom setup:
-//   - `unit`  → tests/**/*.test.{js,ts}       (run by `npm test`)
-//   - `bench` → tests/bench/**/*.test.{js,ts} (run by `npm run bench`, and
-//               excluded from unit, or every run would pay their 60s harnesses)
-// `extends: true` inherits the root resolve.alias so we don't duplicate it.
-//
-// tests/bench/ holds timing harnesses only. The bit-identical golden guards sit
-// with the unit tests because they assert correctness, not speed: parked in
-// bench they ran in neither CI nor the pre-push gate.
+// Two projects: `unit` runs tests/**, `bench` runs tests/bench/** and is
+// excluded from unit, or every run pays its 60s harnesses (see its README).
 export default defineConfig({
   // Preact plugin mirrors vite.config.js so vitest can parse JSX/TSX in
   // source modules that tests transitively import.

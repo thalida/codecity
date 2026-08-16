@@ -35,9 +35,9 @@ export function PathBreadcrumbs({
   const budgetRef = useContext(PaneTitleBudgetContext);
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {
-      segmentClass: 'app-header-seg',
-      separatorClass: 'app-header-sep',
-      ellipsisClass: 'app-header-ellipsis',
+      segmentClass: 'crumb',
+      separatorClass: 'crumb-sep',
+      ellipsisClass: 'crumb-ellipsis',
       observeRef: budgetRef ?? undefined,
     },
     [path]
@@ -52,34 +52,28 @@ export function PathBreadcrumbs({
         kind={isFileSel ? NodeKind.File : NodeKind.Directory}
         extension={isFileSel ? extension : null}
       />
-      <div
-        ref={crumbsRef}
-        class="app-header-crumbs"
-        title={isRoot ? rootLabel : `${rootLabel}/${path}`}
-      >
+      <div ref={crumbsRef} class="crumbs" title={isRoot ? rootLabel : `${rootLabel}/${path}`}>
         {crumbs.map((crumb, i) => {
           const isLeaf = i === crumbs.length - 1;
           const leafClass = isLeaf ? ' is-leaf' : '';
           return (
             <Fragment key={`seg-${i}`}>
               {i > 0 && (
-                <span class="app-header-sep" aria-hidden="true">
+                <span class="crumb-sep" aria-hidden="true">
                   ›
                 </span>
               )}
               {onSegmentClick ? (
                 <button
                   type="button"
-                  class={`btn-icon btn-icon--text app-header-seg${leafClass}`}
+                  class={`btn-icon btn-icon--text crumb${leafClass}`}
                   onClick={() => onSegmentClick(crumb.segPath)}
                 >
                   {crumb.label}
                 </button>
               ) : (
                 // Display-only: a plain segment, not a faded disabled button.
-                <span class={`app-header-seg app-header-seg--static${leafClass}`}>
-                  {crumb.label}
-                </span>
+                <span class={`crumb crumb--static${leafClass}`}>{crumb.label}</span>
               )}
             </Fragment>
           );

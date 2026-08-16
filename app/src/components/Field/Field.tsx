@@ -1,19 +1,15 @@
-// components/Field.tsx — One generic settings row, driven entirely
-// by the field's schema definition (looked up by store + key). Dispatches on
-// `kind` to the right primitive and wraps it in a Row (label + tip + reset).
-//
-// Replaces the per-kind Fields.tsx wrappers (ColorField/NumberField/
-// SliderField/ToggleField/SelectField/RangePairField) — the metadata they
-// duplicated in JSX now lives once in the store schema.
+// components/Field — one settings row for any field, driven by its schema:
+// dispatch on `kind` to the right primitive, wrapped in a Row. The metadata a
+// per-kind wrapper would duplicate lives once in the store.
 
 import { useId } from 'preact/hooks';
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useSettings';
-import { SettingRow } from './SettingRow/SettingRow';
-import { TierWidthsField } from './TierWidthsField';
-import { HueMapField } from './HueMapField/HueMapField';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
+import { TierWidthsField } from '@/components/TierWidthsField/TierWidthsField';
+import { HueMapField } from '@/components/HueMapField/HueMapField';
 import { ColorInput } from '@/components/ColorInput/ColorInput';
-import { NumberInput } from '@/components/NumberInput';
+import { NumberInput } from '@/components/NumberInput/NumberInput';
 import { Slider } from '@/components/Slider/Slider';
 import { Toggle } from '@/components/Toggle/Toggle';
 import { SegmentedSelect } from '@/components/SegmentedSelect/SegmentedSelect';
@@ -33,9 +29,8 @@ export interface FieldProps {
 
 export function Field({ store, fieldKey, compact }: FieldProps) {
   const def = getFieldDef(store as object, fieldKey);
-  // useField must run unconditionally (hook rules); the early-return guard
-  // below only fires for a misconfigured schema, which a completeness test
-  // catches — so in practice the hook always runs with a real field.
+  // Unconditional, per hook rules: the guard below only fires on a schema a
+  // completeness test would already have failed.
   const binding = useField(store, fieldKey);
   const descId = useId();
   const controlId = useId();
@@ -47,9 +42,8 @@ export function Field({ store, fieldKey, compact }: FieldProps) {
     return null;
   }
 
-  // TierWidths / HueMap are array/object-valued fields that expand to one row
-  // per entry, so they render their own rows rather than a single Row-wrapped
-  // control.
+  // These expand to one row per entry, so they bring their own rows rather
+  // than a single wrapped control.
   if (def.kind === FieldKind.TierWidths) {
     return <TierWidthsField store={store} fieldKey={fieldKey} />;
   }

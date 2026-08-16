@@ -80,7 +80,7 @@ describe('CityHeader', () => {
     render(<CityHeader />, container);
     await flush();
 
-    const freshness = container.querySelector('.app-header-freshness')!;
+    const freshness = container.querySelector('.city-header-freshness')!;
     expect(freshness).not.toBeNull();
     expect(freshness.querySelector('.freshness-status')).not.toBeNull();
     expect(freshness.classList.contains('chrome-cluster')).toBe(true);
@@ -96,7 +96,7 @@ describe('CityHeader', () => {
     render(<CityHeader />, container);
     await flush();
 
-    const cluster = container.querySelector('.app-header-freshness')!;
+    const cluster = container.querySelector('.city-header-freshness')!;
     const trigger = cluster.querySelector('.scan-menu-trigger')!;
     expect(trigger.parentElement).toBe(cluster);
   });
@@ -150,7 +150,7 @@ describe('CityHeader', () => {
   it('shows nothing to refresh before a project is loaded', async () => {
     render(<CityHeader />, container);
     await flush();
-    expect(container.querySelector('.app-header-freshness')).toBeNull();
+    expect(container.querySelector('.city-header-freshness')).toBeNull();
   });
 
   it('has no reset-view control', async () => {

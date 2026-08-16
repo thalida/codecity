@@ -4,7 +4,8 @@
 // around a row (a remove control, an active badge) belongs to its lister.
 
 import './SourceRow.css';
-import { HostingIcon } from '@/components/HostingIcon';
+import { BranchPill } from '@/components/BranchPill/BranchPill';
+import { HostingIcon } from '@/components/HostingIcon/HostingIcon';
 
 export interface SourceRowProps {
   src: string;
@@ -49,9 +50,9 @@ export function SourceRow({
           {branch && (
             // Inner span so the pill can ellipsize: text-overflow doesn't reach
             // the anonymous text run of a flex container.
-            <span class="app-header-branch-pill source-row-branch" title={branch}>
+            <BranchPill branch={branch} class="source-row-branch" title={branch}>
               <span class="source-row-branch-name">@{branch}</span>
-            </span>
+            </BranchPill>
           )}
         </div>
         <div class="source-row-sub">
