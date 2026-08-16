@@ -9,7 +9,7 @@ import {
   SELECTION_PANE_DISMISSED,
   dismissSelectionPane,
   openSelectionPane,
-} from '@/state/stores/sidebars';
+} from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
-import { DEBUG_OPEN, openDebug } from '@/state/stores/modals';
+import { DEBUG_OPEN, openDebug } from '@/state/stores/chrome';
 import { flush, drainAsync } from '../_helpers/preact';
 
 // The footer mounts one <DebugMenu /> with the scene commands as props; its

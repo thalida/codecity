@@ -6,7 +6,7 @@ import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CityS
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/sidebars';
+import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';

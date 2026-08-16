@@ -7,7 +7,7 @@
 import './ShortcutsMenu.css';
 import { Keyboard } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
-import { SHORTCUTS_OPEN } from '@/state/stores/modals';
+import { SHORTCUTS_OPEN } from '@/state/stores/chrome';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { IS_TOUCH } from '@/state/stores/viewport';
 

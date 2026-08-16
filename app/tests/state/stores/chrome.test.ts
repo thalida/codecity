@@ -2,7 +2,13 @@
 // the scene's shortcuts must not fire underneath it.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { OVERLAY_OPEN, openShortcuts, closeShortcuts, openDebug, closeDebug } from '@/state/stores/modals';
+import {
+  OVERLAY_OPEN,
+  openShortcuts,
+  closeShortcuts,
+  openDebug,
+  closeDebug,
+} from '@/state/stores/chrome';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 

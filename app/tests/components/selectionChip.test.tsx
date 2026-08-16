@@ -7,7 +7,7 @@ import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { SelectionChip } from '@/components/SelectionChip/SelectionChip';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/sidebars';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';

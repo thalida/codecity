@@ -6,7 +6,7 @@ import './CitySidebarLeft.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
-import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/sidebars';
+import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
