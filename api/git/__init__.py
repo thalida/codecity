@@ -28,7 +28,6 @@ from .source import (
     ResolveError,
     SourceKind,
     classify,
-    label_from_source,
     resolve_local,
     resolve_source,
 )
@@ -47,7 +46,6 @@ __all__ = [
     "ensure_clone",
     "fetch_lfs_history",
     "hydrate_blobs",
-    "label_from_source",
     "list_remote_branches",
     "read_blob",
     "resolve_local",

@@ -87,26 +87,6 @@ def classify(raw: str) -> SourceKind:
     return SourceKind.INVALID
 
 
-def label_from_source(src: str | None) -> str | None:
-    """Display label for a source string — a git URL OR a local path.
-
-    Git URL → "owner/repo" (last two path segments, sans .git). Local path →
-    its basename. An optional trailing "@branch" is stripped first.
-
-    THE single primitive for the repo's display name, used in exactly two
-    places: the scanner bakes tree.name from the git remote's URL
-    (scan._wrap_manifest), and the manifest route derives the pending progress
-    label from the raw src. Nothing else derives a name."""
-    if not src:
-        return None
-    no_branch = re.sub(r"@[^@/]+$", "", src)  # strip a trailing @branch
-    if "://" in no_branch or _GIT_SSH_FORM.match(no_branch):
-        m = re.search(r"[/:]([^/]+)/([^/]+?)(?:\.git)?$", no_branch)
-        return f"{m.group(1)}/{m.group(2)}" if m else no_branch
-    parts = [p for p in re.split(r"[/\\]", no_branch) if p]  # local path → basename
-    return parts[-1] if parts else no_branch
-
-
 def _is_git_working_tree(path: Path) -> bool:
     """Return True if path is inside a git working tree.
 

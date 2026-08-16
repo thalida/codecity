@@ -12,7 +12,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from api.git import source
-from api.git.source import label_from_source
+from api.utils.labels import label_from_source
 
 
 class LabelFromSourceTests(unittest.TestCase):

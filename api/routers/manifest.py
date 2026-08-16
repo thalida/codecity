@@ -22,6 +22,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.core.constants import ErrorCode, ScanEvent, TimelineEvent, TimelineStage
 from api.routers.sse import Put, stream
+from api.utils.labels import label_from_source
 from api.models.events import (
     CloneProgressEvent,
     CompleteManifestEvent,
@@ -56,7 +57,6 @@ from api.git import (
     ensure_clone,
     fetch_lfs_history,
     hydrate_blobs,
-    label_from_source,
     resolve_local,
     resolve_ref,
     resolve_source,

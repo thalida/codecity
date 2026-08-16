@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.core.config import MAX_WIRE_COMMITS
-from api.git.source import label_from_source
+from api.utils.labels import label_from_source
 from api.models.manifest import (
     CommitEntry,
     DirNode,
