@@ -57,9 +57,12 @@ export function islandSeedFromBounds(b: WorldBounds): number {
 export function createIsland(ctx: SceneContext): Island {
   const { cityState } = ctx;
   let currentBounds = getWorldBounds(null);
+  // No city yet, so no ground: the fallback rectangle exists to give the mesh a
+  // shape, not to paint an island over whatever the view put behind the canvas.
+  let sized = false;
   const group = new THREE.Group();
   group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
-  group.visible = ISLAND.value.ENABLED;
+  group.visible = false;
 
   // Island mesh.
   let params = buildParams(currentBounds, islandSeedFromBounds(currentBounds));
@@ -88,6 +91,8 @@ export function createIsland(ctx: SceneContext): Island {
     });
     islandMesh.geometry = geometry;
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
+    sized = true;
+    group.visible = ISLAND.peek().ENABLED;
   }
 
   // The bounds reference is stable across a reuse apply, so this fires on real
@@ -99,10 +104,10 @@ export function createIsland(ctx: SceneContext): Island {
 
   // Also runs once at construction, re-applying what the constructor baked.
   const stopEffect = onSettings(ISLAND, () => {
-    // Geometry colors changed → rebuild (vertex colors are baked into the
-    // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.
-    setBounds(currentBounds);
-    group.visible = ISLAND.value.ENABLED;
+    // Vertex colours are baked into the geometry, so a colour change rebuilds.
+    // Only once sized: the fallback rectangle is not ground worth painting.
+    if (sized) setBounds(currentBounds);
+    group.visible = sized && ISLAND.value.ENABLED;
     const m = ISLAND.value;
     (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(m.HEMI_SKY_COLOR);
     (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(m.HEMI_GROUND_COLOR);

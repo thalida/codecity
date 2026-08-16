@@ -9,8 +9,18 @@ vi.mock('@/city/sceneHandle', async (importOriginal) => ({
   clearSelection: vi.fn(),
 }));
 
+// The Timeline entry points, stubbed: what matters is which one the URL asks
+// for, not the bundle fetch and repack behind it.
+vi.mock('@/hooks/useTimelineMode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useTimelineMode')>()),
+  loadTimelineScene: vi.fn(async () => {}),
+  exitTimelineMode: vi.fn(),
+  viewCommitInTimeline: vi.fn(async () => {}),
+}));
+
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import { showPath, showCommit } from '@/city/sceneHandle';
+import { showPath, showCommit, clearSelection } from '@/city/sceneHandle';
+import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/progress';
@@ -220,6 +230,88 @@ describe('view URL', () => {
       markDecorating(); // the committed manifest's city lands
       await flush();
       expect(showPath).toHaveBeenCalledWith('app/src/main.tsx');
+    });
+
+    // Back and Forward land here: the URL moves under a city that is already up,
+    // which is a different path from restoring one at load.
+    describe('back and forward', () => {
+      /** A built city, already followed once, so the gate is open. */
+      async function loadedAndFollowed(search = ''): Promise<void> {
+        attach(`?src=%2Frepos%2Fcodecity${search}`);
+        commitWorld();
+        await flush();
+        vi.clearAllMocks();
+      }
+
+      it('back into Timeline loads it at the commit the URL names', async () => {
+        await loadedAndFollowed();
+
+        navigate('/city?src=%2Frepos%2Fcodecity&mode=timeline&commit=c1');
+        await flush();
+
+        expect(loadTimelineScene).toHaveBeenCalledWith({ commit: 'c1' });
+        expect(exitTimelineMode).not.toHaveBeenCalled();
+      });
+
+      it('back out of Timeline exits it', async () => {
+        TIMELINE_BUNDLE.value = makeCommitBundle(4);
+        TIMELINE_MODE.value = true;
+        await loadedAndFollowed('&mode=timeline');
+
+        navigate('/city?src=%2Frepos%2Fcodecity');
+        await flush();
+
+        expect(exitTimelineMode).toHaveBeenCalled();
+        expect(loadTimelineScene).not.toHaveBeenCalled();
+      });
+
+      it('a different commit scrubs there, without refetching the bundle', async () => {
+        TIMELINE_BUNDLE.value = makeCommitBundle(4);
+        TIMELINE_MODE.value = true;
+        setScrubPos(1);
+        await loadedAndFollowed('&mode=timeline&commit=c1');
+
+        navigate('/city?src=%2Frepos%2Fcodecity&mode=timeline&commit=c2');
+        await flush();
+
+        expect(viewCommitInTimeline).toHaveBeenCalledWith('c2');
+        expect(loadTimelineScene).not.toHaveBeenCalled(); // the bundle is already here
+      });
+
+      it('the same commit asks for nothing', async () => {
+        TIMELINE_BUNDLE.value = makeCommitBundle(4);
+        TIMELINE_MODE.value = true;
+        setScrubPos(1);
+        await loadedAndFollowed('&mode=timeline&commit=c1');
+
+        navigate('/city?src=%2Frepos%2Fcodecity&mode=timeline&commit=c1');
+        await flush();
+
+        expect(viewCommitInTimeline).not.toHaveBeenCalled();
+        expect(loadTimelineScene).not.toHaveBeenCalled();
+      });
+
+      it('back to a different selection re-applies it', async () => {
+        await loadedAndFollowed('&sel=file:a.ts');
+
+        navigate('/city?src=%2Frepos%2Fcodecity&sel=file:b.ts');
+        await flush();
+
+        expect(showPath).toHaveBeenCalledWith('b.ts');
+      });
+
+      it('back past a selection clears it', async () => {
+        await loadedAndFollowed('&sel=file:b.ts');
+        // showPath is stubbed, so stand the picker up by hand: without it there is
+        // no selection for the URL to disagree with.
+        PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: 'b.ts' };
+        await flush();
+
+        navigate('/city?src=%2Frepos%2Fcodecity');
+        await flush();
+
+        expect(clearSelection).toHaveBeenCalled();
+      });
     });
 
     // A remount is not a boot: re-entering Timeline on the city already

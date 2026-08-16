@@ -50,9 +50,12 @@ describe('createIsland', () => {
     island.dispose();
   });
 
-  it('effect re-applies visibility when ISLAND.ENABLED changes', () => {
+  it('stays hidden until it has bounds, then follows ISLAND.ENABLED', () => {
     const island = createIsland(fakeCtx);
-    // Initially enabled (beforeEach sets ENABLED: true).
+    // No city yet, so no ground to stand on the fallback rectangle.
+    expect(island.group.visible).toBe(false);
+
+    island.setBounds({ cx: 0, cz: 0, halfWidth: 25, halfDepth: 25 });
     expect(island.group.visible).toBe(true);
 
     // Disable via signal — effect re-runs synchronously in the test env.
@@ -97,6 +100,7 @@ describe('createIsland', () => {
   it('dispose() stops the effect: a later ISLAND mutation never toggles the group', () => {
     const island = createIsland(fakeCtx);
     const group = island.group;
+    island.setBounds({ cx: 0, cz: 0, halfWidth: 25, halfDepth: 25 });
     expect(group.visible).toBe(true);
 
     island.dispose();
