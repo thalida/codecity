@@ -11,7 +11,7 @@ import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
-import { PaneEmpty } from '@/components/Pane/Pane';
+import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
 import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
 import { isDebugMode } from '@/utils/debugMode';
-import { MetaLine } from '@/components/AppMeta/AppMeta';
+import { MetaLine } from '@/components/MetaLine/MetaLine';
 
 export interface AppFooterProps {
   onRunCollisionCheck?: () => void;

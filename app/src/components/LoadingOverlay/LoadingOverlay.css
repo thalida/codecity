@@ -37,3 +37,11 @@
     padding: var(--cc-space-7) var(--cc-space-6);
   }
 }
+
+/* Elevated panel floating on a backdrop. Pair with .surface-glass, which
+   supplies the fill. */
+.card-overlay {
+  color: var(--cc-text-base);
+  border-radius: var(--cc-radius-lg);
+  box-shadow: var(--cc-shadow-lg);
+}

@@ -1,22 +1,13 @@
-// components/AppMeta/AppMeta.tsx — What codecity says about itself: which build
-// is running, where the source is, and who made it.
-//
-// Three surfaces show these, in different arrangements: the app header carries
-// about, the app footer splits version and credit across its two ends, and the
-// project switcher runs all three under the wordmark. One definition each, so
-// the wording, the URLs and the link targets cannot drift apart.
-//
-// Link treatment is the surface's call, via `linkClass`: the app chrome keeps
-// its links at icon/prose weight so a status bar doesn't turn into a row of
-// accents, while the landing uses the house `.link` (accent + always underlined,
-// see styles/text.css) because nothing around it signals a link.
-
-import './AppMeta.css';
+// components/MetaLine/MetaLine.tsx — what codecity says about itself: the
+// build, the source and who made it. Three surfaces arrange these differently
+// (header, footer, switcher), so one definition each keeps the wording and the
+// link targets from drifting. `linkClass` leaves the treatment to the surface.
+import './MetaLine.css';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { REPO_URL, CREATOR_URL } from '@/constants/ui';
 
 /** The running build's version, as reported by the server. */
-export function MetaVersion() {
+function MetaVersion() {
   return <span class="meta-version">v{SERVER_CONFIG.value.version}</span>;
 }
 
@@ -27,7 +18,7 @@ export interface MetaLinkProps {
 }
 
 /** Outward link to the repo. */
-export function MetaAbout({ linkClass }: MetaLinkProps = {}) {
+function MetaAbout({ linkClass }: MetaLinkProps = {}) {
   return (
     <a
       class={linkClass ? `meta-link ${linkClass}` : 'meta-link'}
@@ -42,7 +33,7 @@ export function MetaAbout({ linkClass }: MetaLinkProps = {}) {
 }
 
 /** Authorship, linked to the author's site. */
-export function MetaCredit({ linkClass }: MetaLinkProps = {}) {
+function MetaCredit({ linkClass }: MetaLinkProps = {}) {
   return (
     <span class="meta-credit">
       made by 🦄{' '}

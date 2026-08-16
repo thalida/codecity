@@ -10,8 +10,9 @@ import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
-import { Pane, PaneEmpty } from '@/components/Pane/Pane';
-import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
+import { Pane } from '@/components/Pane/Pane';
+import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
+import { PaneCloseButton } from '@/components/PaneCloseButton/PaneCloseButton';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 
 const MAX_RESULTS = 50;

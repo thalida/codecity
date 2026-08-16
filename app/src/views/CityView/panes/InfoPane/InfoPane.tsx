@@ -12,7 +12,7 @@ import { Globe, Map } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane/Pane';
-import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
+import { PaneCloseButton } from '@/components/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';

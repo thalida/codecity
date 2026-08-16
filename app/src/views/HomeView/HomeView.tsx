@@ -8,7 +8,7 @@ import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
 import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
-import { MetaLine } from '@/components/AppMeta/AppMeta';
+import { MetaLine } from '@/components/MetaLine/MetaLine';
 import { LOADING_OVERLAY, SCAN_PROGRESS } from '@/state/stores/progress';
 import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';

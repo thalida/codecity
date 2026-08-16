@@ -7,7 +7,7 @@ import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
-import { PaneEmpty } from '@/components/Pane/Pane';
+import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
 import { focusPath, focusCommit } from '@/city/sceneHandle';
 import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';

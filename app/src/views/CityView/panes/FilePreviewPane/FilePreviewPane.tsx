@@ -31,7 +31,8 @@ import {
   FONT_EXTS,
 } from '@/constants/fileExtensions';
 import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
-import { Pane, PaneEmpty } from '@/components/Pane/Pane';
+import { Pane } from '@/components/Pane/Pane';
+import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';

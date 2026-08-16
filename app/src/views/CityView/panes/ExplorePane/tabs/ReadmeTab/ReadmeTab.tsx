@@ -10,7 +10,7 @@ import { fetchFileText } from '@/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import type { DirNode, Manifest } from '@/types';
-import { PaneEmpty } from '@/components/Pane/Pane';
+import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
 import { relPathIn } from '@/utils/manifest';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';

@@ -10,7 +10,7 @@ import type { Signal, ReadonlySignal } from '@preact/signals';
 import { FolderTree, BookOpen } from 'lucide-preact';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { Pane } from '@/components/Pane/Pane';
-import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
+import { PaneCloseButton } from '@/components/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';

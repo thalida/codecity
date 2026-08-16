@@ -296,3 +296,10 @@
   font-size: var(--cc-font-sm);
   word-break: break-word;
 }
+
+/* Accent-tinted info strip with a bottom rule (file-preview banner). */
+.card-banner {
+  background: var(--cc-accent-bg-soft);
+  border-bottom: 1px solid var(--cc-accent-bg);
+  padding: var(--cc-space-3) var(--cc-space-6);
+}
