@@ -32,6 +32,8 @@ from typing import Any
 
 import pytest
 
+from api.models.manifest import CommitEntry, DirNode, FileNode, Manifest, TimelineBundle
+
 
 # ── Environment isolation ────────────────────────────────────────────
 
@@ -327,8 +329,8 @@ def final_manifest(root: str, **kwargs: Any) -> Any:
 
     final = None
     for event in scan_tree(root, **kwargs):
-        if event["phase"] == "manifest-complete":
-            final = event["manifest"]
+        if event.phase == "manifest-complete":
+            final = event.manifest
     assert final is not None, "scan_tree must yield a final event"
     return final
 
@@ -418,16 +420,176 @@ class CacheRedirectMixin:
         self.cache_root = redirect_cache_root
 
 
+def make_file_node(path: str, **overrides: Any) -> FileNode:
+    """A valid FileNode with defaults for everything a test isn't asserting on.
+
+    The model requires every field, and most tests care about two or three, so
+    the defaults carry the rest instead of each call spelling out a whole node.
+    """
+    name = path.rsplit("/", 1)[-1]
+    fields: dict[str, Any] = {
+        "name": name,
+        "type": "file",
+        "path": path,
+        "fullPath": "/" + path,
+        "extension": ("." + name.rsplit(".", 1)[-1]) if "." in name else "",
+        "mediaKind": None,
+        "size": 100,
+        "lines": 10,
+        "binary": False,
+        "dirty": False,
+        "created": "2020-01-01T00:00:00Z",
+        "modified": "2020-01-01T00:00:00Z",
+    }
+    return FileNode.model_validate({**fields, **overrides})
+
+
+def make_commit(sha: str = "0" * 40, **overrides: Any) -> CommitEntry:
+    """A valid CommitEntry with defaults for whatever a test isn't asserting on.
+
+    `same_day_total` defaults to 0, matching what the history walk and the cache
+    produce before annotate_same_day_totals bakes the real figure."""
+    fields: dict[str, Any] = {
+        "date": "2026-01-01T00:00:00Z",
+        "files": 1,
+        "sha": sha,
+        "authors": [],
+        "subject": "",
+        "same_day_total": 0,
+    }
+    return CommitEntry.model_validate({**fields, **overrides})
+
+
+def make_dir_node(path: str, children: list[Any], **overrides: Any) -> DirNode:
+    """A valid DirNode wrapping `children`.
+
+    The rollup defaults are one level deep and exist so a fixture validates,
+    NOT as a reference implementation — a test asserting on rollup values must
+    build its tree through the real scanner (see `final_manifest`) or pass the
+    values it expects as overrides.
+    """
+    files = [c for c in children if c.type == "file"]
+    dirs = [c for c in children if c.type == "directory"]
+    fields: dict[str, Any] = {
+        "name": "root" if path == "." else path.rsplit("/", 1)[-1],
+        "type": "directory",
+        "path": path,
+        "fullPath": "/" + path,
+        "children": children,
+        "children_count": len(children),
+        "children_file_count": len(files),
+        "children_dir_count": len(dirs),
+        "descendants_count": len(children),
+        "descendants_file_count": len(files),
+        "descendants_dir_count": len(dirs),
+        "descendants_size": sum(f.size for f in files),
+        "descendants_created_min": min((f.created for f in files), default=None),
+        "descendants_modified_max": max((f.modified for f in files), default=None),
+        "descendants_ext_breakdown": [],
+    }
+    return DirNode.model_validate({**fields, **overrides})
+
+
+def make_manifest(root: str = "/repo", **overrides: Any) -> Manifest:
+    """A minimal but VALID Manifest, for tests about something other than the
+    manifest's contents (cache round-trips, pruning, retention).
+
+    Everything is empty or zeroed; a test that cares about real values should
+    scan a repo through `final_manifest` instead of tuning these."""
+    empty_range = {"min": 0, "max": 0}
+    leaders = dict.fromkeys(
+        (
+            "oldestCreatedFile",
+            "newestCreatedFile",
+            "newestModifiedFile",
+            "oldestModifiedFile",
+            "maxLinesFile",
+            "minLinesFile",
+            "maxBytesFile",
+            "minBytesFile",
+            "maxMediaBytesFile",
+            "minMediaBytesFile",
+            "maxMediaPixelsFile",
+            "minMediaPixelsFile",
+            "maxBinaryBytesFile",
+            "minBinaryBytesFile",
+            "maxDepthDir",
+            "maxChildrenDir",
+            "minChildrenDir",
+            "oldestCreatedDir",
+            "newestCreatedDir",
+            "maxFilesPerCommit",
+            "minFilesPerCommit",
+            "oldestCommit",
+            "newestCommit",
+            "maxCommitsPerDay",
+        )
+    )
+    fields: dict[str, Any] = {
+        "root": root,
+        "scanned_at": "2026-05-17T00:00:00Z",
+        "content_signature": "deadbeef" * 4,
+        "structure_signature": "0" * 16,
+        "layout_signature": "1" * 16,
+        "tree": make_dir_node(".", [], name="repo", fullPath=root),
+        "repo": {
+            "branch": None,
+            "remote_url": None,
+            "head_sha": None,
+            "head_subject": None,
+            "dirty": False,
+        },
+        "commits": [],
+        "busyness": {"avg": 1, "busy": 1},
+        "dateRanges": dict.fromkeys(
+            ("minCreated", "maxCreated", "minModified", "maxModified")
+        ),
+        "stats": {
+            **leaders,
+            "lineCountRange": empty_range,
+            "byteSizeRange": empty_range,
+            "mediaCount": 0,
+            "binaryCount": 0,
+            "totalLines": 0,
+            "dirtyFileCount": 0,
+            "codeBytes": 0,
+            "commitCount": 0,
+            "commitDates": {"oldest": None, "newest": None},
+            "maxCommitStreakDays": 0,
+            "authors": [],
+        },
+        "pending": [],
+        "readmePath": None,
+        "readmeModified": None,
+    }
+    return Manifest.model_validate({**fields, **overrides})
+
+
+def make_timeline_bundle(**overrides: Any) -> TimelineBundle:
+    """A minimal but VALID TimelineBundle, for the same kind of test."""
+    fields: dict[str, Any] = {
+        "commits": [],
+        "unionManifest": make_manifest(),
+        "deltas": [],
+        "blobLines": {},
+        "blobSizes": {},
+        "commitLineRanges": [],
+        "commitDateRanges": [],
+        "note": None,
+    }
+    return TimelineBundle.model_validate({**fields, **overrides})
+
+
 def walk_files(node: Any) -> Iterator[Any]:
-    for child in node["children"]:
-        if child["type"] == "file":
+    for child in node.children:
+        if child.type == "file":
             yield child
         else:
             yield from walk_files(child)
 
 
 def walk_dirs(node: Any) -> Iterator[Any]:
-    for child in node["children"]:
-        if child["type"] == "directory":
+    for child in node.children:
+        if child.type == "directory":
             yield child
             yield from walk_dirs(child)

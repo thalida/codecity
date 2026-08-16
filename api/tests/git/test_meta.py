@@ -120,24 +120,24 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         )
         self.assertGreater(len(commits), 0)
         # Manifest contract: oldest-first.
-        dates = [c["date"] for c in commits]
+        dates = [c.date for c in commits]
         self.assertEqual(
             dates, sorted(dates), f"commits should be oldest-first, got {dates}"
         )
         for c in commits:
             self.assertEqual(
-                set(c.keys()),
-                {"date", "files", "sha", "authors", "subject"},
+                set(type(c).model_fields),
+                {"date", "files", "sha", "authors", "subject", "same_day_total"},
             )
             # Full UTC timestamp, not a day: the scrubber needs the time to
             # separate same-day commits. One format so lexical == chronological.
-            self.assertRegex(c["date"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
-            self.assertGreaterEqual(c["files"], 1)
-            self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
-            self.assertGreater(len(c["authors"]), 0)
-            self.assertGreater(len(c["authors"][0]), 0)
+            self.assertRegex(c.date, r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+            self.assertGreaterEqual(c.files, 1)
+            self.assertRegex(c.sha, r"^[0-9a-f]{40}$")
+            self.assertGreater(len(c.authors), 0)
+            self.assertGreater(len(c.authors[0]), 0)
             # Subject must NOT contain a newline — git %s is first line only.
-            self.assertNotIn("\n", c["subject"])
+            self.assertNotIn("\n", c.subject)
 
     def test_collect_git_history_captures_second_author_and_subject_only(self):
         """The fixture's "Other Fixture Person" commit is now the
@@ -153,8 +153,8 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         # commits are oldest-first; the multi-author commit is now last
         # and the Other Fixture Person commit is second-to-last.
         other = commits[-2]
-        self.assertEqual(other["authors"][0], "Other Fixture Person")
-        self.assertEqual(other["subject"], "docs: add CONTRIBUTORS")
+        self.assertEqual(other.authors[0], "Other Fixture Person")
+        self.assertEqual(other.subject, "docs: add CONTRIBUTORS")
 
     def test_co_authored_commit_returns_all_distinct_authors(self) -> None:
         """The multi-author fixture commit lists three Co-authored-by trailers
@@ -165,11 +165,11 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         # The multi-author commit is now the newest; the scanner emits
         # oldest-first so it's last.
         events = list(scan_tree(str(FIXTURE)))
-        final = next(e for e in events if e["phase"] == "manifest-complete")
-        commits = final["manifest"]["commits"]
+        final = next(e for e in events if e.phase == "manifest-complete")
+        commits = final.manifest.commits
         multi = commits[-1]
         self.assertEqual(
-            multi["authors"],
+            multi.authors,
             [
                 "Test Fixture Bot",
                 "Pair Programmer",
@@ -179,7 +179,7 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         )
         # Subject of the multi-author commit (sanity check we're looking at
         # the right one).
-        self.assertEqual(multi["subject"], "feat: co-authored work")
+        self.assertEqual(multi.subject, "feat: co-authored work")
 
     def test_collect_git_history_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the
@@ -228,9 +228,9 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
             # The merge commit (latest) MUST have files >= 1.
             # commits are oldest-first, so the merge is last.
             self.assertGreaterEqual(
-                commits[-1]["files"],
+                commits[-1].files,
                 1,
-                f"merge commit files count should be >= 1; got {commits[-1]['files']}",
+                f"merge commit files count should be >= 1; got {commits[-1].files}",
             )
 
     def test_collect_git_history_counts_clean_merge_files(self):
@@ -275,9 +275,9 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
             # Side branch added b.txt; the merge against the first parent
             # (main, which has only a.txt) introduces b.txt — so files >= 1.
             self.assertGreaterEqual(
-                commits[-1]["files"],
+                commits[-1].files,
                 1,
-                f"clean merge files count should be >= 1; got {commits[-1]['files']}",
+                f"clean merge files count should be >= 1; got {commits[-1].files}",
             )
 
     def test_merge_does_not_overwrite_created_date(self):
@@ -399,12 +399,12 @@ class GitLogRobustnessTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn(
                 "error",
                 result,
-                f"scan raised on non-UTF-8 metadata: {result.get('error')!r}",
+                f"scan raised on non-UTF-8 metadata: {result!r}",
             )
             commits = result["commits"]
             assert isinstance(commits, list)
             self.assertEqual(len(commits), 1)
-            author = commits[0]["authors"][0]
+            author = commits[0].authors[0]
             self.assertIn("Fran", author)
             self.assertIn("ois", author)
 
@@ -612,10 +612,10 @@ class ScanDateResolutionTests(CacheRedirectMixin, unittest.TestCase):
         # its git history dates (the fixture pins index.ts's commit date),
         # not its filesystem dates.
         m = _final_manifest(str(FIXTURE))
-        for node in walk_files(m["tree"]):
-            if node["name"] == "index.ts":
-                self.assertEqual(node["created"], "2024-03-22T14:30:00Z")
-                self.assertEqual(node["modified"], "2024-03-22T14:30:00Z")
+        for node in walk_files(m.tree):
+            if node.name == "index.ts":
+                self.assertEqual(node.created, "2024-03-22T14:30:00Z")
+                self.assertEqual(node.modified, "2024-03-22T14:30:00Z")
                 self.assertNotIn("git", node)
                 return
         self.fail("index.ts not found in manifest")
@@ -637,10 +637,10 @@ class ScanDateResolutionTests(CacheRedirectMixin, unittest.TestCase):
             expected_modified = epoch_to_iso(st.st_mtime)
 
             m = _final_manifest(str(root))
-            for node in walk_files(m["tree"]):
-                if node["name"] == "staged.txt":
-                    self.assertEqual(node["created"], expected_created)
-                    self.assertEqual(node["modified"], expected_modified)
+            for node in walk_files(m.tree):
+                if node.name == "staged.txt":
+                    self.assertEqual(node.created, expected_created)
+                    self.assertEqual(node.modified, expected_modified)
                     return
             self.fail("staged.txt not found in manifest")
 
@@ -665,9 +665,9 @@ class ScanDateResolutionTests(CacheRedirectMixin, unittest.TestCase):
             )
 
             m = _final_manifest(str(root))
-            for node in walk_files(m["tree"]):
-                if node["name"] == "offset.txt":
-                    self.assertEqual(node["created"], "2024-03-22T13:30:00Z")
-                    self.assertEqual(node["modified"], "2024-03-22T13:30:00Z")
+            for node in walk_files(m.tree):
+                if node.name == "offset.txt":
+                    self.assertEqual(node.created, "2024-03-22T13:30:00Z")
+                    self.assertEqual(node.modified, "2024-03-22T13:30:00Z")
                     return
             self.fail("offset.txt not found in manifest")

@@ -156,10 +156,10 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
     def test_warm_run_signature_matches_cold_run(self):
         cold = _final_manifest(str(FIXTURE))
         warm = _final_manifest(str(FIXTURE))
-        self.assertEqual(cold["content_signature"], warm["content_signature"])
+        self.assertEqual(cold.content_signature, warm.content_signature)
         # And tree shape — confirm `lines` survives the cache roundtrip.
-        cold_lines = {n["path"]: n["lines"] for n in walk_files(cold["tree"])}
-        warm_lines = {n["path"]: n["lines"] for n in walk_files(warm["tree"])}
+        cold_lines = {n.path: n.lines for n in walk_files(cold.tree)}
+        warm_lines = {n.path: n.lines for n in walk_files(warm.tree)}
         self.assertEqual(cold_lines, warm_lines)
 
     def test_modified_file_recomputed(self):
@@ -170,10 +170,10 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
         # Change one file's mtime by writing to it.
         target = next(
             n
-            for n in walk_files(_final_manifest(str(FIXTURE))["tree"])
-            if n["name"] == "index.ts"
+            for n in walk_files(_final_manifest(str(FIXTURE)).tree)
+            if n.name == "index.ts"
         )
-        target_path = Path(target["fullPath"])
+        target_path = Path(target.fullPath)
         original_text = target_path.read_text()
         target_path.write_text(original_text + "\n// changed\n")
 
@@ -233,19 +233,19 @@ class MediaDimsInScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(tmp_path)
 
             manifest = _final_manifest(str(tmp_path))
-            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            files = [c for c in manifest.tree.children if c.type == "file"]
             self.assertEqual(len(files), 1)
-            self.assertEqual(files[0]["media_width"], 50)
-            self.assertEqual(files[0]["media_height"], 30)
+            self.assertEqual(files[0].media_width, 50)
+            self.assertEqual(files[0].media_height, 30)
 
             # Warm path: second scan should hit the file-stat cache and
             # still stamp media_width / media_height on the node — the
             # cache-hit branch in _populate_file_metadata.
             manifest2 = _final_manifest(str(tmp_path))
-            files2 = [c for c in manifest2["tree"]["children"] if c["type"] == "file"]
+            files2 = [c for c in manifest2.tree.children if c.type == "file"]
             self.assertEqual(len(files2), 1)
-            self.assertEqual(files2[0]["media_width"], 50)
-            self.assertEqual(files2[0]["media_height"], 30)
+            self.assertEqual(files2[0].media_width, 50)
+            self.assertEqual(files2[0].media_height, 30)
 
     def test_scan_omits_media_dims_for_non_media(self):
         with TemporaryDirectory() as tmp:
@@ -254,7 +254,7 @@ class MediaDimsInScanTests(CacheRedirectMixin, unittest.TestCase):
             (tmp_path / "code.py").write_text("print('hi')\n")
             commit_all(tmp_path)
             manifest = _final_manifest(str(tmp_path))
-            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            files = [c for c in manifest.tree.children if c.type == "file"]
             self.assertEqual(len(files), 1)
             self.assertNotIn("media_width", files[0])
             self.assertNotIn("media_height", files[0])
@@ -283,9 +283,9 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
 
     def test_binary_flag_on_png(self):
         m = _final_manifest(str(FIXTURE))
-        for node in walk_files(m["tree"]):
-            if node["name"] == "logo.png":
-                self.assertTrue(node["binary"])
+        for node in walk_files(m.tree):
+            if node.name == "logo.png":
+                self.assertTrue(node.binary)
                 return
         self.fail("logo.png not found in manifest")
 
@@ -293,7 +293,7 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
         # A media file carries its backend-computed classification; a code
         # file carries None. This is the single source the frontend reads.
         m = _final_manifest(str(FIXTURE))
-        kinds = {n["name"]: n.get("mediaKind") for n in walk_files(m["tree"])}
+        kinds = {n.name: n.mediaKind for n in walk_files(m.tree)}
         self.assertEqual(kinds.get("logo.png"), "image")
         self.assertIsNone(kinds.get("package.json"))
 
@@ -309,6 +309,6 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
             )
             commit_all(root)
             m = _final_manifest(str(root))
-            types = {n["name"]: n.get("binaryType") for n in walk_files(m["tree"])}
+            types = {n.name: n.binaryType for n in walk_files(m.tree)}
             self.assertEqual(types.get("app.db"), "SQLite database")
             self.assertIsNone(types.get("code.py"))

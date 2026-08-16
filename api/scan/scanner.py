@@ -10,11 +10,10 @@ silence it with CODECITY_QUIET=1."""
 
 from __future__ import annotations
 
-import copy
 import os
 import threading
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 
 from api.models.events import ScanEvent
 from api.git import objects as gitobj
@@ -34,11 +33,10 @@ from api.git.meta import (
     reconstructed_repo_info,
 )
 from api.scan.manifest import utc_now_iso, wrap_manifest
-from api.manifest_types import (
+from api.models.manifest import (
     DirNode,
     FileNode,
     Manifest,
-    ScanStreamEvent,
     SignatureResponse,
 )
 from api.media import media_kind
@@ -60,6 +58,18 @@ from api.scan.treebuild import (
     dir_children_from_paths,
     force_skeleton_placeholders,
 )
+
+
+class ScanStreamEvent(NamedTuple):
+    """One manifest emission from scan_tree.
+
+    `phase` separates the early "manifest-partial" emission (real structure,
+    placeholder metadata) from "manifest-complete". Internal to the scan ->
+    router handoff, so a NamedTuple rather than a wire model: the router reads
+    `phase` to name the SSE event and serialises `manifest` on its own."""
+
+    phase: ScanEvent
+    manifest: Manifest
 
 
 def _resolved_git_root(root: str) -> tuple[str, Path]:
@@ -182,15 +192,15 @@ def scan_tree(
 
     # Deep-copied so the skeleton's placeholder mutation doesn't touch the tree
     # populate_file_metadata is about to modify. ~50ms on linux.
-    skeleton = copy.deepcopy(tree)
+    skeleton = tree.model_copy(deep=True)
     force_skeleton_placeholders(skeleton)
     # No commits: they're ~89% of the payload and the skeleton draws none of them.
-    yield {
-        "phase": ScanEvent.MANIFEST_PARTIAL,
-        "manifest": wrap_manifest(
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_PARTIAL,
+        manifest=wrap_manifest(
             root_abs, skeleton, sig, signals, git.repo, [], ["metadata", "history"]
         ),
-    }
+    )
 
     check_cancel(cancel_event)
     log("resolving file metadata")
@@ -199,12 +209,18 @@ def scan_tree(
     )
     check_cancel(cancel_event)
     log("emitting metadata manifest")
-    yield {
-        "phase": ScanEvent.MANIFEST_PARTIAL,
-        "manifest": wrap_manifest(
-            root_abs, copy.deepcopy(tree), sig, signals, git.repo, [], ["history"]
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_PARTIAL,
+        manifest=wrap_manifest(
+            root_abs,
+            tree.model_copy(deep=True),
+            sig,
+            signals,
+            git.repo,
+            [],
+            ["history"],
         ),
-    }
+    )
 
     check_cancel(cancel_event)
     log("collecting git metadata…")
@@ -217,12 +233,12 @@ def scan_tree(
 
     check_cancel(cancel_event)
     log("emitting final manifest")
-    yield {
-        "phase": ScanEvent.MANIFEST_COMPLETE,
-        "manifest": wrap_manifest(
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_COMPLETE,
+        manifest=wrap_manifest(
             root_abs, tree, sig, signals, git.repo, history.commits, []
         ),
-    }
+    )
 
 
 def signature_tree(
@@ -246,11 +262,11 @@ def signature_tree(
         sig=sig,
     )
     hash_repo_info(sig, git.repo)
-    return {
-        "root": root_abs,
-        "scanned_at": utc_now_iso(),
-        "content_signature": sig.hexdigest(),
-    }
+    return SignatureResponse(
+        root=root_abs,
+        scanned_at=utc_now_iso(),
+        content_signature=sig.hexdigest(),
+    )
 
 
 def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Manifest:

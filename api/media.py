@@ -22,7 +22,7 @@ from __future__ import annotations
 import io
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Literal
 
 # ── MIME classification ─────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ _VIDEO_EXTS = frozenset(
 )
 
 
-def media_kind(ext: str) -> str | None:
+def media_kind(ext: str) -> Literal["image", "video"] | None:
     """Classify a file extension as media. Single source of truth shared
     with the frontend via the manifest's FileNode.mediaKind — the frontend
     no longer hand-lists these. 'image' covers PIL-probeable rasters AND

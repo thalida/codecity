@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from api.cache import cache_load_git_history, cache_save_git_history
-from api.manifest_types import CommitEntry, RepoInfo
+from api.models.manifest import CommitEntry, RepoInfo
 from api.progress import log
 
 
@@ -150,13 +150,17 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
 
     def flush_current() -> None:
         commits_newest_first.append(
-            {
-                "date": current_date,
-                "files": current_files,
-                "sha": current_sha,
-                "authors": build_authors_list(current_author, current_trailers),
-                "subject": current_subject,
-            }
+            CommitEntry(
+                date=current_date,
+                files=current_files,
+                sha=current_sha,
+                authors=build_authors_list(current_author, current_trailers),
+                subject=current_subject,
+                # Overwritten by annotate_same_day_totals at manifest-wrap,
+                # which always runs before a commit list is emitted. Zero is
+                # the "not counted yet" value, never a shipped one.
+                same_day_total=0,
+            )
         )
 
     assert proc.stdout is not None
@@ -296,13 +300,13 @@ def empty_repo_info() -> RepoInfo:
     Every field of RepoInfo is nullable precisely for this case, so the shape
     is written once here — it is both what _collect_repo_info fills in and what
     the timeline ships for a history with no commits to describe."""
-    return {
-        "branch": None,
-        "remote_url": None,
-        "head_sha": None,
-        "head_subject": None,
-        "dirty": False,
-    }
+    return RepoInfo(
+        branch=None,
+        remote_url=None,
+        head_sha=None,
+        head_subject=None,
+        dirty=False,
+    )
 
 
 def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
@@ -315,28 +319,28 @@ def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
 
     branch = run_git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch and branch != "HEAD":
-        info["branch"] = branch
+        info.branch = branch
     elif branch == "HEAD":
         short = run_git(root, "rev-parse", "--short", "HEAD").strip()
-        info["branch"] = f"detached @ {short}" if short else "detached HEAD"
+        info.branch = f"detached @ {short}" if short else "detached HEAD"
     else:
         # Unborn HEAD: no commits yet, but HEAD still resolves symbolically to
         # the configured default branch, which beats showing "detached HEAD".
         symref = run_git(root, "symbolic-ref", "--short", "HEAD").strip()
         if symref:
-            info["branch"] = symref
+            info.branch = symref
 
     remote = run_git(root, "config", "--get", "remote.origin.url").strip()
-    info["remote_url"] = _normalize_remote_to_web_url(remote) or None
+    info.remote_url = _normalize_remote_to_web_url(remote) or None
 
     head_line = run_git(root, "log", "-1", "--format=%h%x09%s").strip()
     if head_line:
         sha, _, subject = head_line.partition("\t")
-        info["head_sha"] = sha or None
-        info["head_subject"] = subject or None
+        info.head_sha = sha or None
+        info.head_subject = subject or None
 
     dirty_paths = parse_dirty_paths(run_git(root, "status", "--porcelain", "-z"))
-    info["dirty"] = bool(dirty_paths)
+    info.dirty = bool(dirty_paths)
 
     return info, dirty_paths
 
@@ -374,10 +378,10 @@ def reconstructed_repo_info(root: Path, commit_sha: str) -> RepoInfo:
     always False since a committed tree can't be dirty."""
     subject = run_git(root, "log", "-1", "--format=%s", commit_sha).strip()
     remote = run_git(root, "config", "--get", "remote.origin.url").strip()
-    return {
-        "branch": f"@ {commit_sha[:8]}",
-        "remote_url": _normalize_remote_to_web_url(remote) or None,
-        "head_sha": commit_sha[:8],
-        "head_subject": subject or None,
-        "dirty": False,
-    }
+    return RepoInfo(
+        branch=f"@ {commit_sha[:8]}",
+        remote_url=_normalize_remote_to_web_url(remote) or None,
+        head_sha=commit_sha[:8],
+        head_subject=subject or None,
+        dirty=False,
+    )

@@ -12,16 +12,18 @@ from typing import Callable, NamedTuple
 
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
 from api.git.objects import blob_sizes_batch, blob_stats_batch, git_argv
-from api.manifest_types import (
+from api.media import media_kind
+from api.models.events import TimelineStage
+from api.models.manifest import (
     CommitEntry,
     DateRangeMs,
     FileNode,
     Manifest,
     RangeStat,
     TimelineBundle,
+    TimelineChange,
+    TimelineDelta,
 )
-from api.media import media_kind
-from api.models.events import TimelineStage
 from api.scan.filemeta import basename, extension
 from api.git.meta import (
     collect_git_history,
@@ -253,6 +255,7 @@ def build_union_manifest(
     root_abs = str(Path(root).resolve())
     children_map = dir_children_from_paths(max_size.keys())
     sig = hashlib.blake2b(digest_size=16)
+    head_sha = commits[-1].sha if commits else ""
 
     def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
         return children_map.get(rel_dir, [])
@@ -281,7 +284,6 @@ def build_union_manifest(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node
     )
     signals = derive_tree_signals(tree)
-    head_sha = commits[-1]["sha"] if commits else ""
     repo_info = (
         reconstructed_repo_info(Path(root_abs), head_sha)
         if head_sha
@@ -316,7 +318,7 @@ def compute_commit_line_ranges(
                 lo = n
             if n > hi:
                 hi = n
-        ranges.append({"min": lo, "max": hi})
+        ranges.append(RangeStat(min=lo, max=hi))
     return ranges
 
 
@@ -344,7 +346,7 @@ def compute_commit_date_ranges(
     commit; range[HEAD] equals the live manifest's dateRanges (weathering
     normalizes against these). replay.ts walks the same deltas for a different
     output (per-frame scrub index) — neither is a copy of the other."""
-    commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
+    commit_ms = [_iso_ms(c.date) or 0 for c in commits]
     # Parsed once per path, not once per (commit, path): the inner loop below
     # runs commits x files-present times, ~98M on a big repo, and re-parsing an
     # ISO stamp that many times is most of what made this the slowest step.
@@ -396,12 +398,12 @@ def compute_commit_date_ranges(
         # An empty present set collapses to a zero span, which the client already
         # treats as "no spread" (freshest / newest).
         ranges.append(
-            {
-                "minCreated": min_created or 0,
-                "maxCreated": max_created or 0,
-                "minModified": min_modified or 0,
-                "maxModified": max_modified or 0,
-            }
+            DateRangeMs(
+                minCreated=min_created or 0,
+                maxCreated=max_created or 0,
+                minModified=min_modified or 0,
+                maxModified=max_modified or 0,
+            )
         )
         if on_commit is not None and i % _ASSEMBLE_HEARTBEAT_EVERY == 0:
             on_commit(i, len(deltas))
@@ -497,16 +499,19 @@ def build_timeline_bundle(
     )
     log("timeline bundle complete")
 
-    return {
-        "commits": commits,
-        "unionManifest": union_manifest,
-        "deltas": [
-            {"sha": d.sha, "changes": [{"path": p, "sha": s} for p, s in d.changes]}
+    return TimelineBundle(
+        commits=commits,
+        unionManifest=union_manifest,
+        deltas=[
+            TimelineDelta(
+                sha=d.sha,
+                changes=[TimelineChange(path=p, sha=s) for p, s in d.changes],
+            )
             for d in deltas
         ],
-        "blobLines": blob_lines,
-        "blobSizes": blob_sizes,
-        "commitLineRanges": commit_line_ranges,
-        "commitDateRanges": commit_date_ranges,
-        "note": note,
-    }
+        blobLines=blob_lines,
+        blobSizes=blob_sizes,
+        commitLineRanges=commit_line_ranges,
+        commitDateRanges=commit_date_ranges,
+        note=note,
+    )

@@ -10,27 +10,27 @@ import os
 from typing import Callable, Iterable, Iterator
 
 from api.date_utils import max_iso, min_iso
-from api.manifest_types import DirNode, ExtBreakdownEntry, FileNode, NodeKind
 from api.media import media_kind
+from api.models.manifest import DirNode, ExtBreakdownEntry, FileNode
 
 # ── Traversal ────────────────────────────────────────────────────────────────
 
 
 def iter_file_nodes(node: DirNode) -> Iterator[FileNode]:
     """Every FileNode under `node`, depth-first."""
-    for child in node["children"]:
-        if child["type"] == NodeKind.FILE:
-            yield child  # type: ignore[misc]
+    for child in node.children:
+        if isinstance(child, FileNode):
+            yield child
         else:
-            yield from iter_file_nodes(child)  # type: ignore[arg-type]
+            yield from iter_file_nodes(child)
 
 
 def iter_dir_nodes(node: DirNode) -> Iterator[DirNode]:
     """Every descendant DirNode, NOT including `node` itself."""
-    for child in node["children"]:
-        if child["type"] == NodeKind.DIRECTORY:
-            yield child  # type: ignore[misc]
-            yield from iter_dir_nodes(child)  # type: ignore[arg-type]
+    for child in node.children:
+        if isinstance(child, DirNode):
+            yield child
+            yield from iter_dir_nodes(child)
 
 
 # ── Nodes ────────────────────────────────────────────────────────────────────
@@ -54,27 +54,27 @@ def build_file_node(
 ) -> FileNode:
     """The one place a FileNode is assembled, so a new field is added once and
     no build path can silently omit it. Callers resolve the VALUES their own
-    way (stat vs blob stats); this fixes the SHAPE."""
-    node: FileNode = {
-        "name": name,
-        "type": NodeKind.FILE,
-        "path": rel_path,
-        "fullPath": full_path,
-        "extension": ext,
-        "mediaKind": media_kind(ext),
-        "size": size,
-        "lines": lines,
-        "binary": binary,
-        "dirty": dirty,
-        "created": created,
-        "modified": modified,
-    }
-    if media_width is not None and media_height is not None:
-        node["media_width"] = media_width
-        node["media_height"] = media_height
-    if binary_type is not None:
-        node["binaryType"] = binary_type
-    return node
+    way (stat vs blob stats); this fixes the SHAPE.
+
+    Media dims are passed as a pair or not at all — the model's validator
+    rejects half of one."""
+    return FileNode(
+        name=name,
+        type="file",
+        path=rel_path,
+        fullPath=full_path,
+        extension=ext,
+        mediaKind=media_kind(ext),
+        size=size,
+        lines=lines,
+        binary=binary,
+        dirty=dirty,
+        created=created,
+        modified=modified,
+        media_width=media_width,
+        media_height=media_height,
+        binaryType=binary_type,
+    )
 
 
 def apply_git_dates(
@@ -88,33 +88,33 @@ def apply_git_dates(
 
     A tracked-but-never-committed file keeps its fs date, and a dirty file
     keeps its working-tree mtime since its last-commit date is stale."""
-    if node["type"] == NodeKind.FILE:
-        rel_path = node["path"]
-        node["created"] = git_created.get(rel_path) or node["created"]
-        if not node["dirty"]:
-            node["modified"] = git_modified.get(rel_path) or node["modified"]
-        return node["created"], node["modified"]
+    if isinstance(node, FileNode):
+        rel_path = node.path
+        node.created = git_created.get(rel_path) or node.created
+        if not node.dirty:
+            node.modified = git_modified.get(rel_path) or node.modified
+        return node.created, node.modified
 
     created_min: str | None = None
     modified_max: str | None = None
-    for child in node["children"]:
+    for child in node.children:
         child_created, child_modified = apply_git_dates(
             child, git_created, git_modified
         )
         created_min = min_iso(created_min, child_created)
         modified_max = max_iso(modified_max, child_modified)
-    node["descendants_created_min"] = created_min
-    node["descendants_modified_max"] = modified_max
+    node.descendants_created_min = created_min
+    node.descendants_modified_max = modified_max
     return created_min, modified_max
 
 
 def force_skeleton_placeholders(node: DirNode | FileNode) -> None:
     """In-place: uniform-height buildings for the skeleton emit."""
-    if node["type"] == NodeKind.FILE:
-        node["lines"] = 1  # type: ignore[typeddict-item]
-        node["binary"] = False  # type: ignore[typeddict-item]
+    if isinstance(node, FileNode):
+        node.lines = 1
+        node.binary = False
         return
-    for child in node.get("children", []):  # type: ignore[union-attr]
+    for child in node.children:
         force_skeleton_placeholders(child)
 
 
@@ -173,15 +173,15 @@ class _DirFrame:
         self.files.append(node)
         self.descendants_count += 1
         self.descendants_file_count += 1
-        self.descendants_size += node["size"]
+        self.descendants_size += node.size
         self.descendants_created_min = min_iso(
-            self.descendants_created_min, node["created"]
+            self.descendants_created_min, node.created
         )
         self.descendants_modified_max = max_iso(
-            self.descendants_modified_max, node["modified"]
+            self.descendants_modified_max, node.modified
         )
-        raw_ext = node["extension"]
-        self.add_ext(raw_ext.lower() if raw_ext else None, 1, node["size"])
+        raw_ext = node.extension
+        self.add_ext(raw_ext.lower() if raw_ext else None, 1, node.size)
 
     def add_ext(self, ext: str | None, count: int, size: int) -> None:
         bucket = self.ext_breakdown.get(ext)
@@ -193,45 +193,45 @@ class _DirFrame:
 
     def absorb(self, child: DirNode) -> None:
         self.subdirs.append(child)
-        self.descendants_count += 1 + child["descendants_count"]
-        self.descendants_file_count += child["descendants_file_count"]
-        self.descendants_dir_count += 1 + child["descendants_dir_count"]
-        self.descendants_size += child["descendants_size"]
+        self.descendants_count += 1 + child.descendants_count
+        self.descendants_file_count += child.descendants_file_count
+        self.descendants_dir_count += 1 + child.descendants_dir_count
+        self.descendants_size += child.descendants_size
         self.descendants_created_min = min_iso(
-            self.descendants_created_min, child["descendants_created_min"]
+            self.descendants_created_min, child.descendants_created_min
         )
         self.descendants_modified_max = max_iso(
-            self.descendants_modified_max, child["descendants_modified_max"]
+            self.descendants_modified_max, child.descendants_modified_max
         )
 
     def finish(self) -> DirNode:
         children: list[FileNode | DirNode] = [*self.files, *self.subdirs]
         # Count desc, then ext asc; the extensionless bucket sorts last within
         # its count tier.
-        ext_breakdown: list[ExtBreakdownEntry] = [
-            {"ext": ext, "count": cnt, "size": size}
+        ext_breakdown = [
+            ExtBreakdownEntry(ext=ext, count=cnt, size=size)
             for ext, (cnt, size) in sorted(
                 self.ext_breakdown.items(),
                 key=lambda kv: (-kv[1][0], kv[0] is None, kv[0] or ""),
             )
         ]
-        return {
-            "name": self.name,
-            "type": NodeKind.DIRECTORY,
-            "path": self.rel_dir,
-            "fullPath": self.full_path,
-            "children_count": len(children),
-            "children_file_count": len(self.files),
-            "children_dir_count": len(self.subdirs),
-            "descendants_count": self.descendants_count,
-            "descendants_file_count": self.descendants_file_count,
-            "descendants_dir_count": self.descendants_dir_count,
-            "descendants_size": self.descendants_size,
-            "descendants_created_min": self.descendants_created_min,
-            "descendants_modified_max": self.descendants_modified_max,
-            "descendants_ext_breakdown": ext_breakdown,
-            "children": children,
-        }
+        return DirNode(
+            name=self.name,
+            type="directory",
+            path=self.rel_dir,
+            fullPath=self.full_path,
+            children_count=len(children),
+            children_file_count=len(self.files),
+            children_dir_count=len(self.subdirs),
+            descendants_count=self.descendants_count,
+            descendants_file_count=self.descendants_file_count,
+            descendants_dir_count=self.descendants_dir_count,
+            descendants_size=self.descendants_size,
+            descendants_created_min=self.descendants_created_min,
+            descendants_modified_max=self.descendants_modified_max,
+            descendants_ext_breakdown=ext_breakdown,
+            children=children,
+        )
 
 
 def build_tree(

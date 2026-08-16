@@ -8,9 +8,12 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from api.models.manifest import DateRanges, DirNode, FileNode
+from api.models.manifest import SignatureResponse
 from api.scan.scanner import signature_tree
 from api.scan.signatures import derive_tree_signals
 from api.tests.conftest import (
@@ -20,28 +23,21 @@ from api.tests.conftest import (
     ensure_fixture,
     final_manifest as _final_manifest,
     init_repo,
+    make_dir_node,
+    make_file_node,
 )
 
 
-def _date_tree(*files: tuple[str, str, str]) -> dict:
-    """DirNode of (name, created, modified) files. `size` is required because
-    _derive_tree_signals reads every FileNode field in one pass."""
-    return {
-        "type": "directory",
-        "path": ".",
-        "name": "root",
-        "children": [
-            {
-                "type": "file",
-                "path": name,
-                "name": name,
-                "created": created,
-                "modified": modified,
-                "size": 0,
-            }
+def _date_tree(*files: tuple[str, str, str]) -> DirNode:
+    """DirNode of (name, created, modified) files. `size` is pinned to 0 because
+    derive_tree_signals reads every FileNode field in one pass."""
+    return make_dir_node(
+        ".",
+        [
+            make_file_node(name, created=created, modified=modified, size=0)
             for name, created, modified in files
         ],
-    }
+    )
 
 
 @pytest.mark.parametrize(
@@ -74,12 +70,12 @@ def _date_tree(*files: tuple[str, str, str]) -> dict:
 )
 def test_derive_tree_signals_date_ranges(files, expected):
     min_c, max_c, min_m, max_m = expected
-    assert derive_tree_signals(_date_tree(*files)).date_ranges == {
-        "minCreated": min_c,
-        "maxCreated": max_c,
-        "minModified": min_m,
-        "maxModified": max_m,
-    }
+    assert derive_tree_signals(_date_tree(*files)).date_ranges == DateRanges(
+        minCreated=min_c,
+        maxCreated=max_c,
+        minModified=min_m,
+        maxModified=max_m,
+    )
 
 
 class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
@@ -94,7 +90,7 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
     def test_signature_matches_scan_tree(self):
         m = _final_manifest(str(FIXTURE))
         s = signature_tree(str(FIXTURE))
-        self.assertEqual(s["content_signature"], m["content_signature"])
+        self.assertEqual(s.content_signature, m.content_signature)
 
     def test_signature_matches_scan_tree_on_dirty_repo(self):
         # The per-file dirty bit is computed at different call sites in the
@@ -112,27 +108,23 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
 
             m = _final_manifest(str(root))
             s = signature_tree(str(root))
-            self.assertEqual(s["content_signature"], m["content_signature"])
+            self.assertEqual(s.content_signature, m.content_signature)
 
     def test_signature_response_shape(self):
-        s = signature_tree(str(FIXTURE))
-        self.assertIn("root", s)
-        self.assertIn("scanned_at", s)
-        self.assertIn("content_signature", s)
-        # No tree / repo fields — that's the whole point.
-        self.assertNotIn("tree", s)
-        self.assertNotIn("repo", s)
+        fields = set(SignatureResponse.model_fields)
+        # Exactly these three — no tree / repo, which is the whole point.
+        self.assertEqual(fields, {"root", "scanned_at", "content_signature"})
 
     def test_signature_changes_when_tracked_file_changes(self):
         # Add a tracked file, signature must shift; remove it, restored.
-        before = signature_tree(str(FIXTURE))["content_signature"]
+        before = signature_tree(str(FIXTURE)).content_signature
         new_file = FIXTURE / "sig-test-temp.txt"
         new_file.write_text("hello")
         try:
             subprocess.check_call(
                 ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
             )
-            after_add = signature_tree(str(FIXTURE))["content_signature"]
+            after_add = signature_tree(str(FIXTURE)).content_signature
             self.assertNotEqual(before, after_add)
         finally:
             subprocess.run(
@@ -157,14 +149,14 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             ignore_file = root / ".codecityignore"
 
             # Without ignore file, target is visible.
-            before_sig = signature_tree(str(root))["content_signature"]
-            before_full = _final_manifest(str(root))["content_signature"]
+            before_sig = signature_tree(str(root)).content_signature
+            before_full = _final_manifest(str(root)).content_signature
             self.assertEqual(before_sig, before_full)
 
             # Add ignore entry, both signatures must shift in lockstep.
             ignore_file.write_text("sig-noise-fixture\n")
-            after_sig = signature_tree(str(root))["content_signature"]
-            after_full = _final_manifest(str(root))["content_signature"]
+            after_sig = signature_tree(str(root)).content_signature
+            after_full = _final_manifest(str(root)).content_signature
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
 
@@ -184,7 +176,7 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             # Dirty b.py's content only — repo is dirty, dirty set is {b.py}.
             b.write_text("y = 2\nz = 3\n")
             before_stat = a.stat()
-            sig_one_dirty = signature_tree(str(root))["content_signature"]
+            sig_one_dirty = signature_tree(str(root)).content_signature
 
             # Now also flip a.py's executable bit: git sees it as modified
             # (added to the dirty set) but a.py's own mtime/size are
@@ -194,11 +186,11 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(before_stat.st_size, after_stat.st_size)
             self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
 
-            sig_two_dirty = signature_tree(str(root))["content_signature"]
+            sig_two_dirty = signature_tree(str(root)).content_signature
             self.assertNotEqual(sig_one_dirty, sig_two_dirty)
 
 
-def _sig(tree: dict) -> str:
+def _sig(tree: DirNode) -> str:
     """structure_signature of a minimal test tree, via _derive_tree_signals."""
     return derive_tree_signals(tree).structure_signature
 
@@ -214,42 +206,26 @@ class TreeSignatureTests(unittest.TestCase):
     4. Be present in BOTH skeleton and final manifest events for the same scan.
     """
 
-    def _make_tree(self, entries: list[dict]) -> dict:
-        """Build a minimal DirNode-like dict for testing."""
-        return {
-            "type": "directory",
-            "path": ".",
-            "name": "root",
-            "children": entries,
-        }
+    def _make_tree(self, entries: list[Any], path: str = ".") -> DirNode:
+        return make_dir_node(path, entries)
 
     def _make_file(
         self,
         path: str,
         size: int = 100,
-        mtime: float = 1_000_000.0,
         created: str = "2024-01-01T00:00:00Z",
         modified: str = "2024-01-01T00:00:00Z",
-    ) -> dict:
-        """Build a minimal FileNode-like dict for testing."""
-        return {
-            "type": "file",
-            "path": path,
-            "name": path.rsplit("/", 1)[-1],
-            "size": size,
-            "mtime": mtime,
-            "created": created,
-            "modified": modified,
-        }
+    ) -> FileNode:
+        return make_file_node(path, size=size, created=created, modified=modified)
 
     def test_same_shape_same_metadata_produces_same_signature(self):
         tree = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
         self.assertEqual(_sig(tree), _sig(tree))
 
     def test_same_shape_different_metadata_produces_same_signature(self):
-        # Metadata (size, mtime) must NOT affect structure_signature.
-        tree_a = self._make_tree([self._make_file("a.py", size=100, mtime=1.0)])
-        tree_b = self._make_tree([self._make_file("a.py", size=999, mtime=9.9)])
+        # Metadata (size) must NOT affect structure_signature.
+        tree_a = self._make_tree([self._make_file("a.py", size=100)])
+        tree_b = self._make_tree([self._make_file("a.py", size=999)])
         self.assertEqual(_sig(tree_a), _sig(tree_b))
 
     def test_adding_a_file_changes_signature(self):
@@ -267,12 +243,7 @@ class TreeSignatureTests(unittest.TestCase):
         tree_after = self._make_tree(
             [
                 self._make_file("a.py"),
-                {
-                    "type": "directory",
-                    "path": "sub",
-                    "name": "sub",
-                    "children": [self._make_file("sub/b.py")],
-                },
+                self._make_tree([self._make_file("sub/b.py")], path="sub"),
             ]
         )
         self.assertNotEqual(_sig(tree_before), _sig(tree_after))
@@ -282,12 +253,7 @@ class TreeSignatureTests(unittest.TestCase):
             [
                 self._make_file("a.py"),
                 self._make_file("b.py"),
-                {
-                    "type": "directory",
-                    "path": "pkg",
-                    "name": "pkg",
-                    "children": [self._make_file("pkg/c.py")],
-                },
+                self._make_tree([self._make_file("pkg/c.py")], path="pkg"),
             ]
         )
         results = {_sig(tree) for _ in range(5)}
@@ -313,8 +279,8 @@ class TreeSignatureTests(unittest.TestCase):
             commit_all(root)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 3)
-        skeleton_sig = events[0]["manifest"]["structure_signature"]
-        final_sig = events[-1]["manifest"]["structure_signature"]
+        skeleton_sig = events[0].manifest.structure_signature
+        final_sig = events[-1].manifest.structure_signature
         self.assertEqual(
             skeleton_sig,
             final_sig,
@@ -332,49 +298,19 @@ class TreeSignatureTests(unittest.TestCase):
             (root / "a.py").write_text("x = 1\n" * 100)
             commit_all(root)
             events = list(scan_tree(td))
-        skeleton = events[0]["manifest"]
-        final = events[1]["manifest"]
+        skeleton = events[0].manifest
+        final = events[1].manifest
         # Metadata-sensitive signature changes between skeleton and final.
         # structure_signature must NOT change.
-        self.assertEqual(skeleton["structure_signature"], final["structure_signature"])
+        self.assertEqual(skeleton.structure_signature, final.structure_signature)
 
 
 def test_layout_signature_tracks_size_not_dates(tmp_path):
     # Build two trees differing only in a file size, and two differing only in a date.
-    def node(size, modified):
-        return {
-            "name": "a",
-            "type": "file",
-            "path": "a",
-            "fullPath": "/r/a",
-            "extension": "",
-            "mediaKind": None,
-            "size": size,
-            "lines": 1,
-            "binary": False,
-            "dirty": False,
-            "created": "2026-01-01T00:00:00Z",
-            "modified": modified,
-        }
-
     def tree(size, modified):
-        return {
-            "name": "r",
-            "type": "directory",
-            "path": ".",
-            "fullPath": "/r",
-            "children": [node(size, modified)],
-            "children_count": 1,
-            "children_file_count": 1,
-            "children_dir_count": 0,
-            "descendants_count": 1,
-            "descendants_file_count": 1,
-            "descendants_dir_count": 0,
-            "descendants_size": size,
-            "descendants_created_min": None,
-            "descendants_modified_max": None,
-            "descendants_ext_breakdown": [],
-        }
+        return make_dir_node(
+            ".", [make_file_node("a", size=size, lines=1, modified=modified)]
+        )
 
     a = derive_tree_signals(tree(10, "2026-01-01T00:00:00Z"))
     b = derive_tree_signals(tree(20, "2026-01-01T00:00:00Z"))  # size changed

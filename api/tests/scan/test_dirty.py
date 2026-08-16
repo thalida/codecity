@@ -57,8 +57,8 @@ def test_collect_git_state_one_snapshot(tmp_path: Path):
     state = collect_git_state(tmp_path)
     assert "a.py" in state.tracked and "b.py" in state.tracked
     assert state.dirty == {"a.py"}
-    assert state.repo["dirty"] is True
-    assert state.repo["branch"] in ("main", "master")
+    assert state.repo.dirty is True
+    assert state.repo.branch in ("main", "master")
 
 
 def test_dirty_file_uses_worktree_mtime_and_flag(tmp_path: Path):
@@ -77,14 +77,14 @@ def test_dirty_file_uses_worktree_mtime_and_flag(tmp_path: Path):
     f.write_text("x = 1\nx = 2\nx = 3\n")
 
     manifest = _final_manifest(str(tmp_path), use_cache=False)
-    nodes = {n["path"]: n for n in manifest["tree"]["children"]}
-    assert nodes["a.py"]["dirty"] is True
-    assert nodes["b.py"]["dirty"] is False
+    nodes = {n.path: n for n in manifest.tree.children}
+    assert nodes["a.py"].dirty is True
+    assert nodes["b.py"].dirty is False
     # a.py grew — its modified date reflects the working-tree write, so it is
     # >= b.py's commit date (a.py was committed BEFORE b.py, so a git-history
     # modified would be OLDER than b.py; the override flips that).
-    assert nodes["a.py"]["modified"] >= nodes["b.py"]["modified"]
-    assert manifest["repo"]["dirty"] is True
+    assert nodes["a.py"].modified >= nodes["b.py"].modified
+    assert manifest.repo.dirty is True
 
 
 def test_dirty_file_count_matches_flags(tmp_path: Path):
@@ -97,7 +97,7 @@ def test_dirty_file_count_matches_flags(tmp_path: Path):
     _git(tmp_path, "commit", "-qm", "init")
     (tmp_path / "a.py").write_text("1\n2\n")  # dirty one file
     manifest = _final_manifest(str(tmp_path), use_cache=False)
-    assert manifest["stats"]["dirtyFileCount"] == 1
+    assert manifest.stats.dirtyFileCount == 1
 
 
 def testhash_repo_info_has_no_repo_level_dirty_set_param():
@@ -115,7 +115,7 @@ def test_mode_only_change_moves_signature(tmp_path: Path):
     f.write_text("echo hi\n")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-qm", "i")
-    sig1 = signature_tree(str(tmp_path))["content_signature"]
+    sig1 = signature_tree(str(tmp_path)).content_signature
     os.chmod(f, 0o755)  # dirty via mode only: size + mtime unchanged
-    sig2 = signature_tree(str(tmp_path))["content_signature"]
+    sig2 = signature_tree(str(tmp_path)).content_signature
     assert sig1 != sig2  # per-file dirty bit is in the signature

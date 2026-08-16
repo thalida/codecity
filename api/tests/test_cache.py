@@ -12,7 +12,8 @@ import pytest
 
 from api import cache as cache_mod
 from api.cache import _git_history_cache_path
-from api.manifest_types import CommitEntry
+from api.models.manifest import CommitEntry, Manifest, TimelineBundle
+from api.tests.conftest import make_commit, make_manifest, make_timeline_bundle
 
 
 _ROOT = Path("/some/repo")
@@ -20,20 +21,8 @@ _SIG = "a" * 32
 _SHA = "a" * 40
 
 
-def _stub_manifest() -> dict:
-    return {
-        "root": str(_ROOT),
-        "scanned_at": "2026-05-17T00:00:00Z",
-        "content_signature": "deadbeef" * 4,
-        "tree": {
-            "name": "repo",
-            "type": "dir",
-            "path": "",
-            "fullPath": str(_ROOT),
-            "children": [],
-        },
-        "repo": None,
-    }
+def _stub_manifest():
+    return make_manifest(str(_ROOT))
 
 
 def _seed_files() -> tuple:
@@ -79,20 +68,16 @@ def _seed_manifest() -> tuple:
 
 
 def _seed_timeline() -> tuple:
-    bundle = {
-        "commits": [],
-        "unionManifest": _stub_manifest(),
-        "deltas": [],
-        "blobLines": {},
-        "blobSizes": {},
-        "note": None,
-    }
+    bundle = make_timeline_bundle(unionManifest=_stub_manifest())
     cache_mod.cache_save_timeline(_ROOT, _SHA, bundle)
     path = cache_mod._timeline_cache_path(_ROOT, _SHA, frozenset())
     # One version back, not 999: v6 added blobSizes and full commit timestamps,
     # so serving a v5 blob would hand the scrubber day-precision dates and stack
     # every same-day commit.
-    stale = {"version": cache_mod._TIMELINE_CACHE_VERSION - 1, "bundle": bundle}
+    stale = {
+        "version": cache_mod._TIMELINE_CACHE_VERSION - 1,
+        "bundle": bundle.model_dump(),
+    }
     return path, lambda: cache_mod.cache_load_timeline(_ROOT, _SHA), None, True, stale
 
 
@@ -233,20 +218,20 @@ class GitHistoryCacheTests(CacheTestBase):
         # consumer (`for author of c.authors`). Round-trip a populated commit.
         root = Path("/some/repo")
         commits = [
-            {
-                "date": "2024-01-01",
-                "files": 3,
-                "sha": "a" * 40,
-                "authors": ["Alice", "Bob"],
-                "subject": "Initial commit",
-            },
-            {
-                "date": "2024-01-02",
-                "files": 1,
-                "sha": "b" * 40,
-                "authors": [],
-                "subject": "Empty-authors edge case",
-            },
+            make_commit(
+                "a" * 40,
+                date="2024-01-01",
+                files=3,
+                authors=["Alice", "Bob"],
+                subject="Initial commit",
+            ),
+            make_commit(
+                "b" * 40,
+                date="2024-01-02",
+                files=1,
+                authors=[],
+                subject="Empty-authors edge case",
+            ),
         ]
         cache_mod.cache_save_git_history(root, "head1", {}, {}, commits)
         result = cache_mod.cache_load_git_history(root, "head1")
@@ -290,20 +275,16 @@ class GitHistoryCacheTests(CacheTestBase):
         """Round-trip a small commits list through the cache."""
         root = Path("/some/repo")
         commits: list[CommitEntry] = [
-            {
-                "date": "2024-01-01",
-                "files": 3,
-                "sha": "a" * 40,
-                "authors": ["Alice"],
-                "subject": "first",
-            },
-            {
-                "date": "2024-02-15",
-                "files": 7,
-                "sha": "b" * 40,
-                "authors": ["Bob", "Carol"],
-                "subject": "second",
-            },
+            make_commit(
+                "a" * 40, date="2024-01-01", files=3, authors=["Alice"], subject="first"
+            ),
+            make_commit(
+                "b" * 40,
+                date="2024-02-15",
+                files=7,
+                authors=["Bob", "Carol"],
+                subject="second",
+            ),
         ]
         cache_mod.cache_save_git_history(
             root,
@@ -422,20 +403,12 @@ class GitHistoryCacheTests(CacheTestBase):
         self.assertEqual(
             commits,
             [
-                {
-                    "date": "2024-01-01",
-                    "files": 3,
-                    "sha": sha_a,
-                    "authors": ["Alice"],
-                    "subject": "ok",
-                },
-                {
-                    "date": "2024-06-01",
-                    "files": 1,
-                    "sha": sha_b,
-                    "authors": ["Bob"],
-                    "subject": "ok2",
-                },
+                make_commit(
+                    sha_a, date="2024-01-01", files=3, authors=["Alice"], subject="ok"
+                ),
+                make_commit(
+                    sha_b, date="2024-06-01", files=1, authors=["Bob"], subject="ok2"
+                ),
             ],
         )
 
@@ -482,20 +455,8 @@ class GitHistoryCacheTests(CacheTestBase):
 
 
 class ManifestCacheTests(CacheTestBase):
-    def _make_manifest(self) -> dict:
-        return {
-            "root": "/some/repo",
-            "scanned_at": "2026-05-17T00:00:00Z",
-            "content_signature": "deadbeef" * 4,
-            "tree": {
-                "name": "repo",
-                "type": "dir",
-                "path": "",
-                "fullPath": "/some/repo",
-                "children": [],
-            },
-            "repo": None,
-        }
+    def _make_manifest(self) -> Manifest:
+        return make_manifest("/some/repo")
 
     def test_roundtrip(self) -> None:
         root = Path("/some/repo")
@@ -562,15 +523,8 @@ class ManifestCacheTests(CacheTestBase):
             cache_mod.cache_load_ref_manifest(Path("/never/scanned"), "b" * 40)
         )
 
-    def _make_bundle(self) -> dict:
-        return {
-            "commits": [],
-            "unionManifest": self._make_manifest(),
-            "deltas": [],
-            "blobLines": {},
-            "blobSizes": {},
-            "note": None,
-        }
+    def _make_bundle(self) -> TimelineBundle:
+        return make_timeline_bundle(unionManifest=self._make_manifest())
 
     def test_timeline_roundtrip(self) -> None:
         root = Path("/some/repo")
@@ -586,7 +540,7 @@ class ManifestCacheTests(CacheTestBase):
         root = Path("/some/repo")
         sha = "a" * 40
         base, filtered = self._make_bundle(), self._make_bundle()
-        filtered["note"] = "filtered"  # make the two bundles distinguishable
+        filtered.note = "filtered"  # make the two bundles distinguishable
         cache_mod.cache_save_timeline(root, sha, base)
         cache_mod.cache_save_timeline(root, sha, filtered, frozenset({"secrets"}))
 
@@ -773,13 +727,8 @@ class ManifestCachePruneTests(CacheTestBase):
     life of the install — 844 files / 281 MB on one dev machine before this.
     """
 
-    def _manifest(self) -> dict:
-        return {
-            "root": "/some/repo",
-            "scanned_at": "2026-05-17T00:00:00Z",
-            "content_signature": "deadbeef" * 4,
-            "tree": {"name": "repo", "type": "dir", "path": "", "children": []},
-        }
+    def _manifest(self) -> Manifest:
+        return make_manifest("/some/repo")
 
     def _names(self, root: Path) -> list[str]:
         prefix = f"{cache_mod.repo_key(root)}__"

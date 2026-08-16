@@ -1,6 +1,9 @@
-"""Pydantic wire models for the scan manifest. Single source of truth for
-the OpenAPI schema and the generated app/src/types/manifest.ts. JSON shape
-is byte-compatible with the prior TypedDicts."""
+"""The manifest, defined once.
+
+These models are what the scanner builds, what the caches persist, what the SSE
+stream serialises, and what the OpenAPI schema — and from it
+app/src/types/manifest.generated.ts — is generated from. There is no second
+definition to keep in step."""
 
 from __future__ import annotations
 
@@ -15,6 +18,18 @@ from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 # api/models/events.py.
 OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
 OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
+
+# A scan stage a manifest can still be waiting on; see Manifest.pending.
+ScanStage = Literal["metadata", "history"]
+
+
+class NodeKind:
+    """String constants matching app/types/manifest.ts:NodeKind. A plain class
+    with string attrs rather than an enum.Enum so the Literal discriminators on
+    FileNode/DirNode can reference them as bare string literals."""
+
+    FILE = "file"
+    DIRECTORY = "directory"
 
 
 class FileNode(BaseModel):
@@ -275,7 +290,7 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
-    pending: list[Literal["metadata", "history"]] = Field(
+    pending: list[ScanStage] = Field(
         description=(
             "Stages still to come. 'metadata': per-file lines/binary are "
             "placeholders. 'history': dates are filesystem dates and commits is "
@@ -314,7 +329,12 @@ class TimelineDelta(BaseModel):
 
 
 class TimelineBundle(BaseModel):
-    """Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle."""
+    """Everything the client replays for smooth commit scrubbing: commit list,
+    union-of-all-paths manifest (the layout target), per-commit blob deltas,
+    sha -> line-count and sha -> byte-size tables, and per-commit line ranges
+    (height normalisation, so a scrub point matches Live-at-that-commit).
+    `note` is set when a pathological repo is windowed to its most recent
+    commits."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest

@@ -14,8 +14,8 @@ from typing import NamedTuple
 from api.binfmt import detect_binary_type
 from api.cache import BlobEntry, FileEntry, cache_load_files, cache_save_files
 from api.git.objects import BINARY_CHUNK, is_binary_bytes
-from api.manifest_types import DirNode, FileNode
 from api.media import probe_media_dims
+from api.models.manifest import DirNode, FileNode
 from api.progress import log
 from api.errors import ScanCancelledError, check_cancel
 from api.scan.treebuild import iter_file_nodes
@@ -139,28 +139,28 @@ class FileMeta(NamedTuple):
     def apply_to(self, node: FileNode) -> None:
         """Overwrite placeholder metadata in place. Media dims are written only
         as a pair, so a node never carries half of one."""
-        node["binary"] = self.binary
-        node["lines"] = self.lines
+        node.binary = self.binary
+        node.lines = self.lines
         if self.media_width is not None and self.media_height is not None:
-            node["media_width"] = self.media_width
-            node["media_height"] = self.media_height
+            node.media_width = self.media_width
+            node.media_height = self.media_height
         if self.binary_type is not None:
-            node["binaryType"] = self.binary_type
+            node.binaryType = self.binary_type
 
 
 def _cache_entry(node: FileNode, mtime: float) -> FileEntry:
     entry: FileEntry = {
-        "size": node["size"],
+        "size": node.size,
         "mtime": mtime,
-        "lines": node["lines"],
-        "binary": node["binary"],
-        "ext": node["extension"],
+        "lines": node.lines,
+        "binary": node.binary,
+        "ext": node.extension,
     }
-    if "media_width" in node and "media_height" in node:
-        entry["media_width"] = node["media_width"]
-        entry["media_height"] = node["media_height"]
-    if "binaryType" in node:
-        entry["binaryType"] = node["binaryType"]
+    if node.media_width is not None and node.media_height is not None:
+        entry["media_width"] = node.media_width
+        entry["media_height"] = node.media_height
+    if node.binaryType is not None:
+        entry["binaryType"] = node.binaryType
     return entry
 
 
@@ -168,7 +168,7 @@ def _node_mtime(node: FileNode) -> float:
     """The node's `modified` is a lossy ISO string; the cache keys on the raw
     float, so re-stat for it."""
     try:
-        return Path(node["fullPath"]).stat().st_mtime
+        return Path(node.fullPath).stat().st_mtime
     except OSError:
         return 0.0
 
@@ -198,10 +198,10 @@ def populate_file_metadata(
 
     misses: list[int] = []
     for i, node in enumerate(nodes):
-        cached = cache_entries.get(node["path"]) if use_cache else None
+        cached = cache_entries.get(node.path) if use_cache else None
         if (
             cached is not None
-            and cached["size"] == node["size"]
+            and cached["size"] == node.size
             and cached["mtime"] == mtimes[i]
         ):
             FileMeta.from_cache(cached).apply_to(node)
@@ -219,7 +219,7 @@ def populate_file_metadata(
     # the loaded cache, preserving entries for files this scan didn't visit
     # (e.g. when .codecityignore flips).
     for node, mtime in zip(nodes, mtimes):
-        cache_entries[node["path"]] = _cache_entry(node, mtime)
+        cache_entries[node.path] = _cache_entry(node, mtime)
     try:
         cache_save_files(abs_root, cache_entries)
     except OSError:
@@ -237,7 +237,7 @@ def _read_misses(
     done = 0
     with ThreadPoolExecutor(max_workers=_POOL_SIZE) as pool:
         future_to_idx = {
-            pool.submit(FileMeta.read, Path(nodes[i]["fullPath"])): i for i in misses
+            pool.submit(FileMeta.read, Path(nodes[i].fullPath)): i for i in misses
         }
         try:
             for fut in as_completed(future_to_idx):

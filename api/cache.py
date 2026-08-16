@@ -33,14 +33,16 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
+from pydantic import ValidationError
+
 from api.config import CACHE_ROOT
+from api.models.manifest import CommitEntry, Manifest, TimelineBundle
 
 KEY_SEP = "__"  # between the repo key and the entry name
 MANIFEST_EXT = ".json.gz"
 
 if TYPE_CHECKING:
     from api.git.objects import BlobStats
-    from api.manifest_types import CommitEntry, Manifest, TimelineBundle
 
 
 class FileEntry(TypedDict):
@@ -381,13 +383,16 @@ def cache_load_git_history(
             and isinstance(subject, str)
         ):
             commits.append(
-                {
-                    "date": date,
-                    "files": files,
-                    "sha": sha,
-                    "authors": cast(list[str], authors),
-                    "subject": subject,
-                }
+                CommitEntry(
+                    date=date,
+                    files=files,
+                    sha=sha,
+                    authors=cast(list[str], authors),
+                    subject=subject,
+                    # Not cached: it is derived at manifest-wrap, which always
+                    # runs before these are emitted. See git.meta.flush_current.
+                    same_day_total=0,
+                )
             )
     return created, modified, commits
 
@@ -406,7 +411,7 @@ def cache_save_git_history(
         "commit_sha": commit_sha,
         "created": created,
         "modified": modified,
-        "commits": commits,
+        "commits": [c.model_dump() for c in commits],
     }
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 
@@ -489,25 +494,32 @@ def _save_gz_envelope(
         Path(tmp).unlink(missing_ok=True)
 
 
-def _load_gz_manifest(path: Path) -> "Manifest | None":
+def _load_gz_manifest(path: Path) -> Manifest | None:
     """Load a gzip-envelope manifest cache file. Shared body for both the
-    content-signature and ref-keyed manifest caches."""
-    manifest = _load_gz_envelope(
+    content-signature and ref-keyed manifest caches.
+
+    A blob whose shape no longer validates is treated as a miss, like a corrupt
+    or version-mismatched one: the cache is rebuildable, and handing a
+    half-matching manifest to the renderer is worse than rescanning."""
+    payload = _load_gz_envelope(
         path, envelope_key="manifest", version=_MANIFEST_CACHE_VERSION
     )
-    # TypedDict is structurally compatible with dict at runtime; the
-    # `Manifest` annotation is a documentation aid for callers.
-    return manifest  # type: ignore[return-value]
+    if payload is None:
+        return None
+    try:
+        return Manifest.model_validate(payload)
+    except ValidationError:
+        return None
 
 
-def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
+def _save_gz_manifest(path: Path, manifest: Manifest) -> None:
     """Atomically write a gzip-envelope manifest cache file. Shared body for
     both the content-signature and ref-keyed manifest caches."""
     _save_gz_envelope(
         path,
         envelope_key="manifest",
         version=_MANIFEST_CACHE_VERSION,
-        payload=cast("dict[str, object]", manifest),
+        payload=manifest.model_dump(),
     )
 
 
@@ -650,12 +662,17 @@ def cache_load_timeline(
     abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
 ) -> "TimelineBundle | None":
     """Cached bundle for (root, head_sha, excludes); immutable per key, cleared only by cache_clear_*."""
-    bundle = _load_gz_envelope(
+    payload = _load_gz_envelope(
         _timeline_cache_path(abs_root, head_sha, excludes),
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
     )
-    return bundle  # type: ignore[return-value]
+    if payload is None:
+        return None
+    try:
+        return TimelineBundle.model_validate(payload)
+    except ValidationError:
+        return None  # same treatment as a corrupt blob; see _load_gz_manifest
 
 
 def cache_save_timeline(
@@ -670,7 +687,7 @@ def cache_save_timeline(
         path,
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
-        payload=cast("dict[str, object]", bundle),
+        payload=bundle.model_dump(),
     )
     prune_manifest_cache(abs_root, protect=path)
 

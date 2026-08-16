@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from api.manifest_types import Manifest
+from api.models.manifest import Manifest
 from api.scan.scanner import reconstruct_manifest, scan_tree
 from api.tests.conftest import (
     CacheRedirectMixin,
@@ -42,13 +42,13 @@ class ScanTreeStreamingTests(unittest.TestCase):
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 3)
-        self.assertEqual(events[0]["phase"], "manifest-partial")
-        self.assertEqual(events[1]["phase"], "manifest-partial")
-        self.assertEqual(events[2]["phase"], "manifest-complete")
+        self.assertEqual(events[0].phase, "manifest-partial")
+        self.assertEqual(events[1].phase, "manifest-partial")
+        self.assertEqual(events[2].phase, "manifest-complete")
         # Each emit declares what is still provisional.
-        self.assertEqual(events[0]["manifest"]["pending"], ["metadata", "history"])
-        self.assertEqual(events[1]["manifest"]["pending"], ["history"])
-        self.assertEqual(events[2]["manifest"]["pending"], [])
+        self.assertEqual(events[0].manifest.pending, ["metadata", "history"])
+        self.assertEqual(events[1].manifest.pending, ["history"])
+        self.assertEqual(events[2].manifest.pending, [])
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
         from api.scan.scanner import scan_tree
@@ -59,19 +59,15 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
         # Walk the tree and assert every file has placeholder lines/binary.
         def files(node):
-            for child in node["children"]:
-                if child["type"] == "file":
+            for child in node.children:
+                if child.type == "file":
                     yield child
                 else:
                     yield from files(child)
 
-        for f in files(skeleton["manifest"]["tree"]):
-            self.assertEqual(
-                f["lines"], 1, f"{f['path']} should have placeholder lines=1"
-            )
-            self.assertFalse(
-                f["binary"], f"{f['path']} should have placeholder binary=False"
-            )
+        for f in files(skeleton.manifest.tree):
+            self.assertEqual(f.lines, 1, f"{f.path} should have placeholder lines=1")
+            self.assertFalse(f.binary, f"{f.path} should have placeholder binary=False")
 
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
@@ -103,7 +99,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
             ev = threading.Event()
             gen = scan_tree(td, cancel_event=ev)
             skeleton = next(gen)
-            self.assertEqual(skeleton["phase"], "manifest-partial")
+            self.assertEqual(skeleton.phase, "manifest-partial")
             ev.set()
             with self.assertRaises(ScanCancelledError):
                 next(gen)
@@ -113,13 +109,13 @@ def _tree_file_paths(manifest: Manifest) -> set[str]:
     paths: set[str] = set()
 
     def walk(n):
-        if n["type"] == "file":
-            paths.add(n["path"])
+        if n.type == "file":
+            paths.add(n.path)
         else:
-            for c in n["children"]:
+            for c in n.children:
                 walk(c)
 
-    walk(manifest["tree"])
+    walk(manifest.tree)
     return paths
 
 
@@ -130,13 +126,13 @@ def _tree_file_stats(manifest: Manifest) -> dict[str, tuple[int, int, bool]]:
     stats: dict[str, tuple[int, int, bool]] = {}
 
     def walk(n):
-        if n["type"] == "file":
-            stats[n["path"]] = (n["size"], n["lines"], n["binary"])
+        if n.type == "file":
+            stats[n.path] = (n.size, n.lines, n.binary)
         else:
-            for c in n["children"]:
+            for c in n.children:
                 walk(c)
 
-    walk(manifest["tree"])
+    walk(manifest.tree)
     return stats
 
 
@@ -152,8 +148,8 @@ def test_reconstruct_at_old_ref_shrinks_city(tmp_path):
 
     m_old = reconstruct_manifest(str(tmp_path), old, use_cache=False)
     assert _tree_file_paths(m_old) == {"a.txt"}  # b.txt didn't exist yet
-    assert m_old["repo"]["dirty"] is False
-    assert len(m_old["commits"]) == 1
+    assert m_old.repo.dirty is False
+    assert len(m_old.commits) == 1
 
 
 def test_reconstruct_bad_ref_raises(tmp_path):
@@ -193,13 +189,13 @@ def test_reconstruct_head_matches_live_scan(tmp_path):
     live = _final_manifest(str(tmp_path), use_cache=False)
     recon = reconstruct_manifest(str(tmp_path), "HEAD", use_cache=False)
 
-    live_paths = {n["path"] for n in walk_files(live["tree"])}
-    recon_paths = {n["path"] for n in walk_files(recon["tree"])}
+    live_paths = {n.path for n in walk_files(live.tree)}
+    recon_paths = {n.path for n in walk_files(recon.tree)}
     assert "link.md" not in live_paths
     assert "link.md" not in recon_paths
 
-    assert recon["structure_signature"] == live["structure_signature"]
-    assert recon["layout_signature"] == live["layout_signature"]
+    assert recon.structure_signature == live.structure_signature
+    assert recon.layout_signature == live.layout_signature
     assert _tree_file_stats(recon) == _tree_file_stats(live)
 
 
@@ -214,20 +210,20 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         # before the git history walk, so its tree still holds the fs dates the
         # scan recorded. The final's come from history.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
-        phases = [e["phase"] for e in events]
+        phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)
         self.assertIn("manifest-complete", phases)
-        ranges = [e["manifest"]["dateRanges"] for e in events]
+        ranges = [e.manifest.dateRanges for e in events]
         for r in ranges:
             self.assertEqual(
-                set(r.keys()),
+                set(type(r).model_fields),
                 {"minCreated", "maxCreated", "minModified", "maxModified"},
             )
-        final = events[-1]["manifest"]
-        created = [n["created"] for n in walk_files(final["tree"])]
-        modified = [n["modified"] for n in walk_files(final["tree"])]
-        self.assertEqual(ranges[-1]["minCreated"], min(created))
-        self.assertEqual(ranges[-1]["maxModified"], max(modified))
+        final = events[-1].manifest
+        created = [n.created for n in walk_files(final.tree)]
+        modified = [n.modified for n in walk_files(final.tree)]
+        self.assertEqual(ranges[-1].minCreated, min(created))
+        self.assertEqual(ranges[-1].maxModified, max(modified))
 
     def test_skeleton_emits_before_the_history_walk(self):
         # The history walk is ~75% of a big cold load and nothing the skeleton
@@ -247,39 +243,38 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         with mock.patch.object(scanmod, "collect_git_history", _spy):
             events = scan_tree(str(FIXTURE), use_cache=False)
             skeleton = next(events)
-            self.assertEqual(skeleton["phase"], "manifest-partial")
+            self.assertEqual(skeleton.phase, "manifest-partial")
             self.assertEqual(walked, [], "history walked before the skeleton")
-            self.assertEqual(skeleton["manifest"]["commits"], [])
+            self.assertEqual(skeleton.manifest.commits, [])
             final = list(events)[-1]
 
         self.assertEqual(walked, ["history"])
-        self.assertEqual(final["phase"], "manifest-complete")
-        self.assertGreater(len(final["manifest"]["commits"]), 0)
+        self.assertEqual(final.phase, "manifest-complete")
+        self.assertGreater(len(final.manifest.commits), 0)
         # The packer runs on the skeleton and the frontend keeps that layout iff
         # this is unchanged, so deferring history must not disturb it.
         self.assertEqual(
-            skeleton["manifest"]["layout_signature"],
-            final["manifest"]["layout_signature"],
+            skeleton.manifest.layout_signature,
+            final.manifest.layout_signature,
         )
         # Dates still resolve to history, not to the fs dates the walk recorded.
         self.assertEqual(
-            [n["created"] for n in walk_files(final["manifest"]["tree"])],
-            [n["created"] for n in walk_files(_final_manifest(str(FIXTURE))["tree"])],
+            [n.created for n in walk_files(final.manifest.tree)],
+            [n.created for n in walk_files(_final_manifest(str(FIXTURE)).tree)],
         )
 
     def test_same_day_total_baked_on_every_commit(self):
         m = _final_manifest(str(FIXTURE))
-        commits = m["commits"]
+        commits = m.commits
         self.assertGreater(len(commits), 0)
         # Recompute the per-day grouping independently and assert each
         # commit's baked same_day_total matches (>= 1, includes self).
         per_day: dict[str, int] = {}
         for c in commits:
-            per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+            per_day[c.date] = per_day.get(c.date, 0) + 1
         for c in commits:
-            self.assertIn("same_day_total", c)
-            self.assertEqual(c["same_day_total"], per_day[c["date"]])
-            self.assertGreaterEqual(c["same_day_total"], 1)
+            self.assertEqual(c.same_day_total, per_day[c.date])
+            self.assertGreaterEqual(c.same_day_total, 1)
 
     def test_same_day_total_present_on_every_emit(self):
         # same_day_total is NotRequired on the internal TypedDict (it's baked
@@ -287,35 +282,34 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         # and final emits route through _wrap_manifest, so both must carry it
         # on every commit. Guards against a future emit path skipping wrap.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
-        phases = [e["phase"] for e in events]
+        phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)
         self.assertIn("manifest-complete", phases)
         for e in events:
-            for c in e["manifest"]["commits"]:
-                self.assertIn(
-                    "same_day_total", c, f"{e['phase']} commit missing same_day_total"
+            for c in e.manifest.commits:
+                self.assertGreater(
+                    c.same_day_total, 0, f"{e.phase} commit missing same_day_total"
                 )
 
     def test_scan_tree_emits_commits_list(self):
         m = _final_manifest(str(FIXTURE), use_cache=False)
-        self.assertIn("commits", m)
-        self.assertGreater(len(m["commits"]), 0)
-        dates = [c["date"] for c in m["commits"]]
+        self.assertGreater(len(m.commits), 0)
+        dates = [c.date for c in m.commits]
         self.assertEqual(dates, sorted(dates))
 
     def test_deep_history_ships_a_sample_with_exact_aggregates(self):
         full = _final_manifest(str(FIXTURE), use_cache=False)
-        self.assertGreater(len(full["commits"]), 2)
+        self.assertGreater(len(full.commits), 2)
         with mock.patch("api.scan.manifest.MAX_WIRE_COMMITS", 2):
             capped = _final_manifest(str(FIXTURE), use_cache=False)
-        self.assertEqual(len(capped["commits"]), 2)
+        self.assertEqual(len(capped.commits), 2)
         # Both ends survive, and everything derived from the history still
         # reads the whole of it.
-        self.assertEqual(capped["commits"][0], full["commits"][0])
-        self.assertEqual(capped["commits"][-1], full["commits"][-1])
-        self.assertEqual(capped["stats"]["commitCount"], len(full["commits"]))
-        self.assertEqual(capped["stats"], full["stats"])
-        self.assertEqual(capped["busyness"], full["busyness"])
+        self.assertEqual(capped.commits[0], full.commits[0])
+        self.assertEqual(capped.commits[-1], full.commits[-1])
+        self.assertEqual(capped.stats.commitCount, len(full.commits))
+        self.assertEqual(capped.stats, full.stats)
+        self.assertEqual(capped.busyness, full.busyness)
 
     def test_scan_tree_rejects_non_git_root(self):
         """scan_tree must raise NotAGitRepoError on a non-git directory.

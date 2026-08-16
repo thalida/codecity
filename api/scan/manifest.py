@@ -10,16 +10,16 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.config import MAX_WIRE_COMMITS
-from api.manifest_types import (
+from api.git.source import label_from_source
+from api.models.manifest import (
     CommitEntry,
     DirNode,
+    FileNode,
     Manifest,
-    NodeKind,
     RepoInfo,
     ScanStage,
 )
 from api.scan.signatures import TreeSignals
-from api.git.source import label_from_source
 from api.scan.stats import (
     annotate_same_day_totals,
     busyness_thresholds,
@@ -46,12 +46,12 @@ def sample_commits(commits: list[CommitEntry]) -> list[CommitEntry]:
 def _find_root_readme(tree: DirNode) -> tuple[str | None, str | None]:
     """(fullPath, modified) of the root README, matching any direct child
     whose stem is "readme" — the rule GitHub and VSCode use."""
-    for child in tree.get("children") or []:
-        if child.get("type") != NodeKind.FILE:
+    for child in tree.children:
+        if not isinstance(child, FileNode):
             continue
-        name = (child.get("name") or "").lower()
+        name = child.name.lower()
         if name == "readme" or name.startswith("readme."):
-            return child.get("fullPath"), child.get("modified")
+            return child.fullPath, child.modified
     return None, None
 
 
@@ -73,21 +73,21 @@ def wrap_manifest(
     # THE canonical display name, baked once and cached with the manifest: the
     # remote's owner/repo beats the on-disk basename, which is a clone's cache
     # hash or a worktree's folder name. Consumers read tree.name, never redo this.
-    tree["name"] = label_from_source(repo_info["remote_url"]) or tree["name"]
+    tree.name = label_from_source(repo_info.remote_url) or tree.name
     readme_path, readme_modified = _find_root_readme(tree)
-    return {
-        "root": root_abs,
-        "scanned_at": utc_now_iso(),
-        "content_signature": sig.hexdigest(),
-        "structure_signature": signals.structure_signature,
-        "layout_signature": signals.layout_signature,
-        "tree": tree,
-        "repo": repo_info,
-        "commits": sample_commits(commits) if sample else commits,
-        "pending": pending,
-        "busyness": busyness_thresholds(day_counts),
-        "dateRanges": signals.date_ranges,
-        "stats": compute_repo_stats(tree, commits),
-        "readmePath": readme_path,
-        "readmeModified": readme_modified,
-    }
+    return Manifest(
+        root=root_abs,
+        scanned_at=utc_now_iso(),
+        content_signature=sig.hexdigest(),
+        structure_signature=signals.structure_signature,
+        layout_signature=signals.layout_signature,
+        tree=tree,
+        repo=repo_info,
+        commits=sample_commits(commits) if sample else commits,
+        pending=pending,
+        busyness=busyness_thresholds(day_counts),
+        dateRanges=signals.date_ranges,
+        stats=compute_repo_stats(tree, commits),
+        readmePath=readme_path,
+        readmeModified=readme_modified,
+    )

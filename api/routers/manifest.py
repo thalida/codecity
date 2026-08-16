@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Union
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from api.models.events import (
@@ -104,7 +105,7 @@ def signature(
         )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
-    return SignatureResponse.model_validate(dict(sig))
+    return sig
 
 
 @router.get(
@@ -298,6 +299,14 @@ async def timeline(
     return EventSourceResponse(gen())
 
 
+def _as_json(obj: object) -> Any:
+    """json.dumps hook: the manifest and timeline payloads are Pydantic models,
+    everything else in an event payload is already a JSON primitive."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    raise TypeError(f"not JSON-serialisable: {type(obj).__name__}")
+
+
 def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:
     """sse-starlette event dict: {'event': name, 'data': json-string}. Both
     StrEnums serialize to their wire string ('manifest-complete', 'timeline-
@@ -308,7 +317,9 @@ def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[st
     would otherwise ship `"objects": null` for the client to special-case."""
     return {
         "event": event,
-        "data": json.dumps({k: v for k, v in payload.items() if v is not None}),
+        "data": json.dumps(
+            {k: v for k, v in payload.items() if v is not None}, default=_as_json
+        ),
     }
 
 
@@ -506,7 +517,7 @@ async def manifest(
                 if use_cache:
                     sig = signature_tree(
                         str(path), use_cache=use_cache, extra_exclude_paths=excludes
-                    )["content_signature"]
+                    ).content_signature
                     holder["sig"] = sig
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
@@ -521,12 +532,10 @@ async def manifest(
                     on_scan_progress=_on_scan,
                     extra_exclude_paths=excludes,
                 ):
-                    phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
-                    m = ev["manifest"]
-                    if phase is ScanEvent.MANIFEST_COMPLETE:
-                        holder["manifest"] = m
-                        holder["sig"] = m["content_signature"]
-                    _put(_sse(phase, {"manifest": m}))
+                    if ev.phase is ScanEvent.MANIFEST_COMPLETE:
+                        holder["manifest"] = ev.manifest
+                        holder["sig"] = ev.manifest.content_signature
+                    _put(_sse(ev.phase, {"manifest": ev.manifest}))
             except ScanCancelledError:
                 pass  # client disconnected mid-clone/scan; nothing to report
             except Exception as e:  # noqa: BLE001
