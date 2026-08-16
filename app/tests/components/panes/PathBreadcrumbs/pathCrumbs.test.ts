@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPathCrumbs } from '@/utils/pathCrumbs';
+import { buildPathCrumbs } from '@/components/panes/PathBreadcrumbs/pathCrumbs';
 import { ROOT_PATH } from '@/constants/manifest';
 
 const rootOpts = { isDir: true, rootLabel: 'codecity', rootPath: ROOT_PATH };

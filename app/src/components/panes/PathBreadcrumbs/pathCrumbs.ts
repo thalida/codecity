@@ -1,4 +1,4 @@
-// utils/pathCrumbs.ts — pure derivation of header breadcrumb segments from a
+// components/panes/PathBreadcrumbs/pathCrumbs.ts — pure derivation of header breadcrumb segments from a
 // selected path. Kept out of the component so it's unit-testable.
 
 export interface PathCrumb {

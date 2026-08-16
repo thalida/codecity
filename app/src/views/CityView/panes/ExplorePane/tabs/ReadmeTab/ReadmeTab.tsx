@@ -13,7 +13,7 @@ import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { relPathIn } from '@/utils/manifest';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
-import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
+import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */

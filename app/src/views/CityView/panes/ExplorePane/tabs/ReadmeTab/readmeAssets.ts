@@ -1,4 +1,4 @@
-// utils/readmeAssets.ts — Resolve README image/asset references to servable
+// views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets.ts — Resolve README image/asset references to servable
 // URLs. The README is rendered in the Info panel via marked; its relative
 // image paths (e.g. ./docs/banner.png) would otherwise resolve against the
 // app origin and 404. We rewrite repo-relative refs to route through
