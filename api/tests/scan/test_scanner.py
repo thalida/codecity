@@ -90,9 +90,8 @@ class ScanTreeStreamingTests(unittest.TestCase):
         with TemporaryDirectory() as td:
             root = Path(td)
             init_repo(root)
-            # Make enough files that the pool has work to do AFTER the
-            # skeleton emits, so the event-set-after-skeleton case
-            # genuinely interrupts metadata population.
+            # Enough files that the pool still has work after the skeleton
+            # emits, so the cancel genuinely interrupts something.
             for i in range(20):
                 (root / f"f{i}.py").write_text("x = 1\n" * 50)
             commit_all(root)
@@ -179,10 +178,8 @@ def test_reconstruct_head_matches_live_scan(tmp_path):
     (tmp_path / "src" / "lib" / "types.ts").write_text("export type T = number\n")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "guide.md").write_text("a\nb\nc\n")
-    # A committed symlink must vanish from BOTH the live scan and the
-    # reconstruction (gitobj.ls_tree_files skips mode-120000 entries to match
-    # the live scan's follow_symlinks=False gate) — otherwise this guard
-    # would miss a divergence where reconstruction alone kept it.
+    # BOTH paths must drop it. Checking only one would miss a divergence
+    # where the reconstruction alone kept the symlink.
     os.symlink("README.md", tmp_path / "link.md")
     commit_all(tmp_path, "c1")
 
@@ -205,10 +202,8 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         ensure_fixture()
 
     def test_date_ranges_present_on_every_emit(self):
-        # Both SSE phases route through _wrap_manifest, so both must carry
-        # dateRanges. The skeleton's are filesystem-derived: it is emitted
-        # before the git history walk, so its tree still holds the fs dates the
-        # scan recorded. The final's come from history.
+        # Both phases wrap, so both carry dateRanges — the skeleton's from the
+        # filesystem, since it precedes the history walk; the final's from it.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
         phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)
@@ -226,9 +221,8 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(ranges[-1].maxModified, max(modified))
 
     def test_skeleton_emits_before_the_history_walk(self):
-        # The history walk is ~75% of a big cold load and nothing the skeleton
-        # draws reads it, so the skeleton must not wait on it. Commits ride the
-        # final manifest alone — they are ~89% of the payload.
+        # The history walk is ~75% of a cold load and the skeleton draws none
+        # of it. Commits ride the final manifest alone: ~89% of the payload.
         from unittest import mock
 
         from api.scan import scanner as scanmod
@@ -277,10 +271,8 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
             self.assertGreaterEqual(c.same_day_total, 1)
 
     def test_same_day_total_present_on_every_emit(self):
-        # same_day_total is NotRequired on the internal TypedDict (it's baked
-        # in-place at wrap time) but REQUIRED on the wire. Both the skeleton
-        # and final emits route through _wrap_manifest, so both must carry it
-        # on every commit. Guards against a future emit path skipping wrap.
+        # same_day_total is baked at wrap time, so this guards against a
+        # future emit path that skips wrap and ships it uncounted.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
         phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)

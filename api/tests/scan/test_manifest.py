@@ -63,9 +63,8 @@ class ManifestEnvelopeTests(CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(m.tree.name, "sample-repo")
 
     def test_tree_name_baked_from_git_remote(self):
-        # The canonical repo name is the git remote's owner/repo, baked onto
-        # tree.name at scan time — NOT the on-disk folder basename. (A worktree
-        # folder or a clone's cache-dir hash would otherwise show through.)
+        # The remote's owner/repo, not the on-disk basename — which would be a
+        # worktree folder name or a clone's cache-dir hash.
         with TemporaryDirectory() as td:
             root = Path(td) / "some-worktree-folder"
             root.mkdir()

@@ -222,9 +222,8 @@ class ResponseModelTests(unittest.TestCase):
         )
 
     def test_sse_drops_nulls_so_the_client_never_sees_one(self) -> None:
-        # Progress payloads are built as plain dicts, and git's own lines carry
-        # different fields ("Counting objects: 12%" has no object counts). A
-        # null reaching the client is a crash there, not a missing value.
+        # git's lines carry different fields per stage, and a null reaching
+        # the client is a crash there rather than a missing value.
         import json
 
         from api.core.constants import ScanEvent

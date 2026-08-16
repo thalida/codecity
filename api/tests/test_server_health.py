@@ -31,9 +31,8 @@ def test_health(client: TestClient) -> None:
 def test_config_default_disabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The conftest sets CODECITY_ALLOW_LOCAL_REPOS=1 session-wide for
-    # tests that exercise local scan paths. Override it here to verify the
-    # default-disabled state that the real endpoint exposes.
+    # conftest enables local repos session-wide, so override it to see the
+    # default-disabled state the real endpoint exposes.
     from api import __version__
 
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)

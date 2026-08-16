@@ -55,6 +55,10 @@ jobs:
       - name: Python lint + format check (ruff)
         run: docker compose -f docker-compose.test.yml run --rm ruff
 
+      # Stdlib-only, so it runs on the runner rather than paying for a container.
+      - name: Python comment cap
+        run: python3 bin/check-comments.py api bin scripts
+
       # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
       # automatically — no `env:` mirror needed here, unlike NPM_VERSION
       # (which the shell steps below interpolate themselves).

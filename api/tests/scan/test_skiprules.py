@@ -149,9 +149,8 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("noisy-fixture", names)
 
     def test_codecityignore_path_excludes_specific_path_only(self):
-        # A line containing '/' is anchored to the scan root. A dir at
-        # a different relative path with the same final segment is NOT
-        # excluded.
+        # A line with '/' is anchored to the root, so the same final segment
+        # elsewhere is not excluded.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -201,9 +200,8 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("noisy-comment-test", names)
 
     def test_codecityignore_negation_unignores_always_skip(self):
-        # `!node_modules` overrides ALWAYS_SKIP, so the dir surfaces.
-        # node_modules is normally gitignored; here we force it into the
-        # repo so the ALWAYS_SKIP rule is the only thing hiding it.
+        # Forced into the repo despite the usual gitignore, so ALWAYS_SKIP is
+        # the only thing hiding it and the negation has something to override.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -230,9 +228,8 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("sbom.json", names)
 
     def test_codecityignore_negation_path_anchored(self):
-        # `!stash/legacy` un-ignores only that exact path. Another dir
-        # named `legacy` at a different rel-path stays excluded by the
-        # bare `legacy` rule.
+        # `!stash/legacy` un-ignores that exact path only; another `legacy`
+        # elsewhere stays excluded by the bare rule.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -251,10 +248,8 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("elsewhere/legacy", paths)
 
     def test_codecityignore_negation_does_not_unignore_git_dir(self):
-        # `!.git` is silently ignored — walking the object database is
-        # always disallowed regardless of user config. _init_repo gives
-        # us a real .git/ directory; the hardcoded `name == ".git"`
-        # check should drop it even with the negation in place.
+        # `!.git` is silently ignored: walking the object database is never
+        # allowed, whatever the user config says.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)

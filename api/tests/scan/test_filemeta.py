@@ -95,9 +95,8 @@ class LineCountTests(unittest.TestCase):
         self.assertEqual(line_count(big), lines)
 
     def test_final_line_without_trailing_newline_counts(self):
-        # Count lines, not terminators: a final line with no trailing newline
-        # still counts. Regression: a source map or minified file is one long
-        # line with no trailing newline, which a terminator count reports as 0.
+        # Lines, not terminators. A minified file is one long line with no
+        # trailing newline, which a terminator count reports as 0.
 
         def count(content: bytes) -> int:
             with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
@@ -232,9 +231,8 @@ class MediaDimsInScanTests(CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(files[0].media_width, 50)
             self.assertEqual(files[0].media_height, 30)
 
-            # Warm path: second scan should hit the file-stat cache and
-            # still stamp media_width / media_height on the node — the
-            # cache-hit branch in _populate_file_metadata.
+            # The warm path stamps media dims from the cache, which is a
+            # different branch from the cold read.
             manifest2 = _final_manifest(str(tmp_path))
             files2 = [c for c in manifest2.tree.children if c.type == "file"]
             self.assertEqual(len(files2), 1)

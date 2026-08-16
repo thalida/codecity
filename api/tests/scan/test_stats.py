@@ -219,9 +219,8 @@ def test_empty_tree_and_no_commits():
 
 
 def test_ranges_span_all_files_excluding_zero():
-    # The byte range must include the media file and exclude the 0-byte file —
-    # this matches the client's computeFileStats so building widths are
-    # identical. The 0-byte file excluded means the frontend never sees log(0).
+    # Matches the client's computeFileStats, so building widths agree. The
+    # 0-byte file is excluded so the frontend never sees log(0).
     code = _file("a.ts", lines=10, size=200)
     big = _file("big.png", lines=0, size=9000, media="image", mw=4, mh=4)
     empty = _file("empty.py", lines=0, size=0)

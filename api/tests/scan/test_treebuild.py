@@ -134,9 +134,8 @@ class ExtBreakdownTests(CacheRedirectMixin, unittest.TestCase):
             )
 
     def test_ext_breakdown_extensionless_files_use_null(self):
-        # Extensionless files bucket under a null `ext` (not a "(none)"
-        # sentinel string), so the UI can branch on null instead of a
-        # magic value.
+        # Null `ext`, not a "(none)" sentinel, so the UI branches on null
+        # rather than a magic string.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)

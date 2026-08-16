@@ -80,9 +80,8 @@ def test_dirty_file_uses_worktree_mtime_and_flag(tmp_path: Path):
     nodes = {n.path: n for n in manifest.tree.children}
     assert nodes["a.py"].dirty is True
     assert nodes["b.py"].dirty is False
-    # a.py grew — its modified date reflects the working-tree write, so it is
-    # >= b.py's commit date (a.py was committed BEFORE b.py, so a git-history
-    # modified would be OLDER than b.py; the override flips that).
+    # a.py was committed BEFORE b.py, so a git-history date would be older.
+    # The working-tree override flips that.
     assert nodes["a.py"].modified >= nodes["b.py"].modified
     assert manifest.repo.dirty is True
 

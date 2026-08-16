@@ -4,16 +4,16 @@
 #
 # What runs (in this order — fail fast):
 #   1. Python tests (api/) — pytest
-#   2. Python lint + format — ruff check, ruff format --check
+#   2. Python lint + format — ruff check, ruff format --check, comment cap
 #   3. Python types (api/) — pyright, strict
 #   4. Frontend tests (app/) — vitest
 #   5. Frontend lint + typecheck (app/)
 #   6. Formatting — prettier --check (whole repo, from the root)
 #   7. Generated TS types still match the Pydantic models
 #
-# Steps 1-6 run in containers, so the gate doesn't depend on whatever the host
-# happens to have installed — a fresh worktree could not push before this.
-# Step 7 is the exception: it needs uv and npx together, which no one image has.
+# Most of it runs in containers, so the gate doesn't depend on whatever the host
+# happens to have installed. The exceptions are the two stdlib/uv checks that no
+# single image can host: the Python comment cap, and step 7.
 
 set -e
 
@@ -27,6 +27,8 @@ docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
 
 echo "[pre-push] 2/7  ruff check + format --check (api/)"
 docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
+# On the host: it is stdlib-only, and running it here costs nothing.
+uv run python bin/check-comments.py api bin scripts
 
 echo "[pre-push] 3/7  pyright (api/)"
 docker compose -f docker-compose.test.yml run --rm pyright >/dev/null
@@ -34,9 +36,9 @@ docker compose -f docker-compose.test.yml run --rm pyright >/dev/null
 echo "[pre-push] 4/7  vitest (app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
-# The comment cap runs over what this push changes, not the whole tree: the
-# rule arrived long after the comments did, and a 400-file rewrite is its own
-# job. Listed here (git lives on the host) and linted in there.
+# app/'s comment cap runs over what this push changes, not the whole tree: that
+# rule arrived long after its comments did. api/ has no such backlog, so its cap
+# above runs over everything. Listed here (git is on the host), linted in there.
 CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'app/**' \
     | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^app/||' | tr '\n' ' ' || true)
 

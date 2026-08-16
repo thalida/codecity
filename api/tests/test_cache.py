@@ -34,9 +34,8 @@ def _stub_manifest():
 def _seed_files() -> tuple:
     cache_mod.cache_save_files(_ROOT, {})
     path = cache_paths.CACHE_ROOT / "files" / f"{cache_paths.repo_key(_ROOT)}.json"
-    # A well-formed entry, so the version guard is the only thing that can
-    # reject it. A malformed one would be dropped by the entry filter instead,
-    # and the assertion could not tell the two apart.
+    # Well-formed, so the version guard is the only thing that can reject it —
+    # a malformed one would be dropped by the entry filter instead.
     stale = {
         "version": 999,
         "root": str(_ROOT),
@@ -79,9 +78,8 @@ def _seed_timeline() -> tuple:
     bundle = make_timeline_bundle(unionManifest=_stub_manifest())
     cache_mod.cache_save_timeline(_ROOT, _SHA, bundle)
     path = cache_paths.timeline_cache_path(_ROOT, _SHA, frozenset())
-    # One version back, not 999: v6 added blobSizes and full commit timestamps,
-    # so serving a v5 blob would hand the scrubber day-precision dates and stack
-    # every same-day commit.
+    # One version back, not 999: serving the previous shape would hand the
+    # scrubber day-precision dates and stack every same-day commit.
     stale = {
         "version": cache_manifests.TIMELINE_VERSION - 1,
         "bundle": bundle.model_dump(),
@@ -220,10 +218,8 @@ class GitHistoryCacheTests(CacheTestBase):
         self.assertEqual(result, (created, modified, []))
 
     def test_round_trips_full_commit_entries(self) -> None:
-        # The loader must reconstruct the WHOLE CommitEntry — authors +
-        # subject included. A previous bug dropped them, so commits loaded
-        # from a warm cache had no `authors`, crashing the fireflies
-        # consumer (`for author of c.authors`). Round-trip a populated commit.
+        # The WHOLE entry, authors included: dropping them once meant a warm
+        # cache crashed the fireflies consumer that iterates them.
         root = Path("/some/repo")
         commits = [
             make_commit(
@@ -542,9 +538,8 @@ class ManifestCacheTests(CacheTestBase):
         self.assertEqual(cache_mod.cache_load_timeline(root, sha), bundle)
 
     def test_timeline_excludes_key_separately(self) -> None:
-        # Excludes reshape the filtered union, so they're part of the cache key:
-        # a bundle saved with one exclude set must not be served for another,
-        # and the empty-set key stays independent of both.
+        # Excludes reshape the filtered union, so they are part of the key: one
+        # exclude set's bundle must never be served for another.
         root = Path("/some/repo")
         sha = "a" * 40
         base, filtered = self._make_bundle(), self._make_bundle()

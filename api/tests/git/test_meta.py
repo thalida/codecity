@@ -25,9 +25,8 @@ from api.tests.conftest import (
 )
 
 
-# The public authors list never contains an `@` or a domain, per CommitEntry's
-# docstring. The multi-author fixture commit covers the common path but not the
-# email-only trailer, which is the privacy-critical branch.
+# The public authors list never carries an `@` or a domain. The email-only
+# trailer is the privacy-critical branch the fixture commit doesn't reach.
 @pytest.mark.parametrize(
     "trailers,expected",
     [
@@ -67,12 +66,8 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         ensure_fixture()
 
     def test_single_walk_invocation(self):
-        # The combined --name-status walk replaces the previous two
-        # parallel walks — _collect_git_history should now fire `git
-        # log` exactly once. _walk_git_log streams output
-        # via Popen; the short auxiliary commands (rev-parse, ls-files)
-        # go through subprocess.run. Wrap both so we catch git log
-        # regardless of which API the implementation chose.
+        # One combined walk means exactly one `git log`. Wrap Popen AND run,
+        # so the assertion holds whichever API the implementation picks.
         from unittest.mock import patch
         from api.git.meta import collect_git_history
 
@@ -81,10 +76,8 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         log_calls: list[list[str]] = []
 
         def _record_if_git_log(args) -> None:
-            # Match any invocation that runs `git ... log ...`. _run_git
-            # prepends `-c safe.directory=*` (and the log path also does
-            # so), so we can't assume a fixed position for "log" — just
-            # check the binary name and that "log" appears as a token.
+            # The safe.directory prefix means "log" has no fixed position, so
+            # match on the binary name plus "log" appearing as a token.
             if (
                 isinstance(args, list)
                 and len(args) > 0
@@ -271,9 +264,8 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
                 Path(td),
                 use_cache=False,
             )
-            # Merge is the most recent commit (oldest-first list, so [-1]).
-            # Side branch added b.txt; the merge against the first parent
-            # (main, which has only a.txt) introduces b.txt — so files >= 1.
+            # Oldest-first, so the merge is [-1]. Diffed against first parent
+            # (main, holding only a.txt) it introduces b.txt, so files >= 1.
             self.assertGreaterEqual(
                 commits[-1].files,
                 1,
@@ -340,10 +332,8 @@ class GitLogRobustnessTests(CacheRedirectMixin, unittest.TestCase):
             init_repo(td_path)
             (td_path / "f.txt").write_text("x\n")
             subprocess.run(["git", "-C", td, "add", "-A"], check=True)
-            # Build the commit object by hand so a raw 0xe9 byte
-            # (Latin-1 'é', invalid standalone UTF-8) survives into the
-            # author line. Passing it via GIT_AUTHOR_NAME doesn't work —
-            # git silently re-encodes env strings to valid UTF-8.
+            # By hand, so a raw 0xe9 survives into the author line:
+            # GIT_AUTHOR_NAME would be silently re-encoded to valid UTF-8.
             tree_sha = subprocess.run(
                 ["git", "-C", td, "write-tree"],
                 capture_output=True,
@@ -371,9 +361,8 @@ class GitLogRobustnessTests(CacheRedirectMixin, unittest.TestCase):
                 check=True,
             )
 
-            # Run in a thread with a deadline so a regression that
-            # deadlocks the finally clause fails loudly instead of
-            # hanging the pytest worker forever.
+            # A deadline, so a regression that deadlocks the finally clause
+            # fails loudly instead of hanging the worker forever.
             import threading
 
             result: dict[str, object] = {}
@@ -608,9 +597,8 @@ class ScanDateResolutionTests(CacheRedirectMixin, unittest.TestCase):
         ensure_fixture()
 
     def test_resolved_dates_prefer_git(self):
-        # created/modified are resolved server-side: a committed file carries
-        # its git history dates (the fixture pins index.ts's commit date),
-        # not its filesystem dates.
+        # Resolved server-side: a committed file carries its git history
+        # dates, not its filesystem ones.
         m = _final_manifest(str(FIXTURE))
         for node in walk_files(m.tree):
             if node.name == "index.ts":
@@ -645,10 +633,8 @@ class ScanDateResolutionTests(CacheRedirectMixin, unittest.TestCase):
             self.fail("staged.txt not found in manifest")
 
     def test_git_dates_normalized_to_utc(self):
-        # git %aI carries the author's UTC offset; the scanner normalizes
-        # to Z-suffixed UTC so every date on the wire shares one format
-        # and lexical order == chronological order (dateRanges relies on
-        # this). A commit authored at 15:30+02:00 lands as 13:30Z.
+        # %aI carries the author's offset; normalising to Z is what makes
+        # lexical order chronological. 15:30+02:00 lands as 13:30Z.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)

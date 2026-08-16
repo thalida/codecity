@@ -93,11 +93,8 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(s.content_signature, m.content_signature)
 
     def test_signature_matches_scan_tree_on_dirty_repo(self):
-        # The per-file dirty bit is computed at different call sites in the
-        # two walks (_file_node's dirty_paths lookup vs _walk_for_signature's
-        # inline `entry_rel in dirty_paths`) — a dirty repo is where
-        # cross-walk drift in that bit would land undetected by the
-        # clean-repo parity test above.
+        # The two walks compute the dirty bit at different call sites, so a
+        # dirty repo is where drift between them would hide.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -135,10 +132,8 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             new_file.unlink(missing_ok=True)
 
     def test_signature_honors_codecityignore(self):
-        # Parity contract: editing .codecityignore must shift the
-        # signature returned by signature_tree (so the live-update poll
-        # actually triggers a reload), and that signature must match
-        # scan_tree's output for the same root.
+        # Editing .codecityignore must shift signature_tree's answer, and it
+        # must still equal scan_tree's for the same root.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -161,9 +156,8 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             self.assertNotEqual(before_sig, after_sig)
 
     def test_signature_changes_with_dirty_path_set(self):
-        # A per-file dirty transition that moves NO file's mtime/size and NO
-        # head_sha (a mode-only edit) must still shift the signature, or a
-        # cached manifest would serve a stale per-file dirty flag/count.
+        # A mode-only edit moves no mtime, size or head_sha, and must STILL
+        # shift the signature or a cached manifest serves a stale dirty flag.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -178,9 +172,8 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
             before_stat = a.stat()
             sig_one_dirty = signature_tree(str(root)).content_signature
 
-            # Now also flip a.py's executable bit: git sees it as modified
-            # (added to the dirty set) but a.py's own mtime/size are
-            # untouched, and head_sha/repo.dirty (already True) don't move.
+            # git sees the mode flip as modified, but a.py's own mtime and
+            # size are untouched and repo.dirty was already True.
             os.chmod(a, before_stat.st_mode | 0o111)
             after_stat = a.stat()
             self.assertEqual(before_stat.st_size, after_stat.st_size)

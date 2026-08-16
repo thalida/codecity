@@ -118,13 +118,12 @@ lint: lint-api lint-app
 
 # ruff = lint + format check; pyright = strict types over api/. Both read their
 # config from pyproject.toml; pyright's binary version is pinned in .env.
-lint-api:
+lint-api: comment-check
     docker compose -f docker-compose.test.yml run --rm ruff
     docker compose -f docker-compose.test.yml run --rm pyright
 
-# The `#` half of the comment cap eslint enforces on app/. Not in `lint-api`
-# yet: api/ carries 110 blocks written before the rule, and cutting each to its
-# one non-obvious why is its own job. Runs on demand until that is done.
+# The `#` half of the comment cap eslint enforces on app/. Runs over the whole
+# tree, not just what a push changes: unlike the JS side, there is no backlog.
 comment-check *paths='api bin scripts':
     uv run python bin/check-comments.py {{paths}}
 
