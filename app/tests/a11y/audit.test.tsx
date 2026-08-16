@@ -3,8 +3,14 @@
 // labels, positive tabindex. Contrast needs real layout, so that rule is off
 // here and verified separately through the OKLCH token math.
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'preact';
+
+// HomeView's form asks the API for branches the moment it holds a remote URL,
+// and a live request rejecting mid-run lands in whichever test is up by then.
+vi.mock('@/api/branches', () => ({
+  fetchBranches: vi.fn(async () => ({ branches: [], default: null })),
+}));
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import axe from 'axe-core';

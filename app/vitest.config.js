@@ -41,6 +41,10 @@ export default defineConfig({
         },
       },
     ],
+    // Random order, every run: a test that only passes after its neighbour has
+    // run is lying about what it covers, and this is what makes it say so. Must
+    // live here rather than per-project, where vitest ignores it.
+    sequence: { shuffle: true },
     // Coverage applies to whichever project is selected via --project=unit.
     // Top-level placement keeps the config in one spot rather than per-project.
     coverage: {
