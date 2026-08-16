@@ -1,11 +1,7 @@
-// state/stores/source.ts — which repo: the one you opened, the ones you opened
-// before, the folders you hid inside it, and the one merely showing behind the
-// landing (ACTIVE_SOURCE is computed from the last two).
-//
-// The excludes are here, not in settings/, because they are keyed per repo and
-// useManifestSource sends them in the manifest URL beside src and branch. Every
-// settings store is a knob declared with settingSignal (a kind, a default, a
-// label); a per-repo path list has none of those to declare.
+// state/stores/source.ts — which repo: the one you opened, the ones before it,
+// the folders you hid inside it, and the one merely showing behind the landing.
+// The excludes are here rather than in settings/ because useManifestSource
+// sends them in the manifest URL beside src and branch.
 
 import { signal, computed, effect, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
@@ -195,9 +191,8 @@ export const BACKDROP_CITY = signal<BackdropCity | null>(null);
 
 // ── Folders you have hidden, per repo ─────────────────────────────────
 
-/** repo key -> sorted, de-duped rel-paths. One localStorage slot for all repos.
- *  Whole-object persistence: keys are runtime repo hashes, not in the default,
- *  so diff-vs-default mode would drop every write. */
+/** repo key -> sorted, de-duped rel-paths. Whole-object persistence: the keys
+ *  are runtime repo hashes, so diff-vs-default would drop every write. */
 export const EXCLUDES = persistedSignal<Record<string, string[]>>(
   PERSISTED_KEYS.EXCLUDES,
   {},
