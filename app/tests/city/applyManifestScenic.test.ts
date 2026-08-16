@@ -7,7 +7,7 @@ import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
-import { makeSceneContext } from '../_helpers/cityFixtures';
+import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
 
 function makeRootStreet(): Street {
   return {
@@ -72,7 +72,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
         }) as unknown as CityLayout
     );
 
-    const cityState = createCityState(layoutClient as never);
+    const cityState = createCityState(layoutClient as never, stubPlacementClient() as never);
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
 

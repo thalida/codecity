@@ -9,7 +9,6 @@ import { effect, untracked } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { BUILT_MANIFEST } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -18,6 +17,7 @@ import { makeHeightContext } from './layout/dimensions';
 import { createScrubController } from './timeline/scrubController';
 import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
+import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import { createCityState } from './state';
 import {
   runCollisionCheck,
@@ -66,7 +66,10 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
   registerFacadePanelRenderer(renderer);
 
   const layoutClient = createLayoutClient();
-  const cityState = createCityState(layoutClient);
+  // Both off-thread build workers, owned here and handed to the store that runs
+  // the build. Lazy: neither spawns until its first compute().
+  const treePlacementClient = createTreePlacementClient();
+  const cityState = createCityState(layoutClient, treePlacementClient);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
@@ -129,11 +132,11 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe only on a real source change, and off the finished build rather than
-  // the apply that starts it: a camera aimed mid-build is aimed at half a city.
+  // Reframe only on a real source change. cityRevision bumps after the apply's
+  // batch flushed, so the camera is aimed at a built city, not half of one.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
-    void BUILT_MANIFEST.value;
+    void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
     if (key === null || key === lastReframedSourceKey) return;
     // No city yet: claiming the key here would make the first real one, which
@@ -311,6 +314,7 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
       postFx.dispose();
       for (const c of components) c.dispose();
       layoutClient.dispose();
+      treePlacementClient.dispose();
       // dispose() leaves the WebGL context alive; without forceContextLoss()
       // every teardown leaks one until Chrome's ~16-per-page cap blocks new.
       renderer.dispose();

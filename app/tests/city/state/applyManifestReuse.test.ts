@@ -5,6 +5,7 @@
 // layout on every edit; the new gate re-packs (bumps structureRevision)
 // whenever layout_signature changes.
 
+import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
 import { createCityState } from '@/city/state';
 import { NodeKind } from '@/types';
@@ -70,7 +71,7 @@ function fakeLayoutClient() {
 
 describe('cityState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
   it('bumps structureRevision when layout_signature changes (full re-pack)', async () => {
-    const state = createCityState(fakeLayoutClient() as never);
+    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
     await state.applyManifest(manifest('L2')); // layout_signature changed
@@ -82,7 +83,7 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
   // the field-reading gate must reuse. This fails against the old tree-derived
   // gate, so it actually proves the switch.
   it('reuses when layout_signature is unchanged even if the tree size differs', async () => {
-    const state = createCityState(fakeLayoutClient() as never);
+    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;
     await state.applyManifest(manifest('L1', 999)); // different tree size, SAME field

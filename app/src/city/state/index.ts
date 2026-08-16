@@ -6,13 +6,20 @@ import { signal, computed, batch, type Signal, type ReadonlySignal } from '@prea
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { TREES } from '@/state/settings/fields/trees';
-import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/progress';
+import {
+  beginBuild,
+  enterBuildStage,
+  markDecorating,
+  markIdle,
+  setBuildStagePercent,
+} from '@/state/stores/progress';
 import { BuildStage } from '@/constants/progress';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
 import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
+import type { TreePlacementClient } from '../components/trees/treePlacementClient';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
@@ -33,8 +40,8 @@ export interface CityState {
   // Island floor sizing. Computed off sceneBbox + cityHeight (frozen on reuse),
   // null until the first apply.
   readonly latestWorldBounds: ReadonlySignal<WorldBounds | null>;
-  // Deferred tree-placement results: trees writes (null at rebuild start, the
-  // array once the off-thread scan resolves); fireflies reacts off it.
+  // Where the trees stand, from the build's placement stage. The trees and
+  // fireflies components render off it; null when trees are switched off.
   treePlacements: Signal<TreePlacement[] | null>;
   readonly rootStreet: ReadonlySignal<Street | null>;
   readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
@@ -45,10 +52,9 @@ export interface CityState {
   // resolve a street by directory here rather than through the component.
   readonly streetsByDirMap: ReadonlySignal<Record<string, Street>>;
   // Change counters, tracked while the data is peeked: structureRevision on a
-  // non-reuse apply only, cityRevision on every apply, decoration on tree swaps.
+  // non-reuse apply only, cityRevision on every apply.
   structureRevision: Signal<number>;
   cityRevision: Signal<number>;
-  decorationRevision: Signal<number>;
   // Compute the layout off-thread, then set the source signals. leadingStages
   // are stages the CALLER already ran, so the readout counts them (Timeline).
   applyManifest(newManifest: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
@@ -59,14 +65,85 @@ export interface CityState {
   invalidateLayoutCache(): void;
 }
 
-export function createCityState(layoutClient: ReturnType<typeof createLayoutClient>): CityState {
+/** The world bbox for a layout: street rects, building footprints and roofs, plus
+ *  the halo. Pure, so the build can measure a layout it has not published yet. */
+function cityBbox(l: CityLayout, halo: number): THREE.Box3 {
+  const box = new THREE.Box3();
+  // Inlined rather than expandByPoint per point: ~190k points at Linux scale,
+  // ~2.4x faster and allocation-free. The +Inf start still detects empty.
+  const min = box.min;
+  const max = box.max;
+  for (const s of l.streets) {
+    // rectOfStreet's orientation swap, inlined.
+    const w = s.orientation === StreetAxis.X ? s.length : s.width;
+    const d = s.orientation === StreetAxis.X ? s.width : s.length;
+    const x0 = s.x - w / 2;
+    const x1 = s.x + w / 2;
+    const z0 = s.y - d / 2;
+    const z1 = s.y + d / 2;
+    if (x0 < min.x) min.x = x0;
+    if (x1 > max.x) max.x = x1;
+    if (z0 < min.z) min.z = z0;
+    if (z1 > max.z) max.z = z1;
+    if (0 < min.y) min.y = 0;
+    if (0 > max.y) max.y = 0;
+  }
+  // Empty fallback (no streets) — applied BEFORE the building expansion so a
+  // building-only layout still gets the floor box.
+  if (box.isEmpty()) {
+    box.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
+  }
+  // Buildings render via a separate instanced mesh — expand to each footprint
+  // (y=0) + roof height (y=b.h) so framing covers the FULL visible city.
+  for (const b of l.buildings) {
+    const x0 = b.x - b.w / 2;
+    const x1 = b.x + b.w / 2;
+    const z0 = b.y - b.d / 2;
+    const z1 = b.y + b.d / 2;
+    if (x0 < min.x) min.x = x0;
+    if (x1 > max.x) max.x = x1;
+    if (z0 < min.z) min.z = z0;
+    if (z1 > max.z) max.z = z1;
+    if (0 < min.y) min.y = 0;
+    if (b.h < min.y) min.y = b.h;
+    if (0 > max.y) max.y = 0;
+    if (b.h > max.y) max.y = b.h;
+  }
+  // Expand XZ by the halo so the bbox covers the asphalt slab wrapping the city
+  // (footprint rects are inflated by HALO_WIDTH). Y stays bounded by height.
+  if (halo > 0) {
+    box.min.x -= halo;
+    box.min.z -= halo;
+    box.max.x += halo;
+    box.max.z += halo;
+  }
+  return box;
+}
+
+/** Placement-space view of a world bbox (CityLayout's XY axis == world XZ). */
+function sceneBboxOf(b: THREE.Box3): CityBbox {
+  return {
+    minX: b.min.x,
+    maxX: b.max.x,
+    minY: b.min.z,
+    maxY: b.max.z,
+    cx: (b.min.x + b.max.x) / 2,
+    cy: (b.min.z + b.max.z) / 2,
+    width: b.max.x - b.min.x,
+    depth: b.max.z - b.min.z,
+  };
+}
+
+export function createCityState(
+  layoutClient: ReturnType<typeof createLayoutClient>,
+  treePlacementClient: TreePlacementClient
+): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
   const treePlacements = signal<TreePlacement[] | null>(null);
   // Change-notification counters (see CityState for what each means + who tracks it).
   const structureRevision = signal(0);
   const cityRevision = signal(0);
-  const decorationRevision = signal(0);
 
   // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
   // the halo changes, not on every FOOTPRINT change (which would refit).
@@ -80,74 +157,13 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   const bbox = computed<THREE.Box3 | null>(() => {
     void structureRevision.value;
     const l = layout.peek();
-    if (!l) return null;
-    const box = new THREE.Box3();
-    // Inlined rather than expandByPoint per point: ~190k points at Linux scale,
-    // ~2.4x faster and allocation-free. The +Inf start still detects empty.
-    const min = box.min;
-    const max = box.max;
-    for (const s of l.streets) {
-      // rectOfStreet's orientation swap, inlined.
-      const w = s.orientation === StreetAxis.X ? s.length : s.width;
-      const d = s.orientation === StreetAxis.X ? s.width : s.length;
-      const x0 = s.x - w / 2;
-      const x1 = s.x + w / 2;
-      const z0 = s.y - d / 2;
-      const z1 = s.y + d / 2;
-      if (x0 < min.x) min.x = x0;
-      if (x1 > max.x) max.x = x1;
-      if (z0 < min.z) min.z = z0;
-      if (z1 > max.z) max.z = z1;
-      if (0 < min.y) min.y = 0;
-      if (0 > max.y) max.y = 0;
-    }
-    // Empty fallback (no streets) — applied BEFORE the building expansion so a
-    // building-only layout still gets the floor box.
-    if (box.isEmpty()) {
-      box.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
-    }
-    // Buildings render via a separate instanced mesh — expand to each footprint
-    // (y=0) + roof height (y=b.h) so framing covers the FULL visible city.
-    for (const b of l.buildings) {
-      const x0 = b.x - b.w / 2;
-      const x1 = b.x + b.w / 2;
-      const z0 = b.y - b.d / 2;
-      const z1 = b.y + b.d / 2;
-      if (x0 < min.x) min.x = x0;
-      if (x1 > max.x) max.x = x1;
-      if (z0 < min.z) min.z = z0;
-      if (z1 > max.z) max.z = z1;
-      if (0 < min.y) min.y = 0;
-      if (b.h < min.y) min.y = b.h;
-      if (0 > max.y) max.y = 0;
-      if (b.h > max.y) max.y = b.h;
-    }
-    // Expand XZ by the halo so the bbox covers the asphalt slab wrapping the city
-    // (footprint rects are inflated by HALO_WIDTH). Y stays bounded by height.
-    const halo = footprintHalo.value;
-    if (halo > 0) {
-      box.min.x -= halo;
-      box.min.z -= halo;
-      box.max.x += halo;
-      box.max.z += halo;
-    }
-    return box;
+    return l ? cityBbox(l, footprintHalo.value) : null;
   });
 
   // Placement-space view of the world bbox (CityLayout's XY axis == world XZ).
   const sceneBbox = computed<CityBbox | null>(() => {
     const b = bbox.value;
-    if (!b) return null;
-    return {
-      minX: b.min.x,
-      maxX: b.max.x,
-      minY: b.min.z,
-      maxY: b.max.z,
-      cx: (b.min.x + b.max.x) / 2,
-      cy: (b.min.z + b.max.z) / 2,
-      width: b.max.x - b.min.x,
-      depth: b.max.z - b.min.z,
-    };
+    return b ? sceneBboxOf(b) : null;
   });
   const cityHeight = computed<number>(() => {
     const b = bbox.value;
@@ -286,14 +302,40 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     await nextPaint();
     if (myGeneration !== generation) return;
 
+    // Placed against the finished layout, so the scan belongs to the build, not
+    // to the component that draws them: the batch below publishes a whole city.
+    let newPlacements: TreePlacement[] | null = null;
+    if (TREES.peek().ENABLED) {
+      markDecorating();
+      const newBbox = cityBbox(newLayout, footprintHalo.peek());
+      try {
+        newPlacements = await treePlacementClient.compute(
+          newLayout,
+          sceneBboxOf(newBbox),
+          newManifest.commits?.length ?? 0,
+          newBbox.max.y - newBbox.min.y
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
+      }
+      if (myGeneration !== generation) return;
+    }
+
     // One batch so consumers settle once. layout is set before structureRevision
     // so structure consumers peek it fresh; a reuse apply leaves them frozen.
     batch(() => {
       manifest.value = newManifest;
       layout.value = newLayout;
+      treePlacements.value = newPlacements;
       if (!shouldReuse) structureRevision.value++;
-      cityRevision.value++;
     });
+    // AFTER the flush: everything downstream of cityRevision reads the meshes the
+    // components just built (the picker collects its pickables from them).
+    cityRevision.value++;
+    // The build ends here, with every component's meshes in the scene: the one
+    // place that can say so, rather than whichever component finished last.
+    markIdle();
   }
 
   // A config-only Save calls this so the next apply of the same manifest takes
@@ -316,7 +358,6 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     streetsByDirMap,
     structureRevision,
     cityRevision,
-    decorationRevision,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,

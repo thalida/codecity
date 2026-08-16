@@ -35,8 +35,8 @@ export function createPicker({
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  // Cached pickables list. Refreshed on the cityRevision/decorationRevision
-  // effects below so per-frame raycasts don't allocate a new array.
+  // Cached pickables list. Refreshed on the revision effects below, so per-frame
+  // raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   // ObjectBVH: ~34ms casts (80k instances) → ~0.07ms. Built lazily on first
   // pickAt: off the apply path, and world matrices are fresh by then.
@@ -176,14 +176,8 @@ export function createPicker({
       _resolveKeyToSelection();
     });
   });
-  // decorationRevision bumps AFTER the deferred trees attach — at
-  // cityRevision time getTrees() was still null, so re-resolve now.
-  const _disposeDecorationRevEffect = effect(() => {
-    void cityState.decorationRevision.value;
-    untracked(_resolveKeyToSelection);
-  });
-  // Note: both effects fire ONCE at construction (revisions start at 0). That
-  // initial resolve runs with key null → selection cleared + pickables primed.
+  // cityRevision bumps after the apply's batch flushed, so the meshes collected
+  // here are the ones the components just built. Fires once at construction too.
 
   // The scrub rewrites building matrices per frame but the BVH caches bounds
   // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
@@ -455,7 +449,6 @@ export function createPicker({
 
   function dispose() {
     _disposeCityRevEffect();
-    _disposeDecorationRevEffect();
     _disposeScrubBvhEffect();
     _disposeSelectionEffect();
   }

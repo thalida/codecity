@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
@@ -61,22 +61,14 @@ function _baseWorld() {
   };
 }
 
-// The rig takes a resolved PickTarget, the same shape the picker hands it.
+// The rig takes a resolved PickTarget, the same shape the picker hands it. No
+// casts: a drift in that shape has to fail the typecheck, not slip through.
 function fileTarget(b: Building): PickTarget {
   return { kind: NodeKind.File, mesh: new THREE.Mesh(), data: b, file: b.file, instanceId: 0 };
 }
 
 function dirTarget(s: Street): PickTarget {
-  return {
-    kind: NodeKind.Directory,
-    sidewalk: new THREE.Mesh(),
-    street: s,
-    dir: s.dir,
-  } as unknown as PickTarget;
-}
-
-function commitTarget(sha: string): PickTarget {
-  return { kind: NodeKind.Commit, commit: { sha } } as unknown as PickTarget;
+  return { kind: NodeKind.Directory, sidewalk: new THREE.Mesh(), street: s, dir: s.dir! };
 }
 
 function makeBuilding(): Building {

@@ -2,6 +2,7 @@
 // city" used to sit silent for the whole apply; it now names each stage, and
 // the count beside it has to come from the stages this apply actually runs.
 
+import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createCityState } from '@/city/state';
@@ -74,32 +75,36 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
   });
 
   it('walks the stages it is going to run', async () => {
-    const state = createCityState(fakeLayoutClient() as never);
+    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
-    // Decoration is the last stage and the trees component enters it, so the
-    // walk here stops one short of the plan.
-    expect(tails).toEqual(['0% icons', '25% layout', '50% buildings']);
+    // Every stage of the plan, decoration included: the build places the trees
+    // itself, so the walk no longer stops one short.
+    expect(tails).toEqual(['0% icons', '25% layout', '50% buildings', '75% trees']);
   });
 
   it('counts against a shorter plan when the apply has less to do', async () => {
-    const state = createCityState(fakeLayoutClient() as never);
+    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
     // that stage never runs and must not be promised.
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
-    expect(tails).toEqual(['0% layout', '33% buildings']);
+    expect(tails).toEqual(['0% layout', '33% buildings', '67% trees']);
   });
 
   it('carries the packer percent while it packs', async () => {
-    const state = createCityState(fakeLayoutClient([7, 61]) as never);
+    const state = createCityState(
+      fakeLayoutClient([7, 61]) as never,
+      stubPlacementClient() as never
+    );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
     expect(tails).toContain('27% layout');
     expect(tails).toContain('40% layout');
-    // The percent belongs to the stage that measured it, not to the next one.
-    expect(tails[tails.length - 1]).toBe('50% buildings');
+    // The percent belongs to the stage that measured it: entering the next one
+    // resets it, so 61% never shows up beside buildings.
+    expect(tails.filter((t) => t.endsWith('buildings'))).toEqual(['50% buildings']);
   });
 
   it('ignores a superseded apply still posting its percent', async () => {
@@ -115,7 +120,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
       ),
       dispose: vi.fn(),
     };
-    const state = createCityState(client as never);
+    const state = createCityState(client as never, stubPlacementClient() as never);
 
     void state.applyManifest(manifest('sig-1'));
     void state.applyManifest(manifest('sig-2')); // supersedes the first

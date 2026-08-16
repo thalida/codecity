@@ -1,7 +1,7 @@
-// Two kinds of "take me to this node", split by what the control you clicked
-// showed you. A focus icon promises the city, so those commands clear the panel
-// out of the way; a name in a list promises the thing itself, so those open the
-// details. Both take the focus mode: only the framing differs by caller.
+// What each "take me to this node" command does to the CHROME, which is real
+// state these assert against. A focus icon promises the city, so those commands
+// clear the panel away; a name in a list promises the thing itself, so those
+// open it. The camera half is guarded against a real city in builtCity.test.ts.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
