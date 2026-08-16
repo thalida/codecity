@@ -53,17 +53,23 @@ def test_missing_src_is_rejected(client: TestClient) -> None:
     assert client.get("/api/manifest/cached").status_code in (400, 422)
 
 
-def test_unknown_source_404s_rather_than_scanning(client: TestClient, tmp_path: Path) -> None:
+def test_unknown_source_404s_rather_than_scanning(
+    client: TestClient, tmp_path: Path
+) -> None:
     r = client.get("/api/manifest/cached", params={"src": str(tmp_path / "nope")})
     assert r.status_code == 404
 
 
-def test_never_scanned_repo_404s(client: TestClient, repo: Path, allow_local_repos) -> None:
+def test_never_scanned_repo_404s(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
     r = client.get("/api/manifest/cached", params={"src": str(repo)})
     assert r.status_code == 404
 
 
-def test_serves_the_cached_manifest(client: TestClient, repo: Path, allow_local_repos) -> None:
+def test_serves_the_cached_manifest(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
     signature = _warm_cache(repo)
     r = client.get("/api/manifest/cached", params={"src": str(repo)})
     assert r.status_code == 200

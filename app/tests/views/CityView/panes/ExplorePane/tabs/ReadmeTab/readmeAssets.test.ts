@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
+import {
+  resolveReadmeAssetUrl,
+  rewriteHtmlImageUrls,
+} from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
 import { fileUrl } from '@/api/file';
 
 const README = '/cache/repo/README.md';

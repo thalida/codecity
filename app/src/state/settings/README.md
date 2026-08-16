@@ -14,7 +14,7 @@ fields/        the settings themselves, one file per group
 ## The schema is the single source
 
 A settings store is a **flat map of field definitions**. Each key carries what
-the field intrinsically *is* — kind, default, label, tip, bounds or options —
+the field intrinsically _is_ — kind, default, label, tip, bounds or options —
 independent of where it gets shown.
 
 `settingSignal()` derives the persisted default object from those `default`s,
@@ -32,7 +32,7 @@ nesting and its order all live in the controls UI layer
 is; the panel decides where it goes.
 
 Select options are declared here rather than imported from the view's
-`SegmentedSelect`, so `state/` stays view-independent. The option array a store
+`SelectField`, so `state/` stays view-independent. The option array a store
 declares is structurally identical to what the widget renders.
 
 ## Validation on hydrate
