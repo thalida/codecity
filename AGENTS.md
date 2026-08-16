@@ -117,10 +117,22 @@ network (`just dev` then fails with "network ... not found"; recover with
 
 ## Layout
 
-- `app/` — Preact + TypeScript frontend; the 3D city lives in `app/src/city/` (a
-  signals-driven mini-app: `state/ components/ render/ types/ utils/`).
-  Layout runs in a worker under `app/src/city/layout/` (snapshot-tested — keep
-  output bit-identical).
+- `app/` — Preact + TypeScript frontend. Two routes, one view each: `/` is the
+  landing (pick a project) and `/city?src=…` is a world. The URL is the source of
+  truth for both — `router/` owns it, and `?src`, `?mode`, `?commit` and `?sel`
+  all survive Back and Forward.
+  - `src/city/` — the 3D city, a signals-driven mini-app (`state/ components/
+    render/ types/ utils/ constants/`). Layout runs in a worker under
+    `src/city/layout/` (snapshot-tested — keep output bit-identical).
+  - `src/state/` — `stores/` is seven stores, each named for the question it
+    answers (which repo, its tree, where in history, how far along the load is,
+    what the chrome shows, what the server said, what device). `settings/` is
+    its own subsystem: `schema drafts reactions indicators` over `fields/`.
+  - `src/components/` — grouped by what a component is: `app buttons fields
+    loading menus nodes panes settings sources timeline`. A component used by
+    exactly one thing lives beside that thing instead.
+- `just hero-image` — recaptures the landing's fallback wallpaper from the
+  showcase pose, so the still and the live backdrop stay the same city.
 - `api/` — FastAPI backend that walks the repo and serves the manifest.
 - `.github/` — readme assets + CI workflows.
 
