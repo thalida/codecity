@@ -586,7 +586,7 @@ const BUILDINGS_FIELDS = {
   LEVEL2_DETAIL: {
     route: ChangeRoute.Live,
     kind: FieldKind.Select,
-    default: FadeDetail.Silhouette,
+    default: FadeDetail.Full,
     options: FADE_DETAIL_OPTIONS,
     label: 'Detail',
   },
@@ -599,7 +599,7 @@ const BUILDINGS_FIELDS = {
   LEVEL2_BODY_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.75,
+    default: 0.5,
     min: 0,
     max: 1,
     step: 0.05,
@@ -641,7 +641,7 @@ const BUILDINGS_FIELDS = {
   LEVEL3_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.5,
+    default: 0.75,
     min: 0,
     max: 1,
     step: 0.05,
