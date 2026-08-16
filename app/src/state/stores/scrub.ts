@@ -1,13 +1,10 @@
-// One of four answers to "which tree does this surface show":
-//   manifest         HEAD, the project you opened            (fetched)
-//   scrubbedManifest a real scan AT the scrubbed commit      (fetched)
-//   presentPaths     the paths alive at that commit          (derived)
-//   paneManifest     what the tree and search show           (derived)
-//
-// Union paths present at the current scrub commit (live files + their ancestor
-// dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
+// state/stores/scrub.ts — everything the scrub position implies. Timeline owns
+// the inputs (bundle + position) and every answer here is derived from them, so
+// a pane and the buildings beside it cannot disagree about a commit. Live is the
+// degenerate case: no position, so the tree is MANIFEST and the set is empty.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
+import { MANIFEST, type ManifestValue } from './manifest';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SETTLED_COMMIT } from './timeline';
 import {
   buildPathTimelines,
@@ -19,7 +16,7 @@ import {
 } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import { NodeKind } from '@/types';
-import type { TreeNode } from '@/types';
+import type { DirNode, TreeNode } from '@/types';
 
 const EMPTY: ReadonlySet<string> = new Set();
 
@@ -60,9 +57,8 @@ export interface ScrubbedFileStats {
   atDeletion: boolean;
 }
 
-// .value, not .peek(): the footer calls this in render and re-renders as the
-// scrub moves. entryAt at the SETTLED commit, so the number always describes the
-// same real blob the content fetch serves.
+// .value, not .peek(): the footer reads this in render. At the SETTLED commit,
+// so the number always describes the blob the content fetch serves.
 export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
   if (!TIMELINE_MODE.value) return null;
   const pt = _TIMELINES.value?.get(path);
@@ -100,4 +96,38 @@ export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() =>
   const out = new Set<string>();
   _collect(tree, timelines, pos, out);
   return out;
+});
+
+// ── The tree the panes render ────────────────────────────────────────
+
+// Keep a node iff it's present at the scrubbed commit. A present directory always
+// has ≥1 present descendant, so filtering its children never leaves it empty.
+function _filterPresent(node: TreeNode, present: ReadonlySet<string>): TreeNode | null {
+  if (!present.has(node.path ?? '')) return null;
+  if (node.type === NodeKind.File) return node;
+  const children: TreeNode[] = [];
+  for (const child of node.children ?? []) {
+    const kept = _filterPresent(child, present);
+    if (kept) children.push(kept);
+  }
+  return { ...node, children };
+}
+
+export const PANE_MANIFEST: ReadonlySignal<ManifestValue> = computed(() => {
+  const bundle = TIMELINE_BUNDLE.value;
+  if (!TIMELINE_MODE.value || !bundle) return MANIFEST.value;
+
+  const union = bundle.unionManifest as unknown as ManifestValue;
+  const tree = (union as { tree?: DirNode } | null)?.tree;
+  if (!tree) return union;
+
+  // Root always stays (an empty tree still needs a container); its children are
+  // filtered to the present-at-scrub subtrees.
+  const present = PRESENT_PATHS.value;
+  const children: TreeNode[] = [];
+  for (const child of tree.children ?? []) {
+    const kept = _filterPresent(child, present);
+    if (kept) children.push(kept);
+  }
+  return { ...(union as object), tree: { ...tree, children } } as unknown as ManifestValue;
 });

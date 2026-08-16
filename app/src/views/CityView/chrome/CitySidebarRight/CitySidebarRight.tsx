@@ -15,13 +15,12 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST } from '@/state/stores/paneManifest';
+import { PANE_MANIFEST, PRESENT_PATHS } from '@/state/stores/scrub';
 import {
   SCRUBBED_MANIFEST,
   loadManifestAt,
   resetScrubbedManifest,
 } from '@/state/stores/scrubbedManifest';
-import { PRESENT_PATHS } from '@/state/stores/presentPaths';
 import { SETTLED_COMMIT, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';

@@ -21,7 +21,7 @@ export enum PreviewKind {
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/PaneStats/statItems';
-import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
+import { scrubbedBlobShaFor } from '@/state/stores/scrub';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import {
   IMAGE_EXTS,

@@ -4,7 +4,7 @@
 // backend needs no decoder for either.
 
 import { fetchFileBytes } from '@/api/file';
-import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
+import { scrubbedBlobShaFor } from '@/state/stores/scrub';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 
