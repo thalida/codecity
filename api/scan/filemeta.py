@@ -193,9 +193,8 @@ def populate_file_metadata(
     if misses:
         _read_misses(nodes, misses, cancel_event)
 
-    # Always write: use_cache gates only the READ. Warm scans union-merge onto
-    # the loaded cache, preserving entries for files this scan didn't visit
-    # (e.g. when .codecityignore flips).
+    # Always write: use_cache gates only the READ. The union-merge preserves
+    # entries for files this scan didn't visit, e.g. when .codecityignore flips.
     for node, mtime in zip(nodes, mtimes):
         cache_entries[node.path] = _cache_entry(node, mtime)
     try:

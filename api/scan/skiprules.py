@@ -8,16 +8,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-# Skipped on every scan. Mostly redundant with the tracked-files filter, but
-# catches noise someone committed on purpose (a vendored node_modules/, a
-# lockfile) that would otherwise blow up the city.
-#
-# Deliberately NOT here: generic names like "dist", "build", "out" — they
-# collide with real source dirs (CMake configs, audio stems, hand-written
-# dist/ trees). Framework caches (.next, .nuxt) are unambiguous and stay.
-# Lockfiles and vendored amalgamations (one 250k-line sqlite3.c) are
-# machine-generated, and one of them dominates every height-based visual.
-# Public headers (sqlite3.h, lua.h) are NOT skipped — they may be authored.
+# Noise someone committed on purpose, which the tracked-files filter can't
+# catch. What is deliberately absent, and why, is in this package's README.
 ALWAYS_SKIP: frozenset[str] = frozenset(
     {
         ".git",

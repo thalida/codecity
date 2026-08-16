@@ -45,10 +45,8 @@ OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
 
-# Assembly's four steps, each owning a quarter of the reported percent. The last
-# is the router's: serialising the bundle onto the wire is the step nothing else
-# can report. A percent, not a step name — what the steps are called is this
-# module's business, and the client's row wants a number like the rows above it.
+# Four steps, a quarter of the percent each. The last is the router's:
+# serialising the bundle is the step nothing else can report.
 ASSEMBLE_STEPS = 4
 # Commits between ticks inside a step that reports its own progress.
 _ASSEMBLE_HEARTBEAT_EVERY = 200
@@ -229,10 +227,8 @@ def build_union_manifest(
     per-commit reconstruction it will be scrubbed against."""
     max_size: dict[str, int] = {}
     max_lines: dict[str, int] = {}
-    # Stats of each path's largest-seen blob — the representative version whose
-    # binary/media character the union node inherits (binary-ness is stable per
-    # file, so any version's flag is fine; the largest keeps it consistent with
-    # the footprint `size`).
+    # Each path's largest-seen blob: the version whose binary/media character
+    # the union node inherits, keeping it consistent with the footprint `size`.
     rep_stats: dict[str, BlobEntry] = {}
     for d in deltas:
         for path, sha in d.changes:
@@ -327,9 +323,8 @@ def compute_commit_date_ranges(
     normalizes against these). replay.ts walks the same deltas for a different
     output (per-frame scrub index) — neither is a copy of the other."""
     commit_ms = [iso_to_ms(c.date) or 0 for c in commits]
-    # Parsed once per path, not once per (commit, path): the inner loop below
-    # runs commits x files-present times, ~98M on a big repo, and re-parsing an
-    # ISO stamp that many times is most of what made this the slowest step.
+    # Parsed once per path, not per (commit, path): the loop below runs ~98M
+    # times on a big repo, and re-parsing there is what made this the slow step.
     created_ms = {p: iso_to_ms(v) for p, v in git_created.items()}
     modified_ms = {p: iso_to_ms(v) for p, v in git_modified.items()}
 

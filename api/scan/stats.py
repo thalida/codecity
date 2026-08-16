@@ -27,10 +27,9 @@ from api.utils.dates import day_of
 
 
 # ── Commit-day aggregates ────────────────────────────────────────────────────
-#
-# Both of the derived signals below are per-calendar-day commit counts, so the
-# counting pass is done once by the caller and handed to each. `date` carries a
-# full timestamp, so the day has to be sliced back out.
+
+# Both signals below count commits per calendar day, so the caller counts once
+# and hands the result to each.
 
 
 def commit_day_counts(commits: list[CommitEntry]) -> dict[str, int]:
@@ -133,9 +132,8 @@ def _author_hue(name: str) -> int:
 
 
 def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
-    # One pass over files, one over dirs, one over commits — each updates every
-    # winner/range/count for that pool as it goes (first-seen wins ties, via
-    # strict > / <), instead of a separate scan per superlative.
+    # One pass per pool, each updating every winner it owns as it goes rather
+    # than a separate scan per superlative. First-seen wins ties, via strict >.
     line_min = line_max = byte_min = byte_max = None  # non-zero ranges, all files
     media_count = binary_count = 0
     dirty_count = 0
@@ -171,8 +169,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
                     coarsest_px, coarsest_media = px, f
             continue
         if f.binary:
-            # Binary files are their own "data" category (like media): they get
-            # their own size leaders and stay OUT of the code superlatives, so a
+            # Their own category, like media: out of the code superlatives, so a
             # giant .db never wins "widest building".
             binary_count += 1
             if largest_binary is None or size > largest_binary.size:
@@ -200,9 +197,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             if shortest is None or lines < shortest.lines:
                 shortest = f
 
-    # Street size = DIRECT children (what's literally on that street segment),
-    # not total descendants. Smallest breaks ties by fewest descendants, so it
-    # favours genuine leaf streets over a one-child dir that fans out below.
+    # DIRECT children, not descendants — what is literally on that segment.
+    # Smallest ties on fewest descendants, favouring genuine leaf streets.
     deepest = biggest = smallest = None
     # Street age = its subtree's oldest creation date. A directory with no dated
     # descendants (empty, or every child undated) can't win either end.
@@ -220,9 +216,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         created = d.descendants_created_min
         if created is not None:
             # Every ancestor inherits its oldest descendant's date, so a bare
-            # date comparison ties the whole chain and the shallowest wins by
-            # iteration order. Break toward the deepest: the street that
-            # actually holds the file, not each parent that contains it.
+            # comparison ties the chain. Break deepest — see the README.
             depth = _depth(d.path)
             if oldest_dir is None or (created, -depth) < (
                 oldest_dir.descendants_created_min,
@@ -237,9 +231,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
 
     grandest = sparsest = None  # commits, by files changed
     oldest_commit = newest_commit = None  # commit-date range
-    # The walk yields oldest first, so the ends ARE the leaders. Picking them by
-    # comparing dates instead would tie on a day with several commits and keep
-    # whichever came first, which is not the newest.
+    # The walk yields oldest first, so the ends ARE the leaders. Comparing dates
+    # instead would tie on a busy day and keep the first, which is not newest.
     first = commits[0] if commits else None
     last = commits[-1] if commits else None
     author_counts: Counter[str] = Counter()
@@ -250,9 +243,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         if sparsest is None or c.files < sparsest.files:
             sparsest = c
         author_counts.update(c.authors)
-        # Each row carries its date's full same_day_total, so max() per date
-        # deduplicates instead of multi-counting. It is 0 until manifest-wrap
-        # bakes it; treat that as the 1 this commit contributes itself.
+        # Each row carries its date's full total, so max() dedupes rather than
+        # multi-counting. 0 until manifest-wrap bakes it; read that as 1.
         d = day_of(c.date)
         day_totals[d] = max(day_totals.get(d, 0), c.same_day_total or 1)
         if oldest_commit is None or d < oldest_commit:
@@ -282,11 +274,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         return CommitLeader(sha=c.sha, files=c.files, date=c.date) if c else None
 
     return RepoStats(
-        # Project line/byte ranges for building-size normalization. Over ALL
-        # files with non-zero values (matching the client's computeFileStats
-        # exactly so the world renders identically) — media included for bytes,
-        # zero-line/zero-byte files excluded so the frontend's log/sqrt never
-        # sees 0. {0,0} when none (the frontend treats that as the empty range).
+        # NORMALIZATION ranges, not honest min/max — see the README. {0,0} when
+        # no non-zero file exists, which the frontend reads as the empty range.
         lineCountRange=_range(line_min, line_max),
         byteSizeRange=_range(byte_min, byte_max),
         oldestCreatedFile=_file_leader(oldest),

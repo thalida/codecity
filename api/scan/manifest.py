@@ -66,9 +66,8 @@ def wrap_manifest(
     array is sampled."""
     day_counts = commit_day_counts(commits)
     annotate_same_day_totals(commits, day_counts)
-    # THE canonical display name, baked once and cached with the manifest: the
-    # remote's owner/repo beats the on-disk basename, which is a clone's cache
-    # hash or a worktree's folder name. Consumers read tree.name, never redo this.
+    # THE canonical display name, baked once: the on-disk basename is a clone's
+    # cache hash or a worktree's folder name. Consumers read tree.name.
     tree.name = label_from_source(repo_info.remote_url) or tree.name
     readme_path, readme_modified = _find_root_readme(tree)
     return Manifest(
