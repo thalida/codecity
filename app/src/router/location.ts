@@ -45,6 +45,12 @@ export function navigate(to: string, opts: NavigateOptions = {}): void {
   HREF.value = to;
 }
 
+/** ':' and '/' are legal in a query (RFC 3986 pchar); form encoding escapes them
+ *  anyway, and this URL is read and pasted by people. Parsing takes either. */
+function queryString(params: URLSearchParams): string {
+  return params.toString().replace(/%3A/g, ':').replace(/%2F/g, '/');
+}
+
 /** Rewrite the query in place, leaving the path alone. The mutator gets the
  *  live params to set/delete on. */
 export function setRouteParams(
@@ -53,14 +59,14 @@ export function setRouteParams(
 ): void {
   const params = new URLSearchParams(ROUTE_SEARCH.peek());
   mutate(params);
-  const query = params.toString();
+  const query = queryString(params);
   navigate(query ? `${ROUTE_PATH.peek()}?${query}` : ROUTE_PATH.peek(), opts);
 }
 
 /** Build a href from a path and params, for links and for navigate() callers
  *  that are moving between routes rather than editing the current one. */
 export function hrefFor(path: string, params?: URLSearchParams): string {
-  const query = params?.toString() ?? '';
+  const query = params ? queryString(params) : '';
   return query ? `${path}?${query}` : path;
 }
 

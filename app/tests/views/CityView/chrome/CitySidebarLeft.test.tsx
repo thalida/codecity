@@ -4,6 +4,8 @@ import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySid
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { setManifest } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
+import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/state/stores/chrome';
+import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { flush, drainAsync } from '../../../_helpers/preact';
 
 const TEST_TREE = {
@@ -35,6 +37,10 @@ describe('CitySidebarLeft', () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {
+    // The sidebar's open state is a module signal: a test that opens it leaves
+    // it open for whoever runs next.
+    SIDEBAR_COLLAPSED.value = true;
+    SIDEBAR_TAB.value = DEFAULT_SIDEBAR_TAB;
     container = document.createElement('div');
     document.body.appendChild(container);
     // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is

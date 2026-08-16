@@ -17,6 +17,7 @@ import { makeHeightContext } from './layout/dimensions';
 import { createScrubController } from './timeline/scrubController';
 import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
+import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import { createCityState } from './state';
 import {
   runCollisionCheck,
@@ -65,7 +66,10 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
   registerFacadePanelRenderer(renderer);
 
   const layoutClient = createLayoutClient();
-  const cityState = createCityState(layoutClient);
+  // Both off-thread build workers, owned here and handed to the store that runs
+  // the build. Lazy: neither spawns until its first compute().
+  const treePlacementClient = createTreePlacementClient();
+  const cityState = createCityState(layoutClient, treePlacementClient);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
@@ -128,8 +132,8 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe only on a real source change. Tracks cityRevision, not bbox —
-  // the final manifest is a reuse apply that leaves bbox frozen.
+  // Reframe only on a real source change. cityRevision bumps after the apply's
+  // batch flushed, so the camera is aimed at a built city, not half of one.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
@@ -287,11 +291,6 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
-    /** Focus the camera on the node at `path`: resolve via the picker, dispatch
-     *  to the rig. */
-    focusByPath(path: string): void {
-      rig.focusSelection(picker.targetForPath(path));
-    },
     /** Scene-internal read/debug API — what the view layer can't get from the
      *  canonical MANIFEST signal (the live tree renderer + the two diagnostics). */
     world: {
@@ -315,6 +314,7 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
       postFx.dispose();
       for (const c of components) c.dispose();
       layoutClient.dispose();
+      treePlacementClient.dispose();
       // dispose() leaves the WebGL context alive; without forceContextLoss()
       // every teardown leaks one until Chrome's ~16-per-page cap blocks new.
       renderer.dispose();

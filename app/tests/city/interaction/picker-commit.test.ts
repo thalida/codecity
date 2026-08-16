@@ -27,11 +27,9 @@ function makeTrees(count = 3): { trees: Trees; commits: ReturnType<typeof commit
 function makeWorld(initialTrees: Trees | null): PickerWorld & {
   cityState: ReturnType<typeof createCityState>;
   triggerRebuild(): void;
-  triggerDecoration(): void;
   setTrees(t: Trees | null): void;
 } {
-  // A city rebuild bumps cityRevision; the deferred trees-attach bumps
-  // decorationRevision. The picker reacts to both.
+  // A city rebuild bumps cityRevision, which is what the picker re-resolves on.
   const cityState = makeCityState();
   let currentTrees = initialTrees;
   const api: PickerWorld = {
@@ -48,9 +46,6 @@ function makeWorld(initialTrees: Trees | null): PickerWorld & {
     cityState,
     triggerRebuild() {
       cityState.cityRevision.value++;
-    },
-    triggerDecoration() {
-      cityState.decorationRevision.value++;
     },
     setTrees(t: Trees | null) {
       currentTrees = t;
@@ -167,25 +162,6 @@ describe('picker: tree commit picking', () => {
     expect(sel!.commit).toEqual(commits[1]);
     expect(sel!.mesh).toBe(treeSlot(treesB, 1).mesh);
     expect(sel!.mesh).not.toBe(treeSlot(treesA, 1).mesh);
-    treesA.dispose();
-    treesB.dispose();
-    p.dispose();
-  });
-
-  it('refreshes pickables when trees attach asynchronously after a rebuild', () => {
-    const { trees: treesA, commits } = makeTrees(1);
-    const world = makeWorld(treesA);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-
-    // The window between street/building rebuild and async placement finishing.
-    world.setTrees(null);
-    world.triggerRebuild();
-    const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
-    const treesB = renderTrees(placements, commits, BUSY);
-    world.setTrees(treesB);
-    world.triggerDecoration();
-
-    expect(p.interpretHit(treeHit(treesB, 0))).not.toBeNull();
     treesA.dispose();
     treesB.dispose();
     p.dispose();

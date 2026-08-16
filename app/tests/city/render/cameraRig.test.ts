@@ -1,12 +1,13 @@
-// cameraRig.test.ts — verifies that all four focus actions land the camera
-// at ~80° elevation centered on the expected target.
+// cameraRig.test.ts — verifies that focusSelection lands the camera at ~80°
+// elevation centered on each kind of target, and that its other mode centres
+// the same targets without moving the camera off its angle.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig, type CameraRig } from '@/city/render/cameraRig';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
+import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, Street } from '@/types';
+import type { Building, CityLayout, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { SHOWCASE } from '@/state/settings/fields/showcase';
 import { getDefault } from '@/state/persist';
@@ -60,6 +61,16 @@ function _baseWorld() {
   };
 }
 
+// The rig takes a resolved PickTarget, the same shape the picker hands it. No
+// casts: a drift in that shape has to fail the typecheck, not slip through.
+function fileTarget(b: Building): PickTarget {
+  return { kind: NodeKind.File, mesh: new THREE.Mesh(), data: b, file: b.file, instanceId: 0 };
+}
+
+function dirTarget(s: Street): PickTarget {
+  return { kind: NodeKind.Directory, sidewalk: new THREE.Mesh(), street: s, dir: s.dir! };
+}
+
 function makeBuilding(): Building {
   return {
     x: 100,
@@ -104,13 +115,13 @@ describe('cameraRig top-down focus', () => {
     // DOM canvas, no WebGL context.
   });
 
-  it('focusBuilding lands the camera at ~80° elevation centered on the building', () => {
+  it('a file target lands the camera at ~80° elevation centered on the building', () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
 
     const b = makeBuilding();
-    rig.focusBuilding(new THREE.Object3D(), b);
+    rig.focusSelection(fileTarget(b));
     return new Promise<void>((resolve) => {
       let frames = 0;
       function tick() {
@@ -131,12 +142,12 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('focusStreet lands the camera at ~80° elevation centered on the street', () => {
+  it('a directory target lands the camera at ~80° elevation centered on the street', () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
     const s = makeStreet();
-    rig.focusStreet(s, null);
+    rig.focusSelection(dirTarget(s));
     return new Promise<void>((resolve) => {
       let frames = 0;
       function tick() {
@@ -157,7 +168,7 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('focusTree lands the camera at ~80° elevation centered on the tree', () => {
+  it('a commit target lands the camera at ~80° elevation centered on the tree', () => {
     const canvas = makeCanvas();
     const deps = makeStubWorld({
       getTreeBoundsBySha: (sha: string) =>
@@ -165,7 +176,7 @@ describe('cameraRig top-down focus', () => {
     });
     const rig = createCameraRig({ canvas, deps, cityState: seedFramedCity() });
     rig.update(16);
-    rig.focusTree('abc');
+    rig.focusSelection(commitTarget('abc'));
     return new Promise<void>((resolve) => {
       let frames = 0;
       function tick() {
@@ -186,12 +197,12 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('focusTree is a no-op when getTreeBoundsBySha returns null', () => {
+  it('a commit whose tree was never placed leaves the camera alone', () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
-    rig.focusTree('missing-sha');
+    rig.focusSelection(commitTarget('missing-sha'));
     return new Promise<void>((resolve) => {
       setTimeout(() => {
         expect(rig.camera.position.x).toBeCloseTo(beforePos.x, 1);
@@ -200,6 +211,66 @@ describe('cameraRig top-down focus', () => {
         resolve();
       }, 50);
     });
+  });
+});
+
+describe('cameraRig recenter focus', () => {
+  it('centres the building with the camera angle and distance untouched', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    rig.update(16); // the opening framing, i.e. the pose a load rests at
+
+    const before = rig.camera.position.clone().sub(rig.controls.target);
+    const b = makeBuilding();
+    rig.focusSelection(fileTarget(b), FocusMode.Recenter);
+
+    // Snapped, not tweened: the pose is right on the frame the restore lands.
+    const target = rig.controls.target;
+    expect(target.x).toBeCloseTo(b.x, 2);
+    expect(target.y).toBeCloseTo(b.h / 2, 2);
+    expect(target.z).toBeCloseTo(b.y, 2);
+    // Same offset from the pivot means same elevation, same azimuth, same zoom.
+    const after = rig.camera.position.clone().sub(target);
+    expect(after.x).toBeCloseTo(before.x, 2);
+    expect(after.y).toBeCloseTo(before.y, 2);
+    expect(after.z).toBeCloseTo(before.z, 2);
+  });
+
+  it('centres the street the same way', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    rig.update(16);
+
+    const before = rig.camera.position.clone().sub(rig.controls.target);
+    const s = makeStreet();
+    rig.focusSelection(dirTarget(s), FocusMode.Recenter);
+
+    const target = rig.controls.target;
+    expect(target.x).toBeCloseTo(s.x, 2);
+    expect(target.y).toBeCloseTo(0, 2);
+    expect(target.z).toBeCloseTo(s.y, 2);
+    const after = rig.camera.position.clone().sub(target);
+    expect(after.x).toBeCloseTo(before.x, 2);
+    expect(after.y).toBeCloseTo(before.y, 2);
+    expect(after.z).toBeCloseTo(before.z, 2);
+  });
+
+  // A URL restore lands between the manifest apply and the first rendered
+  // frame, so the one-shot opening framing is still pending when it runs.
+  it('survives the first-frame framing when it lands before it', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+
+    const b = makeBuilding();
+    rig.focusSelection(fileTarget(b), FocusMode.Recenter);
+    const centred = rig.camera.position.clone();
+    rig.update(16);
+
+    expect(rig.controls.target.x).toBeCloseTo(b.x, 2);
+    expect(rig.controls.target.y).toBeCloseTo(b.h / 2, 2);
+    expect(rig.controls.target.z).toBeCloseTo(b.y, 2);
+    expect(rig.camera.position.x).toBeCloseTo(centred.x, 2);
+    expect(rig.camera.position.z).toBeCloseTo(centred.z, 2);
   });
 });
 

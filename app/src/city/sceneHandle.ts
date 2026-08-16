@@ -4,6 +4,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { createCity } from './index';
+import type { FocusMode } from './render/cameraRig';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
@@ -39,6 +40,33 @@ function revealCity(): void {
   collapseDrawerOnPhone();
 }
 
+/** The other half of that choice: you asked for the node by name, so its details
+ *  are the answer, and only the phone drawer has to move. */
+function revealDetails(): void {
+  openSelectionPane();
+  collapseDrawerOnPhone();
+}
+
+/** What a command points the camera at: a node by path, a commit by sha, or
+ *  whatever is already selected. */
+type NodeRef = { path: string } | { sha: string } | null;
+
+/** Select what `ref` names and aim the camera at it: the one place a ref becomes
+ *  a focus. False when there is nothing to look at, so the chrome stays put. */
+function _pointAt(ref: NodeRef, mode?: FocusMode): boolean {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return false;
+  const sel =
+    ref === null
+      ? handle.picker.selection.peek()
+      : 'sha' in ref
+        ? handle.picker.selectByCommit(ref.sha)
+        : handle.picker.selectByPath(ref.path);
+  if (!sel) return false;
+  handle.rig.focusSelection(sel, mode);
+  return true;
+}
+
 // Thin wrappers the UI calls instead of reaching into the handle itself. All
 // no-op before the scene boots.
 
@@ -59,53 +87,30 @@ export function clearSelection(): void {
 
 /** Focus a node, selecting it first if it isn't: an almanac row is a Focus
  *  button for something you haven't picked yet. Re-selecting is identity. */
-export function focusPath(path: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByPath(path);
-  handle.focusByPath(path);
-  revealCity();
+export function focusPath(path: string, mode?: FocusMode): void {
+  if (_pointAt({ path }, mode)) revealCity();
 }
 
 /** focusPath for a commit's tree, by sha. */
-export function focusCommit(sha: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByCommit(sha);
-  handle.rig.focusTree(sha);
-  revealCity();
+export function focusCommit(sha: string, mode?: FocusMode): void {
+  if (_pointAt({ sha }, mode)) revealCity();
 }
 
 /** Focus whatever is selected, whichever kind. Here rather than in the key
  *  handler: a keystroke and a Focus button are the same request. */
-export function focusSelection(): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  const sel = handle.picker.selection.peek();
-  if (!sel) return; // nothing to look at, so nothing to clear out of the way
-  handle.rig.focusSelection(sel);
-  revealCity();
+export function focusSelection(mode?: FocusMode): void {
+  if (_pointAt(null, mode)) revealCity();
 }
 
 /** Go to a node named in a list. The details open, unlike the Focus commands:
  *  there you act on what's in front of you, here you asked for the name. */
-export function goToPath(path: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByPath(path);
-  handle.focusByPath(path);
-  openSelectionPane();
-  collapseDrawerOnPhone();
+export function goToPath(path: string, mode?: FocusMode): void {
+  if (_pointAt({ path }, mode)) revealDetails();
 }
 
 /** goToPath for a commit's tree, by sha (almanac landmarks). */
-export function goToCommit(sha: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByCommit(sha);
-  handle.rig.focusTree(sha);
-  openSelectionPane();
-  collapseDrawerOnPhone();
+export function goToCommit(sha: string, mode?: FocusMode): void {
+  if (_pointAt({ sha }, mode)) revealDetails();
 }
 
 /** A commit's details, with the camera left alone: the timeline's own row,
@@ -114,15 +119,6 @@ export function showCommit(sha: string): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByCommit(sha);
-  openSelectionPane();
-}
-
-/** showCommit for a file or directory: pick it out and open its details without
- *  moving the camera, for a selection restored from the URL rather than asked for. */
-export function showPath(path: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByPath(path);
   openSelectionPane();
 }
 

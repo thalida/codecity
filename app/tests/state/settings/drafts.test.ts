@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Signal } from '@preact/signals';
 import {
   setDraft,
@@ -31,16 +31,19 @@ describe('drafts', () => {
     // overwrites the prior registration.
     localStorage.clear();
     _resetForTests();
-    // Without this the previous run's instances, possibly left non-default,
-    // leak into later anyResettable()/stageResetAll() sweeps forever.
-    if (FOO) _unregisterForTests(FOO);
-    if (BAR) _unregisterForTests(BAR);
     FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
     BAR = persistedSignal<number>('TEST_BAR', 10);
     // Real settings stores are auto-marked by settingSignal; these raw
     // persistedSignals must opt in so stageResetAll/anyResettable act on them.
     markSettingStore(FOO);
     markSettingStore(BAR);
+  });
+
+  // These are registered settings stores until unregistered, and every
+  // anyResettable()/stageResetAll() sweep in the file counts them.
+  afterEach(() => {
+    if (FOO) _unregisterForTests(FOO);
+    if (BAR) _unregisterForTests(BAR);
   });
 
   describe('setDraft + getEffective + isDirty', () => {

@@ -70,7 +70,6 @@ export interface City {
   /** The stages that apply would run, for a caller whose own work comes first. */
   buildStagesFor(m: Manifest): BuildStage[];
   invalidateLayoutCache(): void;
-  focusByPath(path: string): void;
   world: CityWorld;
   /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
    *  is built here because it needs the components' mesh/attr resolvers. */

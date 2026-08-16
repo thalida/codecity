@@ -7,10 +7,12 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
+import { createCityState } from '@/city/state';
 import {
   commitTarget,
   makeCityState,
   makePickableSceneContext,
+  stubPlacementClient,
   treePlacement,
 } from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/settings/fields/trees';
@@ -18,6 +20,7 @@ import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
+import { NodeKind, StreetAxis } from '@/types';
 
 const SHA_A = 'a'.repeat(40);
 
@@ -25,6 +28,40 @@ const COMMITS = buildCommits({ date: '2026-01-01', files: 1, sha: SHA_A, authors
 const PLACEMENTS = [treePlacement(0)];
 
 const BUSY = { avg: 1, busy: 1 };
+
+// One street, one building: enough of a city for an apply to publish.
+const TREE_LAYOUT = {
+  buildings: [{ x: 0, y: 0, w: 10, d: 10, h: 20 }],
+  streets: [
+    {
+      x: 0,
+      y: 0,
+      width: 32,
+      length: 200,
+      orientation: StreetAxis.X,
+      isRoot: true,
+      dir: { name: 'root', path: '.', type: NodeKind.Directory },
+    },
+  ],
+  bbox: { minX: -100, minY: -16, maxX: 100, maxY: 16, cx: 0, cy: 0, width: 200, depth: 32 },
+};
+
+/** The packer, stubbed to a fixed layout: this file is about what the trees do
+ *  with what the build publishes, not about how the packer arrives at it. */
+function layoutClientFor(layout: unknown) {
+  return { compute: async () => layout, dispose: () => {} };
+}
+
+function manifestWith(commits: unknown) {
+  return {
+    tree: { type: 'directory', name: 'repo', path: '.', children: [] },
+    structure_signature: 'sig',
+    layout_signature: 'sig',
+    commits,
+    busyness: BUSY,
+    dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
+  } as never;
+}
 
 const _origTrees = TREES.value;
 
@@ -76,19 +113,22 @@ describe('createTrees() component door', () => {
     expect(trees.group.children).toHaveLength(0);
   });
 
-  it('signal-driven rebuild runs without a cycle (clears + bumps decorationRevision)', async () => {
-    const { ctx } = makePickableSceneContext();
-    const cs = ctx.cityState;
+  // Driven through applyManifest, the way trees really arrive. Assigning
+  // treePlacements by hand would pass even if the build stopped placing them.
+  it('renders the placements an apply published, in the same flush as the city', async () => {
+    const cityState = createCityState(
+      layoutClientFor(TREE_LAYOUT) as never,
+      stubPlacementClient(PLACEMENTS) as never
+    );
+    const { ctx } = makePickableSceneContext(cityState);
     trees = createTrees(ctx);
-    const before = cs.decorationRevision.value;
-    // bbox stays null so run takes the clear+Idle early return, exercising
-    // the synchronous prefix that must not self-subscribe ("Cycle detected").
-    cs.manifest.value = { tree: { name: 'x' }, commits: [] } as never;
-    cs.layout.value = { buildings: [], streets: [] } as never;
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(cs.treePlacements.value).toBeNull();
-    expect(cs.decorationRevision.value).toBeGreaterThan(before);
+    expect(trees.getRenderer()).toBeNull();
+
+    await cityState.applyManifest(manifestWith(COMMITS));
+
+    expect(cityState.treePlacements.value).toEqual(PLACEMENTS);
+    expect(trees.getRenderer()).not.toBeNull();
+    expect(trees.group.children.length).toBeGreaterThan(0);
   });
 
   it('rebuild() builds the inner renderer under the group; getRenderer() is live', () => {

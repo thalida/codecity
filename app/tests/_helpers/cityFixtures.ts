@@ -19,9 +19,15 @@ const STUB_LAYOUT_CLIENT = {
   dispose: () => {},
 };
 
-/** cityState with a no-op layout client, for tests that don't drive applyManifest. */
+/** A placement client that places no trees. The build calls it, so every
+ *  cityState needs one, but only the placement tests care what it returns. */
+export function stubPlacementClient(placements: unknown[] = []) {
+  return { compute: () => Promise.resolve(placements), dispose: () => {} };
+}
+
+/** cityState with no-op build workers, for tests that don't drive applyManifest. */
 export function makeCityState(): CityState {
-  return createCityState(STUB_LAYOUT_CLIENT as never);
+  return createCityState(STUB_LAYOUT_CLIENT as never, stubPlacementClient() as never);
 }
 
 /** A canvas whose clientWidth/clientHeight track a mutable `size`, so a test can

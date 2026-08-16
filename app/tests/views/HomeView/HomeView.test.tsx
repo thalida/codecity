@@ -11,6 +11,12 @@ vi.mock('@/city/City', () => ({
   CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
 }));
 
+// Typing a remote URL mounts BranchSelect, which asks the API for branches: left
+// real, that rejects "fetch failed" into whichever LATER test is running by then.
+vi.mock('@/api/branches', () => ({
+  fetchBranches: vi.fn(async () => ({ branches: [], default: null })),
+}));
+
 // The view calls these directly now, so they are what "it opened a project" and
 // "it cancelled the load" mean.
 vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({

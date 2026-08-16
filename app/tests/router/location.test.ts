@@ -85,6 +85,30 @@ describe('router/location', () => {
       setRouteParams((p) => p.delete('mode'));
       expect(HREF.value).toBe('/city');
     });
+
+    // A repo path and a node path are most of what this URL says, and form
+    // encoding renders both unreadable (/repos/x → %2Frepos%2Fx).
+    it('leaves the path and scheme characters readable', () => {
+      navigate('/city');
+      setRouteParams((p) => {
+        p.set('src', '/repos/codecity');
+        p.set('sel', 'file:src/app.ts');
+      });
+
+      expect(HREF.value).toBe('/city?src=/repos/codecity&sel=file:src/app.ts');
+      // Still the values that went in: what the app reads is unchanged.
+      expect(ROUTE_PARAMS.value.get('src')).toBe('/repos/codecity');
+      expect(ROUTE_PARAMS.value.get('sel')).toBe('file:src/app.ts');
+    });
+
+    // & = # would end the value or the query: those stay escaped.
+    it('keeps escaping what would change where the value ends', () => {
+      navigate('/city');
+      setRouteParams((p) => p.set('src', 'https://host/a&b=c#d'));
+
+      expect(HREF.value).toBe('/city?src=https://host/a%26b%3Dc%23d');
+      expect(ROUTE_PARAMS.value.get('src')).toBe('https://host/a&b=c#d');
+    });
   });
 
   it('hrefFor joins a path and params, omitting an empty query', () => {

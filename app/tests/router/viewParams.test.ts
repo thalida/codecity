@@ -19,17 +19,17 @@ describe('normalizeBootRoute', () => {
     expect(HREF.value).toBe(ROUTES.HOME);
   });
 
-  // Links minted before /city existed carry ?src at the root, and a bare ?src
-  // is a complete request: the server resolves the default branch.
+  // Links minted before /city existed carry ?src at the root, escaped; the
+  // rewrite hands back the readable form (location.ts queryString), same value.
   it('moves a rooted ?src onto /city, params intact', () => {
     boot('/?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact');
-    expect(HREF.value).toBe('/city?src=https%3A%2F%2Fgithub.com%2Fpreactjs%2Fpreact');
+    expect(HREF.value).toBe('/city?src=https://github.com/preactjs/preact');
   });
 
   it('carries every view param across the move', () => {
     boot('/?src=%2Frepos%2Fcodecity&branch=main&mode=timeline&commit=abc&sel=file%3Aa.ts');
     expect(HREF.value).toBe(
-      '/city?src=%2Frepos%2Fcodecity&branch=main&mode=timeline&commit=abc&sel=file%3Aa.ts'
+      '/city?src=/repos/codecity&branch=main&mode=timeline&commit=abc&sel=file:a.ts'
     );
   });
 

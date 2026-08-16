@@ -4,26 +4,22 @@
 // at construction its effects would track no signal and never fire again.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 
 import { TREES } from '@/state/settings/fields/trees';
-import { markDecorating, markIdle } from '@/state/stores/progress';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
-import { nextPaint } from '../../utils/nextPaint';
-import { reactiveRebuild } from '../../utils/reactiveRebuild';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
-import { createTreePlacementClient } from './treePlacementClient';
 import type { TreePlacement } from './treePlacement';
 
 export type { Trees };
 
 /** Public contract for the trees component. */
 export interface TreesComponent extends SceneComponent {
-  /** The inner meshes, rebuilt from placements on the deferred pass. */
+  /** The inner meshes, rebuilt from the placements the build published. */
   rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
@@ -51,9 +47,6 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   group.name = 'city-trees';
 
   const { cityState } = ctx;
-  // Off-thread placement worker — owned by this component now. Lazy: the worker
-  // is only spawned on the first compute(), so construction is test-safe.
-  const treePlacementClient = createTreePlacementClient();
 
   let _inner: Trees | null = null;
   // Declared BEFORE the theme effect below — the effect body runs
@@ -87,58 +80,25 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     _outline?.refreshMaterials();
   });
 
-  // Clears first, then defers past the paint and scans off-thread, so a large
-  // repo stays interactive; a newer apply supersedes an in-flight scan.
-  const stopRebuild = reactiveRebuild(
-    () => {
-      const layout = cityState.layout.value;
-      const manifest = cityState.manifest.value;
-      if (!layout || !manifest) return null;
-      return { layout, manifest };
-    },
-    async ({ layout, manifest }, isCurrent) => {
-      clear();
-      cityState.treePlacements.value = null;
-      cityState.decorationRevision.value++;
-
-      // sceneBbox/cityHeight are set by applyManifest synchronously after the
-      // batch that triggered this run, so peek() reads the fresh values.
-      const sceneBbox = cityState.sceneBbox.peek();
-      if (!TREES.value.ENABLED || !sceneBbox) {
-        markIdle();
-        return;
+  // The build places the trees and publishes them with the rest of the city, so
+  // this renders a signal like every other component: nothing pops in later.
+  const stopPlacements = effect(() => {
+    const placements = cityState.treePlacements.value;
+    untracked(() => {
+      if (!placements) {
+        clear();
+      } else {
+        const manifest = cityState.manifest.peek();
+        rebuild(
+          placements,
+          manifest?.commits ?? null,
+          manifest?.busyness ?? { avg: 1, busy: 1 },
+          manifest?.stats,
+          manifest?.scanned_at
+        );
       }
-      const cityHeight = cityState.cityHeight.peek();
-      const commitCount = manifest.commits?.length ?? 0;
-
-      // Let the city paint before the placement scan + GPU upload begin.
-      markDecorating();
-      await nextPaint();
-      if (!isCurrent()) return;
-
-      let placements: TreePlacement[];
-      try {
-        placements = await treePlacementClient.compute(layout, sceneBbox, commitCount, cityHeight);
-      } catch (err) {
-        if (err instanceof Error && err.message === 'superseded') return;
-        throw err;
-      }
-      if (!isCurrent()) return;
-
-      rebuild(
-        placements,
-        manifest.commits ?? null,
-        manifest.busyness ?? { avg: 1, busy: 1 },
-        manifest.stats,
-        manifest.scanned_at
-      );
-      // Fireflies rebuild off the placements, and the picker re-resolves a
-      // commit selection now that the meshes exist.
-      cityState.treePlacements.value = placements;
-      if (_inner !== null) cityState.decorationRevision.value++;
-      markIdle();
-    }
-  );
+    });
+  });
 
   // Constructed at arming, which is what makes its effects live. The armed flag
   // is sticky, so a stray tick after dispose can't raise a dead component.
@@ -171,8 +131,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   function dispose(): void {
     clear();
     stopTheme();
-    stopRebuild.dispose();
-    treePlacementClient.dispose();
+    stopPlacements();
     _arm.dispose();
   }
 

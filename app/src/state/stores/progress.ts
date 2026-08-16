@@ -66,8 +66,8 @@ export enum RebuildStatus {
 
 export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 
-/** The manifest the city on screen was built from. Idle doesn't say WHOSE city
- *  landed (the empty boot city settles into it too), so read this instead. */
+/** The manifest the FINISHED city was built from, trees included: a consumer
+ *  that aims the camera at a node needs that node to exist. */
 export const BUILT_MANIFEST = signal<ManifestValue>(null);
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
@@ -96,11 +96,10 @@ export function markRebuilding(): void {
 }
 
 // Decoration is the build's last stage, not the end of it: Timeline's overlay
-// stays up through the tree pass, so the readout has to carry on into it.
+// stays up through the tree pass, and the trees land at the END of that stage.
 export function markDecorating(): void {
   REBUILD_STATUS.value = RebuildStatus.Decorating;
   enterBuildStage(BuildStage.Decorate);
-  BUILT_MANIFEST.value = MANIFEST.peek();
 }
 
 export function markIdle(): void {

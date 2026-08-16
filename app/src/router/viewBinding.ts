@@ -11,7 +11,8 @@ import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/progress';
-import { showPath, showCommit, clearSelection } from '@/city/sceneHandle';
+import { goToPath, goToCommit, clearSelection } from '@/city/sceneHandle';
+import { FocusMode } from '@/city/render/cameraRig';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -59,11 +60,12 @@ function reflectViewToUrl(): void {
 
 // ── Follow ───────────────────────────────────────────────────────────
 
-/** Every kind restores alike: picked out, details open, camera untouched. */
+/** Every kind restores alike: the same go-to command a list row sends, in the
+ *  focus mode that centres the node without turning the camera off its angle. */
 function applySelection(selection: PickerSelectionKey | null): void {
   if (!selection) clearSelection();
-  else if (selection.kind === NodeKind.Commit) showCommit(selection.sha);
-  else showPath(selection.path);
+  else if (selection.kind === NodeKind.Commit) goToCommit(selection.sha, FocusMode.Recenter);
+  else goToPath(selection.path, FocusMode.Recenter);
 }
 
 /** Put the view the URL describes on screen. Reads the live view untracked and

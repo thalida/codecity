@@ -7,7 +7,7 @@ import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
-import { makeSceneContext } from '../_helpers/cityFixtures';
+import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
 
 function makeRootStreet(): Street {
   return {
@@ -40,10 +40,8 @@ function makeManifest(treeSig: string): Manifest {
   } as unknown as Manifest;
 }
 
-// layoutClient stub: returns a DISTINCT layout object per compute UNLESS
-// reuseLayoutFrom is supplied (the cache-hit path), in which case it returns
-// that exact reference — mirroring the worker's reuse contract that keeps
-// positions (and the object) stable so the scenic effects skip.
+// A distinct layout per compute, unless reuseLayoutFrom is supplied: that returns
+// the same reference, the worker's reuse contract that lets scenic effects skip.
 function makeLayoutClient(makeLayout: () => CityLayout) {
   return {
     compute: vi.fn(async (_m: Manifest, reuseFrom?: CityLayout | null) => {
@@ -72,7 +70,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
         }) as unknown as CityLayout
     );
 
-    const cityState = createCityState(layoutClient as never);
+    const cityState = createCityState(layoutClient as never, stubPlacementClient() as never);
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
 
@@ -102,9 +100,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     const layoutAfterFirst = cityState.layout.value;
     const bboxAfterFirst = cityState.bbox.value;
 
-    // Same structure_signature → layout cache hit → layoutClient returns the SAME
-    // layout reference (reuseLayoutFrom) → layout.value not reassigned → the
-    // streets effect does NOT re-fire.
+    // Same structure_signature → cache hit → the same layout reference back →
+    // layout.value not reassigned → the streets effect does NOT re-fire.
     await cityState.applyManifest(makeManifest('sig-1'));
 
     // Reuse was actually exercised (compute got the prior layout to reuse on the 2nd call).

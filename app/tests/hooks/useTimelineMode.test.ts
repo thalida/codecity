@@ -80,6 +80,9 @@ function fakeHandle() {
 describe('loadTimelineScene', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
+    // Reset: SOURCE_INFO reads it, so a manifest left by a neighbour decides
+    // whether this test throws.
+    MANIFEST.value = null;
     TIMELINE_MODE.value = false;
     setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
@@ -327,7 +330,7 @@ describe('live poll suspends in Timeline mode', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
+    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
     SCAN_PROGRESS.value = null;
     TIMELINE_MODE.value = false;
   });
@@ -510,7 +513,7 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
   beforeEach(() => {
     restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
+    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
     SCAN_PROGRESS.value = null;
     TIMELINE_MODE.value = true;
     setScrubPos(2);

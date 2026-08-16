@@ -35,8 +35,8 @@ export function createPicker({
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  // Cached pickables list. Refreshed on the cityRevision/decorationRevision
-  // effects below so per-frame raycasts don't allocate a new array.
+  // Cached pickables list. Refreshed on the revision effects below, so per-frame
+  // raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   // ObjectBVH: ~34ms casts (80k instances) → ~0.07ms. Built lazily on first
   // pickAt: off the apply path, and world matrices are fresh by then.
@@ -176,14 +176,8 @@ export function createPicker({
       _resolveKeyToSelection();
     });
   });
-  // decorationRevision bumps AFTER the deferred trees attach — at
-  // cityRevision time getTrees() was still null, so re-resolve now.
-  const _disposeDecorationRevEffect = effect(() => {
-    void cityState.decorationRevision.value;
-    untracked(_resolveKeyToSelection);
-  });
-  // Note: both effects fire ONCE at construction (revisions start at 0). That
-  // initial resolve runs with key null → selection cleared + pickables primed.
+  // cityRevision bumps after the apply's batch flushed, so the meshes collected
+  // here are the ones the components just built. Fires once at construction too.
 
   // The scrub rewrites building matrices per frame but the BVH caches bounds
   // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
@@ -230,11 +224,12 @@ export function createPicker({
     return null;
   }
 
-  // Resolve a path and set it as the selection. Used by tree-row clicks and
-  // breadcrumb-segment clicks. No-op if the path doesn't match anything.
-  function selectByPath(path: string): void {
+  // No-op if the path doesn't match anything. Returns what it resolved, so a
+  // caller that also aims the camera reuses this resolve instead of its own.
+  function selectByPath(path: string): PickTarget | null {
     const target = targetForPath(path);
     if (target) setSelection(target);
+    return target;
   }
 
   // Resolve a commit sha to its live tree target and select it. No-op if
@@ -262,9 +257,11 @@ export function createPicker({
     return commit ? { kind: NodeKind.Commit, commit } : null;
   }
 
-  function selectByCommit(sha: string): void {
+  /** selectByPath for a sha, returning the target the same way. */
+  function selectByCommit(sha: string): PickTarget | null {
     const target = _commitTarget(sha);
     if (target) setSelection(target);
+    return target;
   }
 
   // Resolve a path and set it as the hover target (tree-row hover → city
@@ -452,7 +449,6 @@ export function createPicker({
 
   function dispose() {
     _disposeCityRevEffect();
-    _disposeDecorationRevEffect();
     _disposeScrubBvhEffect();
     _disposeSelectionEffect();
   }
