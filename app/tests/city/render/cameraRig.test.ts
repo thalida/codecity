@@ -1,9 +1,10 @@
 // cameraRig.test.ts — verifies that all four focus actions land the camera
-// at ~80° elevation centered on the expected target.
+// at ~80° elevation centered on the expected target, and that the other focus
+// mode centres the same targets without moving the camera off its angle.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig, type CameraRig } from '@/city/render/cameraRig';
+import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
@@ -200,6 +201,66 @@ describe('cameraRig top-down focus', () => {
         resolve();
       }, 50);
     });
+  });
+});
+
+describe('cameraRig recenter focus', () => {
+  it('centres the building with the camera angle and distance untouched', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    rig.update(16); // the opening framing, i.e. the pose a load rests at
+
+    const before = rig.camera.position.clone().sub(rig.controls.target);
+    const b = makeBuilding();
+    rig.focusBuilding(new THREE.Object3D(), b, FocusMode.Recenter);
+
+    // Snapped, not tweened: the pose is right on the frame the restore lands.
+    const target = rig.controls.target;
+    expect(target.x).toBeCloseTo(b.x, 2);
+    expect(target.y).toBeCloseTo(b.h / 2, 2);
+    expect(target.z).toBeCloseTo(b.y, 2);
+    // Same offset from the pivot means same elevation, same azimuth, same zoom.
+    const after = rig.camera.position.clone().sub(target);
+    expect(after.x).toBeCloseTo(before.x, 2);
+    expect(after.y).toBeCloseTo(before.y, 2);
+    expect(after.z).toBeCloseTo(before.z, 2);
+  });
+
+  it('centres the street the same way', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    rig.update(16);
+
+    const before = rig.camera.position.clone().sub(rig.controls.target);
+    const s = makeStreet();
+    rig.focusStreet(s, null, FocusMode.Recenter);
+
+    const target = rig.controls.target;
+    expect(target.x).toBeCloseTo(s.x, 2);
+    expect(target.y).toBeCloseTo(0, 2);
+    expect(target.z).toBeCloseTo(s.y, 2);
+    const after = rig.camera.position.clone().sub(target);
+    expect(after.x).toBeCloseTo(before.x, 2);
+    expect(after.y).toBeCloseTo(before.y, 2);
+    expect(after.z).toBeCloseTo(before.z, 2);
+  });
+
+  // A URL restore lands between the manifest apply and the first rendered
+  // frame, so the one-shot opening framing is still pending when it runs.
+  it('survives the first-frame framing when it lands before it', () => {
+    const canvas = makeCanvas();
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+
+    const b = makeBuilding();
+    rig.focusBuilding(new THREE.Object3D(), b, FocusMode.Recenter);
+    const centred = rig.camera.position.clone();
+    rig.update(16);
+
+    expect(rig.controls.target.x).toBeCloseTo(b.x, 2);
+    expect(rig.controls.target.y).toBeCloseTo(b.h / 2, 2);
+    expect(rig.controls.target.z).toBeCloseTo(b.y, 2);
+    expect(rig.camera.position.x).toBeCloseTo(centred.x, 2);
+    expect(rig.camera.position.z).toBeCloseTo(centred.z, 2);
   });
 });
 

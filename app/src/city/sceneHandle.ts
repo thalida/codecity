@@ -4,6 +4,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { createCity } from './index';
+import { FocusMode } from './render/cameraRig';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
@@ -117,13 +118,25 @@ export function showCommit(sha: string): void {
   openSelectionPane();
 }
 
-/** showCommit for a file or directory: pick it out and open its details without
- *  moving the camera, for a selection restored from the URL rather than asked for. */
-export function showPath(path: string): void {
+/** Restore a selection the URL names: pick it out, open its details, and slide
+ *  the city until it sits centred, under the angle and zoom the load framed. */
+export function restorePath(path: string): void {
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
   handle.picker.selectByPath(path);
+  handle.focusByPath(path, FocusMode.Recenter);
   openSelectionPane();
+  collapseDrawerOnPhone();
+}
+
+/** restorePath for a commit's tree, by sha. */
+export function restoreCommit(sha: string): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByCommit(sha);
+  handle.rig.focusTree(sha, FocusMode.Recenter);
+  openSelectionPane();
+  collapseDrawerOnPhone();
 }
 
 /** Reset the camera framing to the current mode's default pose. */

@@ -11,7 +11,7 @@ import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/progress';
-import { showPath, showCommit, clearSelection } from '@/city/sceneHandle';
+import { restorePath, restoreCommit, clearSelection } from '@/city/sceneHandle';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -59,11 +59,12 @@ function reflectViewToUrl(): void {
 
 // ── Follow ───────────────────────────────────────────────────────────
 
-/** Every kind restores alike: picked out, details open, camera untouched. */
+/** Every kind restores alike: picked out, details open, centred under a camera
+ *  that keeps the angle it loaded at. */
 function applySelection(selection: PickerSelectionKey | null): void {
   if (!selection) clearSelection();
-  else if (selection.kind === NodeKind.Commit) showCommit(selection.sha);
-  else showPath(selection.path);
+  else if (selection.kind === NodeKind.Commit) restoreCommit(selection.sha);
+  else restorePath(selection.path);
 }
 
 /** Put the view the URL describes on screen. Reads the live view untracked and

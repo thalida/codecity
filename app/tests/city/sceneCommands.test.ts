@@ -1,11 +1,19 @@
-// Two kinds of "take me to this node", split by what the control you clicked
+// Three kinds of "take me to this node", split by what the control you clicked
 // showed you. A focus icon promises the city, so those commands clear the panel
 // out of the way; a name in a list promises the thing itself, so those open the
-// details. The commands carry that difference, not their call sites.
+// details; a URL is neither, so it gets the details with no overhead swing.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
-import { SCENE_HANDLE, focusPath, focusCommit, goToPath } from '@/city/sceneHandle';
+import {
+  SCENE_HANDLE,
+  focusPath,
+  focusCommit,
+  goToPath,
+  restorePath,
+  restoreCommit,
+} from '@/city/sceneHandle';
+import { FocusMode } from '@/city/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
@@ -30,12 +38,12 @@ function makeHandle() {
         calls.push(`selectByCommit:${sha}`);
       },
     },
-    focusByPath(path: string) {
-      calls.push(`focusByPath:${path}`);
+    focusByPath(path: string, mode: FocusMode = FocusMode.Overhead) {
+      calls.push(`focusByPath:${path}:${mode}`);
     },
     rig: {
-      focusTree(sha: string) {
-        calls.push(`focusTree:${sha}`);
+      focusTree(sha: string, mode: FocusMode = FocusMode.Overhead) {
+        calls.push(`focusTree:${sha}:${mode}`);
       },
     },
   };
@@ -57,7 +65,7 @@ describe('scene navigation commands', () => {
 
   it('goToPath selects, moves the camera, and shows the details', () => {
     goToPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts']);
+    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
@@ -75,14 +83,28 @@ describe('scene navigation commands', () => {
 
   it('focusPath selects, moves the camera, and clears the panel away', () => {
     focusPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts']);
+    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
   it('focusCommit does the same for a commit', () => {
     focusCommit('abc1234');
-    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusTree:abc1234']);
+    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusTree:abc1234:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
+  });
+
+  // A link nobody clicked in-app: it gets the node centred, but under the
+  // camera angle the load framed, not the overhead swing Focus means.
+  it('restorePath selects, centres without reframing, and shows the details', () => {
+    restorePath('src/a.ts');
+    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusByPath:src/a.ts:recenter']);
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+  });
+
+  it('restoreCommit does the same for a commit', () => {
+    restoreCommit('abc1234');
+    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusTree:abc1234:recenter']);
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
   it('every command no-ops before the scene boots', () => {
@@ -90,6 +112,8 @@ describe('scene navigation commands', () => {
     goToPath('src/a.ts');
     focusPath('src/a.ts');
     focusCommit('abc1234');
+    restorePath('src/a.ts');
+    restoreCommit('abc1234');
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 });

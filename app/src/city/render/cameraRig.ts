@@ -1,7 +1,7 @@
 // city/render/cameraRig.ts — the perspective camera, OrbitControls, the initial
 // framing, and the focus/reset animations. First-frame framing is one-shot by
-// construction: nothing on the public API re-frames, update() does it behind a
-// flag. The pose is never persisted; every load starts at the gem framing.
+// construction: update() does it behind a flag, and a Recenter focus spends that
+// flag itself. The pose is never persisted; every load starts at the gem framing.
 
 import * as THREE from 'three';
 import { computed, effect, untracked } from '@preact/signals';
@@ -36,6 +36,16 @@ const SHOWCASE_POSE = computed(() => {
   return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
 });
 
+/** How a focus command frames the node it looks at. */
+export enum FocusMode {
+  /** Swing overhead and pull in until the node fills the frame: what asking to
+   *  focus something means. */
+  Overhead = 'overhead',
+  /** Slide the node under the crosshair, leaving elevation, azimuth and distance
+   *  exactly where they were: what a selection the page opened with gets. */
+  Recenter = 'recenter',
+}
+
 /** A snapshot of the user's camera, restored verbatim on switcher dismiss. */
 export interface CameraPose {
   position: THREE.Vector3;
@@ -60,9 +70,11 @@ export interface CameraRigDeps {
  *  the user still has to be able to pull back to a cinematic distance. */
 const MIN_MAX_DISTANCE = 8000;
 
+/** Shared by every snap, so nothing has to build its own (0, 1, 0). */
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
 // Ratios of CAMERA_BASE_DURATION_MS, not absolutes: dragging the base in
 // Settings then scales every animation while the relative pacing holds.
-const RECENTER_RATIO = 0.7;
 const BUILDING_FOCUS_RATIO = 1.2;
 const STREET_FOCUS_RATIO = 1.2;
 
@@ -303,7 +315,7 @@ export function createCameraRig({
     if (!_captureFraming() || !initialCamPos || !initialTarget) return;
     // Or an in-flight focus keeps walking the camera off the snap target.
     camAnimToken++;
-    camera.up.set(0, 1, 0);
+    camera.up.copy(WORLD_UP);
     // Not controls.reset(): its trailing update() re-applies the user's
     // residual deltas, drifting back. Damping off consumes them in one frame.
     const wasDamping = controls.enableDamping;
@@ -318,16 +330,29 @@ export function createCameraRig({
     controls.saveState();
   }
 
-  // Slide pivot to p; camera shifts by the same delta so the visible
-  // scene doesn't zoom or rotate, just slides under.
-  function recenterTo(p: THREE.Vector3): void {
-    camera.up.set(0, 1, 0);
+  /** Hard-snap the camera to a pose, matching reset()'s damping-off snap so
+   *  residual inertia can't drift it off the placed pose. */
+  function _snapTo(target: THREE.Vector3, camPos: THREE.Vector3, up: THREE.Vector3): void {
+    camAnimToken++; // cancel any in-flight tween
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
+    camera.up.copy(up);
+    camera.position.copy(camPos);
+    controls.target.copy(target);
+    camera.lookAt(target);
+    controls.update();
+    controls.enableDamping = wasDamping;
+    controls.saveState();
+  }
+
+  // Slide the pivot onto p; the camera shifts by the same delta, so the scene
+  // slides under a camera that never turns or zooms.
+  function _recenterOn(p: THREE.Vector3): void {
+    // Spend the pending opening framing here: a URL restore runs before it, and
+    // it would overwrite the centred pose a frame later.
+    if (firstFrame && _frameToBbox()) firstFrame = false;
     const delta = p.clone().sub(controls.target);
-    _animateCamera(
-      p.clone(),
-      camera.position.clone().add(delta),
-      CAMERA_BASE_DURATION_MS * RECENTER_RATIO
-    );
+    _snapTo(p.clone(), camera.position.clone().add(delta), WORLD_UP);
   }
 
   const _scratchDir = new THREE.Vector3();
@@ -381,16 +406,38 @@ export function createCameraRig({
       center.z + dirZ * dist * cosE
     );
 
-    camera.up.set(0, 1, 0);
+    camera.up.copy(WORLD_UP);
     _animateCamera(center.clone(), newCamPos, CAMERA_BASE_DURATION_MS * durationRatio);
   }
 
-  function focusBuilding(_mesh: THREE.Object3D, b: Building): void {
-    const center = new THREE.Vector3(b.x, b.h / 2, b.y);
-    _focusTopDown(center, b.w, b.d, b.h, BUILDING_FOCUS_RATIO);
+  /** Look at `center`, framed the way `mode` asks for. The fit extents and the
+   *  duration are what Overhead reframes against; Recenter needs neither. */
+  function _focus(
+    center: THREE.Vector3,
+    fitW: number,
+    fitD: number,
+    fitH: number,
+    durationRatio: number,
+    mode: FocusMode
+  ): void {
+    if (mode === FocusMode.Recenter) _recenterOn(center);
+    else _focusTopDown(center, fitW, fitD, fitH, durationRatio);
   }
 
-  function focusStreet(s: Street, hitPoint: THREE.Vector3 | null): void {
+  function focusBuilding(
+    _mesh: THREE.Object3D,
+    b: Building,
+    mode: FocusMode = FocusMode.Overhead
+  ): void {
+    const center = new THREE.Vector3(b.x, b.h / 2, b.y);
+    _focus(center, b.w, b.d, b.h, BUILDING_FOCUS_RATIO, mode);
+  }
+
+  function focusStreet(
+    s: Street,
+    hitPoint: THREE.Vector3 | null,
+    mode: FocusMode = FocusMode.Overhead
+  ): void {
     let tx = s.x;
     let tz = s.y;
     if (hitPoint) {
@@ -400,15 +447,15 @@ export function createCameraRig({
     const center = new THREE.Vector3(tx, 0, tz);
     const fitW = s.orientation === StreetAxis.X ? s.length : s.width;
     const fitD = s.orientation === StreetAxis.X ? s.width : s.length;
-    _focusTopDown(center, fitW, fitD, 0, STREET_FOCUS_RATIO);
+    _focus(center, fitW, fitD, 0, STREET_FOCUS_RATIO, mode);
   }
 
-  function focusTree(sha: string): void {
+  function focusTree(sha: string, mode: FocusMode = FocusMode.Overhead): void {
     const b = deps.getTreeBoundsBySha(sha);
     if (!b) return;
     const center = new THREE.Vector3(b.x, b.height / 2, b.z);
     const span = b.radius * 2;
-    _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
+    _focus(center, span, span, b.height, BUILDING_FOCUS_RATIO, mode);
   }
 
   /** Capture only: an explicit pose, bypassing the top-down focus framing so a
@@ -497,11 +544,11 @@ export function createCameraRig({
 
   /** Focus whatever is selected. On the scene side, so view code never has to
    *  know the per-target focus mechanics. */
-  function focusSelection(sel: PickTarget | null): void {
+  function focusSelection(sel: PickTarget | null, mode: FocusMode = FocusMode.Overhead): void {
     if (!sel) return;
-    if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data);
-    else if (sel.kind === NodeKind.Directory) focusStreet(sel.street, null);
-    else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha);
+    if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data, mode);
+    else if (sel.kind === NodeKind.Directory) focusStreet(sel.street, null, mode);
+    else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha, mode);
   }
 
   // ── Showcase mode ────────────────────────────────────────────────
@@ -519,21 +566,6 @@ export function createCameraRig({
       target: controls.target.clone(),
       up: camera.up.clone(),
     };
-  }
-
-  /** Hard-snap the camera to a pose, matching reset()'s damping-off snap so
-   *  residual inertia can't drift it off the restored pose. */
-  function _snapTo(target: THREE.Vector3, camPos: THREE.Vector3, up: THREE.Vector3): void {
-    camAnimToken++; // cancel any in-flight tween
-    const wasDamping = controls.enableDamping;
-    controls.enableDamping = false;
-    camera.up.copy(up);
-    camera.position.copy(camPos);
-    controls.target.copy(target);
-    camera.lookAt(target);
-    controls.update();
-    controls.enableDamping = wasDamping;
-    controls.saveState();
   }
 
   /** Restore a snapshot verbatim (the switcher's dismiss path). */
@@ -580,7 +612,7 @@ export function createCameraRig({
       _snapTo(
         target,
         target.clone().addScaledVector(dir, _showcaseRadius(showcase.DISTANCE)),
-        new THREE.Vector3(0, 1, 0)
+        WORLD_UP
       );
     }
     controls.autoRotate = autoRotate;
@@ -619,7 +651,6 @@ export function createCameraRig({
     controls,
     update,
     reset,
-    recenterTo,
     focusBuilding,
     focusStreet,
     focusTree,
