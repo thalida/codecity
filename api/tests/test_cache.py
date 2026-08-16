@@ -1,4 +1,4 @@
-"""Unit tests for api/cache.py."""
+"""Unit tests for the api/cache package."""
 
 from __future__ import annotations
 
@@ -11,7 +11,13 @@ from pathlib import Path
 import pytest
 
 from api import cache as cache_mod
-from api.cache import _git_history_cache_path
+from api.cache import files as cache_files
+from api.cache import history as cache_history
+from api.cache import manifests as cache_manifests
+from api.cache import paths as cache_paths
+from api.cache.entries import FileEntry
+from api.cache.paths import ManifestFamily
+from api.cache.paths import git_history_cache_path as _git_history_cache_path
 from api.models.manifest import CommitEntry, Manifest, TimelineBundle
 from api.tests.conftest import make_commit, make_manifest, make_timeline_bundle
 
@@ -27,7 +33,7 @@ def _stub_manifest():
 
 def _seed_files() -> tuple:
     cache_mod.cache_save_files(_ROOT, {})
-    path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(_ROOT)}.json"
+    path = cache_paths.CACHE_ROOT / "files" / f"{cache_paths.repo_key(_ROOT)}.json"
     # A well-formed entry, so the version guard is the only thing that can
     # reject it. A malformed one would be dropped by the entry filter instead,
     # and the assertion could not tell the two apart.
@@ -43,7 +49,9 @@ def _seed_files() -> tuple:
 
 def _seed_git_history() -> tuple:
     cache_mod.cache_save_git_history(_ROOT, "abc", {}, {}, [])
-    path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(_ROOT)}.json"
+    path = (
+        cache_paths.CACHE_ROOT / "git-history" / f"{cache_paths.repo_key(_ROOT)}.json"
+    )
     stale = {
         "version": 999,
         "root": str(_ROOT),
@@ -62,7 +70,7 @@ def _seed_git_history() -> tuple:
 
 def _seed_manifest() -> tuple:
     cache_mod.cache_save_manifest(_ROOT, _SIG, _stub_manifest())
-    path = cache_mod._manifest_cache_path(_ROOT, _SIG)
+    path = cache_paths.manifest_cache_path(_ROOT, _SIG)
     stale = {"version": 999, "manifest": {}}
     return path, lambda: cache_mod.cache_load_manifest(_ROOT, _SIG), None, True, stale
 
@@ -70,12 +78,12 @@ def _seed_manifest() -> tuple:
 def _seed_timeline() -> tuple:
     bundle = make_timeline_bundle(unionManifest=_stub_manifest())
     cache_mod.cache_save_timeline(_ROOT, _SHA, bundle)
-    path = cache_mod._timeline_cache_path(_ROOT, _SHA, frozenset())
+    path = cache_paths.timeline_cache_path(_ROOT, _SHA, frozenset())
     # One version back, not 999: v6 added blobSizes and full commit timestamps,
     # so serving a v5 blob would hand the scrubber day-precision dates and stack
     # every same-day commit.
     stale = {
-        "version": cache_mod._TIMELINE_CACHE_VERSION - 1,
+        "version": cache_manifests.TIMELINE_VERSION - 1,
         "bundle": bundle.model_dump(),
     }
     return path, lambda: cache_mod.cache_load_timeline(_ROOT, _SHA), None, True, stale
@@ -125,19 +133,19 @@ class CacheTestBase(unittest.TestCase):
 class RepoKeyTests(CacheTestBase):
     def test_stable(self) -> None:
         self.assertEqual(
-            cache_mod.repo_key(Path("/foo/bar")),
-            cache_mod.repo_key(Path("/foo/bar")),
+            cache_paths.repo_key(Path("/foo/bar")),
+            cache_paths.repo_key(Path("/foo/bar")),
         )
 
     def test_distinct(self) -> None:
         self.assertNotEqual(
-            cache_mod.repo_key(Path("/foo/bar")),
-            cache_mod.repo_key(Path("/foo/baz")),
+            cache_paths.repo_key(Path("/foo/bar")),
+            cache_paths.repo_key(Path("/foo/baz")),
         )
 
     def test_short_hex(self) -> None:
         # 16 hex chars — long enough to be unique, short enough to be readable.
-        k = cache_mod.repo_key(Path("/foo/bar"))
+        k = cache_paths.repo_key(Path("/foo/bar"))
         self.assertEqual(len(k), 16)
         int(k, 16)  # raises if not hex
 
@@ -163,7 +171,7 @@ class FileCacheTests(CacheTestBase):
             root,
             {"a": {"size": 0, "mtime": 0.0, "lines": 0, "binary": False, "ext": ""}},
         )
-        files_dir = cache_mod.CACHE_ROOT / "files"
+        files_dir = cache_paths.CACHE_ROOT / "files"
         leftovers = [p for p in files_dir.iterdir() if p.suffix == ".tmp"]
         self.assertEqual(leftovers, [])
 
@@ -171,9 +179,9 @@ class FileCacheTests(CacheTestBase):
         # Mix valid and invalid entries; valid ones survive, invalid ones drop.
         root = Path("/some/repo")
         cache_mod.cache_save_files(root, {})
-        path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(root)}.json"
+        path = cache_paths.CACHE_ROOT / "files" / f"{cache_paths.repo_key(root)}.json"
         payload = {
-            "version": cache_mod._FILE_CACHE_VERSION,
+            "version": cache_files.VERSION,
             "root": str(root),
             "entries": {
                 "good.py": {
@@ -249,9 +257,13 @@ class GitHistoryCacheTests(CacheTestBase):
         # only string-keyed string-valued entries survive.
         root = Path("/some/repo")
         cache_mod.cache_save_git_history(root, "abc", {}, {}, [])
-        path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
+        path = (
+            cache_paths.CACHE_ROOT
+            / "git-history"
+            / f"{cache_paths.repo_key(root)}.json"
+        )
         payload = {
-            "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+            "version": cache_history.VERSION,
             "root": str(root),
             "commit_sha": "abc",
             "created": {
@@ -310,7 +322,7 @@ class GitHistoryCacheTests(CacheTestBase):
         path.write_text(
             json.dumps(
                 {
-                    "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+                    "version": cache_history.VERSION,
                     "root": str(root),
                     "commit_sha": "abc",
                     "created": {},
@@ -413,18 +425,15 @@ class GitHistoryCacheTests(CacheTestBase):
         )
 
     def test_git_history_rejects_old_version(self):
-        from api import cache as cache_mod
-        from api.cache import (
-            _git_history_cache_path,
-            cache_load_git_history,
-        )
+        from api.cache import cache_load_git_history
+        from api.cache.paths import git_history_cache_path as _git_history_cache_path
 
         root = Path("/fake/root2")
         path = _git_history_cache_path(root)
         path.parent.mkdir(parents=True, exist_ok=True)
         # Simulate a cache file with the previous version number.
         old = {
-            "version": cache_mod._GIT_HISTORY_CACHE_VERSION - 1,
+            "version": cache_history.VERSION - 1,
             "commit_sha": "HEADSHA",
             "created": {},
             "modified": {},
@@ -477,16 +486,15 @@ class ManifestCacheTests(CacheTestBase):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
         must be dropped on load, because the composite version string changes
         when git-history bumps."""
-        from api.cache import (
-            _manifest_cache_path,
-            cache_load_manifest,
-        )
         import gzip
+
+        from api.cache import cache_load_manifest
+        from api.cache.paths import manifest_cache_path as _manifest_cache_path
 
         # Write a manifest stamped with a version string that mimics the
         # OLD git-history version (current minus one).
-        old_g = cache_mod._GIT_HISTORY_CACHE_VERSION - 1
-        stale_version = f"m{cache_mod._MANIFEST_SCHEMA_VERSION}-g{old_g}"
+        old_g = cache_history.VERSION - 1
+        stale_version = f"m{cache_manifests.MANIFEST_SCHEMA_VERSION}-g{old_g}"
         root = Path("/fake/root")
         sig = "deadbeef" * 8
         path = _manifest_cache_path(root, sig)
@@ -568,7 +576,7 @@ class ManifestCacheTests(CacheTestBase):
         self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
 
     def test_clear_timeline_missing_dir_returns_zero(self) -> None:
-        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertFalse((cache_paths.CACHE_ROOT / "manifests").exists())
         self.assertEqual(cache_mod.cache_clear_timeline(Path("/never")), 0)
 
 
@@ -578,7 +586,7 @@ class MediaDimsCacheTests(CacheTestBase):
         self.abs_root = self.cache_root / "fake-repo"
 
     def test_media_dims_round_trip(self) -> None:
-        entry: cache_mod.FileEntry = {
+        entry: FileEntry = {
             "size": 100,
             "mtime": 1.5,
             "lines": 0,
@@ -594,7 +602,7 @@ class MediaDimsCacheTests(CacheTestBase):
         self.assertEqual(loaded["img.png"]["media_height"], 240)
 
     def test_entry_without_media_dims_loads_cleanly(self) -> None:
-        entry: cache_mod.FileEntry = {
+        entry: FileEntry = {
             "size": 100,
             "mtime": 1.5,
             "lines": 50,
@@ -610,12 +618,12 @@ class MediaDimsCacheTests(CacheTestBase):
     def test_partial_media_dims_drops_both(self) -> None:
         # Manually write a cache file with only media_width (no height);
         # the coercer must drop both rather than carry a half-populated entry.
-        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path = cache_paths.file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": cache_mod._FILE_CACHE_VERSION,
+                    "version": cache_files.VERSION,
                     "entries": {
                         "weird.png": {
                             "size": 10,
@@ -637,12 +645,12 @@ class MediaDimsCacheTests(CacheTestBase):
 
     def test_bool_media_dims_are_rejected(self) -> None:
         """bool is a subclass of int but must not coerce into media dims."""
-        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path = cache_paths.file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": cache_mod._FILE_CACHE_VERSION,
+                    "version": cache_files.VERSION,
                     "entries": {
                         "fake.png": {
                             "size": 10,
@@ -663,12 +671,12 @@ class MediaDimsCacheTests(CacheTestBase):
         self.assertNotIn("media_height", loaded["fake.png"])
 
     def test_partial_media_dims_height_only_drops_both(self) -> None:
-        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path = cache_paths.file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": cache_mod._FILE_CACHE_VERSION,
+                    "version": cache_files.VERSION,
                     "entries": {
                         "weird.png": {
                             "size": 10,
@@ -690,30 +698,30 @@ class MediaDimsCacheTests(CacheTestBase):
 
 
 def test_blob_stats_cache_roundtrip(tmp_path, monkeypatch):
-    from api import cache
+    from api.cache import paths as cache_paths
 
-    monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(cache_paths, "CACHE_ROOT", tmp_path)
     root = tmp_path / "repo"
     entries = {
         "a" * 40: {"lines": 12, "binary": False},
         "b" * 40: {"lines": 0, "binary": True, "media_width": 4, "media_height": 8},
     }
-    cache.cache_save_blobs(root, entries)
-    loaded = cache.cache_load_blobs(root)
+    cache_mod.cache_save_blobs(root, entries)
+    loaded = cache_mod.cache_load_blobs(root)
     assert loaded["a" * 40] == {"lines": 12, "binary": False}
     assert loaded["b" * 40]["media_width"] == 4
     assert loaded["b" * 40]["media_height"] == 8
 
 
 def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
-    from api import cache
+    from api.cache import paths as cache_paths
 
-    monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(cache_paths, "CACHE_ROOT", tmp_path)
     root = tmp_path / "repo"
-    p = cache._blob_cache_path(root)
+    p = cache_paths.blob_cache_path(root)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('{"version": -1, "entries": {"x": 1}}')
-    assert cache.cache_load_blobs(root) == {}
+    assert cache_mod.cache_load_blobs(root) == {}
 
 
 if __name__ == "__main__":
@@ -731,13 +739,13 @@ class ManifestCachePruneTests(CacheTestBase):
         return make_manifest("/some/repo")
 
     def _names(self, root: Path) -> list[str]:
-        prefix = f"{cache_mod.repo_key(root)}__"
-        d = cache_mod.CACHE_ROOT / "manifests"
+        prefix = f"{cache_paths.repo_key(root)}__"
+        d = cache_paths.CACHE_ROOT / "manifests"
         return sorted(p.name[len(prefix) :] for p in d.glob(f"{prefix}*.json.gz"))
 
     def test_content_signatures_are_capped(self) -> None:
         root = Path("/x")
-        keep = cache_mod._KEEP_CONTENT_MANIFESTS
+        keep = cache_manifests._KEEP[ManifestFamily.CONTENT]
         for i in range(keep + 4):
             cache_mod.cache_save_manifest(root, f"{i:032x}", self._manifest())
 
@@ -746,7 +754,7 @@ class ManifestCachePruneTests(CacheTestBase):
     def test_the_entry_just_written_always_survives(self) -> None:
         # Pruning runs after the save, so the newest write is never the victim.
         root = Path("/x")
-        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+        for i in range(cache_manifests._KEEP[ManifestFamily.CONTENT] + 3):
             sig = f"{i:032x}"
             cache_mod.cache_save_manifest(root, sig, self._manifest())
             self.assertIsNotNone(cache_mod.cache_load_manifest(root, sig))
@@ -756,17 +764,17 @@ class ManifestCachePruneTests(CacheTestBase):
         # content-signature manifest out from under the running scan.
         root = Path("/x")
         cache_mod.cache_save_manifest(root, "a" * 32, self._manifest())
-        for i in range(cache_mod._KEEP_REF_MANIFESTS + 5):
+        for i in range(cache_manifests._KEEP[ManifestFamily.REF] + 5):
             cache_mod.cache_save_ref_manifest(root, f"{i:040x}", self._manifest())
 
         self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
         refs = [n for n in self._names(root) if n.startswith("ref-")]
-        self.assertEqual(len(refs), cache_mod._KEEP_REF_MANIFESTS)
+        self.assertEqual(len(refs), cache_manifests._KEEP[ManifestFamily.REF])
 
     def test_pruning_one_repo_leaves_another_alone(self) -> None:
         other = Path("/y")
         cache_mod.cache_save_manifest(other, "c" * 32, self._manifest())
-        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+        for i in range(cache_manifests._KEEP[ManifestFamily.CONTENT] + 3):
             cache_mod.cache_save_manifest(Path("/x"), f"{i:032x}", self._manifest())
 
         self.assertIsNotNone(cache_mod.cache_load_manifest(other, "c" * 32))
@@ -775,21 +783,21 @@ class ManifestCachePruneTests(CacheTestBase):
         self.assertEqual(cache_mod.prune_manifest_cache(Path("/never/scanned")), 0)
 
     def test_prune_with_no_manifests_dir_is_a_noop(self) -> None:
-        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertFalse((cache_paths.CACHE_ROOT / "manifests").exists())
         self.assertEqual(cache_mod.prune_manifest_cache(Path("/x")), 0)
 
     def test_protect_survives_even_when_it_ranks_oldest(self) -> None:
         # mtime can tie (one-second resolution), ranking the just-written entry
         # anywhere. Pinned to the worst case, it must still survive.
         root = Path("/x")
-        d = cache_mod.CACHE_ROOT / "manifests"
+        d = cache_paths.CACHE_ROOT / "manifests"
         d.mkdir(parents=True, exist_ok=True)
 
         # Write past the cap directly, so setup does not prune as it goes.
         paths = []
-        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
-            path = cache_mod._manifest_cache_path(root, f"{i:032x}")
-            cache_mod._save_gz_manifest(path, self._manifest())
+        for i in range(cache_manifests._KEEP[ManifestFamily.CONTENT] + 3):
+            path = cache_paths.manifest_cache_path(root, f"{i:032x}")
+            cache_manifests._save_manifest(path, self._manifest())
             paths.append(path)
 
         victim = paths[0]
@@ -798,5 +806,5 @@ class ManifestCachePruneTests(CacheTestBase):
         cache_mod.prune_manifest_cache(root, protect=victim)
 
         self.assertTrue(victim.exists(), "protected entry was evicted")
-        remaining = list(d.glob(f"{cache_mod.repo_key(root)}__*.json.gz"))
-        self.assertEqual(len(remaining), cache_mod._KEEP_CONTENT_MANIFESTS)
+        remaining = list(d.glob(f"{cache_paths.repo_key(root)}__*.json.gz"))
+        self.assertEqual(len(remaining), cache_manifests._KEEP[ManifestFamily.CONTENT])
