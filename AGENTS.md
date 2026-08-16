@@ -128,7 +128,19 @@ network (`just dev` then fails with "network ... not found"; recover with
     indicators over the fields they operate on.
   - `src/components/` — grouped by what a component is, not where it appears. A
     component used by exactly one thing lives beside that thing instead.
-- `api/` — FastAPI backend that walks the repo and serves the manifest.
+- `api/` — FastAPI backend that walks the repo and serves the manifest. Layered,
+  and imports only ever point down: `routers/` → `scan/` → `git/` and `cache/` →
+  `models/`, `core/`, `utils/`.
+  - `routers/` — the whole HTTP surface, one module per route family. `sse.py`
+    is the streaming plumbing the two SSE routes share, not a route.
+  - `git/`, `scan/` and `cache/` each curate a barrel in `__init__`.
+    `api/tests/test_package_boundaries.py` fails if anything reaches past one.
+  - `models/` — Pydantic, and the only definition of each shape. The scanner
+    builds these directly, so there is no second copy to drift from.
+  - `core/` is codecity-specific (config, security, progress); `utils/` is the
+    part that would drop into another project unchanged.
+  - `git/`, `scan/`, `routers/` and `models/` carry a README each. Read it
+    before working in one.
 - `.github/` — readme assets + CI workflows.
 
 ## Commands (run via `just`, not raw npm)
@@ -141,5 +153,7 @@ pose, so the still and the live backdrop stay the same city.
 ## Conventions
 
 - Comments explain non-obvious **why** only — no migration/historical narration.
+  Capped at 2 lines (4 for a file header) in both languages, enforced at push.
+  Longer guidance goes in the package's README, not a comment block.
 - Single signal source-of-truth; explicit reactions, no implicit ordering deps.
 - Commit incrementally at each green stop point; reference the issue you're closing.
