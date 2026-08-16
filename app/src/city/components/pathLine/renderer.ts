@@ -7,9 +7,9 @@ import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
-import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
+import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/city/layout/streetPath';

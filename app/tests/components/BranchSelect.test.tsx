@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
+import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
 import * as branchesApi from '@/api/branches';
 import { ScanError } from '@/api/manifest';
 import { flush, drainAsync } from '../_helpers/preact';
@@ -29,9 +29,8 @@ describe('BranchSelect', () => {
   });
 
   it('shows a resolving state, then the dropdown with the repo default preselected and marked', async () => {
-    // Manually-controlled promise (rather than mockResolvedValue) so the
-    // loading assertion below can't race past the resolution on the
-    // microtask queue — it only settles once resolveFetch is called.
+    // Manually settled, so the loading assertion below cannot race past the
+    // resolution on the microtask queue.
     let resolveFetch!: (r: { branches: string[]; default: string | null }) => void;
     vi.spyOn(branchesApi, 'fetchBranches').mockImplementation(
       () =>
@@ -45,10 +44,8 @@ describe('BranchSelect', () => {
       <BranchSelect url="https://github.com/o/r" value="" onChange={onChange} onError={() => {}} />,
       container
     );
-    // The mocked fetch never settles until resolveFetch() runs below, so it's
-    // safe to drain generously here — the component can only be idle or
-    // loading, never past it (Preact's effect scheduling has a real-timer
-    // hop, so a single microtask flush() is not enough to observe this).
+    // Safe to drain generously: the fetch cannot settle yet. Preact's effect
+    // scheduling has a real-timer hop, so one microtask flush is not enough.
     await drainAsync();
     expect(container.querySelector('.branch-select-status')?.textContent).toMatch(/resolving/i);
 

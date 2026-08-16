@@ -2,7 +2,7 @@
 // plan, so the format has to survive plans of different lengths.
 
 import { describe, it, expect } from 'vitest';
-import { BuildStage, buildStageTail } from '@/constants/buildStages';
+import { BuildStage, buildStageTail } from '@/constants/progress';
 
 const FULL = [BuildStage.Icons, BuildStage.Layout, BuildStage.Assemble];
 const REUSE = [BuildStage.Layout, BuildStage.Assemble];

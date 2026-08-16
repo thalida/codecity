@@ -1,14 +1,11 @@
-// city/components/trees/treePlacementWorker.ts — Web Worker entry for tree
-// placement. Receives a slim layout geometry + bbox + a snapshot of the config
-// stores placeTrees() reads, populates the worker's local stores,
-// runs the scan, posts back the TreePlacement[]. Pure compute, no
-// DOM, no three.js references.
-
+// city/components/trees/treePlacementWorker.ts — the worker end of tree
+// placement: a slim layout plus a config snapshot in, TreePlacement[] out.
+// Pure compute, no DOM and no three.js.
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
-import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
-import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
-import { WORLD, type WorldConfig } from '@/state/stores/settings/island';
-import type { IslandConfig } from '@/state/stores/settings/island';
+import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
+import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
+import { WORLD, type WorldConfig } from '@/state/settings/fields/island';
+import type { IslandConfig } from '@/state/settings/fields/island';
 import type { CityBbox } from '@/types';
 
 type TreesValue = TreesConfig;
@@ -30,10 +27,8 @@ interface PlaceRequest {
     /** Island geometry config snapshot — used to rebuild the island polygon
      *  inside the worker without touching main-thread stores. */
     islandGeo: IslandConfig;
-    /** World sizing snapshot — getWorldBounds() inside placeTrees reads
-     *  WORLD.GROUND_BUFFER_PERCENT, which would otherwise stay at the
-     *  worker's default value (workers have their own nanostore state
-     *  that doesn't sync with the main thread). */
+    /** A worker has its own store state, so without this snapshot
+     *  GROUND_BUFFER_PERCENT stays at the worker's default. */
     world: WorldValue;
   };
 }

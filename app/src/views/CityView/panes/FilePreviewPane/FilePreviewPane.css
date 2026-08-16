@@ -1,0 +1,305 @@
+/* ── File preview pane ── */
+
+/* The wrapper fills the sidebar's height; the body grows inside it under the
+   fixed-height header. */
+
+/* Layout in .pane. */
+
+/* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
+
+/* Layout in .pane; the app-bg fill comes from .surface-app on the body. */
+.editor-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Empty/error/too-large states all use the .empty-state + .empty-state--lg
+   helper (centered icon + headline + subtitle) in the search-pane section. */
+
+/* Every preview kind drops into the editor body and takes its full height. */
+
+.preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--cc-space-8);
+  object-fit: contain;
+  background:
+    linear-gradient(45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--cc-bg-chrome) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--cc-bg-chrome) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.preview-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  background: var(--cc-black);
+}
+
+.preview-pdf {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Holds the editor or a centred state message, so swapping between them can't
+   leave an empty gutter behind. */
+/* Layout in .pane; this rule only sizes the placeholder used while a
+   file-preview fetch is in flight. */
+.preview-shell:empty::before {
+  content: '';
+  flex: 1 1 auto;
+}
+
+/* State messages use .empty-state--lg, defined with the search pane's. */
+
+/* A sticky gutter beside a scrollable pre, on one line-height so they line up.
+   Big files drop highlighting, then the gutter: the span DOM is what hangs. */
+
+.code-editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Surface (bg + bottom rule + padding) from .card-banner; this adds the row
+   layout + text styling. */
+.code-editor-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  color: var(--cc-accent-light);
+  font-size: var(--cc-font-xs);
+  line-height: var(--cc-lh-base);
+}
+/* The banner's own accent, not 85% of it: a glyph a shade off its label reads
+   as a different colour rather than the same one. */
+.code-editor-banner .icon {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-md);
+}
+
+.code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  overflow: auto;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-sm);
+  line-height: var(--cc-lh-relaxed);
+  tab-size: 4;
+}
+
+.code-editor-gutter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--cc-space-5);
+  background: var(--cc-bg-chrome);
+  border-right: 1px solid var(--cc-track);
+  color: var(
+    --cc-text-muted
+  ); /* was var(--cc-text-faint) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+  text-align: right;
+  user-select: none;
+  /* Content-driven width, pinned while the code scrolls under it. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.code-editor-ln {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5em;
+}
+/* Same trailing spacer as the code column so the gutter's background/divider
+   extends down alongside the bottom gap. */
+.code-editor-gutter::after {
+  content: '';
+  display: block;
+  height: var(--cc-space-8);
+}
+
+.code-editor-pre {
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  flex: 1 1 auto;
+  white-space: pre;
+  background: transparent;
+  color: var(--cc-text-primary);
+}
+/* A real block, not padding: a flex scroll container can clip a child's end
+   padding out of the scrollable range, but never in-flow content. */
+.code-editor-pre::after {
+  content: '';
+  display: block;
+  height: var(--cc-space-8);
+}
+
+.code-editor-code {
+  font-family: inherit;
+  white-space: inherit;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* A waterfall and a glyph grid. The face itself is applied inline per mount,
+   so these rules own only layout and chrome. */
+
+.font-specimen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-9);
+  padding: var(--cc-space-8);
+  color: var(--cc-text-primary);
+}
+
+.font-specimen-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+/* The Preview / Repertoire eyebrows stay in the UI font (.text-label), never
+   the previewed face, so they read even for display / symbol fonts. */
+.font-specimen-label {
+  color: var(--cc-text-muted);
+}
+
+.font-specimen-waterfall {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-2);
+}
+
+.font-specimen-line {
+  margin: var(--cc-space-0);
+  font-size: var(--cc-font-2xl);
+  line-height: var(--cc-lh-tight);
+  word-break: break-word;
+}
+
+.font-specimen-pangram {
+  margin: var(--cc-space-4) var(--cc-space-0) var(--cc-space-0);
+  font-size: 16px;
+  line-height: var(--cc-lh-base);
+  color: var(--cc-text-secondary);
+  word-break: break-word;
+}
+
+/* Auto-fill, so it reflows to the pane; fixed-height cells, so rows stay
+   aligned whatever the glyph metrics. */
+.font-specimen-repertoire {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2rem, 1fr));
+  gap: var(--cc-space-1);
+}
+
+.font-specimen-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  font-size: var(--cc-font-lg);
+  line-height: 1;
+  border-radius: var(--cc-radius-sm);
+}
+.font-specimen-glyph:hover {
+  background: var(--cc-bg-chrome);
+}
+
+/* Spinning loader for the file-preview fetch (empty-state layout). */
+.file-preview-loading .icon {
+  color: var(--cc-accent);
+  animation: file-preview-spin 0.8s linear infinite;
+}
+@keyframes file-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Binary "data" file card ──────────────────────────────────────────────── */
+
+.binary-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+  padding: var(--cc-space-8);
+}
+
+/* The fingerprint sits on a dark ground so its white byte-pattern reads (the
+   same image the building facade wears). Pixelated keeps the digram cells crisp. */
+.binary-fingerprint-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
+}
+
+.binary-fingerprint {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: var(--cc-radius-sm);
+}
+
+.binary-fingerprint-fallback {
+  width: 33%;
+  height: 33%;
+  color: var(--cc-text-faint);
+}
+
+/* Label / value rows: labels size to content, values take the rest. */
+.binary-card-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--cc-space-3) var(--cc-space-6);
+  margin: var(--cc-space-0);
+}
+
+.binary-card-facts dt {
+  align-self: baseline;
+}
+
+.binary-card-facts dd {
+  margin: var(--cc-space-0);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-sm);
+  word-break: break-word;
+}
+
+/* Accent-tinted info strip with a bottom rule (file-preview banner). */
+.card-banner {
+  background: var(--cc-accent-bg-soft);
+  border-bottom: 1px solid var(--cc-accent-bg);
+  padding: var(--cc-space-3) var(--cc-space-6);
+}

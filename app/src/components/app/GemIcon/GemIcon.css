@@ -1,0 +1,10 @@
+/* ── Gem icon ──────────────────────────────────────────────────────────────── */
+
+/* Same 1em sizing as .icon, so the gem slots into header buttons without
+   throwing off their alignment. */
+.gem-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}

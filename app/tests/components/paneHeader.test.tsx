@@ -1,11 +1,11 @@
 // The header's close button doesn't close anything: it puts a panel away, and a
-// right-sidebar selection outlives it. The glyph has to say which panel and
+// right sidebar's selection outlives it. The glyph has to say which panel and
 // which direction, so it's chosen from the sidebar the pane is rendered in.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
-import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
+import { PaneHeader } from '@/components/panes/PaneHeader/PaneHeader';
+import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 
 describe('PaneHeader close button', () => {
   let container: HTMLDivElement;

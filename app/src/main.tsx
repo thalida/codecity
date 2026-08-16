@@ -6,13 +6,13 @@ import { render } from 'preact';
 import './styles/index.css';
 // Sets data-cc-* from the persisted theme before Preact mounts, so there's
 // no flash (persistedSignal hydrates synchronously).
-import '@/state/stores/settings/theme';
-import { openBootPickerIfNeeded } from '@/state/bootView';
-import { App } from '@/layout/App/App';
+import '@/state/settings/fields/theme';
+import { normalizeBootRoute } from '@/router/location';
+import { App } from '@/App';
 
-// Decide the cold-boot picker BEFORE the first render so the full-page landing
-// covers the chrome from frame one (no chrome flash).
-openBootPickerIfNeeded();
+// Settle the route BEFORE the first render so the first paint is already the
+// right one: no chrome flash behind the landing, no landing over a deep link.
+normalizeBootRoute();
 
 const mount = document.getElementById('app');
 if (mount) {

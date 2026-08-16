@@ -1,18 +1,9 @@
-// city/components/pathLine/index.ts — the pathLine component.
-//
-// Self-contained scene component for the neon selection path line (gem →
-// selected node, rainbow chasing) and the faded hover-preview path line. The
-// inner renderer (./renderer) owns the meshes, the picker-driven geometry
-// effects, and a cityState rebuild effect (gemWorldPos + cityRevision).
-//
-// The inner renderer subscribes to picker.hover/selection + cityState signals,
-// so it is ARMED on the first tick() once ctx.picker is live, not at
-// construction. The STREETS theme effect is settings-only and safe at
-// construction.
-
+// city/components/pathLine/index.ts — the neon gem-to-selection path line and
+// its faded hover preview. The inner renderer owns the meshes and the
+// picker-driven effects, so it is armed on the first tick, not at construction.
 import * as THREE from 'three';
 
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS } from '@/state/settings/fields/streets';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -27,22 +18,15 @@ export interface PathLine extends SceneComponent {
 
 export function createPathLine(ctx: SceneContext): PathLine {
   const { cityState } = ctx;
-  // Persistent group — added to the scene once. The inner
-  // renderer parents its two line meshes into it at arming (draw order is
-  // governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph position).
+  // Added to the scene once; the renderer parents its meshes in at arming.
+  // Draw order comes from RENDER_ORDERS.PATH_LINE, not graph position.
   const group = new THREE.Group();
   group.name = 'city-path-line';
 
   let _inner: ReturnType<typeof createPathLineRenderer> | null = null;
 
-  // Inner renderer — ARMED on the first tick(), NOT at construction. Its
-  // factory creates the two picker-driven geometry effects + the cityState
-  // rebuild effect internally, so constructing it at arming
-  // (ctx.picker live) is what makes them live; at construction ctx.picker is
-  // null and the effects would be permanently dead. armOnFirstTick's sticky
-  // armed flag (not `if (_inner)`) survives dispose() nulling _inner, so a
-  // stray post-dispose tick() can't re-arm a dead component (same pattern
-  // as streets/buildings/fireflies).
+  // Armed on first tick, not at construction: ctx.picker is null then and the
+  // renderer's effects would be born dead. The sticky flag survives dispose.
   const _arm = armOnFirstTick(ctx, () => {
     _inner = createPathLineRenderer({
       canvas: ctx.canvas,
@@ -58,13 +42,8 @@ export function createPathLine(ctx: SceneContext): PathLine {
     ];
   });
 
-  // STREETS theme effect — reacts to STREETS Save (linewidth, opacity, hover
-  // color). refreshMaterials internally calls _updateHoverPathLine, which reads
-  // picker.hover/selection — run it UNTRACKED so this effect subscribes ONLY
-  // to STREETS (same discipline as the streets component's theme effect).
-  // Tracks STREETS only — STREET_TIERS changes are Rebuild-routed and reach the
-  // linewidth at the next theme apply; tracking TIERS here would be a behavior
-  // change. Safe at construction (pre-picker): _inner is null until arming.
+  // untracked, because refreshMaterials reads picker.hover/selection and this
+  // effect must subscribe to STREETS alone.
   const stopTheme = onSettings(STREETS, () => _inner?.refreshMaterials());
 
   // tick() — arms the renderer on the first call, then advances the rainbow

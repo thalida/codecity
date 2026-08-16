@@ -4,7 +4,7 @@
 // degenerate case (no stats, no commits, no spread) collapses to the midpoint.
 
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
-import type { TreesConfig } from '@/state/stores/settings/trees';
+import type { TreesConfig } from '@/state/settings/fields/trees';
 import { recencyT } from '@/city/utils/recency';
 import { epochDay } from '@/utils/dates';
 

@@ -1,0 +1,71 @@
+/* ── Sidebar scrollbars ─────────────────────────────────────────────────────── */
+
+/* Scrollbars for both sidebars. Firefox's scrollbar-width / -color are set
+   further down, on the children that actually overflow. */
+#city-sidebar-right ::-webkit-scrollbar,
+#city-sidebar-left ::-webkit-scrollbar {
+  width: 4px;
+}
+#city-sidebar-right ::-webkit-scrollbar-track,
+#city-sidebar-left ::-webkit-scrollbar-track {
+  background: transparent;
+}
+#city-sidebar-right ::-webkit-scrollbar-thumb,
+#city-sidebar-left ::-webkit-scrollbar-thumb {
+  background: var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+}
+#city-sidebar-right ::-webkit-scrollbar-thumb:hover,
+#city-sidebar-left ::-webkit-scrollbar-thumb:hover {
+  background: var(--cc-track-hover);
+}
+
+/* Firefox */
+#city-sidebar-right .editor-body,
+#city-sidebar-right .code-editor {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-border-input) transparent;
+}
+#city-sidebar-left .tree-root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-border-input) transparent;
+}
+#city-sidebar-left .search-pane > .pane-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-border-input) transparent;
+}
+#city-sidebar-left .info-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-border-input) transparent;
+}
+
+/* ── Resize handles: the sidebar is the only thing that has any ── */
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: transparent;
+}
+.resize-handle--left {
+  left: -3px;
+  z-index: 101;
+}
+.resize-handle--right {
+  right: -3px;
+  z-index: 91;
+}
+.resize-handle:hover,
+.resize-handle.dragging {
+  background: var(--cc-accent-bg-strong);
+}
+
+/* Unhittable by thumb and in the screen-edge swipe path (COARSE_POINTER_QUERY);
+   nothing to drag once the sidebars are viewport-width drawers (PHONE_MAX_PX). */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
+  .resize-handle {
+    display: none;
+  }
+}

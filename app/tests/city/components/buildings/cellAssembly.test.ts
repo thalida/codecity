@@ -10,7 +10,7 @@ import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
 import { dataFacadeKind } from '@/city/components/buildings/dataFacade';
 import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { NodeKind } from '@/types/index';
 import type { FileNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
@@ -30,9 +30,8 @@ const FILE_DEFAULTS: FileNode = {
   modified: '',
 };
 
-// Use MIN_CELL_SIZE-sized bounds so computeOptimalCellSize returns 12
-// and tests can reason about cell assignments with known granularity.
-// Any bounds <= ~192×192 keeps cellSize at MIN_CELL_SIZE (12).
+// Bounds under ~192x192 keep cellSize at MIN_CELL_SIZE (12), so these tests
+// can reason about cell assignment at a known granularity.
 const CELL_SIZE = 12;
 
 describe('buildCellsFromLayout', () => {
@@ -49,9 +48,8 @@ describe('buildCellsFromLayout', () => {
   });
 
   it('a dense cell over the global average allocates every building (no overflow skip)', () => {
-    // 96×96 → cellSize 12. 100 buildings in cell 0 (x,z < 12) + 4 lone cells.
-    // Old global cap = max(64, avg*4) ≈ 84 < 100, so the dense cell dropped
-    // buildings; per-cell sizing must place all 100.
+    // The old global cap of max(64, avg*4) came to ~84, so the dense cell
+    // dropped buildings. Per-cell sizing must place all 100.
     const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
     const dense = Array.from({ length: 100 }, (_, i) => building({ x: i % 10, y: 1 }));
     const sparse = [20, 32, 44, 56].map((x) => building({ x, y: 1 }));
@@ -62,9 +60,8 @@ describe('buildCellsFromLayout', () => {
   });
 
   it('sparse allocation: only occupied cells are created', () => {
-    // Small bounds (96×96) keep cellSize at MIN_CELL_SIZE(12).
-    // 96×96 / 12 = 8×8 = 64 total cells.
-    // All buildings are at (x<12, z<12) → all land in cell 0.
+    // 96x96 at cellSize 12 is 64 cells, and every building sits at x,z < 12,
+    // so they all land in cell 0.
     const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
     const buildings = [
       building({ x: 1, y: 1 }),
@@ -83,9 +80,8 @@ describe('buildCellsFromLayout', () => {
   });
 
   it('sparse allocation: buildings in N distinct cells → cells.size === N', () => {
-    // Place buildings so each lands in a different CELL_SIZE×CELL_SIZE bucket.
-    // Stride by CELL_SIZE to guarantee a distinct cell per building.
-    // Use small enough bounds that cellSize stays at MIN_CELL_SIZE(12).
+    // Striding by CELL_SIZE guarantees a distinct bucket per building, with
+    // bounds small enough to hold cellSize at 12.
     const N = 5;
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
@@ -97,9 +93,8 @@ describe('buildCellsFromLayout', () => {
   });
 
   it('sceneRoot has 1 child per occupied cell (detailMesh)', () => {
-    // 2 buildings in different cells → 2 occupied cells → 2 scene children.
-    // Use small bounds so cellSize stays at MIN_CELL_SIZE(12) and positions
-    // CELL_SIZE apart guarantee distinct cells.
+    // Two buildings CELL_SIZE apart occupy two cells, so the scene gets two
+    // children.
     const bounds = { minX: 0, maxX: 48, minZ: 0, maxZ: 48 };
     const buildings = [
       building({ x: 1, y: 1 }), // cell at grid-col 0, row 0

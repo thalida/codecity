@@ -53,6 +53,7 @@
     "preact": "^10.29.2",
     "rbush": "^4.0.1",
     "three": "^0.184.0",
-    "three-mesh-bvh": "^0.9.11"
+    "three-mesh-bvh": "^0.9.11",
+    "wouter-preact": "^3.10.0"
   }
 }

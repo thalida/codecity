@@ -1,17 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
+import { LoadingOverlay } from '@/components/loading/LoadingOverlay/LoadingOverlay';
 import {
   LOADING_OVERLAY,
-  PROJECTS_VIEW,
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
   setLoadingStepTail,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/ui';
+} from '@/state/stores/progress';
 
-import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
+import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/progress';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 
@@ -38,23 +39,11 @@ afterEach(() => {
   render(null, container);
   container.remove();
   PENDING_SOURCE_LABEL.value = null;
-  PROJECTS_VIEW.value = { visible: false, opts: {} };
+  navigate(ROUTES.CITY, { replace: true });
 });
 
 describe('LoadingOverlay', () => {
   it('starts hidden (renders nothing)', () => {
-    expect(container.querySelector('.loading-backdrop')).toBeNull();
-  });
-
-  // Two full-viewport surfaces stacking would leave this overlay's no-controls
-  // backdrop on top of the projects view's Cancel button.
-  it('stays hidden while the projects view is open, even mid-load', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote });
-    await flush();
-    expect(container.querySelector('.loading-backdrop')).not.toBeNull();
-
-    PROJECTS_VIEW.value = { visible: true, opts: {} };
-    await flush();
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });
 
@@ -120,7 +109,7 @@ describe('LoadingOverlay', () => {
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     showLoadingOverlay({ kind: SourceKind.Remote, branch: 'main' });
     await flush();
-    expect(container.querySelector('.app-header-branch-pill')?.textContent).toBe('@main');
+    expect(container.querySelector('.branch-pill')?.textContent).toBe('@main');
   });
 
   it('git mode starts with resolving active', async () => {

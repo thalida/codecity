@@ -1,10 +1,9 @@
-// utils/fileIcons.ts — Pure resolvers from a file/dir node to its
-// Material icon basename. Reads the lookup tables in constants/fileIcons.ts.
-// Used by the building-roof icon atlas and the tree/preview <img> renderers
-// in components/NodeIcon.tsx so both key off the same names.
+// utils/fileIcons.ts — a file or dir node to its Material icon basename, over
+// the tables in constants/fileIconMap. The roof atlas and the tree/preview
+// <img> renderers share it, so both key off the same names.
 
 import type { DirNode, FileNode } from '../types';
-import { isDataBuilding } from './binaryKind';
+import { isDataBuilding } from './fileKind';
 import {
   EXT_ICON,
   NAME_ICON,
@@ -12,15 +11,10 @@ import {
   GENERIC_FILE,
   GENERIC_BINARY,
   GENERIC_FOLDER,
-} from '../constants/fileIcons';
+} from '../constants/fileIconMap';
 
-/**
- * Resolve the Material icon basename: exact filename > extension > generic
- * (filename hints carry richer semantics than the bare extension — package.json
- * → npm, not json). A binary "data" file with no specific match falls back to the
- * hex "raw bytes" glyph instead of the generic document — but a known binary type
- * (audio, font, database, …) keeps its own icon.
- */
+/** Icon basename by exact filename, then extension, then generic: package.json
+ *  means npm, not json. An unmatched binary gets the raw-bytes glyph. */
 export function getFileIconName(
   file:
     | FileNode

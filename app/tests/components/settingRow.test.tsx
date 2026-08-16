@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { SettingRow } from '@/components/SettingRow/SettingRow';
-import { Field } from '@/components/Field';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
+import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
+import { Field } from '@/components/fields/Field/Field';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { flush } from '../_helpers/preact';
 
-describe('SettingRow layout B', () => {
+describe('FieldRow layout B', () => {
   let container: HTMLDivElement;
   afterEach(() => {
     if (container) {
@@ -21,9 +21,9 @@ describe('SettingRow layout B', () => {
 
   it('shows the tip as an inline description when present', async () => {
     mount(
-      <SettingRow label="Max floors" tip="Floors for the largest file.">
+      <FieldRow label="Max floors" tip="Floors for the largest file.">
         <input />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     const desc = container.querySelector('.setting-row-desc');
@@ -32,9 +32,9 @@ describe('SettingRow layout B', () => {
 
   it('renders no description element when tip is absent', async () => {
     mount(
-      <SettingRow label="Saturation">
+      <FieldRow label="Saturation">
         <input />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     expect(container.querySelector('.setting-row-desc')).toBeNull();
@@ -42,9 +42,9 @@ describe('SettingRow layout B', () => {
 
   it('marks the row inline when inline is set (toggle/color)', async () => {
     mount(
-      <SettingRow label="Enabled" inline>
+      <FieldRow label="Enabled" inline>
         <input type="checkbox" />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     expect(container.querySelector('.setting-row')?.classList.contains('setting-row--inline')).toBe(
@@ -54,9 +54,9 @@ describe('SettingRow layout B', () => {
 
   it('is stacked (not inline) by default', async () => {
     mount(
-      <SettingRow label="Speed">
+      <FieldRow label="Speed">
         <input />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     expect(container.querySelector('.setting-row')?.classList.contains('setting-row--inline')).toBe(
@@ -66,9 +66,9 @@ describe('SettingRow layout B', () => {
 
   it('keeps the description out of the row body (accessible name stays just the label text)', async () => {
     mount(
-      <SettingRow label="Max floors" tip="Floors for the largest file.">
+      <FieldRow label="Max floors" tip="Floors for the largest file.">
         <input />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     const main = container.querySelector('.setting-row-main');
@@ -78,23 +78,22 @@ describe('SettingRow layout B', () => {
     );
   });
 
-  // A <label> with no `for` implicitly labels its first labelable descendant,
-  // which in a row with a reset button is the reset: it took the row's name and
-  // lit up on hover anywhere in the row.
+  // A <label> with no `for` labels its first labelable descendant, which in
+  // this row is the reset button: it took the row's name.
   it('is only a <label> when there is a control to point it at', async () => {
     mount(
-      <SettingRow label="Accent">
+      <FieldRow label="Accent">
         <button type="button">swatch</button>
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     expect(container.querySelector('.setting-row-main')!.tagName).toBe('DIV');
 
     render(null, container);
     mount(
-      <SettingRow label="Poll interval" htmlFor="poll">
+      <FieldRow label="Poll interval" htmlFor="poll">
         <input id="poll" />
-      </SettingRow>
+      </FieldRow>
     );
     await flush();
     expect(container.querySelector('.setting-row-main')!.tagName).toBe('LABEL');

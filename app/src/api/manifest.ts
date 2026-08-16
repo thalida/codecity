@@ -31,6 +31,26 @@ export function manifestUrlFor(opts: {
   });
 }
 
+/** The newest manifest the server already has, or null. Never scans, and may be
+ *  stale, which the one caller (the landing backdrop) does not mind. */
+export async function fetchCachedManifest(
+  src: string,
+  branch: string | undefined,
+  signal?: AbortSignal
+): Promise<Manifest | null> {
+  const url = apiUrl('manifest/cached', {
+    [URL_PARAMS.SRC]: src,
+    [URL_PARAMS.BRANCH]: branch,
+  });
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    return (await res.json()) as Manifest;
+  } catch (_) {
+    return null;
+  }
+}
+
 /** URL for the lightweight signature poll of an explicit source. */
 export function signatureUrlFor(src: string, branch?: string, exclude?: string[]): string {
   return apiUrl('manifest/signature', {

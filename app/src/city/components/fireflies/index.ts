@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { NodeKind } from '@/types';
 import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';

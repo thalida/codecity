@@ -1,14 +1,7 @@
-// city/interaction/tooltip.ts — Tiny floating card that follows the cursor on
-// hover. Shown when the user is hovering a building/street/commit; hidden
-// otherwise. Inspired by Cities: Skylines / SimCity — every interactive object
-// has a brief label so the city feels alive without forcing a sidebar open.
-//
-// The imperative showTooltip/moveTooltip/hideTooltip API is kept for the
-// still-vanilla scene code (picker, inputHandlers) that calls it directly.
-// A Preact Tooltip component is not meaningful here because the tooltip is
-// driven by Three.js pointer events rather than React-tree state — the
-// imperative API IS the right interface for this component.
-
+// city/interaction/tooltip.ts — the small card that follows the cursor while
+// you hover a building, street or commit. Imperative show/move/hide, because
+// the canvas has no component tree to render into.
+import './tooltip.css';
 import type { TooltipContent } from './tooltipText';
 
 // Tooltip placement — fixed, not user-tunable.
@@ -35,10 +28,8 @@ function _line(cls: string, text: string): HTMLElement {
   return line;
 }
 
-/**
- * Show the tooltip near the cursor, clamped so it can't leave the viewport.
- * Three stacked lines: identity, location, stats.
- */
+/** Near the cursor, clamped inside the viewport. Three stacked lines: identity,
+ *  location, stats. */
 export function showTooltip(content: TooltipContent, x: number, y: number): void {
   const el = _ensure();
   el.textContent = '';
@@ -72,10 +63,8 @@ export function moveTooltip(x: number, y: number): void {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Prefer below-right of the cursor, flipping to the other side when that
-  // would overflow. The final clamp matters independently: a card wider than
-  // the space on either side overflows whichever way it is flipped, and
-  // flipping alone would push it off the opposite edge.
+  // Below-right, flipping on overflow. The clamp still matters: a card wider
+  // than either side overflows whichever way it flips.
   let px = x + OFFSET;
   let py = y + OFFSET;
   if (px + w + MARGIN > vw) px = x - OFFSET - w;

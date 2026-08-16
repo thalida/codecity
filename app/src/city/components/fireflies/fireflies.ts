@@ -9,7 +9,7 @@ import { createOrbitRings } from './orbitRings';
 import { createFirefliesScrub } from './firefliesScrub';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 
 /** createFireflyAssembly's handle: the renderer plus sha-based hover/select
  *  so callers never manage the sha→index map. */

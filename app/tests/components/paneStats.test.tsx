@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { PaneStats } from '@/components/PaneStats/PaneStats';
-import { fileStatItems, directoryStatItems } from '@/components/PaneStats/statItems';
+import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
+import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { NodeKind, type FileNode, type DirNode } from '@/types';
 import { flush } from '../_helpers/preact';
 

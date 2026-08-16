@@ -1,27 +1,11 @@
-// city/components/gem/palette.ts — single source of the gem's face palette.
-//
-// The GEM settings store keeps the eight face colors as flat FACE_1..FACE_8
-// keys (the settings convention is bare scalar keys, not arrays). Everything
-// that consumes the palette wants an ordered list of [r, g, b] triples:
-//
-//   - mesh.ts bakes them into the body geometry's per-face color attribute,
-//   - the theme effect in index.ts rewrites that attribute in place on Save,
-//   - the glow cycle in index.ts tick() lerps between adjacent entries.
-//
-// This helper is the ONE place that knows the flatten order and the
-// hex→triple parse, so the three consumers can never drift apart.
-// Gem-specific knowledge — deliberately NOT a global color util.
-//
-// Two exports: the pure paletteColors(palette) parse (structural param, so
-// mesh.ts and tests can pass any palette source), and gemFaceColors — a
-// memoized computed over the live GEM store for per-frame consumers (the
-// glow cycle in tick() reads it every frame; the computed caches the parsed
-// array until GEM changes, so steady-state frames allocate nothing).
-
+// city/components/gem/palette.ts — the one place that knows the gem's flat
+// FACE_1..FACE_8 keys become an ordered list of triples, so the geometry bake,
+// the Save rewrite and the glow lerp cannot drift. gemFaceColors is memoized
+// over the live store, so the per-frame glow allocates nothing at rest.
 import * as THREE from 'three';
 import { computed } from '@preact/signals';
 
-import { GEM } from '@/state/stores/settings/gem';
+import { GEM } from '@/state/settings/fields/gem';
 
 /** Structural slice of GEM settings — only the face-color keys, so tests
  *  (and any future palette source) can pass a minimal object. */
@@ -61,10 +45,8 @@ export function paletteColors(palette: GemFacePalette): Rgb[] {
  *  cached — same array identity across reads until the store updates. */
 export const gemFaceColors = computed(() => paletteColors(GEM.value));
 
-/** Bake the per-face palette into a vertex-color buffer: each triangle's 3
- *  vertices share one face color, faces cycling through `faceColors`. The
- *  buffer is laid out [r,g,b] per vertex, 9 floats per triangle. Shared by
- *  mesh.ts (initial bake) and index.ts (in-place rewrite on Save). */
+/** Palette into a vertex-colour buffer, 9 floats per triangle: the 3 vertices
+ *  of a face share its colour. Shared by the initial bake and the Save rewrite. */
 export function writeFaceColors(arr: Float32Array, faceColors: Rgb[]): void {
   const faceCount = arr.length / 9; // 3 vertices × 3 channels per face
   for (let f = 0; f < faceCount; f++) {

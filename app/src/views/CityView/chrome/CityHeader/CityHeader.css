@@ -1,0 +1,40 @@
+/* ── Sitewide header ──────────────────────────────────────────────────
+   Full-width strip in the body's column flex above #city-body; the sidebars
+   start at its lower edge. Two clusters: the project on the left, its
+   freshness on the right (the scan menu's trigger). See .chrome-cluster. */
+
+#city-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  min-width: 0;
+  height: var(--cc-chrome-h);
+  padding: 0 var(--cc-chrome-inset);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+  user-select: none;
+}
+
+/* Shrinkable, so a long repo name truncates rather than pushing the freshness
+   cluster off. The id outranks .chrome-cluster's `flex: none`, which loads later. */
+#city-header .city-header-project {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Freshness cluster pinned to the far right, opposite the project controls:
+   how fresh the city is, and everything that acts on it, behind one press. */
+.city-header-freshness {
+  margin-left: auto;
+}
+
+/* Phone (PHONE_MAX_PX): both clusters stay, only the gap gives. The one item
+   dropped is copy-source, in AppHeader.tsx. */
+@media (max-width: 640px) {
+  #city-header {
+    gap: var(--cc-space-3);
+  }
+}

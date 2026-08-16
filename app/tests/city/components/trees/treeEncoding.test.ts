@@ -16,7 +16,7 @@ import {
   type AgeRange,
   type SizeRange,
 } from '@/city/components/trees/treeEncoding';
-import type { TreesConfig } from '@/state/stores/settings/trees';
+import type { TreesConfig } from '@/state/settings/fields/trees';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';

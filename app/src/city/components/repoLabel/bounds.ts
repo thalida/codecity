@@ -4,8 +4,8 @@
 // frames a different city than R does (issue #62).
 
 import { aspectForName } from './textCanvas';
-import type { RepoLabelConfig } from '@/state/stores/settings/gem';
-import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import type { RepoLabelConfig } from '@/state/settings/fields/gem';
+import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 
 export interface RepoLabelBounds {
   centerX: number;

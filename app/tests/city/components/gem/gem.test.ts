@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 import { createGem } from '@/city/components/gem';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
-import { GEM } from '@/state/stores/settings/gem';
+import { GEM } from '@/state/settings/fields/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
@@ -91,9 +91,8 @@ describe('createGem()', () => {
     expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
   });
 
-  // Not a check that the effect stopped: dispose() nulls edges/body and the
-  // effect body is all `edges?.material` guards, so a leak would be absorbed
-  // and look identical from here. What this pins is the guards.
+  // This pins the guards, not the teardown: dispose nulls edges/body, so a
+  // leaked effect would be absorbed and look identical from here.
   it('a GEM mutation after dispose() is absorbed by the null guards', () => {
     const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);

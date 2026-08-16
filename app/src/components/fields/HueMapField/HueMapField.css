@@ -1,0 +1,13 @@
+/* ── HueMapField ── */
+
+/* Hue preview. S/L are fixed mid-range so it reads as a pure-hue chip rather
+ * than a final building colour. */
+.setting-hue-preview {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--cc-radius-sm);
+  border: 1px solid var(--cc-overlay-border);
+  flex: 0 0 auto;
+  margin-left: var(--cc-space-3);
+}

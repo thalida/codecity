@@ -1,15 +1,12 @@
-// Regression for issue #62: the camera must snap to a NEW source's city once it
-// applies (not stay on the empty boot), and must NOT reframe on a same-source
-// re-apply (live-update / config save). The snap rides cityRevision (every
-// apply) so it catches the final reuse apply, gated on a CURRENT_SOURCE_KEY
-// change.
-//
+// Regression for issue #62: the camera snaps to a NEW source's city once it
+// applies (not the empty boot), and never on a same-source re-apply. The snap
+// rides cityRevision, gated on a CURRENT_SOURCE_KEY change.
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { STREET_TIERS } from '@/state/stores/settings/streets';
+import { STREET_TIERS } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 import { mkDir } from '../_helpers/cityFixtures';
 
@@ -60,11 +57,8 @@ describe('initial-load framing (issue #62)', () => {
     return canvas;
   }
 
-  // Directory-only tree (no files → no buildings), so the framing is driven by
-  // the root street width. 10 child dirs → root descendants_count 20 → a high
-  // street tier, so the real city frames clearly differently from the empty boot
-  // (root descendants 0 → the narrowest tier). STREET_TIERS can also be forced
-  // to a single width below.
+  // Directory-only tree, so framing is driven by the root street width: 10 child
+  // dirs reach a high tier, framing clearly wider than the boot's narrowest.
   function makeManifest(): Manifest {
     const tree = mkDir(
       'repo',
@@ -86,7 +80,7 @@ describe('initial-load framing (issue #62)', () => {
   }
 
   it('frames the city on initial load, not the empty boot', async () => {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    const handle = await createCity(makeCanvas());
     try {
       // firstFrame framed the empty boot (no source committed yet → no snap).
       const bootPos = handle.rig.camera.position.clone();
@@ -109,18 +103,37 @@ describe('initial-load framing (issue #62)', () => {
     }
   });
 
+  it('frames the city when the source was committed BEFORE the scene existed', async () => {
+    // The route split made this the normal order: the landing commits the
+    // source, THEN the city view mounts a scene onto it.
+    CURRENT_SOURCE.value = { src: 'test://repo' };
+    const handle = await createCity(makeCanvas());
+    try {
+      const bootPos = handle.rig.camera.position.clone();
+      await handle.applyManifest(makeManifest());
+      const loadPos = handle.rig.camera.position.clone();
+
+      handle.rig.reset();
+      const resetPos = handle.rig.camera.position.clone();
+
+      expect(resetPos.distanceTo(bootPos)).toBeGreaterThan(1);
+      expect(loadPos.distanceTo(resetPos)).toBeLessThan(0.5);
+    } finally {
+      handle.dispose();
+    }
+  });
+
   it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
     setRootWidth(100);
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    const handle = await createCity(makeCanvas());
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();
       await handle.applyManifest(m);
       const posLoaded = handle.rig.camera.position.clone();
 
-      // A same-source rebuild that moves the framing (here a Rebuild-route
-      // setting + invalidate; a live-update is the same shape) must leave the
-      // camera where it is — the source key didn't change.
+      // A same-source rebuild that moves the framing must leave the camera
+      // where it is: the source key didn't change.
       setRootWidth(500);
       handle.invalidateLayoutCache();
       await handle.applyManifest(m);

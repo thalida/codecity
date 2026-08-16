@@ -4,7 +4,7 @@
 // tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
-import { TREES } from '@/state/stores/settings/trees';
+import { TREES } from '@/state/settings/fields/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
@@ -26,7 +26,7 @@ import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
 import { sunDir } from '@/city/utils/shaders/sunDir';
-import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
+import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/city/constants/lighting';
 import { epochDay, epochDayAt } from '@/utils/dates';
 
 export interface Trees {

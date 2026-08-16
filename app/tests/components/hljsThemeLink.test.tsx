@@ -2,8 +2,8 @@
 // Record<SyntaxThemeValue, string> type enforces completeness; only lookup is testable.
 
 import { describe, it, expect } from 'vitest';
-import { THEME_HREF, hrefForTheme } from '@/components/HljsThemeLink/HljsThemeLink';
-import { SYNTAX_THEME_OPTIONS, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
+import { THEME_HREF, hrefForTheme } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
+import { SYNTAX_THEME_OPTIONS, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/syntaxTheme';
 
 describe('hljs theme stylesheets', () => {
   it('has a stylesheet entry for every offered theme', () => {

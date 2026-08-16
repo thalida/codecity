@@ -28,8 +28,8 @@ import { createSky } from './components/sky';
 import { createIsland, ISLAND_TOP_Y } from './components/island';
 import { createRepoLabel } from './components/repoLabel';
 import { repoLabelBounds } from './components/repoLabel/bounds';
-import { REPO_LABEL } from '@/state/stores/settings/gem';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { REPO_LABEL } from '@/state/settings/fields/gem';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createFootprint } from './components/footprint';
 import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
@@ -44,7 +44,7 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
-export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest): Promise<City> {
+export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
 
@@ -107,9 +107,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   ];
   for (const c of components) scene.add(c.group);
 
-  // Boot apply — AFTER renderer + registerFacadePanelRenderer (the facade-panel race),
-  // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
-  await applyManifest(manifest);
+  // No boot apply: a scene with no manifest is a real state, so the components
+  // start empty and the first applyManifest is the first city there has been.
 
   // The rig reads its framing inputs from cityState directly; deps carries
   // only component-geometry accessors state can't reach.
@@ -135,10 +134,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
-    if (key !== null && key !== lastReframedSourceKey) {
-      lastReframedSourceKey = key;
-      untracked(() => rig.reset());
-    }
+    if (key === null || key === lastReframedSourceKey) return;
+    // No city yet: claiming the key here would make the first real one, which
+    // is what there is to frame, skip its reframe.
+    if (cityState.manifest.peek() === null) return;
+    lastReframedSourceKey = key;
+    untracked(() => rig.reset());
   });
 
   const postFx = createPostFx(renderer, scene, rig.camera);

@@ -4,8 +4,8 @@
 // rings read the same numbers when one is built.
 
 import type { CommitEntry, RepoStats } from '@/types';
-import { TREES } from '@/state/stores/settings/trees';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { TREES } from '@/state/settings/fields/trees';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,

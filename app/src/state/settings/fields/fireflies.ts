@@ -1,0 +1,135 @@
+// state/settings/fields/fireflies.ts — the motes orbiting each commit tree, one
+// per author. BOB displaces an orb, PULSE modulates its brightness, and
+// SCALE_MIN/MAX set the spread between a light and a heavy contributor.
+
+import {
+  settingSignal,
+  FieldKind,
+  ChangeRoute,
+  type ConfigOf,
+  type FieldMap,
+} from '@/state/settings/schema';
+
+const FIREFLIES_FIELDS = {
+  ENABLED: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.ToggleField,
+    default: true,
+    label: 'Fireflies enabled',
+    tip: 'Master toggle. When off, no firefly orbs are placed or rendered.',
+  },
+
+  SCALE_MIN: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.SliderField,
+    default: 2.0,
+    min: 0.1,
+    max: 5.0,
+    step: 0.05,
+    label: 'Scale min',
+    tip: 'Size multiplier for an author with no commits yet: the size every orb grows from.',
+  },
+  SCALE_MAX: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.SliderField,
+    default: 5.0,
+    min: 0.5,
+    max: 10.0,
+    step: 0.05,
+    label: 'Scale max',
+    tip: 'Size multiplier for the author with the most commits.',
+  },
+
+  ORBIT_SPEED: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 0.3,
+    min: 0,
+    max: 3.0,
+    step: 0.05,
+    label: 'Orbit speed',
+    tip: 'How fast each firefly orbits its tree, radians/sec. 0 = stationary.',
+  },
+  BOB_AMPLITUDE: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 0.5,
+    min: 0,
+    max: 2.0,
+    step: 0.05,
+    label: 'Bob amplitude',
+    tip: 'How far each orb drifts up and down in world units. 0 = no vertical movement.',
+  },
+  BOB_SPEED: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 1.1,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Bob speed',
+    tip: 'How fast the vertical bob oscillates in radians/sec. Higher is faster bobbing.',
+  },
+
+  EMISSION_STRENGTH: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 1.5,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission strength',
+    tip: 'Base brightness multiplier. Above 1 the orbs glow (bloom); lower is subtler.',
+  },
+  PULSE_AMPLITUDE: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 0.5,
+    min: 0,
+    max: 1.0,
+    step: 0.05,
+    label: 'Pulse amplitude',
+    tip: 'Brightness swing. 0 is a steady glow, 1 is full ±100% modulation.',
+  },
+  PULSE_SPEED: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 1.5,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Pulse speed',
+    tip: 'How fast the pulse oscillates, radians/sec.',
+  },
+  FLICKER_AMOUNT: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.SliderField,
+    default: 0.75,
+    min: 0,
+    max: 1.0,
+    step: 0.05,
+    label: 'Flicker',
+    tip: 'Random brightness jitter on top of the pulse. 0 is smooth, 1 is jittery.',
+  },
+
+  ORBIT_RING_ENABLED: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.ToggleField,
+    default: true,
+    label: 'Show orbit ring',
+    tip: "Draws a subtle ring around each tree showing the firefly's orbital path.",
+  },
+  ORBIT_RING_THICKNESS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.SliderField,
+    default: 0.15,
+    min: 0.02,
+    max: 0.5,
+    step: 0.01,
+    label: 'Ring thickness',
+    tip: 'Tube radius of the orbit ring in world units.',
+  },
+} satisfies FieldMap;
+
+export const FIREFLIES = settingSignal('FIREFLIES', FIREFLIES_FIELDS);
+export type FirefliesConfig = ConfigOf<typeof FIREFLIES_FIELDS>;

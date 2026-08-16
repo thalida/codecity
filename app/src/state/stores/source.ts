@@ -1,13 +1,16 @@
-// state/stores/source.ts — which source is loaded: its key, its display info,
-// and the recently-opened list. The pure identity helpers live in utils/sources;
-// this owns the signals built on them. Persistence is keyed BY
-// CURRENT_SOURCE_KEY rather than rehydrating it — the source is session state.
+// state/stores/source.ts — which repo: the one you opened, the ones before it,
+// the folders you hid inside it, and the one merely showing behind the landing.
+// The excludes are here rather than in settings/ because useManifestSource
+// sends them in the manifest URL beside src and branch.
 
-import { signal, computed, effect } from '@preact/signals';
+import { signal, computed, effect, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
-import { URL_PARAMS, VIEW_PARAMS } from '@/constants/urlParams';
+import { URL_PARAMS } from '@/constants/urlParams';
+import { VIEW_PARAMS } from '@/router/params';
+import { ROUTES } from '@/router/paths';
+import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/router/location';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
@@ -17,10 +20,7 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import { FEATURED_CITY } from '@/state/stores/ui';
-import { isEmptyManifest } from '@/utils/manifest';
-import type { ScanErrorCode } from '@/api/manifest';
-import type { Manifest } from '@/types';
+import type { Manifest, SourceError } from '@/types';
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
@@ -30,21 +30,15 @@ export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(nu
 
 /** The last load failure, or null. A fetch outcome, not a UI command: App
  *  reacts by opening the picker, and clears it when the user acts. */
-export const SOURCE_ERROR = signal<{
-  error: string;
-  /** The server's machine-readable reason, where it gave one. The view keys
-   *  its remedy on this rather than on the message text. */
-  code?: ScanErrorCode;
-  prefill?: { src: string; branch?: string };
-} | null>(null);
+export const SOURCE_ERROR = signal<SourceError | null>(null);
 
 /** What is on screen: the project you opened, or the featured repo the landing
  *  renders. Lists mark rows against this, so one repo marks the same way. */
 export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>(() => {
   const current = CURRENT_SOURCE.value;
   if (current) return current;
-  const featured = FEATURED_CITY.value;
-  return featured ? { src: featured.src, branch: featured.branch } : null;
+  const backdrop = BACKDROP_CITY.value;
+  return backdrop ? { src: backdrop.src, branch: backdrop.branch } : null;
 });
 
 /** The loaded source's stable hash, or null. Namespaces per-source storage. */
@@ -52,26 +46,40 @@ export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
 
-/** Drop the load from the URL, view params included: a cancel with nothing to
- *  fall back to must not leave a reload re-running the load it called off. */
+/** Drop the load from the URL and go home: a cancel with nothing to fall back
+ *  to must not leave a reload re-running what it called off. */
 export function clearSourceUrl(): void {
-  const url = new URL(window.location.href);
+  // Anything the app does not own (an ?utm_source, say) rides along home: only
+  // the params describing the load that was called off are dropped.
+  const params = new URLSearchParams(ROUTE_SEARCH.peek());
   for (const key of [...Object.values(URL_PARAMS), ...Object.values(VIEW_PARAMS)]) {
-    url.searchParams.delete(key);
+    params.delete(key);
   }
-  history.replaceState(null, '', url.toString());
+  navigate(hrefFor(ROUTES.HOME, params), { replace: true });
 }
 
-// Reflect the applied source in the URL so reload/share reopens it. No-ops
-// while null, so a cold boot can't clobber the ?src it is loading from.
+// Reflect the applied source so reload/share reopens it, moving to /city if the
+// load began at home.
 effect(() => {
   const cur = CURRENT_SOURCE.value;
   if (!cur) return;
-  const url = new URL(window.location.href);
-  url.searchParams.set(URL_PARAMS.SRC, cur.src);
-  if (cur.branch) url.searchParams.set(URL_PARAMS.BRANCH, cur.branch);
-  else url.searchParams.delete(URL_PARAMS.BRANCH);
-  history.replaceState(null, '', url.toString());
+  const params = new URLSearchParams(ROUTE_SEARCH.peek());
+  // A different project than the URL was describing: its mode, scrub commit
+  // and selection belong to the one that just left.
+  const had = params.get(URL_PARAMS.SRC);
+  if (
+    had &&
+    !sameSourceIdentity({ src: had, branch: params.get(URL_PARAMS.BRANCH) ?? undefined }, cur)
+  ) {
+    for (const key of Object.values(VIEW_PARAMS)) params.delete(key);
+  }
+  params.set(URL_PARAMS.SRC, cur.src);
+  if (cur.branch) params.set(URL_PARAMS.BRANCH, cur.branch);
+  else params.delete(URL_PARAMS.BRANCH);
+  // From the switcher this is a place you went, so it pushes and Back returns
+  // to the list; already on /city (a re-scan, a deep link) is the same place.
+  const fromHome = ROUTE_PATH.peek() === ROUTES.HOME;
+  navigate(hrefFor(ROUTES.CITY, params), { replace: !fromHome });
 });
 
 export interface SourceInfo {
@@ -95,7 +103,7 @@ export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
 export const SOURCE_INFO = computed<SourceInfo>(() => {
   const cur = CURRENT_SOURCE.value;
   const m = MANIFEST.value;
-  if (!cur || isEmptyManifest(m)) {
+  if (!cur || !m) {
     return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
   }
   const manifest = m as Manifest;
@@ -156,4 +164,84 @@ export function commitSource(src: string, branch: string | undefined, manifest: 
 /** Drop the entry matching the given source identity. No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
   RECENTS.value = RECENTS.value.filter((r) => !sameSourceIdentity(r, { src, branch }));
+}
+
+// ── The city behind the landing ───────────────────────────────────────
+
+/** Which repo the backdrop came from. */
+export enum BackdropKind {
+  /** The most recent project, from whatever the server had cached for it. */
+  Recent = 'recent',
+  /** The server's featured repo. */
+  Featured = 'featured',
+}
+
+export interface BackdropCity {
+  src: string;
+  label: string;
+  /** The loaded branch, normalised like CURRENT_SOURCE's: identity includes it,
+   *  so a row storing @main only matches when this carries it too. */
+  branch?: string;
+  kind: BackdropKind;
+}
+
+/** Written only once the backdrop has actually painted, so nothing names a repo
+ *  you can't see. Null means the hero image is what's showing. */
+export const BACKDROP_CITY = signal<BackdropCity | null>(null);
+
+// ── Folders you have hidden, per repo ─────────────────────────────────
+
+/** repo key -> sorted, de-duped rel-paths. Whole-object persistence: the keys
+ *  are runtime repo hashes, so diff-vs-default would drop every write. */
+export const EXCLUDES = persistedSignal<Record<string, string[]>>(
+  PERSISTED_KEYS.EXCLUDES,
+  {},
+  { whole: true }
+);
+
+/** Repo-scoped key: src only (branch ignored) so excludes hold across branches. */
+function repoKeyFor(src: string): string {
+  return sourceKey(src);
+}
+
+function currentRepoKey(): string | null {
+  const cur = CURRENT_SOURCE.value;
+  return cur ? repoKeyFor(cur.src) : null;
+}
+
+/** The loaded repo's exclude list (empty when no source / none set). Reactive. */
+export const ACTIVE_EXCLUDES: ReadonlySignal<string[]> = computed(() => {
+  const key = currentRepoKey();
+  return key ? (EXCLUDES.value[key] ?? []) : [];
+});
+
+/** Peek the excludes for an explicit src — for the imperative fetch layer. */
+export function activeExcludePathsFor(src: string): string[] {
+  return EXCLUDES.peek()[repoKeyFor(src)] ?? [];
+}
+
+function setForCurrentRepo(next: string[]): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return; // no source loaded: nothing to key against
+  const key = repoKeyFor(cur.src);
+  const sorted = [...new Set(next)].sort();
+  const map = { ...EXCLUDES.peek() };
+  if (sorted.length === 0) delete map[key];
+  else map[key] = sorted;
+  EXCLUDES.value = map;
+}
+
+/** Hide `path` from the current repo's city. Sorted + de-duped. No-op if none. */
+export function addExclude(path: string): void {
+  setForCurrentRepo([...(EXCLUDES.peek()[currentRepoKey() ?? ''] ?? []), path]);
+}
+
+/** Restore `path` (remove from the current repo's excludes). */
+export function removeExclude(path: string): void {
+  setForCurrentRepo((EXCLUDES.peek()[currentRepoKey() ?? ''] ?? []).filter((p) => p !== path));
+}
+
+/** Restore everything for the current repo. */
+export function clearExcludes(): void {
+  setForCurrentRepo([]);
 }

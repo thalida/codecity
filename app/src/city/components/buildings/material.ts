@@ -3,10 +3,10 @@
 // a uniform here updates the whole city at once.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { BLOOM } from '@/state/stores/settings/effects';
-import { SCENE } from '@/state/stores/settings/scene';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
+import { BLOOM } from '@/state/settings/fields/effects';
+import { SCENE } from '@/state/settings/fields/scene';
+import { RUINS } from '@/state/settings/fields/ruins';
 import type { IconAtlas } from './atlas';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { writeSunDir } from '@/city/utils/shaders/sunDir';
@@ -15,7 +15,7 @@ import {
   LIGHTING_SUN_ELEVATION_DEG,
   LIGHTING_AMBIENT,
   LIGHTING_SUN_CONTRAST,
-} from '@/constants/lighting';
+} from '@/city/constants/lighting';
 
 // Shader-side facade keys ride uniforms; the JS-side ones bake into per-instance
 // attributes, which is why changing them routes to a full rebuild.

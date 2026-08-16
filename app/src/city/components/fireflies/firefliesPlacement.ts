@@ -5,8 +5,8 @@
 
 import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/stores/settings/trees';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { TREES } from '@/state/settings/fields/trees';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,

@@ -1,17 +1,13 @@
-// shapes.test.ts — verifies the GEM_SHAPES table is the single source of
-// truth for the gem's polyhedra: the SIDES settings options derive from the
-// same canonical key set (so the two can never drift), each builder produces
-// the expected THREE geometry with the exact legacy parameters, and unknown
-// SIDES values fall back to the default octahedron (the old switch's
-// default branch).
-
+// GEM_SHAPES is the single source for the gem's polyhedra: the SIDES options
+// derive from the same key set so the two cannot drift, each builder produces
+// the expected geometry, and an unknown value falls back to the octahedron.
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 
 import { GEM_SHAPES, buildGemGeometry } from '@/city/components/gem/shapes';
 import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/constants/gem';
-import { GEM } from '@/state/stores/settings/gem';
-import { getFieldDef } from '@/state/settingsSchema';
+import { GEM } from '@/state/settings/fields/gem';
+import { getFieldDef } from '@/state/settings/schema';
 
 describe('GEM_SHAPES table', () => {
   it('covers exactly the canonical GEM_SIDES key set', () => {

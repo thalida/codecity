@@ -1,0 +1,32 @@
+/* components/TimelineToggle.css — glass Live/Timeline pill on the scene. */
+
+.timeline-toggle {
+  display: inline-flex;
+  gap: var(--cc-space-1);
+  padding: var(--cc-space-1);
+  border-radius: var(--cc-radius-lg);
+}
+
+.timeline-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-height: var(--cc-tap-min);
+  padding: var(--cc-space-3) var(--cc-space-6);
+  border: 0;
+  border-radius: var(--cc-radius-md);
+  background: none;
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.timeline-toggle-btn:not(.is-active):hover {
+  color: var(--cc-accent);
+}
+
+.timeline-toggle-btn.is-active {
+  background: var(--cc-accent);
+  color: var(--cc-text-inverse);
+}

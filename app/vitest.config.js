@@ -4,14 +4,8 @@ import preact from '@preact/preset-vite';
 
 const appDir = import.meta.dirname;
 
-// Two projects share the same `@/` alias and jsdom setup:
-//   - `unit`  → tests/**/*.test.{js,ts}   (run by `npm test`)
-//   - `bench` → bench/**/*.test.{js,ts}   (run by `npm run bench`)
-// `extends: true` inherits the root resolve.alias so we don't duplicate it.
-//
-// bench/ holds timing harnesses only. The bit-identical golden guards live in
-// tests/ because they assert correctness, not speed — parked in bench/ they ran
-// in neither CI nor the pre-push gate, which is the whole point of a guard.
+// Two projects: `unit` runs tests/**, `bench` runs tests/bench/** and is
+// excluded from unit, or every run pays its 60s harnesses (see its README).
 export default defineConfig({
   // Preact plugin mirrors vite.config.js so vitest can parse JSX/TSX in
   // source modules that tests transitively import.
@@ -30,6 +24,7 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['tests/setup.ts'],
           include: ['tests/**/*.test.{js,ts,tsx}'],
+          exclude: ['tests/bench/**'],
           // jsdom + canvas tests can spike past the 5s default under parallel load.
           testTimeout: 15_000,
         },
@@ -40,7 +35,7 @@ export default defineConfig({
           name: 'bench',
           environment: 'jsdom',
           setupFiles: ['tests/setup.ts'],
-          include: ['bench/**/*.test.{js,ts}'],
+          include: ['tests/bench/**/*.test.{js,ts}'],
           // Perf smoke harnesses are slow by design.
           testTimeout: 60_000,
         },

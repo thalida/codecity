@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createFirefliesScrub } from '@/city/components/fireflies/firefliesScrub';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import { TREES } from '@/state/stores/settings/trees';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { resetTreesConfig, treePlacement } from '../../../_helpers/cityFixtures';

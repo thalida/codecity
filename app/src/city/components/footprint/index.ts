@@ -6,8 +6,8 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';

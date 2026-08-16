@@ -4,10 +4,10 @@
 // change counters, the rest are computed. Components rebuild off them.
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { TREES } from '@/state/stores/settings/trees';
-import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/manifest';
-import { BuildStage } from '@/constants/buildStages';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { TREES } from '@/state/settings/fields/trees';
+import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/progress';
+import { BuildStage } from '@/constants/progress';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';

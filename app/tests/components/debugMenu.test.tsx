@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
-import { DEBUG_OPEN, openDebug } from '@/state/stores/ui';
+import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
+import { DEBUG_OPEN, openDebug } from '@/state/stores/chrome';
 import { flush, drainAsync } from '../_helpers/preact';
 
-// The footer mounts one <DebugMenu /> with the scene commands as props; its
-// open state is DEBUG_OPEN, so "?"-style external opens and OVERLAY_OPEN both
-// still work against a popover.
+// Open state lives in DEBUG_OPEN rather than the popover, so external opens and
+// OVERLAY_OPEN both still work.
 
 let container: HTMLDivElement;
 let onRunCollisionCheck: () => void;

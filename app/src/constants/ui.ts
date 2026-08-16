@@ -18,13 +18,8 @@ export const EXCLUDES_DOCS_URL = `${REPO_URL}#skipped-by-default`;
 /** The author's site, linked from the footer credit. */
 export const CREATOR_URL = 'https://thalida.com';
 
-/**
- * Activity-bar tab definitions (left-side icon strip). Each entry pairs a tab
- * id with its Lucide glyph component (imported from lucide-preact) + the
- * tooltip title. `placement` splits the bar into a top group and a bottom
- * group — top entries stack from the top, bottom entries pin to the bottom.
- * Not designer-tunable — part of the app's structural definition.
- */
+/** The activity bar's tabs: id, glyph, tooltip, and which end of the strip
+ *  each pins to. Structural, not designer-tunable. */
 /** Which group of the activity bar a tab pins to. Default (unset) is Top. */
 export enum TabPlacement {
   Top = 'top',
@@ -41,7 +36,7 @@ export interface ActivityBarTab {
 
 export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
   // Info leads: the almanac is the first thing a freshly-loaded world greets you
-  // with (see DEFAULT_SIDEBAR_TAB + LeftSidebar's on-load switch).
+  // with (see DEFAULT_SIDEBAR_TAB + CitySidebarLeft's on-load switch).
   { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Explore, icon: Compass, title: 'Explore' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },

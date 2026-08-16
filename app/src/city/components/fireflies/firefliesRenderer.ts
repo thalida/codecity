@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';

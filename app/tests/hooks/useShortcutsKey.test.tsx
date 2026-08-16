@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
-import { SHORTCUTS_OPEN, closeShortcuts } from '@/state/stores/ui';
+import { SHORTCUTS_OPEN, closeShortcuts } from '@/state/stores/chrome';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { drainAsync } from '../_helpers/preact';
 
 function Harness() {
@@ -15,6 +17,8 @@ describe('useShortcutsKey', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    // Over a city: home IS the switcher, and a modal owns the keyboard there.
+    navigate(ROUTES.CITY, { replace: true });
     closeShortcuts();
   });
 
@@ -22,6 +26,7 @@ describe('useShortcutsKey', () => {
     render(null, container);
     container.remove();
     closeShortcuts();
+    navigate(ROUTES.HOME, { replace: true });
   });
 
   const press = (target: EventTarget = document) =>

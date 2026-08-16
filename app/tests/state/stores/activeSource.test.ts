@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   CURRENT_SOURCE_KEY,
   CURRENT_SOURCE,
@@ -9,8 +9,9 @@ import {
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
+import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {
@@ -46,12 +47,12 @@ describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
 describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
   });
 
   it('is empty when nothing is applied', () => {
     CURRENT_SOURCE.value = null;
-    setManifest(EMPTY_MANIFEST);
+    setManifest(null);
     expect(SOURCE_INFO.value).toEqual({
       label: '',
       branch: undefined,
@@ -76,28 +77,26 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
 });
 
 describe('clearSourceUrl', () => {
-  afterEach(() => history.replaceState(null, '', '/'));
+  afterEach(() => navigate(ROUTES.HOME, { replace: true }));
 
-  it('drops the load AND what was being viewed of it', () => {
+  it('drops the load AND what was being viewed of it, and goes home', () => {
     // A cancel with no city to fall back to leaves the switcher open over
     // nothing: a reload must not re-run the load that was just called off.
-    history.replaceState(
-      null,
-      '',
-      '/?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
+    navigate(
+      '/city?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
     );
     clearSourceUrl();
 
-    expect(new URL(window.location.href).search).toBe('');
+    expect(HREF.value).toBe(ROUTES.HOME);
   });
 
   it('leaves anything it does not own alone', () => {
-    history.replaceState(null, '', '/?src=/proj&utm_source=x');
+    navigate('/city?src=/proj&utm_source=x');
     clearSourceUrl();
 
-    const params = new URL(window.location.href).searchParams;
-    expect(params.has('src')).toBe(false);
-    expect(params.get('utm_source')).toBe('x');
+    expect(ROUTE_PATH.value).toBe(ROUTES.HOME);
+    expect(ROUTE_PARAMS.value.has('src')).toBe(false);
+    expect(ROUTE_PARAMS.value.get('utm_source')).toBe('x');
   });
 });
 
@@ -105,7 +104,34 @@ describe('commitSource', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
     RECENTS.value = [];
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
+  });
+
+  describe('the history entry it leaves', () => {
+    const MANIFEST_FOR = { tree: { name: 'r' }, repo: { branch: 'main' } } as never;
+
+    it('PUSHES when the project was opened from the switcher, so Back returns to it', () => {
+      // The reported bug: opening a project replaced the home entry, which left
+      // the browser's own Back with nothing to go back to.
+      navigate(ROUTES.HOME, { replace: true });
+      const push = vi.spyOn(history, 'pushState');
+      commitSource('https://github.com/o/r', undefined, MANIFEST_FOR);
+
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(ROUTE_PATH.value).toBe(ROUTES.CITY);
+      push.mockRestore();
+    });
+
+    it('replaces when already on a city, since a re-scan is the same place', () => {
+      navigate('/city?src=https://github.com/o/r', { replace: true });
+      CURRENT_SOURCE.value = null;
+      const push = vi.spyOn(history, 'pushState');
+      commitSource('https://github.com/o/other', undefined, MANIFEST_FOR);
+
+      expect(push).not.toHaveBeenCalled();
+      expect(ROUTE_PARAMS.value.get('src')).toBe('https://github.com/o/other');
+      push.mockRestore();
+    });
   });
 
   it('resolves the branch once and gives the load ONE identity', () => {

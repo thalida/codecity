@@ -1,0 +1,87 @@
+// components/panes/PaneTabs/PaneTabs.tsx — horizontal segmented tabs rendered inside
+// a Pane body (below the header). Controlled + presentational: the parent owns
+// the active id and decides what each tab renders.
+
+import './PaneTabs.css';
+import type { LucideIcon } from 'lucide-preact';
+
+export interface PaneTab {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  /** Count of changed-from-default items under this tab; renders a small count
+   *  badge when > 0, omitted otherwise. */
+  badge?: number;
+}
+
+export interface PaneTabsProps {
+  tabs: PaneTab[];
+  active: string;
+  onSelect: (id: string) => void;
+  /** Extra class on the strip root for context-specific spacing (e.g. modal). */
+  class?: string;
+  /** id of the tabpanel these control. Also gives each tab a stable id, so the
+   *  panel can point aria-labelledby back at the active one. */
+  panelId?: string;
+}
+
+export function PaneTabs({ tabs, active, onSelect, class: className, panelId }: PaneTabsProps) {
+  // Arrows move and select, wrapping; Home/End jump. The selected tab is the
+  // strip's single tab stop.
+  function onKeyDown(e: KeyboardEvent, idx: number) {
+    let next: number;
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        next = (idx + 1) % tabs.length;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        next = (idx - 1 + tabs.length) % tabs.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = tabs.length - 1;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    onSelect(tabs[next].id);
+    const strip = (e.currentTarget as HTMLElement).parentElement;
+    (strip?.children[next] as HTMLElement | undefined)?.focus();
+  }
+
+  return (
+    <div class={className ? `pane-tabs ${className}` : 'pane-tabs'} role="tablist">
+      {tabs.map((t, idx) => {
+        const Icon = t.icon;
+        const selected = t.id === active;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={panelId ? `${panelId}-tab-${t.id}` : undefined}
+            aria-selected={selected ? 'true' : 'false'}
+            aria-controls={panelId}
+            tabIndex={selected ? 0 : -1}
+            class={selected ? 'pane-tab pane-tab--active focus-inset' : 'pane-tab focus-inset'}
+            onClick={() => onSelect(t.id)}
+            onKeyDown={(e) => onKeyDown(e, idx)}
+          >
+            {Icon && <Icon class="icon" aria-hidden="true" />}
+            <span>{t.label}</span>
+            {t.badge != null && t.badge > 0 && (
+              <span class="pane-tab-badge" aria-label={`${t.badge} changed from default`}>
+                {t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

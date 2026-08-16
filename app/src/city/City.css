@@ -1,0 +1,12 @@
+/* The canvas fills whatever box the view gives it. Scoped to the class, not a
+   bare `canvas` selector, which would reach every canvas in the app. */
+.city-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Opaque so a sub-frame gap during resize blends in instead of flashing. */
+.city-canvas--scene {
+  background: var(--cc-bg-app);
+}

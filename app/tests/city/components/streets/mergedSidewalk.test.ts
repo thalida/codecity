@@ -1,12 +1,9 @@
-// mergedSidewalk.test.ts — all sidewalks render as ONE merged mesh (was ~8k draw
-// calls). Picking must still resolve a raycast hit to its street, so the mesh
-// bakes a faceIndex→street map. This guards that every street's face range maps
-// back to that street (the directory-picking path) and that the per-street vertex
-// spans line up (the hover/selection tint path).
-
+// All sidewalks are ONE merged mesh, down from ~8k draw calls, so picking has to
+// resolve a raycast hit through a baked faceIndex-to-street map. This guards
+// that map and the per-street vertex spans the hover tint uses.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/components/streets/streets';
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS } from '@/state/settings/fields/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 
@@ -58,9 +55,8 @@ describe('merged sidewalk mesh', () => {
     expect(out).not.toBeNull();
     expect(out.ranges).toHaveLength(3);
 
-    // Vertex ranges are contiguous + in build order; faceStarts strictly ascend
-    // (each street occupies a nonempty face range) — the picking test checks the
-    // exact face→street mapping.
+    // Contiguous and in build order, so faceStarts strictly ascend; the exact
+    // mapping is the picking test's job.
     let v = 0;
     for (let i = 0; i < 3; i++) {
       expect(out.ranges[i].vStart).toBe(v);

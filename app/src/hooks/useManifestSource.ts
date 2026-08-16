@@ -3,7 +3,7 @@
 // (MANIFEST, SCAN_PROGRESS, CURRENT_SOURCE via setCurrentSource, SOURCE_ERROR).
 // The render layer consumes them and owns the apply's rebuild status.
 
-import { useEffect, useCallback } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
 import {
@@ -15,20 +15,36 @@ import {
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
-import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE } from '@/state/stores/source';
-import { DISCOVER } from '@/state/stores/discover';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
+import {
+  RECENTS,
+  SOURCE_ERROR,
+  commitSource,
+  CURRENT_SOURCE,
+  activeExcludePathsFor,
+  ACTIVE_EXCLUDES,
+} from '@/state/stores/source';
+import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
+import { MANIFEST, setManifest } from '@/state/stores/manifest';
+import {
+  markError,
+  markRebuilding,
+  SCAN_PROGRESS,
+  PENDING_SOURCE_LABEL,
+} from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
-import { srcKind, SourceKind, identityBranch, sourceKey } from '@/utils/sources';
-import { isEmptyManifest } from '@/utils/manifest';
-import { readBootView, type BootView } from '@/state/bootView';
+import {
+  srcKind,
+  SourceKind,
+  identityBranch,
+  sourceKey,
+  sameSourceIdentity,
+} from '@/utils/sources';
+import { readUrlView, type UrlView } from '@/router/viewParams';
+import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
-import type { SourcePayload } from '@/state/stores/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
+import type { SourcePayload } from '@/types/ui';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
@@ -122,6 +138,9 @@ let loadController: AbortController | null = null;
 // The one way to load a source. The poll below is a separate op that shares
 // only the MANIFEST sink and yields to this via the generation.
 export async function loadSource(payload: SourcePayload): Promise<void> {
+  // This attempt supersedes the last failure, so nothing outlives it to explain
+  // a load that is no longer the current one.
+  SOURCE_ERROR.value = null;
   // A source switch always exits Timeline; the city layer reacts to the flip.
   if (TIMELINE_MODE.peek()) resetTimelineMode();
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
@@ -264,7 +283,7 @@ export function setupLiveUpdates(): () => void {
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
     const current = MANIFEST.peek();
-    if (isEmptyManifest(current)) return;
+    if (!current) return;
     const applied = (current as Manifest).content_signature;
     inFlight = true;
     try {
@@ -341,9 +360,9 @@ export function setupLiveUpdates(): () => void {
   };
 }
 
-/** The boot load, in the mode the URL asks for. A Timeline boot that fails to
- *  engage falls through to Live, so the page lands on a working city. */
-export async function bootLoad(boot: BootView): Promise<void> {
+/** The load the URL asks for, in the mode it asks for. A Timeline boot that
+ *  fails to engage falls through to Live, so the page lands on a working city. */
+export async function bootLoad(boot: UrlView): Promise<void> {
   const src = boot.src;
   if (!src) return;
   if (boot.timeline && timelineBoot) {
@@ -353,32 +372,45 @@ export async function bootLoad(boot: BootView): Promise<void> {
   await loadSource({ src, branch: boot.branch });
 }
 
+/** Load whatever project the URL names, whenever that changes: the boot read
+ *  and every Back/Forward between cities are the same event. Returns a dispose. */
+export function attachRouteLoad(): () => void {
+  // Claimed, not committed: CURRENT_SOURCE lands only on success, leaving a
+  // mid-load window where a re-run would start the same load again.
+  let claimed: { src: string; branch?: string } | null = null;
+
+  return effect(() => {
+    const onCity = ROUTE_PATH.value === ROUTES.CITY;
+    // Tracked: this is the whole point, the URL asking for something new.
+    const params = ROUTE_PARAMS.value;
+    if (!onCity) return;
+    const boot = readUrlView(params);
+    if (!boot.src) return;
+    const want = { src: boot.src, branch: boot.branch };
+    if (claimed && sameSourceIdentity(claimed, want)) return;
+    const current = CURRENT_SOURCE.peek();
+    if (current && sameSourceIdentity(current, want)) {
+      claimed = want;
+      return;
+    }
+    claimed = want;
+    // Out of the tracking scope: the load writes signals this effect reads.
+    queueMicrotask(() => void bootLoad(boot));
+  });
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────
 
-/** Boot the fetch pipeline on mount, and hand App the submit/refresh/cancel
- *  handlers to pass down as props rather than a global invoke channel. */
-export function useManifestSource(): {
-  submitSource: (payload: SourcePayload) => void;
-  refreshSource: (skipCache: boolean) => void;
-  cancelLoad: () => void;
-} {
-  const submitSource = useCallback((payload: SourcePayload) => {
-    void loadSource(payload);
-  }, []);
-  const refreshSource = useCallback((skipCache: boolean) => {
-    refreshCurrentSource(skipCache);
-  }, []);
-
+/** Boot the fetch pipeline on mount. Nothing to hand back: loadSource and
+ *  friends are module functions, so each view calls the one it needs. */
+export function useManifestSource(): void {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
+    // The URL drives what is rendered: boot read and every later Back/Forward.
+    // A bare ?src is complete; the server resolves the default branch.
+    const disposeRouteLoad = attachRouteLoad();
     (async () => {
-      // No ?branch is not an incomplete request: the server resolves origin's
-      // default branch when none is pinned.
-      const boot = readBootView();
-      if (boot.src) await bootLoad(boot);
-      if (cancelled) return;
-
       // Independent boot reads, so they go out together rather than making the
       // landing wait for two round trips in series.
       const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
@@ -389,13 +421,11 @@ export function useManifestSource(): {
       // One loop for the app's lifetime: it re-reads the canonical signals per
       // tick, so boot and every switch are covered without restarting it.
       disposeLiveUpdates = setupLiveUpdates();
-      // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();
     return () => {
       cancelled = true;
+      disposeRouteLoad();
       disposeLiveUpdates?.();
     };
   }, []);
-
-  return { submitSource, refreshSource, cancelLoad };
 }

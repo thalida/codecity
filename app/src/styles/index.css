@@ -7,14 +7,11 @@
 @import './themes.css';
 @import './text.css';
 @import './atoms.css';
-@import './panes.css';
 @import './rows.css';
-@import './cards.css';
 @import './surfaces.css';
 @import './forms.css';
 @import './buttons.css';
 @import './chevron.css';
-@import './resize-handles.css';
 @import './empty-state.css';
 @import './icons.css';
 @import './focus.css';

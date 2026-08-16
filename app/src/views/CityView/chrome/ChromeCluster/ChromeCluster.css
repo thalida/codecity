@@ -1,0 +1,128 @@
+/* ChromeCluster — one outlined group of related controls in a chrome bar.
+   Every direct child is an item and the cluster styles it here, so nothing has
+   to know it is inside one. CopyButton's screen-reader announcer is the one
+   child that is not an item. */
+
+.chrome-cluster {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: none;
+  /* The positioning ancestor for any panel an item opens: ScanMenu renders no
+     wrapper of its own, so its panel anchors here. */
+  position: relative;
+  /* border-input, not border-subtle: subtle is ~0.02 lightness off the chrome
+     bar and reads as no edge at all. */
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-pill);
+  background: var(--cc-bg-sidebar);
+  /* No overflow: hidden — it would clip the scan panel at the bar. */
+}
+
+/* The project chip's box. The inline padding clears the pill's curve at the
+   ends as well as spacing the dividers. */
+.chrome-cluster > *:not(.sr-only) {
+  appearance: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  position: relative; /* anchors the touch target below */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cc-space-2);
+  height: var(--cc-chrome-item-h);
+  padding: 0 var(--cc-space-5);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--cc-text-muted);
+  font: inherit;
+  text-decoration: none;
+}
+
+/* Accent marks what's pressable, and everything in a cluster is. accent-light
+   is the step .link--chrome uses, so buttons and links read as one colour. */
+.chrome-cluster > *:not(.sr-only) {
+  color: var(--cc-accent-light);
+  cursor: pointer;
+}
+/* The shared engaged state (see buttons.css): accent glyph on an accent fill. */
+.chrome-cluster > *:not(.sr-only):not(:disabled):hover {
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+.chrome-cluster > *:not(.sr-only):disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* General sibling, not adjacent: CopyButton renders an announcer between
+   itself and the next item. */
+.chrome-cluster > *:not(.sr-only) ~ *:not(.sr-only) {
+  border-left: 1px solid var(--cc-border-input);
+}
+
+/* Only the cluster's own edge rounds, so an end item's hover fill follows the
+   pill. :last-of-type counts per element name, so it matched too early. */
+.chrome-cluster > *:not(.sr-only):first-child {
+  border-start-start-radius: var(--cc-radius-pill);
+  border-end-start-radius: var(--cc-radius-pill);
+}
+.chrome-cluster > *:not(.sr-only):not(:has(~ *:not(.sr-only))) {
+  border-start-end-radius: var(--cc-radius-pill);
+  border-end-end-radius: var(--cc-radius-pill);
+}
+
+/* Screen-reader-only announcers (CopyButton's) sit between items in the DOM.
+   They must not take part in the layout or the divider run. */
+.chrome-cluster > .sr-only {
+  position: absolute;
+}
+
+.chrome-cluster > *:not(.sr-only) > svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* Sized off the cluster, not the bar: icons are 1em (icons.css) and the header
+   and footer set different text sizes. */
+.chrome-cluster .icon {
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-strong);
+}
+
+/* The "this opens something" glyph. ChevronsUpDown draws in the middle 10/24 of
+   its box, so its trailing bearing reads as padding; pull the box back by it. */
+.chrome-cluster .cluster-cue {
+  margin-inline-end: -0.29em;
+  /* A rung, not the action glyph dimmed: an opacity on top of a colour lands
+     between two steps of the ladder and reads as a third grey. */
+  color: var(--cc-text-secondary);
+}
+
+/* Copy feedback. Also on .icon, which carries its own colour above. */
+.chrome-cluster > .is-copied,
+.chrome-cluster > .is-copied .icon {
+  color: var(--cc-success);
+}
+.chrome-cluster > .is-copied {
+  background: var(--cc-success-bg);
+}
+/* Hover, focus, press and open all read as engaged (see buttons.css). Open is
+   keyed off aria-expanded so it can't drift from the ARIA. */
+.chrome-cluster > *:not(:disabled):hover .icon,
+.chrome-cluster > *:not(:disabled):focus-visible,
+.chrome-cluster > *:not(:disabled):focus-visible .icon,
+.chrome-cluster > *:not(:disabled):active,
+.chrome-cluster > *:not(:disabled):active .icon,
+.chrome-cluster > *[aria-expanded='true'],
+.chrome-cluster > *[aria-expanded='true'] .icon {
+  color: var(--cc-accent);
+}
+.chrome-cluster > *:not(:disabled):focus-visible,
+.chrome-cluster > *[aria-expanded='true'] {
+  background: var(--cc-accent-bg-soft);
+}
+.chrome-cluster > *:not(:disabled):active {
+  background: var(--cc-accent-bg);
+}

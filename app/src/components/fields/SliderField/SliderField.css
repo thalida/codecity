@@ -1,0 +1,53 @@
+/* ── Slider ── */
+
+/* The range grows into the space; the readout sizes to its content with a
+ * floor. No fixed widths, so the row scales with the sidebar. */
+.setting-slider-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+}
+
+.setting-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 4px;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+}
+.setting-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+}
+.setting-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+}
+
+.setting-slider-readout {
+  flex: 0 0 auto;
+  min-width: 36px;
+  text-align: right;
+  /* Match the reset button's right padding so the readout's right edge lines up
+   * with the reset icon in the column above it. */
+  padding-right: var(--cc-space-3);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-2xs);
+  color: var(--cc-text-secondary);
+  white-space: nowrap;
+}

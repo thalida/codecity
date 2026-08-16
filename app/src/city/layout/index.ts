@@ -3,12 +3,12 @@
 // newer call supersedes the pending ones rather than racing them. Falls back to
 // synchronous in-process layout when Worker is undefined (jsdom), identically.
 
-import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { GEM_SIZING } from '@/state/stores/settings/gem';
-import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
-import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
-import type { GemSizingConfig } from '@/state/stores/settings/gem';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { GEM_SIZING } from '@/state/settings/fields/gem';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/fields/streets';
+import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
+import type { GemSizingConfig } from '@/state/settings/fields/gem';
 import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';

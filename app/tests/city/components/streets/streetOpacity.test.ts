@@ -12,7 +12,7 @@ import {
   type StreetScrubState,
 } from '@/city/components/streets/scrubState';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS } from '@/state/settings/fields/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 

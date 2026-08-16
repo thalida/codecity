@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { createBuildingTweens } from '@/city/components/buildings/tween';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
 
@@ -143,9 +143,8 @@ describe('createBuildingTweens()', () => {
     // First diff at t=0 targets h=8.
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
 
-    // Second diff at t=200 retargets the SAME building to h=20. If startedAt
-    // were reset to 200, at t=TRANSITION_MS the tween would only be
-    // (400-200)/400 through; keeping startedAt=0 means it completes there.
+    // Retargeting the same building at t=200 must not reset startedAt, or the
+    // tween is only half through at TRANSITION_MS instead of complete.
     setNow(200);
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 20)] }));
 

@@ -3,9 +3,9 @@
 // posts/receives them; index.ts builds the request + narrows the response) so
 // the two ends can never drift. Mirrors components/trees/treePlacementProtocol.ts.
 
-import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
-import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
-import type { GemSizingConfig } from '@/state/stores/settings/gem';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/fields/streets';
+import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
+import type { GemSizingConfig } from '@/state/settings/fields/gem';
 import type { Manifest, CityLayout } from '@/types';
 
 /** The only slice the worker needs. Sending the whole Manifest structured-

@@ -4,14 +4,13 @@
 // vertex and index buffers stay shared.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient } from '@/types/index';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
-import { isDataBuilding } from '@/utils/binaryKind';
-import { isEmptyFile } from '@/utils/emptyKind';
+import { isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';

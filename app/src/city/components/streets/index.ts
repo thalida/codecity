@@ -6,8 +6,8 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { STREETS } from '@/state/stores/settings/streets';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { STREETS } from '@/state/settings/fields/streets';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';

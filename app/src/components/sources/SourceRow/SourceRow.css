@@ -1,0 +1,132 @@
+/* SourceRow — one openable source. Shared by Recents and Discover, so nothing
+   here may assume which list it's in. */
+
+.source-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  gap: var(--cc-space-5);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+}
+.source-row:hover {
+  background: var(--cc-overlay-bg);
+}
+
+/* Kind glyph. Sized by font-size alone: every glyph HostingIcon can return
+   carries .icon, which is 1em (icons.css). */
+.source-row-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--cc-font-md);
+}
+
+.source-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Repo name + branch pill share the title line; the pill's header-context
+   margin is dropped in favor of the row's flex gap. */
+.source-row-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
+/* The name is the row's identity, so the branch beside it gives way: worktrees
+   of one repo share a name and differ only there. */
+.source-row-label {
+  flex: 0 0 auto;
+  font-weight: var(--cc-fw-medium);
+  white-space: nowrap;
+}
+.source-row-label-row .branch-pill {
+  margin-left: 0;
+}
+.source-row-branch {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.source-row-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-row-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
+}
+.source-row-src {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Currently loaded: highlighted, still clickable to reload. */
+.source-row--active,
+.source-row--active:hover {
+  background: var(--cc-accent-bg-soft);
+}
+
+/* Can't load here (a local path while local repos are off): dimmed as a hint,
+   with the title carrying the reason. */
+.source-row--unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Not a pill: it labels a state the row is already in, and a bordered chip
+   competes with the name. Uppercase micro-type reads as caption, not control. */
+.source-row-note {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--cc-space-4);
+  font-size: var(--cc-font-2xs);
+  font-weight: var(--cc-fw-semibold);
+  letter-spacing: var(--cc-track-label);
+  text-transform: uppercase;
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+/* The current one earns a touch more presence, without changing shape. */
+.source-row--active .source-row-note {
+  color: var(--cc-text-secondary);
+}
+
+/* ── The list a row sits in ──────────────────────────────────────────────── */
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+  /* Scroll the rows, not the page, wherever the card is height-capped; stacked,
+     the card shrink-wraps and the page scroller takes over instead. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Reserve the scrollbar gutter so rows don't reflow when it appears, and keep
+     the track off the rows' right edge. */
+  scrollbar-gutter: stable;
+  margin-right: calc(-1 * var(--cc-space-2));
+  padding-right: var(--cc-space-2);
+}
+
+/* A row plus whatever sits beside it. Siblings, not parent/child, so the hover
+   highlight stays symmetric and the control keeps its own hit area. */
+.source-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+}

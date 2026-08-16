@@ -1,15 +1,11 @@
-// sky.test.ts — verifies the createSky(ctx) COMPONENT builds the
-// icosphere mesh (exposed as `group`) with the documented render-order /
-// depth / side flags, that its settings effect pushes fresh SCENE values
-// into uniforms (replacing the old refresh() hot-reload path) and
-// re-applies on SCENE mutation, that tick() advances uTime AND follows the
-// camera, and that dispose() releases GPU resources + stops the effect.
-
+// The sky component: the icosphere and its render-order, depth and side flags,
+// the settings effect pushing SCENE into uniforms, tick advancing uTime and
+// following the camera, and dispose releasing GPU resources.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createSky } from '@/city/components/sky';
-import { SCENE } from '@/state/stores/settings/scene';
+import { SCENE } from '@/state/settings/fields/scene';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { FrameContext } from '@/city/types';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';

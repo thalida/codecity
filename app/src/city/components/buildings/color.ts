@@ -3,7 +3,7 @@
 // utils/recency, so dim means nobody has touched this in a long time rather than
 // merely that it is the oldest here. getCreatedAge is a separate axis.
 
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { recencyT } from '@/city/utils/recency';
 import { NodeKind } from '@/types';
 import type { DateRanges } from '@/types';

@@ -7,8 +7,8 @@ import {
   getBuildingColorForRecency,
   getModifiedAge,
 } from '@/city/components/buildings/color';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
-import type { BuildingsConfig } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';
 

@@ -1,16 +1,11 @@
-// city/components/trees/treePlacementClient.ts — main-thread companion to
-// treePlacementWorker.ts. Lazily spins up the worker on first
-// compute(), sends a config snapshot + layout, returns a promise that
-// resolves to TreePlacement[]. Supersedes any pending request when a
-// new compute() arrives (same protocol as layoutClient). Falls back
-// to a synchronous in-thread call when Worker is unavailable (older
-// browsers / SSR / test environments).
-
+// city/components/trees/treePlacementClient.ts — the main-thread end: spins the
+// worker up on first compute, supersedes a pending request when a new one
+// arrives, and falls back to a synchronous call where Worker is unavailable.
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
-import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
-import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/stores/settings/island';
+import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
+import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
+import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/settings/fields/island';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -35,11 +30,8 @@ export interface TreePlacementClient {
   dispose(): void;
 }
 
-// The worker only reads building/street footprints; the full CityLayout carries
-// a `file`/`dir` payload on every rect that structured-clone would copy across
-// the postMessage boundary. Strip to geometry so the transfer stays cheap.
-// `bbox` is carried through so placeTrees' `bboxOverride ?? layout.bbox` fallback
-// behaves the same on the worker path as in the sync path.
+// Strip to geometry: every rect carries a file/dir payload that structured
+// clone would copy. bbox rides along so the sync and worker paths agree.
 function _slimLayout(layout: CityLayout): LayoutGeometry {
   return {
     streets: layout.streets.map((s) => ({

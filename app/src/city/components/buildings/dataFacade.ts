@@ -1,13 +1,11 @@
-// city/components/buildings/dataFacade.ts — client-side facade images for
-// data-building kinds that aren't a generic byte pattern. Rendered white-on-
-// transparent to a canvas (matching the server fingerprint) and uploaded via
-// the same texture array. Browser-native so no backend decode/deps:
-//   - font  → a lowercase 'a' set in the actual font (FontFace + canvas)
-//   - audio → a waveform of the decoded samples (Web Audio decodeAudioData)
+// city/components/buildings/dataFacade.ts — facades for the data kinds that
+// deserve better than a byte pattern: a font's own 'a', an audio waveform. Drawn
+// white-on-transparent like the server fingerprint, and browser-native, so the
+// backend needs no decoder for either.
 
 import { fetchFileBytes } from '@/api/file';
-import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
-import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileKinds';
+import { scrubbedBlobShaFor } from '@/state/stores/timeline';
+import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
@@ -32,9 +30,8 @@ function _canvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D }
 // Unique @font-face family per render so concurrent facades don't collide.
 let _fontSeq = 0;
 
-/** A lowercase 'a' set in the file's own font, white on transparent. Loads the
- *  font via FontFace (handles woff/woff2/ttf/otf like the preview) and removes
- *  it after drawing so no global face leaks. null on any failure. */
+/** A lowercase 'a' in the file's own font. The face is removed after drawing,
+ *  so none leaks globally. null on any failure. */
 export async function renderFontGlyphFacade(
   fullPath: string,
   version: string,
@@ -76,9 +73,8 @@ function _getAudioCtx(): AudioContext | null {
   return _audioCtx;
 }
 
-/** A centered waveform of the audio's samples, white on transparent. Decodes the
- *  file with Web Audio (handles mp3/wav/ogg/etc.) and draws one peak bar per
- *  output column. null on any failure. */
+/** A centered waveform, one peak bar per column, decoded with Web Audio.
+ *  null on any failure. */
 export async function renderWaveformFacade(
   fullPath: string,
   version: string,

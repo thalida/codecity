@@ -8,7 +8,7 @@ import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
 import type { CityState } from '@/city/state';
-import { SHOWCASE } from '@/state/stores/settings/showcase';
+import { SHOWCASE } from '@/state/settings/fields/showcase';
 import { getDefault } from '@/state/persist';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {

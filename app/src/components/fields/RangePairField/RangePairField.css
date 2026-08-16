@@ -1,0 +1,106 @@
+/* ── RangePair ── */
+
+/* Two stacked native ranges over one visual track. Both fill the container
+ * height, so webkit's own centring puts each thumb ON the track. */
+.setting-range-pair {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 16px;
+}
+
+/* Visual track: a thin bar centered vertically in the pair container. */
+.setting-range-pair-track {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
+}
+.setting-range-pair-fill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  background: linear-gradient(90deg, var(--cc-accent), var(--cc-accent-border));
+  border-radius: var(--cc-radius-sm);
+  pointer-events: none;
+  box-shadow: var(--cc-glow-accent);
+}
+
+/* Each input contributes only its thumb: its own track is transparent, and
+ * pointer-events pass through everywhere but the thumb. */
+.setting-range-pair input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-0);
+}
+/* The overlay input spans the pair, so its default outline would frame both.
+ * The ring goes on the thumb, where the focused value is. */
+.setting-range-pair input[type='range']:focus {
+  outline: none;
+}
+.setting-range-pair input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--cc-accent-light);
+  outline-offset: 2px;
+}
+.setting-range-pair input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--cc-accent-light);
+  outline-offset: 2px;
+}
+
+/* Full-height: webkit centres the thumb on the runnable-track midline, which
+ * is then the same centre as the visible track. */
+.setting-range-pair input[type='range']::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 100%;
+  border: none;
+}
+.setting-range-pair input[type='range']::-moz-range-track {
+  background: transparent;
+  height: 100%;
+  border: none;
+}
+
+/* No margin nudge: the full-height runnable-track means webkit's natural
+ * centring already lands it. */
+.setting-range-pair input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: var(--cc-shadow-sm);
+}
+.setting-range-pair input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: var(--cc-shadow-sm);
+}
+/* Lo thumb a touch darker so it reads as the "lower" anchor when the
+ * two thumbs sit at the same value (otherwise they'd be a single dot). */
+.setting-range-pair input.setting-range-pair-lo::-webkit-slider-thumb {
+  background: var(--cc-accent-dark);
+}
+.setting-range-pair input.setting-range-pair-lo::-moz-range-thumb {
+  background: var(--cc-accent-dark);
+}

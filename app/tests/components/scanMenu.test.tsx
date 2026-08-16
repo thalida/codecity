@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { EXCLUDES, addExclude, clearExcludes } from '@/state/stores/excludes';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
+import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 
 // Preact schedules useEffect on rAF, which jsdom fires around 16ms, so the open

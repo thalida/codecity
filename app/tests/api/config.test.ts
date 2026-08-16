@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fetchServerConfig, getServerConfig, _resetServerConfigForTests } from '@/api/config';
-import { DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 
 describe('fetchServerConfig', () => {
   beforeEach(() => {

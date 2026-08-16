@@ -3,9 +3,9 @@
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.
 
-import type { SceneHandle } from '@/state/stores/scene';
+import type { SceneHandle } from '@/city/sceneHandle';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
-import { CAMERA } from '@/state/stores/settings/camera';
+import { CAMERA } from '@/state/settings/fields/camera';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
@@ -95,6 +95,13 @@ export const SHOTS: Record<string, ShotPose> = {
   overview: (handle, _m, o) => {
     angle(o.elev ?? 46, o.az ?? 34);
     handle.rig.reset();
+  },
+
+  // The landing's wallpaper (`just hero-image`). Shot from the showcase's own
+  // pose, since the landing swaps this image for a live showcase city.
+  hero: (handle) => {
+    if (!handle.rig.captureAnchors().gem) return false; // no city yet
+    handle.rig.enterShowcase({ autoRotate: false });
   },
 
   // The city part-built, at the defaults. The load is async, so this returns

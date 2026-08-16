@@ -5,9 +5,9 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { STREETS } from '@/state/stores/settings/streets';
-import { RUINS } from '@/state/stores/settings/ruins';
-import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
+import { STREETS } from '@/state/settings/fields/streets';
+import { RUINS } from '@/state/settings/fields/ruins';
+import { ASPHALT_WIDTH_FRAC } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';

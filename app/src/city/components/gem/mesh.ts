@@ -4,7 +4,7 @@
 // plaza, so no separate pad mesh exists.
 
 import * as THREE from 'three';
-import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/stores/settings/gem';
+import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/settings/fields/gem';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { BYTE_MAX } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';

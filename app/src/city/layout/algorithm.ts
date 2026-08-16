@@ -3,9 +3,9 @@
 // files line the sides, its subdirectories branch off perpendicular, and each
 // placement takes the smallest stem that clears everything already placed.
 
-import { STREET_LAYOUT } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { GEM_SIZING } from '@/state/stores/settings/gem';
+import { STREET_LAYOUT } from '@/state/settings/fields/streets';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, RepoStats, Street } from '@/types';
 import { parentDirPath } from '../utils/path';

@@ -2,11 +2,12 @@
 // cares about as a literal rather than driving SCRUB_POS and four settings
 // stores into position.
 
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import type { ScrubFrame } from '@/city/timeline/scrubFrame';
 import type { BuildingScrubInput } from '@/city/components/buildings/scrubState';
+import { NodeKind } from '@/types';
 import type { Building, FileNode, RangeStat, TimelineBundle } from '@/types';
 
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
@@ -80,6 +81,50 @@ export const SUBJECT_BUNDLE = makeBundle({
     { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
   ],
   blobLines: { s1: 2, s2: 6 },
+} as unknown as Partial<TimelineBundle>);
+
+/** At commit 2: src/present.txt is live, src/gone.txt was deleted there, and
+ *  future/y.txt is not created until commit 3. */
+export const PRESENCE_BUNDLE = makeBundle({
+  commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+  unionManifest: {
+    tree: {
+      name: '',
+      path: '',
+      type: NodeKind.Directory,
+      children: [
+        {
+          name: 'src',
+          path: 'src',
+          type: NodeKind.Directory,
+          children: [
+            { name: 'present.txt', path: 'src/present.txt', type: NodeKind.File },
+            { name: 'gone.txt', path: 'src/gone.txt', type: NodeKind.File },
+          ],
+        },
+        {
+          name: 'future',
+          path: 'future',
+          type: NodeKind.Directory,
+          children: [{ name: 'y.txt', path: 'future/y.txt', type: NodeKind.File }],
+        },
+      ],
+    },
+  },
+  deltas: [
+    {
+      sha: 'a',
+      changes: [
+        { path: 'src/present.txt', sha: 's1' },
+        { path: 'src/gone.txt', sha: 's1' },
+      ],
+    },
+    { sha: 'b', changes: [] },
+    { sha: 'c', changes: [{ path: 'src/gone.txt', sha: null }] },
+    { sha: 'd', changes: [{ path: 'future/y.txt', sha: 's1' }] },
+  ],
+  blobLines: { s1: 2 },
+  blobSizes: { s1: 0 },
 } as unknown as Partial<TimelineBundle>);
 
 /** The same pairing the scrub pass builds. */

@@ -7,9 +7,8 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { Building } from '@/types';
+import type { Building, FileTarget } from '@/types';
 import type { createPicker } from '@/city/interaction/picker';
-import type { FileTarget } from '@/types';
 
 // Narrow world surface the ghost needs (mesh resolver only). Supplied by the
 // buildings component.

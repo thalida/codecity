@@ -13,7 +13,7 @@ import {
   makePickableSceneContext,
   treePlacement,
 } from '../../../_helpers/cityFixtures';
-import { TREES } from '@/state/stores/settings/trees';
+import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';

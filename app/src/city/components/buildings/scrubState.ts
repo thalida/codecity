@@ -4,8 +4,7 @@
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { Building, FileNode } from '@/types';
 import { FadeDetail } from '@/types';
-import { isDataBuilding } from '@/utils/binaryKind';
-import { isEmptyFile } from '@/utils/emptyKind';
+import { isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import type { PathTimeline } from '@/city/timeline/replay';
 import {
   PathState,

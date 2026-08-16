@@ -3,9 +3,10 @@
 // actual listener wiring rather than a stand-in for it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/ui';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
 import { NodeKind } from '@/types';
 
 vi.mock('three', async () => {
@@ -27,6 +28,8 @@ describe('scene keydown handler — modal suppression', () => {
   let cities: Array<Awaited<ReturnType<typeof createCity>>> = [];
 
   beforeEach(() => {
+    // Over a city: home IS the switcher, which owns the keyboard.
+    navigate(ROUTES.CITY, { replace: true });
     let calls = 0;
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
@@ -42,12 +45,13 @@ describe('scene keydown handler — modal suppression', () => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
     closeShortcuts();
+    navigate(ROUTES.HOME, { replace: true });
     SCENE_HANDLE.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    const handle = await createCity(makeCanvas());
     cities.push(handle);
     return handle;
   }

@@ -1,0 +1,42 @@
+/* ── City route ──────────────────────────────────────────────────────────────
+   A column: header, the 3-pane row, footer. The stage grows and shrinks instead
+   of the sidebars overlaying it. */
+
+/* Above the body in PAINT order: it comes later in the DOM, and the values
+   clear the sidebars (90/100) and the center pane's overlays (200). */
+#city-header {
+  position: relative;
+  z-index: 400;
+}
+#city-footer {
+  position: relative;
+  z-index: 300;
+}
+
+#city-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  /* The containing block for the phone drawers: fixed would resolve against
+     the large viewport and hang over the footer. */
+  position: relative;
+}
+
+/* The skip-link's focus catcher, not a control: the global ring would draw a
+   2px outline around the whole content region. */
+#city-body:focus-visible {
+  outline: none;
+}
+
+/* Capture mode (?shot=): hide the chrome so a canvas screenshot has nothing
+   floating over it. The canvas auto-fits the room that frees up. */
+#app.cc-capture #city-header,
+#app.cc-capture #city-sidebar-left,
+#app.cc-capture #city-sidebar-right,
+#app.cc-capture #city-footer,
+#app.cc-capture #scene-controls,
+#app.cc-capture .selection-chip {
+  display: none;
+}

@@ -1,0 +1,34 @@
+/* ── Subgroup ── */
+
+/* Sub-accordions are separated by spacing only — no dividing border.
+   Only top-level .controls-section blocks get a divider between siblings. */
+.setting-subgroup {
+  margin-top: var(--cc-space-2);
+  padding-top: var(--cc-space-2);
+}
+.setting-subgroup:first-of-type {
+  margin-top: var(--cc-space-3);
+  padding-top: var(--cc-space-0);
+}
+
+/* Breathing room above a non-collapsible subgroup's rows. Typography comes
+   from .text-label. */
+.setting-subgroup > .text-label {
+  margin-bottom: var(--cc-space-4);
+}
+
+/* A button-driven disclosure whose header doubles as the label. Same chevron
+ * and hover treatment as a section, so the affordance reads at every level. */
+.setting-subgroup-collapsible > .setting-subgroup-summary {
+  /* Sticky header stacked below the sticky section header (offset = section
+   * header height, set on .controls-pane). Opaque bg so rows don't show through. */
+  position: sticky;
+  top: var(--cc-controls-header-h);
+  z-index: 2;
+  background: var(--cc-bg-sidebar);
+  cursor: default; /* the toggle button carries the pointer affordance */
+}
+/* Collapsed: hide the nested body (mirrors a closed <details>). */
+.setting-subgroup-collapsible:not(.is-open) > .controls-disclosure-body {
+  display: none;
+}

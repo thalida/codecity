@@ -42,6 +42,8 @@ Local folders take one more step, see [Local directories](#local-directories) be
 
 **Tips**
 
+- The URL is the view. It carries the repo, the branch, the timeline commit and what you have
+  selected, so copying it drops someone else exactly where you are, and Back walks you out
 - `--pull=always` keeps you on the latest image; drop it to pin to your cached copy
 - Wipe the cache: `docker volume rm codecity-cache`
 - Port in use? `-p 8081:8080`

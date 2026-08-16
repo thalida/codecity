@@ -9,7 +9,7 @@ import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
 import { getBuildingMaterial } from '@/city/components/buildings/material';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
 

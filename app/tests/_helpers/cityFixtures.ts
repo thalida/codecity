@@ -7,8 +7,8 @@ import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
-import { TREES } from '@/state/stores/settings/trees';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { TREES } from '@/state/settings/fields/trees';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
 

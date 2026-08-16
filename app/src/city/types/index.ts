@@ -8,7 +8,7 @@ import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { Manifest, RangeStat } from '@/types';
-import type { BuildStage } from '@/constants/buildStages';
+import type { BuildStage } from '@/constants/progress';
 
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */

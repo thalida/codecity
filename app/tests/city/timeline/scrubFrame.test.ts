@@ -8,8 +8,8 @@ import { signal } from '@preact/signals';
 import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { RUINS } from '@/state/stores/settings/ruins';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
 

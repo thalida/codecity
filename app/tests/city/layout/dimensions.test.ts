@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 
 // Project ranges spanning tiny → multi-MB so binaries have room to scale.
 const lineStats = { min: 1, max: 2000 };

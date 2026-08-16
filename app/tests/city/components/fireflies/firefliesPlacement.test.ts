@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
-import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { treePlacement } from '../../../_helpers/cityFixtures';
@@ -48,12 +48,8 @@ describe('placeFireflies', () => {
   });
 
   it('orbs cluster around the tree trunk within a reasonable spatial envelope', () => {
-    // TreePlacement has no height/radius. placeFireflies derives them from
-    // commits + TREES config. With two commits (files=1 and files=2) the
-    // derived canopy radius is near the config midpoint (~24 world units)
-    // and height is near TREE_MIN/MAX midpoint (~52 world units with new 96 max).
-    // Use loose bounds: orbitRadius ≤ MAX_WIDTH / 2 * 1.5 and
-    // height ≤ MAX_HEIGHT * 1.4.
+    // TreePlacement carries no height or radius: placeFireflies derives both
+    // from the commits and TREES, so assert loose bounds rather than values.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
     const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
     const p = placement(0, 100, 200);
@@ -149,9 +145,8 @@ describe('placeFireflies', () => {
   });
 
   it('single-author repo: all orbs scale to SCALE_MAX (degenerate distribution)', () => {
-    // When every author has the same commit count (single author or tied
-    // distribution), there's no meaningful ranking — render everyone at
-    // SCALE_MAX rather than collapsing to SCALE_MIN.
+    // A tie has no meaningful ranking, so everyone renders at SCALE_MAX rather
+    // than collapsing to SCALE_MIN.
     const soloAuthor = buildCommits(
       { date: '2026-01-01', files: 1, authors: ['Solo'] },
       { date: '2026-01-02', files: 1, authors: ['Solo'] }
@@ -210,9 +205,8 @@ describe('placeFireflies', () => {
   });
 
   it("counts co-authorship toward each author's tally", () => {
-    // Commit 0 is co-authored by Alice and Bob; commit 1 is Bob solo.
-    // Tally: Alice=1, Bob=2. After scale lerp, Bob's orbs should scale
-    // larger than Alice's.
+    // Alice 1, Bob 2 (commit 0 is co-authored, commit 1 is Bob solo), so Bob's
+    // orbs scale larger.
     const commits = buildCommits(
       { date: '2026-01-01', files: 1, authors: ['Alice', 'Bob'] },
       { date: '2026-01-02', files: 1, authors: ['Bob'] }

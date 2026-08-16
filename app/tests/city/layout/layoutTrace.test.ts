@@ -1,15 +1,14 @@
 // layoutTrace.test.ts — exercise the optional `trace` params on
-import { WorldRectKind } from '@/city/layout/occupancyIndex';
+import { WorldRectKind, WorldOccupancy } from '@/city/layout/occupancyIndex';
 // findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
 import { layoutCityWithTrace } from '@/city/layout/algorithm';
 import { findSmallestValidStem, placeChild } from '@/city/layout/stemSolver';
 import type { VariantTrace } from '@/city/layout/stemSolver';
-import { WorldOccupancy } from '@/city/layout/occupancyIndex';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
-import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {

@@ -2,23 +2,22 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { signal } from '@preact/signals';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
-import { EXCLUDES, addExclude } from '@/state/stores/excludes';
+import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { MANIFEST } from '@/state/stores/manifest';
 import {
-  MANIFEST,
   REBUILD_STATUS,
   RebuildStatus,
   REBUILD_DETAIL,
   BUILD_PROGRESS,
-} from '@/state/stores/manifest';
-import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/ui';
-import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
-import { BuildStage } from '@/constants/buildStages';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+  LOADING_OVERLAY,
+  LOADING_CANCEL,
+  SCAN_PROGRESS,
+} from '@/state/stores/progress';
+import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
+import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';

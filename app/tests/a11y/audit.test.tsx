@@ -1,35 +1,28 @@
-// axe-core over the app's interactive surfaces, plus structural guards for the
-// classes axe-in-jsdom misses: controls inside a <summary>, unnamed form
-// fields, orphan labels, positive tabindex.
-//
-// Contrast needs real layout, which jsdom lacks, so that rule is off here and
-// verified separately through the OKLCH token math.
+// axe-core over the app's interactive surfaces, plus structural guards for what
+// axe-in-jsdom misses: controls inside a <summary>, unnamed form fields, orphan
+// labels, positive tabindex. Contrast needs real layout, so that rule is off
+// here and verified separately through the OKLCH token math.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import axe from 'axe-core';
-import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
-import { DynamicSection } from '@/views/ControlsPane/partials';
-import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
-import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
-import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
-import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
-import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
-import { TreePane } from '@/views/TreePane/TreePane';
-import { AppHeader } from '@/layout/AppHeader/AppHeader';
-import { AppFooter } from '@/layout/AppFooter/AppFooter';
-import {
-  openProjectsView,
-  openDebug,
-  openShortcuts,
-  closeDebug,
-  closeShortcuts,
-} from '@/state/stores/ui';
+import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
+import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
+import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
+import { HomeView } from '@/views/HomeView/HomeView';
+import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
+import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
+import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
+import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
+import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
+import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
+import { navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
+import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/chrome';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { DISCOVER } from '@/state/stores/discover';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
 import type { DirNode, Manifest } from '@/types';
 
@@ -83,47 +76,45 @@ const SURFACES: Surface[] = [
   {
     name: 'ControlsPane',
     mount: (c) => render(<ControlsPane />, c),
-    // The full panel (271 controls) is too slow to axe-scan under coverage.
-    // Buildings alone exercises every control kind (color/hue/number/range/
-    // select/slider/toggle); expand every disclosure so the controls are
-    // visible (axe skips display:none) and scan just that.
+    // The full panel is too slow to axe-scan under coverage; Buildings alone
+    // covers every control kind. Disclosures expand: axe skips display:none.
     axeMount: (c) => {
       render(<DynamicSection node={BUILDINGS_SECTION} />, c);
       c.querySelectorAll<HTMLElement>('.controls-disclosure-toggle').forEach((t) => t.click());
     },
   },
   {
-    name: 'ProjectsView',
+    name: 'HomeView',
     mount: (c) => {
-      openProjectsView({ dismissible: true });
-      render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
+      navigate(ROUTES.HOME);
+      render(<HomeView />, c);
     },
   },
   {
     // Both dropdowns, opened: the menu, its items and the auto-refresh row in
     // the footer slot are only in the DOM while open.
-    name: 'ProjectsView (Discover tab, open-project menu)',
+    name: 'HomeView (Discover tab, open-project menu)',
     mount: (c) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted: true };
       DISCOVER.value = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
-      openProjectsView({ dismissible: true });
-      render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
+      navigate(ROUTES.HOME);
+      render(<HomeView />, c);
       openByLabel(c, 'More ways to open');
     },
   },
   {
-    name: 'AppHeader (refresh menu open)',
+    name: 'CityHeader (refresh menu open)',
     mount: (c) => {
       loadProject();
-      render(<AppHeader />, c);
+      render(<CityHeader />, c);
       openByLabel(c, 'More refresh options');
     },
   },
   {
-    name: 'AppFooter',
-    mount: (c) => render(<AppFooter />, c),
+    name: 'CityFooter',
+    mount: (c) => render(<CityFooter />, c),
   },
   {
     name: 'DebugMenu',
@@ -150,7 +141,7 @@ const SURFACES: Surface[] = [
     name: 'TreePane',
     mount: (c) =>
       render(
-        <TreePane
+        <TreeTab
           manifest={signal(TREE as unknown as DirNode)}
           selectedPath={signal(null)}
           hoveredPath={signal(null)}
