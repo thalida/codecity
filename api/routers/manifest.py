@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from api.core.constants import ErrorCode, ScanEvent, TimelineEvent, TimelineStage
+from api.routers.sse import Put, stream
 from api.models.events import (
     CloneProgressEvent,
     CompleteManifestEvent,
@@ -176,15 +177,9 @@ async def timeline(
 
     is_remote = classify(src) is SourceKind.REMOTE
 
-    async def gen() -> AsyncIterator[dict[str, Any]]:
-        loop = asyncio.get_running_loop()
-        q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
-        holder: dict[str, Any] = {"bundle": None, "path": None, "head": None}
-        cancel = threading.Event()
+    built: dict[str, Any] = {"bundle": None, "path": None, "head": None}
 
-        def _put(item: dict[str, Any] | None) -> None:
-            loop.call_soon_threadsafe(q.put_nowait, item)
-
+    def work(_put: Put, cancel: threading.Event) -> None:
         def _on_progress(payload: dict[str, Any]) -> None:
             stage = payload["stage"]
             data: dict[str, Any] = {"stage": stage, "label": pending_label}
@@ -213,87 +208,59 @@ async def timeline(
                 )
             )
 
-        def _run() -> None:
-            try:
-                try:
-                    target = resolve_source(src, branch)
-                except ResolveError as e:
-                    _put(_sse_error(e.message, e.code))
-                    return
-                holder["path"] = target
-                head = resolve_ref(target, "HEAD")
-                holder["head"] = head
-                if use_cache and head is not None:
-                    cached = cache_load_timeline(target.resolve(), head, excludes)
-                    if cached is not None:
-                        _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
-                        return
-                # A blobless remote clone has no historical blob content — backfill
-                # it before the walk so blob resolution reads local objects (no
-                # per-blob promisor fetch hang). Never touches a local repo.
-                if is_remote:
-                    hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
-                    # All-history LFS so blob resolution reads real content at every commit, not just HEAD.
-                    fetch_lfs_history(target, cancel_event=cancel)
-                bundle = build_timeline_bundle(
-                    str(target),
-                    use_cache=use_cache,
-                    extra_exclude_paths=excludes,
-                    on_progress=_on_progress,
-                )
-                holder["bundle"] = bundle
-                # Serialising the bundle and putting it on the wire is its own
-                # wait on a big history, and the client is blind to it: the row
-                # would otherwise sit on the last computed step throughout.
-                assemble_tick(_on_progress, ASSEMBLE_STEPS)
-                _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
-            except ScanCancelledError:
-                pass  # client disconnected mid-hydrate; nothing to report
-            except NotAGitRepoError as e:
-                _put(_sse_error(str(e)))
-            except Exception as e:  # noqa: BLE001
-                logger.exception("timeline build failed for src=%s", src)
-                _put(_sse_error(f"timeline failed: {e}"))
-            finally:
-                _put(None)  # sentinel
-
-        worker = threading.Thread(target=_run, daemon=True)
-        worker.start()
-
-        disconnected = False
         try:
-            while True:
-                if await request.is_disconnected():
-                    disconnected = True
-                    cancel.set()  # kill an in-flight hydrate fetch
-                    break
-                try:
-                    item = await asyncio.wait_for(q.get(), timeout=0.5)
-                except asyncio.TimeoutError:
-                    continue
-                if item is None:
-                    break
-                yield item
+            try:
+                target = resolve_source(src, branch)
+            except ResolveError as e:
+                _put(_sse_error(e.message, e.code))
+                return
+            built["path"] = target
+            head = resolve_ref(target, "HEAD")
+            built["head"] = head
+            if use_cache and head is not None:
+                cached = cache_load_timeline(target.resolve(), head, excludes)
+                if cached is not None:
+                    _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
+                    return
+            # A blobless remote clone has no historical blob content — backfill it
+            # before the walk so blob resolution reads local objects rather than
+            # hanging on a per-blob promisor fetch. Never touches a local repo.
+            if is_remote:
+                hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
+                # All-history, so blob resolution reads real content at every
+                # commit rather than only at HEAD.
+                fetch_lfs_history(target, cancel_event=cancel)
+            bundle = build_timeline_bundle(
+                str(target),
+                use_cache=use_cache,
+                extra_exclude_paths=excludes,
+                on_progress=_on_progress,
+            )
+            built["bundle"] = bundle
+            # Serialising a big bundle is its own wait and the client is blind to
+            # it: the row would otherwise sit on the last computed step throughout.
+            assemble_tick(_on_progress, ASSEMBLE_STEPS)
+            _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
+        except ScanCancelledError:
+            pass  # client disconnected mid-hydrate; nothing to report
+        except NotAGitRepoError as e:
+            _put(_sse_error(str(e)))
+        except Exception as e:  # noqa: BLE001
+            logger.exception("timeline build failed for src=%s", src)
+            _put(_sse_error(f"timeline failed: {e}"))
         finally:
-            cancel.set()
-            await asyncio.to_thread(worker.join, 2.0)
+            _put(None)  # sentinel
 
-        # ALWAYS write cache on a clean final (read gated by no_cache; write is
-        # not). Skipped on disconnect, and on error (where bundle stays None).
-        bundle = holder["bundle"]
-        path = holder["path"]
-        head = holder["head"]
-        if (
-            bundle is not None
-            and not disconnected
-            and path is not None
-            and head is not None
-        ):
+    async def save() -> None:
+        """Write-through on a clean finish; the read is gated by no_cache, the
+        write never is. Nothing to save when the build errored."""
+        bundle, path, head = built["bundle"], built["path"], built["head"]
+        if bundle is not None and path is not None and head is not None:
             await asyncio.to_thread(
                 cache_save_timeline, path.resolve(), head, bundle, excludes
             )
 
-    return EventSourceResponse(gen())
+    return EventSourceResponse(stream(request, work, on_complete=save))
 
 
 def _as_json(obj: object) -> Any:
@@ -399,48 +366,42 @@ async def manifest(
                 yield _sse_error(e.message, e.code)
                 return
 
-        cancel = threading.Event()
-        loop = asyncio.get_running_loop()
-        q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
-        holder: dict[str, Any] = {"manifest": None, "sig": None, "path": None}
+        built: dict[str, Any] = {"manifest": None, "sig": None, "path": None}
 
-        def _put(item: dict[str, Any] | None) -> None:
-            loop.call_soon_threadsafe(q.put_nowait, item)
-
-        def _on_clone(p: CloneProgress) -> None:
-            _put(
-                _sse(
-                    ScanEvent.CLONE_PROGRESS,
-                    {
-                        "label": pending_label,
-                        "stage": p.stage,
-                        "percent": p.percent,
-                        "objects": p.objects,
-                        "objects_total": p.objects_total,
-                        "mib": p.mib,
-                    },
+        def work(_put: Put, cancel: threading.Event) -> None:
+            def _on_clone(p: CloneProgress) -> None:
+                _put(
+                    _sse(
+                        ScanEvent.CLONE_PROGRESS,
+                        {
+                            "label": pending_label,
+                            "stage": p.stage,
+                            "percent": p.percent,
+                            "objects": p.objects,
+                            "objects_total": p.objects_total,
+                            "mib": p.mib,
+                        },
+                    )
                 )
-            )
 
-        def _on_clone_heartbeat(mb_on_disk: int | None) -> None:
-            # Silent promisor-fetch phase: no stage/percent, just the working
-            # tree growing on disk, so the UI shows activity instead of freezing.
-            _put(
-                _sse(
-                    ScanEvent.CLONE_PROGRESS,
-                    {"label": pending_label, "mb_on_disk": mb_on_disk},
+            def _on_clone_heartbeat(mb_on_disk: int | None) -> None:
+                # Silent promisor-fetch phase: no stage/percent, just the working
+                # tree growing on disk, so the UI shows activity not a freeze.
+                _put(
+                    _sse(
+                        ScanEvent.CLONE_PROGRESS,
+                        {"label": pending_label, "mb_on_disk": mb_on_disk},
+                    )
                 )
-            )
 
-        def _on_scan(files_scanned: int) -> None:
-            _put(
-                _sse(
-                    ScanEvent.SCAN_PROGRESS,
-                    {"label": pending_label, "files_scanned": files_scanned},
+            def _on_scan(files_scanned: int) -> None:
+                _put(
+                    _sse(
+                        ScanEvent.SCAN_PROGRESS,
+                        {"label": pending_label, "files_scanned": files_scanned},
+                    )
                 )
-            )
 
-        def _run() -> None:
             try:
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
@@ -467,7 +428,7 @@ async def manifest(
                     assert local_path is not None
                     path = local_path
 
-                holder["path"] = path
+                built["path"] = path
                 TRUST.register(path)
 
                 # A no_cache scan means "rebuild everything for this source" —
@@ -514,7 +475,7 @@ async def manifest(
                     sig = signature_tree(
                         str(path), use_cache=use_cache, extra_exclude_paths=excludes
                     ).content_signature
-                    holder["sig"] = sig
+                    built["sig"] = sig
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
                         _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
@@ -529,8 +490,8 @@ async def manifest(
                     extra_exclude_paths=excludes,
                 ):
                     if ev.phase is ScanEvent.MANIFEST_COMPLETE:
-                        holder["manifest"] = ev.manifest
-                        holder["sig"] = ev.manifest.content_signature
+                        built["manifest"] = ev.manifest
+                        built["sig"] = ev.manifest.content_signature
                     _put(_sse(ev.phase, {"manifest": ev.manifest}))
             except ScanCancelledError:
                 pass  # client disconnected mid-clone/scan; nothing to report
@@ -540,37 +501,14 @@ async def manifest(
             finally:
                 _put(None)  # sentinel
 
-        worker = threading.Thread(target=_run, daemon=True)
-        worker.start()
+        async def save() -> None:
+            """Write-through on a clean finish; the read is gated by no_cache,
+            the write never is. Nothing to save when the scan errored."""
+            final, sig, path = built["manifest"], built["sig"], built["path"]
+            if final is not None and sig is not None and path is not None:
+                await asyncio.to_thread(cache_save_manifest, path.resolve(), sig, final)
 
-        disconnected = False
-        try:
-            while True:
-                if await request.is_disconnected():
-                    disconnected = True
-                    break
-                try:
-                    item = await asyncio.wait_for(q.get(), timeout=0.5)
-                except asyncio.TimeoutError:
-                    continue
-                if item is None:
-                    break
-                yield item
-        finally:
-            cancel.set()
-            await asyncio.to_thread(worker.join, 2.0)
-
-        # ALWAYS write cache on a clean final (read gated by no_cache; write is
-        # not). Skipped on disconnect, and on error (where manifest stays None).
-        final = holder["manifest"]
-        sig = holder["sig"]
-        path = holder["path"]
-        if (
-            final is not None
-            and not disconnected
-            and sig is not None
-            and path is not None
-        ):
-            await asyncio.to_thread(cache_save_manifest, path.resolve(), sig, final)
+        async for item in stream(request, work, on_complete=save):
+            yield item
 
     return EventSourceResponse(gen())

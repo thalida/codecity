@@ -1,0 +1,77 @@
+"""Running a blocking scan on a worker thread and streaming what it emits.
+
+The scan and timeline builds are synchronous and long. Both need the same
+scaffolding: a thread to run the work, a queue to carry events back to the
+event loop, a watch on the client so a disconnect cancels the work rather than
+letting it run on as an orphan, and a chance to persist the result afterwards
+only if the client actually received it.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import threading
+from typing import Any, AsyncIterator, Awaitable, Callable
+
+from fastapi import Request
+
+# How long to wait on the queue before re-checking whether the client is gone.
+# Bounds how long a disconnect goes unnoticed; the work itself is unaffected.
+_DISCONNECT_POLL_S = 0.5
+# How long to wait for the worker to notice `cancel` and unwind before giving
+# up on it. It is a daemon thread, so a straggler cannot hold the process open.
+_WORKER_JOIN_S = 2.0
+
+Put = Callable[[dict[str, Any] | None], None]
+Work = Callable[[Put, threading.Event], None]
+
+
+async def stream(
+    request: Request,
+    work: Work,
+    *,
+    on_complete: Callable[[], Awaitable[None]] | None = None,
+) -> AsyncIterator[dict[str, Any]]:
+    """Yield the events `work` produces, until it finishes or the client leaves.
+
+    `work` runs on a worker thread and is handed two things: `put`, to emit an
+    event (call it with None when there is nothing left to send), and a
+    `threading.Event` it should poll to notice cancellation.
+
+    `on_complete` runs only when the stream ended because the work finished and
+    the client was still there — which is what makes it the right place to write
+    a cache. On a disconnect the result is half-delivered at best, and on an
+    error there is no result at all.
+    """
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+    cancel = threading.Event()
+
+    def put(item: dict[str, Any] | None) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, item)
+
+    worker = threading.Thread(target=work, args=(put, cancel), daemon=True)
+    worker.start()
+
+    disconnected = False
+    try:
+        while True:
+            if await request.is_disconnected():
+                # Set immediately, not in the finally: an in-flight git fetch
+                # should stop now rather than after the join is already waiting.
+                disconnected = True
+                cancel.set()
+                break
+            try:
+                item = await asyncio.wait_for(queue.get(), _DISCONNECT_POLL_S)
+            except asyncio.TimeoutError:
+                continue
+            if item is None:
+                break
+            yield item
+    finally:
+        cancel.set()
+        await asyncio.to_thread(worker.join, _WORKER_JOIN_S)
+
+    if not disconnected and on_complete is not None:
+        await on_complete()
