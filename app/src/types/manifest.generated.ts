@@ -174,6 +174,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/manifest/cached': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Cached Manifest
+     * @description The newest manifest already on disk for this source, or 404. Never
+     *     scans, never clones, never resolves a ref over the network.
+     *
+     *     Backs the landing backdrop, which wants a city to show rather than a
+     *     current one. Everything else wants the truth and goes to /api/manifest.
+     */
+    get: operations['cached_manifest_api_manifest_cached_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/timeline': {
     parameters: {
       query?: never;
@@ -1082,6 +1106,45 @@ export interface operations {
         content: {
           'application/json': components['schemas']['SignatureResponse'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  cached_manifest_api_manifest_cached_get: {
+    parameters: {
+      query: {
+        src: string;
+        branch?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Manifest'];
+        };
+      };
+      /** @description Nothing cached for this source. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {
