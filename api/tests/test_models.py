@@ -167,7 +167,7 @@ class ResponseModelTests(unittest.TestCase):
     def test_error_response(self) -> None:
         from api.models.responses import ErrorResponse
 
-        from api.models.events import ErrorCode
+        from api.core.constants import ErrorCode
 
         # Absent-or-value, like the stream's error event: no null to special-case.
         self.assertEqual(
@@ -202,7 +202,8 @@ class ResponseModelTests(unittest.TestCase):
         )
 
     def test_sse_event_serialization(self) -> None:
-        from api.models.events import ErrorCode, ScanProgressEvent, ErrorEvent
+        from api.core.constants import ErrorCode
+        from api.models.events import ErrorEvent, ScanProgressEvent
 
         self.assertEqual(
             ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
@@ -226,7 +227,7 @@ class ResponseModelTests(unittest.TestCase):
         # null reaching the client is a crash there, not a missing value.
         import json
 
-        from api.models.events import ScanEvent
+        from api.core.constants import ScanEvent
         from api.routers.manifest import _sse
 
         event = _sse(

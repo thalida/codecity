@@ -13,7 +13,7 @@ from typing import Callable, NamedTuple
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
 from api.git.objects import blob_sizes_batch, blob_stats_batch, git_argv
 from api.media import media_kind
-from api.models.events import TimelineStage
+from api.core.constants import TimelineStage
 from api.models.manifest import (
     CommitEntry,
     DateRangeMs,

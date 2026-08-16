@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from api.models.events import ErrorCode
+from api.core.constants import ErrorCode
 
 
 class ErrorResponse(BaseModel):

@@ -15,7 +15,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Iterator, NamedTuple
 
-from api.models.events import ScanEvent
+from api.core.constants import ScanEvent
 from api.git import objects as gitobj
 from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
 from api.scan.filemeta import (

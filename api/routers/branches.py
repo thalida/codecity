@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from api.models.events import CodedHTTPException, ErrorCode
+from api.core.constants import ErrorCode
+from api.models.events import CodedHTTPException
 from api.models.responses import BranchListResponse
 from api.git import (
     CloneError,

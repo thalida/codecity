@@ -790,6 +790,13 @@ def _fresh_clone(
     return target
 
 
+# Serializes clone-or-update so two concurrent manifest requests for the same
+# URL don't race the working tree. Held inside ensure_clone rather than by its
+# callers: every one of them wanted it, and a caller that forgot would corrupt
+# a clone rather than fail visibly.
+_CLONE_LOCK = threading.Lock()
+
+
 def ensure_clone(
     url: str,
     branch: str | None = None,
@@ -801,6 +808,9 @@ def ensure_clone(
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
 
+    Serialized process-wide: concurrent calls for the same URL queue rather
+    than racing the same working tree.
+
     ``on_progress`` receives the CloneProgress parsed from git's
     ``--progress`` stderr, throttled to ~250ms.
 
@@ -811,6 +821,25 @@ def ensure_clone(
     Raises BranchNotFoundError, RepoNotFoundError, HostUnreachableError, or
     CloneError.
     """
+    with _CLONE_LOCK:
+        return _clone_or_update(
+            url,
+            branch,
+            on_progress=on_progress,
+            on_heartbeat=on_heartbeat,
+            cancel_event=cancel_event,
+        )
+
+
+def _clone_or_update(
+    url: str,
+    branch: str | None,
+    *,
+    on_progress: Callable[[CloneProgress], None] | None,
+    on_heartbeat: Callable[[int | None], None] | None,
+    cancel_event: "threading.Event | None",
+) -> Path:
+    """ensure_clone's body, minus the lock — see it for the contract."""
     target = clone_dir_for(url, branch)
     if target.exists():
         try:

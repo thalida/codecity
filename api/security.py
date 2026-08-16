@@ -30,9 +30,6 @@ class TrustStore:
     def __init__(self) -> None:
         self._roots: set[Path] = set()
         self._lock = threading.Lock()
-        # Serializes clone-or-update so two concurrent manifest requests for
-        # the same URL don't race the working tree.
-        self.clone_lock = threading.Lock()
 
     def reset(self) -> None:
         """Fresh trust set (per-process start; tests call between cases)."""

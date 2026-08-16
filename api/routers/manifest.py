@@ -20,17 +20,14 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from api.core.constants import ErrorCode, ScanEvent, TimelineEvent, TimelineStage
 from api.models.events import (
     CloneProgressEvent,
     CompleteManifestEvent,
-    ErrorCode,
     ErrorEvent,
     PartialManifestEvent,
-    ScanEvent,
     ScanProgressEvent,
     TimelineCompleteEvent,
-    TimelineEvent,
-    TimelineStage,
     TimelineProgressEvent,
 )
 from api.models.manifest import Manifest, SignatureResponse
@@ -450,14 +447,13 @@ async def manifest(
                 if kind is SourceKind.REMOTE:
                     _put(_sse(ScanEvent.CLONE_PROGRESS, {"label": pending_label}))
                     try:
-                        with TRUST.clone_lock:
-                            path = ensure_clone(
-                                src,
-                                branch,
-                                on_progress=_on_clone,
-                                on_heartbeat=_on_clone_heartbeat,
-                                cancel_event=cancel,
-                            )
+                        path = ensure_clone(
+                            src,
+                            branch,
+                            on_progress=_on_clone,
+                            on_heartbeat=_on_clone_heartbeat,
+                            cancel_event=cancel,
+                        )
                     except RepoNotFoundError as e:
                         _put(_sse_error(str(e), ErrorCode.REPO_NOT_FOUND))
                         return

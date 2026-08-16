@@ -17,8 +17,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from api.config import local_repos_allowed
-from api.models.events import ErrorCode
-from api.security import TRUST
+from api.core.constants import ErrorCode
 from api.git.clone import (
     BranchNotFoundError,
     CloneError,
@@ -196,8 +195,7 @@ def resolve_source(src: str, branch: str | None) -> Path:
         raise ResolveError(400, "unrecognized source: pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
         try:
-            with TRUST.clone_lock:
-                return ensure_clone(src, branch)
+            return ensure_clone(src, branch)
         except RepoNotFoundError as e:
             raise ResolveError(400, str(e), ErrorCode.REPO_NOT_FOUND)
         except (BranchNotFoundError, HostUnreachableError) as e:

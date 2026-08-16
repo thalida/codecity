@@ -1,34 +1,19 @@
-"""SSE event payloads for /api/manifest. Each is the `data:` body of a named
-SSE event. Event names describe what the event delivers (not its position in
-the sequence): clone-progress / scan-progress / manifest-partial /
-manifest-complete / error. These models also document the stream in OpenAPI as
-schema components."""
+"""SSE event payloads for /api/manifest and /api/timeline. Each is the `data:`
+body of a named SSE event, and each documents the stream in OpenAPI as a schema
+component.
+
+The event NAMES and error codes are not here — they are wire vocabulary the
+scanner and git layers also speak, so they live in api/core/constants.py."""
 
 from __future__ import annotations
-
-from enum import StrEnum
 
 from fastapi import HTTPException
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, WithJsonSchema
 
+from api.core.constants import ErrorCode, TimelineStage
 from api.models.manifest import Manifest, OptionalInt, OptionalStr, TimelineBundle
-
-
-class ScanEvent(StrEnum):
-    """SSE event names for the /api/manifest stream — the wire contract the
-    frontend matches verbatim. Values are the exact event strings; members are
-    used everywhere instead of literals. The two MANIFEST_* members double as
-    scan_tree's emission `phase` (the router forwards the phase as the event
-    name)."""
-
-    CLONE_PROGRESS = "clone-progress"
-    SCAN_PROGRESS = "scan-progress"
-    MANIFEST_PARTIAL = "manifest-partial"
-    MANIFEST_COMPLETE = "manifest-complete"
-    ERROR = "error"
-
 
 # These progress fields are absent-or-value, never null on the wire — same
 # optional-but-non-nullable treatment as the manifest's optional fields.
@@ -86,14 +71,6 @@ class CompleteManifestEvent(BaseModel):
     manifest: Manifest
 
 
-class ErrorCode(StrEnum):
-    """Machine-readable discriminator on an `error` event. The client keys its
-    remedy on this, never on the message text. Only failures the UI answers
-    differently earn a member; everything else stays message-only."""
-
-    REPO_NOT_FOUND = "repo-not-found"
-
-
 _ERROR_CODES = [c.value for c in ErrorCode]
 _OptionalErrorCode = Annotated[
     Optional[ErrorCode],
@@ -107,26 +84,6 @@ class ErrorEvent(BaseModel):
 
     error: str
     code: _OptionalErrorCode = None
-
-
-class TimelineEvent(StrEnum):
-    """SSE event names for the /api/timeline stream — the wire contract the
-    frontend matches verbatim."""
-
-    PROGRESS = "timeline-progress"
-    COMPLETE = "timeline-complete"
-    ERROR = "error"
-
-
-class TimelineStage(StrEnum):
-    """Which part of the timeline build a progress tick is reporting — the wire
-    contract the frontend matches verbatim. Members are used everywhere instead
-    of literals, like ScanEvent's."""
-
-    FETCH = "fetch"
-    HISTORY = "history"
-    BLOBS = "blobs"
-    ASSEMBLE = "assemble"
 
 
 # Inline in the schema rather than a $ref'd component, matching _CLONE_STAGES:

@@ -480,9 +480,10 @@ export interface components {
     };
     /**
      * ErrorCode
-     * @description Machine-readable discriminator on an `error` event. The client keys its
-     *     remedy on this, never on the message text. Only failures the UI answers
-     *     differently earn a member; everything else stays message-only.
+     * @description Machine-readable discriminator on an `error` event or error response.
+     *     The client keys its remedy on this, never on the message text. Only
+     *     failures the UI answers differently earn a member; everything else stays
+     *     message-only.
      * @enum {string}
      */
     ErrorCode: 'repo-not-found';
@@ -835,9 +836,7 @@ export interface components {
     };
     /**
      * TimelineStage
-     * @description Which part of the timeline build a progress tick is reporting — the wire
-     *     contract the frontend matches verbatim. Members are used everywhere instead
-     *     of literals, like ScanEvent's.
+     * @description Which part of the timeline build a progress tick is reporting.
      * @enum {string}
      */
     TimelineStage: 'fetch' | 'history' | 'blobs' | 'assemble';
