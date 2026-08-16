@@ -122,14 +122,14 @@ network (`just dev` then fails with "network ... not found"; recover with
   truth for both — `router/` owns it, and `?src`, `?mode`, `?commit` and `?sel`
   all survive Back and Forward.
   - `src/city/` — the 3D city, a signals-driven mini-app (`state/ components/
-    render/ types/ utils/ constants/`). Layout runs in a worker under
+render/ types/ utils/ constants/`). Layout runs in a worker under
     `src/city/layout/` (snapshot-tested — keep output bit-identical).
   - `src/state/` — `stores/` is seven stores, each named for the question it
     answers (which repo, its tree, where in history, how far along the load is,
     what the chrome shows, what the server said, what device). `settings/` is
     its own subsystem: `schema drafts reactions indicators` over `fields/`.
   - `src/components/` — grouped by what a component is: `app buttons fields
-    loading menus nodes panes settings sources timeline`. A component used by
+loading menus nodes panes settings sources timeline`. A component used by
     exactly one thing lives beside that thing instead.
 - `just hero-image` — recaptures the landing's fallback wallpaper from the
   showcase pose, so the still and the live backdrop stay the same city.
