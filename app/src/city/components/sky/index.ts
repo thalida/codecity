@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 
 import { SCENE } from '@/state/settings/fields/scene';
-import { CAMERA_FAR } from '@/constants/camera';
+import { CAMERA_FAR } from '@/city/constants/camera';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 

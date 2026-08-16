@@ -1,6 +1,10 @@
-// constants/keyboard.ts — KeyboardEvent.key values that act as app-level
-// shortcuts. Centralized so the input handler and the shortcuts panel that
-// documents it can't drift apart.
+// constants/keyboard.ts — the KeyboardEvent.key values that act as app-level
+// shortcuts, and where they must not fire. Centralized so the input handler and
+// the shortcuts panel documenting it cannot drift apart.
+
+/** Tags whose focus suppresses every shortcut below, so typing an "r" into a
+ *  field does not reset the camera. Matches the uppercase Element.tagName. */
+export const TEXT_INPUT_TAGS: readonly string[] = ['INPUT', 'TEXTAREA'];
 
 /**
  * One shortcut binding: a primary key + optional aliases (e.g. lowercase

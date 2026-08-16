@@ -15,7 +15,7 @@ import {
   LIGHTING_SUN_ELEVATION_DEG,
   LIGHTING_AMBIENT,
   LIGHTING_SUN_CONTRAST,
-} from '@/constants/lighting';
+} from '@/city/constants/lighting';
 
 // Shader-side facade keys ride uniforms; the JS-side ones bake into per-instance
 // attributes, which is why changing them routes to a full rebuild.

@@ -5,7 +5,7 @@
 
 import { signal, effect, type Signal } from '@preact/signals';
 
-import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/constants/urlParams';
+import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
 import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
 import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';

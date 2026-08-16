@@ -1,4 +1,4 @@
-// constants/streets.ts — street internals that were never exposed as Settings,
+// city/constants/streets.ts — street internals that were never exposed as Settings,
 // so they live here rather than in the STREETS store.
 
 export const ASPHALT_WIDTH_FRAC = 0.6;

@@ -18,7 +18,7 @@ import {
   CAMERA_INITIAL_DISTANCE_MULT,
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
-} from '@/constants/camera';
+} from '@/city/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';

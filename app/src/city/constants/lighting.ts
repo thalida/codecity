@@ -1,4 +1,4 @@
-// constants/lighting.ts — the scene's sun, fixed in code rather than a store:
+// city/constants/lighting.ts — the scene's sun, fixed in code rather than a store:
 // no Settings control was ever exposed for it.
 
 /** Compass bearing: 0° is +Z, increasing clockwise. */
