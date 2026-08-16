@@ -1,14 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CURRENT_SOURCE, EXCLUDES, ACTIVE_EXCLUDES, addExclude, removeExclude, clearExcludes, activeExcludePathsFor } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
-import {
-  EXCLUDES,
-  ACTIVE_EXCLUDES,
-  addExclude,
-  removeExclude,
-  clearExcludes,
-  activeExcludePathsFor,
-} from '@/state/stores/excludes';
 
 beforeEach(() => {
   EXCLUDES.value = {};

@@ -22,8 +22,7 @@ import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/modals';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { DISCOVER } from '@/state/stores/discover';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
 import type { DirNode, Manifest } from '@/types';
 

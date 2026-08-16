@@ -1,9 +1,13 @@
-// state/stores/source.ts — which source is loaded: its key, its display info,
-// and the recently-opened list. The pure identity helpers live in utils/sources;
-// this owns the signals built on them. Persistence is keyed BY
-// CURRENT_SOURCE_KEY rather than rehydrating it — the source is session state.
+// state/stores/source.ts — which repo: the one you opened, the ones you opened
+// before, the folders you hid inside it, and the one merely showing behind the
+// landing (ACTIVE_SOURCE is computed from the last two).
+//
+// The excludes are here, not in settings/, because they are keyed per repo and
+// useManifestSource sends them in the manifest URL beside src and branch. Every
+// settings store is a knob declared with settingSignal (a kind, a default, a
+// label); a per-repo path list has none of those to declare.
 
-import { signal, computed, effect } from '@preact/signals';
+import { signal, computed, effect, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
@@ -19,7 +23,6 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest, SourceError } from '@/types';
 
@@ -165,4 +168,85 @@ export function commitSource(src: string, branch: string | undefined, manifest: 
 /** Drop the entry matching the given source identity. No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
   RECENTS.value = RECENTS.value.filter((r) => !sameSourceIdentity(r, { src, branch }));
+}
+
+// ── The city behind the landing ───────────────────────────────────────
+
+/** Which repo the backdrop came from. */
+export enum BackdropKind {
+  /** The most recent project, from whatever the server had cached for it. */
+  Recent = 'recent',
+  /** The server's featured repo. */
+  Featured = 'featured',
+}
+
+export interface BackdropCity {
+  src: string;
+  label: string;
+  /** The loaded branch, normalised like CURRENT_SOURCE's: identity includes it,
+   *  so a row storing @main only matches when this carries it too. */
+  branch?: string;
+  kind: BackdropKind;
+}
+
+/** Written only once the backdrop has actually painted, so nothing names a repo
+ *  you can't see. Null means the hero image is what's showing. */
+export const BACKDROP_CITY = signal<BackdropCity | null>(null);
+
+// ── Folders you have hidden, per repo ─────────────────────────────────
+
+/** repo key -> sorted, de-duped rel-paths. One localStorage slot for all repos.
+ *  Whole-object persistence: keys are runtime repo hashes, not in the default,
+ *  so diff-vs-default mode would drop every write. */
+export const EXCLUDES = persistedSignal<Record<string, string[]>>(
+  PERSISTED_KEYS.EXCLUDES,
+  {},
+  { whole: true }
+);
+
+/** Repo-scoped key: src only (branch ignored) so excludes hold across branches. */
+function repoKeyFor(src: string): string {
+  return sourceKey(src);
+}
+
+function currentRepoKey(): string | null {
+  const cur = CURRENT_SOURCE.value;
+  return cur ? repoKeyFor(cur.src) : null;
+}
+
+/** The loaded repo's exclude list (empty when no source / none set). Reactive. */
+export const ACTIVE_EXCLUDES: ReadonlySignal<string[]> = computed(() => {
+  const key = currentRepoKey();
+  return key ? (EXCLUDES.value[key] ?? []) : [];
+});
+
+/** Peek the excludes for an explicit src — for the imperative fetch layer. */
+export function activeExcludePathsFor(src: string): string[] {
+  return EXCLUDES.peek()[repoKeyFor(src)] ?? [];
+}
+
+function setForCurrentRepo(next: string[]): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return; // no source loaded: nothing to key against
+  const key = repoKeyFor(cur.src);
+  const sorted = [...new Set(next)].sort();
+  const map = { ...EXCLUDES.peek() };
+  if (sorted.length === 0) delete map[key];
+  else map[key] = sorted;
+  EXCLUDES.value = map;
+}
+
+/** Hide `path` from the current repo's city. Sorted + de-duped. No-op if none. */
+export function addExclude(path: string): void {
+  setForCurrentRepo([...(EXCLUDES.peek()[currentRepoKey() ?? ''] ?? []), path]);
+}
+
+/** Restore `path` (remove from the current repo's excludes). */
+export function removeExclude(path: string): void {
+  setForCurrentRepo((EXCLUDES.peek()[currentRepoKey() ?? ''] ?? []).filter((p) => p !== path));
+}
+
+/** Restore everything for the current repo. */
+export function clearExcludes(): void {
+  setForCurrentRepo([]);
 }

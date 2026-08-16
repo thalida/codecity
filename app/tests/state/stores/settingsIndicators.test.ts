@@ -3,8 +3,7 @@ import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/stores/settings/theme';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { EXCLUDES, addExclude, clearExcludes } from '@/state/stores/excludes';
+import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settingsSchema';
 

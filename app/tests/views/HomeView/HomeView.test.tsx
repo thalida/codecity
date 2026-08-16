@@ -20,16 +20,14 @@ vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
 }));
 import { HomeView } from '@/views/HomeView/HomeView';
 import { setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
-import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
+import { BACKDROP_CITY, BackdropKind, RECENTS, CURRENT_SOURCE, SOURCE_ERROR } from '@/state/stores/source';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { RECENTS, CURRENT_SOURCE, SOURCE_ERROR } from '@/state/stores/source';
-import { DISCOVER } from '@/state/stores/discover';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../../_helpers/preact';

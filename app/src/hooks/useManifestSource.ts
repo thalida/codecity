@@ -16,14 +16,12 @@ import {
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE } from '@/state/stores/source';
-import { DISCOVER } from '@/state/stores/discover';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE, activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/source';
+import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { markError, markRebuilding } from '@/state/stores/build';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import {
   srcKind,
   SourceKind,

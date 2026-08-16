@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { flush } from '../../../_helpers/preact';
 
 describe('CityFooter', () => {

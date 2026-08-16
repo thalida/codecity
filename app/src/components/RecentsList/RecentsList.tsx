@@ -10,7 +10,7 @@
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
 import { RECENTS, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import type { SourcePayload } from '@/types/ui';
 import { RecentRow } from './RecentRow';

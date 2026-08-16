@@ -10,9 +10,8 @@ import {
   attachRouteLoad,
 } from '@/hooks/useManifestSource';
 import { readUrlView } from '@/router/viewParams';
-import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
+import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS, EXCLUDES, addExclude } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';

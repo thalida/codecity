@@ -11,8 +11,7 @@ import { Field } from '@/components/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
-import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
+import { CURRENT_SOURCE_IS_LOCAL, ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/source';
 import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
 
 const PANEL_LABEL = 'Scan and freshness';

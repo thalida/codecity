@@ -5,7 +5,7 @@
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource } from '@/state/stores/source';
+import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource, activeExcludePathsFor } from '@/state/stores/source';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/scene';
 import { beginBuild, enterBuildStage, setBuildStagePercent, markError, markRebuilding, setRebuildDetail } from '@/state/stores/build';
 import { BuildStage, PACK_STAGES } from '@/constants/buildStages';
@@ -40,7 +40,6 @@ import {
   setTimelineRefreshHandler,
   setTimelineBootHandler,
 } from '@/hooks/useManifestSource';
-import { activeExcludePathsFor } from '@/state/stores/excludes';
 import { TimelineStage } from '@/types';
 import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 

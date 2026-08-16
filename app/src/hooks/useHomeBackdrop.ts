@@ -9,11 +9,10 @@
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
-import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
+import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';

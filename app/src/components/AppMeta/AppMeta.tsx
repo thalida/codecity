@@ -12,7 +12,7 @@
 // see styles/text.css) because nothing around it signals a link.
 
 import './AppMeta.css';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { REPO_URL, CREATOR_URL } from '@/constants/ui';
 
 /** The running build's version, as reported by the server. */

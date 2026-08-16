@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { signal } from '@preact/signals';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
-import { EXCLUDES, addExclude } from '@/state/stores/excludes';
+import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL, BUILD_PROGRESS } from '@/state/stores/build';

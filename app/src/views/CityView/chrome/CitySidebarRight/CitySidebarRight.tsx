@@ -20,11 +20,10 @@ import {
   TIMELINE_MODE,
   scrubbedDirFor,
 } from '@/state/stores/timeline';
-import { SOURCE_INFO } from '@/state/stores/source';
+import { SOURCE_INFO, addExclude } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
-import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
