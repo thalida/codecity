@@ -128,6 +128,12 @@ lint-api:
 comment-check *paths='api bin scripts':
     uv run python bin/check-comments.py {{paths}}
 
+# manifest.contract.ts guards manifest.ts against the generated types; this
+# guards the generated types against the models they come from. Runs on the
+# host, not in a container: it needs uv and npx together.
+check-types-fresh:
+    uv run python bin/check-generated-types.py
+
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
 # Prettier needs its own service: the app-scoped vitest one can't see the
