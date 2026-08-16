@@ -122,6 +122,12 @@ lint-api:
     docker compose -f docker-compose.test.yml run --rm ruff
     docker compose -f docker-compose.test.yml run --rm pyright
 
+# The `#` half of the comment cap eslint enforces on app/. Not in `lint-api`
+# yet: api/ carries 110 blocks written before the rule, and cutting each to its
+# one non-obvious why is its own job. Runs on demand until that is done.
+comment-check *paths='api bin scripts':
+    uv run python bin/check-comments.py {{paths}}
+
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
 # Prettier needs its own service: the app-scoped vitest one can't see the

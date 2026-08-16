@@ -57,9 +57,8 @@ class FileEntry(TypedDict):
     lines: int
     binary: bool
     ext: str
-    # Optional — populated only for recognized media files. Either both
-    # or neither is present; layout treats absence as "no signal" and
-    # falls back to a square aspect.
+    # Both or neither: layout reads absence as "no signal" and falls back to a
+    # square aspect, so half a pair would silently distort a building.
     media_width: NotRequired[int]
     media_height: NotRequired[int]
     # Optional — friendly magic-byte type, present only for recognized
@@ -95,36 +94,12 @@ def blob_entry(stats: "BlobStats") -> BlobEntry:
     return entry
 
 
-# CACHE_ROOT is imported from config (the single source of truth). The subdir
-# helpers below derive manifests/files/git-history paths from it at call time,
-# so a test monkeypatching cache.CACHE_ROOT cascades through.
-
-# Cache-format versions: bump when the cached shape changes so stale blobs are
-# treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
-_FILE_CACHE_VERSION = 3  # v3: exact line counts (dropped the >5MB sampling estimate)
-_BLOB_STATS_CACHE_VERSION = 4  # v4: git-lfs pointers resolved to real content
-_GIT_HISTORY_CACHE_VERSION = 15  # v15: commit dates carry a time, not just a day
-_TIMELINE_CACHE_VERSION = 7  # v7: bundle ships commitDateRanges
-_MANIFEST_SCHEMA_VERSION = (
-    # v12: per-dir descendants_created_min / descendants_modified_max
-    # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
-    # v14: tree.name baked to the git remote's owner/repo at scan time
-    # v15: sbom.json added to ALWAYS_SKIP
-    # v16: FileNode.dirty + RepoStats.dirtyFileCount; dirty files use working-tree mtime
-    # v17: layout_signature field; dirty in per-file signature
-    # v18: Manifest/SignatureResponse field `signature` renamed `content_signature`
-    #   (field rename is a shape change; old blobs lack the new key)
-    # v19: FileNode.binaryType + RepoStats.binaryCount/maxBinaryBytesFile/
-    #   minBinaryBytesFile (binary files as a first-class "data" category)
-    # v20: exact line counts (was sampled >5MB) — values change, bump to rebuild
-    # v21: readmePath / readmeModified resolved server-side
-    # v22: AuthorStat.hue resolved server-side
-    # v23: Manifest.pending — which scan stages are still to come
-    # v24: commits sampled above 100k; RepoStats.commitCount is the true total
-    # v25: DirLeader.created/modified + RepoStats.oldestCreatedDir/newestCreatedDir
-    # v26: CommitLeader.date + RepoStats.oldestCommit/newestCommit
-    26
-)
+# Bump when a cached shape changes, so stale blobs miss and re-scan.
+_FILE_CACHE_VERSION = 3
+_BLOB_STATS_CACHE_VERSION = 4
+_GIT_HISTORY_CACHE_VERSION = 15
+_TIMELINE_CACHE_VERSION = 7
+_MANIFEST_SCHEMA_VERSION = 26
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
 _MANIFEST_CACHE_VERSION: str = (

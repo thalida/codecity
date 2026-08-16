@@ -63,9 +63,8 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:
-    # NB: the process-global TRUST set is intentionally NOT reset here — the
-    # factory must be side-effect-free on session auth state. A fresh process
-    # starts with an empty TRUST; tests isolate it via an autouse fixture.
+    # TRUST is deliberately NOT reset here: the factory must be side-effect-free
+    # on session auth state. Tests isolate it via an autouse fixture.
     app = FastAPI(
         title="CodeCity API",
         docs_url=None,  # disable Swagger UI

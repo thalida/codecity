@@ -1,8 +1,7 @@
 """How codecity invokes git against a repo on disk.
 
 Every read of a local repo goes through here, so the ``safe.directory`` bypass
-and the ``-C <root>`` targeting are decided once. Four call sites used to
-rebuild this prefix by hand, and one of them was in a router.
+and the ``-C <root>`` targeting are decided once.
 
 Talking to a REMOTE is a different job with different needs (credential
 prompts disabled, no ``-C``, streamed progress) and lives in clone.py.
