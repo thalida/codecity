@@ -6,7 +6,7 @@ import { render } from 'preact';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import * as branchesApi from '@/api/branches';
 import { ScanError } from '@/api/manifest';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { SCAN_PROGRESS } from '@/state/stores/progress';
 import { flush, drainAsync } from '../_helpers/preact';
 
 // Label-independent: the source field's label switches on allowLocalRepos.

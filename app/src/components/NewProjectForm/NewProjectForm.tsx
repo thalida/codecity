@@ -21,7 +21,7 @@ import {
 import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { SCAN_PROGRESS } from '@/state/stores/progress';
 
 // Named hosts and then the general case: "any git host" alone reads as a claim,
 // while three names and an "any" reads as a range.

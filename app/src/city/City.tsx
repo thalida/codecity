@@ -10,7 +10,7 @@ import { createCity } from '@/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
-import { markRebuilding, markError } from '@/state/stores/build';
+import { markRebuilding, markError } from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 import { EMPTY_MANIFEST } from '@/constants/manifest';

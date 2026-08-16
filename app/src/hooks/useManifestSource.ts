@@ -26,8 +26,12 @@ import {
 } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
-import { markError, markRebuilding } from '@/state/stores/build';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import {
+  markError,
+  markRebuilding,
+  SCAN_PROGRESS,
+  PENDING_SOURCE_LABEL,
+} from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import {
   srcKind,
@@ -42,7 +46,6 @@ import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

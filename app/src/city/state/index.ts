@@ -6,8 +6,8 @@ import { signal, computed, batch, type Signal, type ReadonlySignal } from '@prea
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { TREES } from '@/state/settings/fields/trees';
-import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/build';
-import { BuildStage } from '@/constants/buildStages';
+import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/progress';
+import { BuildStage } from '@/constants/progress';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';

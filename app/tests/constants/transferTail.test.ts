@@ -2,7 +2,7 @@
 // transfer, so what the row shows has to include the parts that do.
 
 import { describe, it, expect } from 'vitest';
-import { transferTail } from '@/constants/loadingSteps';
+import { transferTail } from '@/constants/progress';
 
 describe('transferTail', () => {
   it('shows the counts climbing under a percent that is not', () => {

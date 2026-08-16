@@ -13,7 +13,7 @@ import { attachViewUrlReactions } from '@/router/viewBinding';
 import { showPath, showCommit } from '@/city/sceneHandle';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/build';
+import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/progress';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import {
   TIMELINE_MODE,

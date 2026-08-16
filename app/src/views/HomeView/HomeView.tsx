@@ -9,14 +9,13 @@ import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'luci
 import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
-import { LOADING_OVERLAY } from '@/state/stores/loadingOverlay';
+import { LOADING_OVERLAY, SCAN_PROGRESS } from '@/state/stores/progress';
 import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { stepForPhase } from '@/constants/loadingSteps';
+import { stepForPhase } from '@/constants/progress';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/RecentsList/RecentsList';

@@ -6,7 +6,7 @@ import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
 import { drainAsync } from '../_helpers/preact';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 
 // The single owner of document.title, driven by MANIFEST alone. drainAsync()
 // settles useSignalEffect's deferred run; a single flush() is not enough.

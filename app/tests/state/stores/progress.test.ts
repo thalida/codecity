@@ -1,19 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { attachLoadingReactions } from '@/state/loadingReactions';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import {
+  attachOverlayDriver,
+  SCAN_PROGRESS,
+  REBUILD_STATUS,
+  RebuildStatus,
+  REBUILD_DETAIL,
+  BUILD_PROGRESS,
+  beginBuild,
+  enterBuildStage,
+  setBuildStagePercent,
+  markDecorating,
+  markIdle,
+  LOADING_OVERLAY,
+  PENDING_SOURCE_LABEL,
+} from '@/state/stores/progress';
 
-import { REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL, BUILD_PROGRESS, beginBuild, enterBuildStage, setBuildStagePercent, markDecorating, markIdle } from '@/state/stores/build';
-import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
-import { LoadingStep } from '@/constants/loadingSteps';
-import { BuildStage } from '@/constants/buildStages';
+import { LoadingStep, BuildStage } from '@/constants/progress';
 
 describe('loadingReactions', () => {
   let dispose: () => void;
   beforeEach(() => {
     REBUILD_STATUS.value = RebuildStatus.Idle;
-    dispose = attachLoadingReactions();
+    dispose = attachOverlayDriver();
   });
   afterEach(() => {
     dispose();

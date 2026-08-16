@@ -14,7 +14,7 @@ import {
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
   REBUILD_DETAIL,
-} from '@/state/stores/build';
+} from '@/state/stores/progress';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.

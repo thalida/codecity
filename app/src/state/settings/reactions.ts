@@ -12,7 +12,7 @@ import {
   markRebuilding,
   markIdle,
   markError,
-} from '@/state/stores/build';
+} from '@/state/stores/progress';
 import { routeSignature, ChangeRoute } from '@/state/settings/schema';
 import { isEmptyManifest } from '@/utils/manifest';
 

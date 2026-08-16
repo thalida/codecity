@@ -5,25 +5,37 @@
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource, activeExcludePathsFor } from '@/state/stores/source';
-import { SCENE_HANDLE, whenSceneHandle } from '@/city/sceneHandle';
-import { beginBuild, enterBuildStage, setBuildStagePercent, markError, markRebuilding, setRebuildDetail } from '@/state/stores/build';
-import { BuildStage, PACK_STAGES } from '@/constants/buildStages';
-import { nextPaint } from '@/city/utils/nextPaint';
 import {
+  CURRENT_SOURCE,
+  SOURCE_INFO,
+  RECENTS,
+  commitSource,
+  activeExcludePathsFor,
+} from '@/state/stores/source';
+import { SCENE_HANDLE, whenSceneHandle } from '@/city/sceneHandle';
+import {
+  beginBuild,
+  enterBuildStage,
+  setBuildStagePercent,
+  markError,
+  markRebuilding,
+  setRebuildDetail,
   showLoadingOverlay,
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
   setLoadingCancel,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/loadingOverlay';
+} from '@/state/stores/progress';
 import {
+  BuildStage,
+  PACK_STAGES,
   LoadingStep,
   TIMELINE_LOADING_STEPS,
   stepForTimelineStage,
   transferTail,
-} from '@/constants/loadingSteps';
+} from '@/constants/progress';
+import { nextPaint } from '@/city/utils/nextPaint';
 import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,

@@ -20,7 +20,7 @@ import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { LOADING_CANCEL } from '@/state/stores/loadingOverlay';
+import { LOADING_CANCEL } from '@/state/stores/progress';
 import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
 import {
   clearSelection,

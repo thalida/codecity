@@ -14,7 +14,7 @@ import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS, EXCLUDES, addExclude } from '@/s
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';

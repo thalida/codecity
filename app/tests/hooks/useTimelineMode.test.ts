@@ -11,13 +11,13 @@ import {
   RebuildStatus,
   REBUILD_DETAIL,
   BUILD_PROGRESS,
-} from '@/state/stores/build';
-import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/loadingOverlay';
-import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
-import { BuildStage } from '@/constants/buildStages';
+  LOADING_OVERLAY,
+  LOADING_CANCEL,
+  SCAN_PROGRESS,
+} from '@/state/stores/progress';
+import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';

@@ -13,8 +13,8 @@ import {
   LOADING_STEPS,
   LOADING_STEP_LABELS,
   stepRuns,
-} from '@/constants/loadingSteps';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/loadingOverlay';
+} from '@/constants/progress';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 
 export interface LoadingProgressProps {
   activeStep: LoadingStep;

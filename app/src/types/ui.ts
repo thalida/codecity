@@ -2,7 +2,7 @@
 // discriminants that pick between them.
 
 import type { SourceKind } from '@/utils/sources';
-import type { LoadingStep } from '@/constants/loadingSteps';
+import type { LoadingStep } from '@/constants/progress';
 import type { ScanErrorCode } from '@/api/manifest';
 
 /** Left-sidebar tab IDs. Discriminator on the activity bar's mounted pane. */
