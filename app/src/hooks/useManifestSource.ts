@@ -19,7 +19,8 @@ import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updat
 import { RECENTS, SOURCE_ERROR, commitSource, CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
+import { MANIFEST, setManifest } from '@/state/stores/manifest';
+import { markError, markRebuilding } from '@/state/stores/build';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';

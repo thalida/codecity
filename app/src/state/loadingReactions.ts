@@ -5,7 +5,7 @@
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { BUILD_PROGRESS, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { BUILD_PROGRESS, REBUILD_STATUS, RebuildStatus } from '@/state/stores/build';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,

@@ -14,7 +14,7 @@ import {
   scrubbedStatsFor,
   scrubbedDirFor,
 } from '@/state/stores/scrub';
-import { makeBundle, PRESENCE_BUNDLE } from '../_helpers/scrub';
+import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
 
 function paths(m: unknown): Set<string> {
   const out = new Set<string>();

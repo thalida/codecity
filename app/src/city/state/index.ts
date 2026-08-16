@@ -6,7 +6,7 @@ import { signal, computed, batch, type Signal, type ReadonlySignal } from '@prea
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
-import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/manifest';
+import { beginBuild, enterBuildStage, setBuildStagePercent } from '@/state/stores/build';
 import { BuildStage } from '@/constants/buildStages';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';

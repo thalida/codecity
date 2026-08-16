@@ -8,13 +8,7 @@ import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_REBUILD_ERROR,
-  LAST_UPDATED_AT,
-  REBUILD_DETAIL,
-} from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/state/stores/build';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.

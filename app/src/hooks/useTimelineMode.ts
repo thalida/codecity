@@ -7,14 +7,7 @@ import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE, SOURCE_INFO, RECENTS, commitSource } from '@/state/stores/source';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/scene';
-import {
-  beginBuild,
-  enterBuildStage,
-  setBuildStagePercent,
-  markError,
-  markRebuilding,
-  setRebuildDetail,
-} from '@/state/stores/manifest';
+import { beginBuild, enterBuildStage, setBuildStagePercent, markError, markRebuilding, setRebuildDetail } from '@/state/stores/build';
 import { BuildStage, PACK_STAGES } from '@/constants/buildStages';
 import { nextPaint } from '@/city/utils/nextPaint';
 import {

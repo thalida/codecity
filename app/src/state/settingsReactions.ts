@@ -18,15 +18,8 @@
 
 import { computed, effect, untracked } from '@preact/signals';
 
-import {
-  MANIFEST,
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_UPDATED_AT,
-  markRebuilding,
-  markIdle,
-  markError,
-} from '@/state/stores/manifest';
+import { MANIFEST } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, LAST_UPDATED_AT, markRebuilding, markIdle, markError } from '@/state/stores/build';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 import { isEmptyManifest } from '@/utils/manifest';
 

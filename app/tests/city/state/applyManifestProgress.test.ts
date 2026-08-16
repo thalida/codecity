@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createCityState } from '@/city/state';
-import { BUILD_PROGRESS } from '@/state/stores/manifest';
+import { BUILD_PROGRESS } from '@/state/stores/build';
 import { buildStageTail } from '@/constants/buildStages';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';

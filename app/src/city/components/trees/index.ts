@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { TREES } from '@/state/stores/settings/trees';
-import { markDecorating, markIdle } from '@/state/stores/manifest';
+import { markDecorating, markIdle } from '@/state/stores/build';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';

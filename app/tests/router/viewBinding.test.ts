@@ -12,7 +12,8 @@ vi.mock('@/state/stores/scene', async (importOriginal) => ({
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { showPath, showCommit } from '@/state/stores/scene';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
-import { MANIFEST, BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/manifest';
+import { MANIFEST } from '@/state/stores/manifest';
+import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/build';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import {
   TIMELINE_MODE,

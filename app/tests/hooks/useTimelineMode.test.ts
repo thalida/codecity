@@ -6,13 +6,8 @@ import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import {
-  MANIFEST,
-  REBUILD_STATUS,
-  RebuildStatus,
-  REBUILD_DETAIL,
-  BUILD_PROGRESS,
-} from '@/state/stores/manifest';
+import { MANIFEST } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, REBUILD_DETAIL, BUILD_PROGRESS } from '@/state/stores/build';
 import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/loadingOverlay';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { BuildStage } from '@/constants/buildStages';
