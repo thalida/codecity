@@ -10,7 +10,7 @@ import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
-import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/state/stores/scene';
+import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';

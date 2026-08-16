@@ -13,7 +13,7 @@ const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/chrome';
-import { focusSelection } from '@/state/stores/scene';
+import { focusSelection } from '@/city/sceneHandle';
 import { NodeKind } from '@/types';
 import { scrubbedStatsFor } from '@/state/stores/timeline';
 import type { PickTarget } from '@/types';

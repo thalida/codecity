@@ -12,7 +12,7 @@ import {
   clearSelection,
   focusPath,
   focusCommit,
-} from '@/state/stores/scene';
+} from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
   PANE_MANIFEST,

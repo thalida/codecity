@@ -11,7 +11,7 @@ import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/build';
-import { showPath, showCommit, clearSelection } from '@/state/stores/scene';
+import { showPath, showCommit, clearSelection } from '@/city/sceneHandle';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,

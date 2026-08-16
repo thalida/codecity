@@ -3,7 +3,7 @@
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.
 
-import type { SceneHandle } from '@/state/stores/scene';
+import type { SceneHandle } from '@/city/sceneHandle';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';

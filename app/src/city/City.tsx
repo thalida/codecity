@@ -8,7 +8,7 @@ import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/build';
 import { TIMELINE_MODE } from '@/state/stores/timeline';

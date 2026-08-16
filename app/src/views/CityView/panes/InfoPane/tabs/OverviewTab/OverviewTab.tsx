@@ -8,7 +8,7 @@ import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane/Pane';
-import { focusPath, focusCommit } from '@/state/stores/scene';
+import { focusPath, focusCommit } from '@/city/sceneHandle';
 import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';

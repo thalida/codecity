@@ -1,12 +1,11 @@
-// state/stores/scene.ts — Runtime signal that holds the Three.js scene
-// handle once CityStage mounts and createCity completes. Components
-// that need world / picker / rig read SCENE_HANDLE.value?.world etc.
-// Null until CityStage's useEffect resolves.
+// city/sceneHandle.ts — the live scene handle, and the commands the UI sends
+// through it. Not app state: it holds a Three.js object and calls methods on
+// it, so it lives with the renderer rather than in state/stores.
 
 import { signal, effect } from '@preact/signals';
-import type { createCity } from '../../city';
-import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './chrome';
-import { IS_PHONE } from './viewport';
+import type { createCity } from './index';
+import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
+import { IS_PHONE } from '@/state/stores/viewport';
 
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 

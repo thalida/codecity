@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';

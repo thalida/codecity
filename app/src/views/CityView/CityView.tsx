@@ -27,7 +27,7 @@ import {
   runCollisionCheck,
   runStemDiagnostic,
   runTreeGroundingCheck,
-} from '@/state/stores/scene';
+} from '@/city/sceneHandle';
 
 export function CityView() {
   // The panel it opens lives in this view's footer, so the key belongs here.

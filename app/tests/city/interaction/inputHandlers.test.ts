@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { NodeKind } from '@/types';

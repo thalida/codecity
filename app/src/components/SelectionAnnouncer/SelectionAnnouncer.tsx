@@ -5,7 +5,7 @@
 // changes, the new selection is announced (WCAG 4.1.3 Status Messages).
 
 import { useComputed } from '@preact/signals';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 

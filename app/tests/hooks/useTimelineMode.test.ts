@@ -4,7 +4,7 @@ import { signal } from '@preact/signals';
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
   REBUILD_STATUS,

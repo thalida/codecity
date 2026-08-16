@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
-import { SCENE_HANDLE, focusPath, focusCommit, goToPath } from '@/state/stores/scene';
+import { SCENE_HANDLE, focusPath, focusCommit, goToPath } from '@/city/sceneHandle';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';

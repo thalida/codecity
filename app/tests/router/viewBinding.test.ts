@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // The selection commands, stubbed: what matters is the URL's selection being
 // put back. Partial, since the timeline entry points read the rest.
-vi.mock('@/state/stores/scene', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/state/stores/scene')>()),
+vi.mock('@/city/sceneHandle', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/city/sceneHandle')>()),
   showPath: vi.fn(),
   showCommit: vi.fn(),
   clearSelection: vi.fn(),
 }));
 
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import { showPath, showCommit } from '@/state/stores/scene';
+import { showPath, showCommit } from '@/city/sceneHandle';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/build';

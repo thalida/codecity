@@ -16,7 +16,7 @@ import {
 import { ACCENT_THEME } from '@/state/settings/fields/theme';
 import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
-import { showCommit } from '@/state/stores/scene';
+import { showCommit } from '@/city/sceneHandle';
 import {
   buildScrubberScale,
   commitFraction,
