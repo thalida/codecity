@@ -6,6 +6,7 @@ the manifest route uses it for the pending progress label."""
 
 from __future__ import annotations
 
+import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -108,6 +109,30 @@ class UnreachableWorktreeGitdirTests(unittest.TestCase):
     def test_no_git_at_all(self) -> None:
         with TemporaryDirectory() as tmp:
             self.assertIsNone(source._unreachable_worktree_gitdir(Path(tmp)))
+
+
+class WorkingTreeCheckTests(unittest.TestCase):
+    def test_it_bypasses_the_ownership_check(self) -> None:
+        """Without safe.directory=*, git refuses a repo whose owner isn't the
+        process uid — which is EVERY bind-mounted repo in the container, since
+        it runs as uid 10001 and the host's files are not. The refusal exits
+        non-zero, so this reads as "not a git working tree" and the user is
+        told to run `git init` inside a repo that is already fine.
+
+        Asserted on the argv because the failure needs two uids to reproduce,
+        which a unit test has no way to arrange."""
+        argv = source.git_argv(Path("/repo"), "rev-parse", "--is-inside-work-tree")
+        self.assertIn("safe.directory=*", argv)
+
+    def test_a_real_working_tree_is_accepted(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            self.assertTrue(source._is_git_working_tree(root))
+
+    def test_a_plain_directory_is_not(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(source._is_git_working_tree(Path(tmp)))
 
 
 if __name__ == "__main__":
