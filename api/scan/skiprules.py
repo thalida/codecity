@@ -59,6 +59,16 @@ ALWAYS_SKIP: frozenset[str] = frozenset(
 )
 
 
+def normalize_excludes(exclude: list[str]) -> frozenset[str]:
+    """Repeated `?exclude=` params as root-anchored rel-paths: trimmed, empties
+    dropped, one leading '/' stripped.
+
+    Here rather than in the routes because the shape it produces is the one
+    SkipRules.load consumes, and both the manifest and timeline routes have to
+    produce it identically or a bundle keys differently from the scan."""
+    return frozenset(e.strip().lstrip("/") for e in exclude if e.strip())
+
+
 @dataclass(frozen=True, slots=True)
 class SkipRules:
     """The resolved skip decision for one scan root. Travels as one value

@@ -10,17 +10,16 @@ an `error` event (EventSource can't read 4xx bodies)."""
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import threading
 from pathlib import Path
 from typing import Any, AsyncIterator, Union
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from api.core.constants import ErrorCode, ScanEvent, TimelineEvent, TimelineStage
+from api.core.constants import ErrorCode, ScanEvent
+from api.routers import sse
 from api.routers.sse import Put, stream
 from api.utils.labels import label_from_source
 from api.models.events import (
@@ -29,8 +28,6 @@ from api.models.events import (
     ErrorEvent,
     PartialManifestEvent,
     ScanProgressEvent,
-    TimelineCompleteEvent,
-    TimelineProgressEvent,
 )
 from api.models.manifest import Manifest, SignatureResponse
 from api.core.security import TRUST
@@ -39,10 +36,8 @@ from api.cache import (
     cache_load_manifest,
     cache_load_newest_manifest,
     cache_load_ref_manifest,
-    cache_load_timeline,
     cache_save_manifest,
     cache_save_ref_manifest,
-    cache_save_timeline,
 )
 from api.git import (
     BranchNotFoundError,
@@ -55,18 +50,13 @@ from api.git import (
     classify,
     clone_dir_for,
     ensure_clone,
-    fetch_lfs_history,
-    hydrate_blobs,
     resolve_local,
     resolve_ref,
     resolve_source,
 )
 from api.scan import (
-    ASSEMBLE_STEPS,
-    NotAGitRepoError,
     ScanCancelledError,
-    assemble_tick,
-    build_timeline_bundle,
+    normalize_excludes,
     reconstruct_manifest,
     scan_tree,
     signature_tree,
@@ -76,12 +66,6 @@ router = APIRouter(prefix="/api", tags=["manifest"])
 
 
 logger = logging.getLogger("codecity.manifest")
-
-
-def _norm_excludes(exclude: list[str]) -> frozenset[str]:
-    """Normalize repeated ?exclude= params to root-anchored rel-paths:
-    trim whitespace, drop empties, strip a single leading '/'."""
-    return frozenset(e.strip().lstrip("/") for e in exclude if e.strip())
 
 
 @router.get("/manifest/signature", response_model=SignatureResponse)
@@ -99,7 +83,7 @@ def signature(
         sig = signature_tree(
             str(target),
             use_cache=not no_cache,
-            extra_exclude_paths=_norm_excludes(exclude),
+            extra_exclude_paths=normalize_excludes(exclude),
         )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
@@ -143,158 +127,6 @@ def cached_manifest(
     raise HTTPException(404, "nothing cached for this source")
 
 
-TimelineSSEEvent = Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEvent]
-
-
-@router.get(
-    "/timeline",
-    responses={
-        200: {
-            "description": (
-                "Server-Sent Events stream (`text/event-stream`). Named events "
-                "and their JSON `data` payloads: `timeline-progress` "
-                "(TimelineProgressEvent, one or more while the history walk / "
-                "blob resolution run), `timeline-complete` (TimelineCompleteEvent, "
-                "the full bundle), `error` (ErrorEvent). A warm cache hit emits "
-                "only `timeline-complete`, no progress. The client closes the "
-                "connection on `timeline-complete`/`error`."
-            ),
-            "model": TimelineSSEEvent,
-        },
-    },
-)
-async def timeline(
-    request: Request,
-    src: str = Query(...),
-    branch: str | None = Query(None),
-    no_cache: bool = Query(False),
-    exclude: list[str] = Query(default_factory=list),
-) -> EventSourceResponse:
-    use_cache = not no_cache
-    excludes = _norm_excludes(exclude)
-    pending_label = label_from_source(src)
-
-    is_remote = classify(src) is SourceKind.REMOTE
-
-    built: dict[str, Any] = {"bundle": None, "path": None, "head": None}
-
-    def work(_put: Put, cancel: threading.Event) -> None:
-        def _on_progress(payload: dict[str, Any]) -> None:
-            stage = payload["stage"]
-            data: dict[str, Any] = {"stage": stage, "label": pending_label}
-            if stage == TimelineStage.HISTORY:
-                data["commits"] = payload.get("commits")
-            elif stage == TimelineStage.BLOBS:
-                data["blobsDone"] = payload.get("done")
-                data["blobsTotal"] = payload.get("total")
-            elif stage == TimelineStage.ASSEMBLE:
-                data["percent"] = payload.get("percent")
-            _put(_sse(TimelineEvent.PROGRESS, data))
-
-        def _on_hydrate(p: CloneProgress) -> None:
-            # git fetch → the "downloading history" tick, counts and all.
-            _put(
-                _sse(
-                    TimelineEvent.PROGRESS,
-                    {
-                        "stage": TimelineStage.FETCH,
-                        "percent": p.percent,
-                        "objects": p.objects,
-                        "objectsTotal": p.objects_total,
-                        "mib": p.mib,
-                        "label": pending_label,
-                    },
-                )
-            )
-
-        try:
-            try:
-                target = resolve_source(src, branch)
-            except ResolveError as e:
-                _put(_sse_error(e.message, e.code))
-                return
-            built["path"] = target
-            head = resolve_ref(target, "HEAD")
-            built["head"] = head
-            if use_cache and head is not None:
-                cached = cache_load_timeline(target.resolve(), head, excludes)
-                if cached is not None:
-                    _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
-                    return
-            # Backfill a blobless clone before the walk, or blob resolution
-            # hangs on per-blob fetches. Never touches a local repo.
-            if is_remote:
-                hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
-                # All-history, so blob resolution reads real content at every
-                # commit rather than only at HEAD.
-                fetch_lfs_history(target, cancel_event=cancel)
-            bundle = build_timeline_bundle(
-                str(target),
-                use_cache=use_cache,
-                extra_exclude_paths=excludes,
-                on_progress=_on_progress,
-            )
-            built["bundle"] = bundle
-            # Serialising a big bundle is its own wait and the client is blind to
-            # it: the row would otherwise sit on the last computed step throughout.
-            assemble_tick(_on_progress, ASSEMBLE_STEPS)
-            _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
-        except ScanCancelledError:
-            pass  # client disconnected mid-hydrate; nothing to report
-        except NotAGitRepoError as e:
-            _put(_sse_error(str(e)))
-        except Exception as e:  # noqa: BLE001
-            logger.exception("timeline build failed for src=%s", src)
-            _put(_sse_error(f"timeline failed: {e}"))
-        finally:
-            _put(None)  # sentinel
-
-    async def save() -> None:
-        """Write-through on a clean finish; the read is gated by no_cache, the
-        write never is. Nothing to save when the build errored."""
-        bundle, path, head = built["bundle"], built["path"], built["head"]
-        if bundle is not None and path is not None and head is not None:
-            await asyncio.to_thread(
-                cache_save_timeline, path.resolve(), head, bundle, excludes
-            )
-
-    return EventSourceResponse(stream(request, work, on_complete=save))
-
-
-def _as_json(obj: object) -> Any:
-    """json.dumps hook: the manifest and timeline payloads are Pydantic models,
-    everything else in an event payload is already a JSON primitive."""
-    if isinstance(obj, BaseModel):
-        return obj.model_dump()
-    raise TypeError(f"not JSON-serialisable: {type(obj).__name__}")
-
-
-def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:
-    """sse-starlette event dict: {'event': name, 'data': json-string}. Both
-    StrEnums serialize to their wire string ('manifest-complete', 'timeline-
-    progress', …).
-
-    None values are dropped, so every event matches what its model documents:
-    absent-or-value, never null. A progress line that carries no object count
-    would otherwise ship `"objects": null` for the client to special-case."""
-    return {
-        "event": event,
-        "data": json.dumps(
-            {k: v for k, v in payload.items() if v is not None}, default=_as_json
-        ),
-    }
-
-
-def _sse_error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
-    """An `error` SSE event, single-sourced through the ErrorEvent model.
-    `exclude_none` keeps an uncoded error absent-or-value on the wire rather
-    than shipping a null the client would have to special-case."""
-    return _sse(
-        ScanEvent.ERROR,
-        ErrorEvent(error=message, code=code).model_dump(exclude_none=True),
-    )
-
-
 # Naming all five in `responses` registers each as a schema component, and
 # transitively pulls Manifest -> tree types in behind the manifest events.
 SSEEvent = Union[
@@ -336,17 +168,17 @@ async def manifest(
     ref: str | None = Query(None),
 ) -> EventSourceResponse:
     use_cache = not no_cache
-    excludes = _norm_excludes(exclude)
+    excludes = normalize_excludes(exclude)
 
     async def gen() -> AsyncIterator[dict[str, Any]]:
         # Validate WITHOUT cloning: the clone runs on the worker below so its
         # progress streams. Failures here are error EVENTS, not 4xx.
         if not src:
-            yield _sse_error("missing 'src' query param")
+            yield sse.error("missing 'src' query param")
             return
         kind = classify(src)
         if kind is SourceKind.INVALID:
-            yield _sse_error("unrecognized source: pass a local path or a git URL")
+            yield sse.error("unrecognized source: pass a local path or a git URL")
             return
         # The PENDING label, and the only name derivation in this route: the
         # scanner bakes the canonical tree.name later. See the README.
@@ -356,7 +188,7 @@ async def manifest(
             try:
                 local_path = await asyncio.to_thread(resolve_local, src)
             except ResolveError as e:
-                yield _sse_error(e.message, e.code)
+                yield sse.error(e.message, e.code)
                 return
 
         built: dict[str, Any] = {"manifest": None, "sig": None, "path": None}
@@ -364,7 +196,7 @@ async def manifest(
         def work(_put: Put, cancel: threading.Event) -> None:
             def _on_clone(p: CloneProgress) -> None:
                 _put(
-                    _sse(
+                    sse.event(
                         ScanEvent.CLONE_PROGRESS,
                         {
                             "label": pending_label,
@@ -381,7 +213,7 @@ async def manifest(
                 # Silent promisor-fetch phase: no stage/percent, just the working
                 # tree growing on disk, so the UI shows activity not a freeze.
                 _put(
-                    _sse(
+                    sse.event(
                         ScanEvent.CLONE_PROGRESS,
                         {"label": pending_label, "mb_on_disk": mb_on_disk},
                     )
@@ -389,7 +221,7 @@ async def manifest(
 
             def _on_scan(files_scanned: int) -> None:
                 _put(
-                    _sse(
+                    sse.event(
                         ScanEvent.SCAN_PROGRESS,
                         {"label": pending_label, "files_scanned": files_scanned},
                     )
@@ -399,7 +231,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"label": pending_label}))
+                    _put(sse.event(ScanEvent.CLONE_PROGRESS, {"label": pending_label}))
                     try:
                         path = ensure_clone(
                             src,
@@ -409,13 +241,13 @@ async def manifest(
                             cancel_event=cancel,
                         )
                     except RepoNotFoundError as e:
-                        _put(_sse_error(str(e), ErrorCode.REPO_NOT_FOUND))
+                        _put(sse.error(str(e), ErrorCode.REPO_NOT_FOUND))
                         return
                     except (BranchNotFoundError, HostUnreachableError) as e:
-                        _put(_sse_error(str(e)))
+                        _put(sse.error(str(e)))
                         return
                     except CloneError as e:
-                        _put(_sse_error(str(e)))
+                        _put(sse.error(str(e)))
                         return
                 else:
                     assert local_path is not None
@@ -434,13 +266,13 @@ async def manifest(
                 if ref is not None:
                     sha = resolve_ref(path, ref)
                     if sha is None:
-                        _put(_sse_error(f"ref does not resolve to a commit: {ref}"))
+                        _put(sse.error(f"ref does not resolve to a commit: {ref}"))
                         return
                     if use_cache:
                         cached_ref = cache_load_ref_manifest(path.resolve(), sha)
                         if cached_ref is not None:
                             _put(
-                                _sse(
+                                sse.event(
                                     ScanEvent.MANIFEST_COMPLETE,
                                     {"manifest": cached_ref},
                                 )
@@ -448,10 +280,10 @@ async def manifest(
                             return
                     m = reconstruct_manifest(str(path), sha, use_cache=use_cache)
                     cache_save_ref_manifest(path.resolve(), sha, m)
-                    _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": m}))
+                    _put(sse.event(ScanEvent.MANIFEST_COMPLETE, {"manifest": m}))
                     return
 
-                _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
+                _put(sse.event(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
                 # The signature costs a full stat-walk and scan_tree computes
                 # the same value anyway, so only pay when a cache exists.
@@ -462,7 +294,9 @@ async def manifest(
                     built["sig"] = sig
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
-                        _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
+                        _put(
+                            sse.event(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached})
+                        )
                         return
 
                 # Cold scan: partial + complete manifests, with heartbeat progress.
@@ -476,12 +310,12 @@ async def manifest(
                     if ev.phase is ScanEvent.MANIFEST_COMPLETE:
                         built["manifest"] = ev.manifest
                         built["sig"] = ev.manifest.content_signature
-                    _put(_sse(ev.phase, {"manifest": ev.manifest}))
+                    _put(sse.event(ev.phase, {"manifest": ev.manifest}))
             except ScanCancelledError:
                 pass  # client disconnected mid-clone/scan; nothing to report
             except Exception as e:  # noqa: BLE001
                 logger.exception("manifest scan failed for src=%s", src)
-                _put(_sse_error(f"scan failed: {e}"))
+                _put(sse.error(f"scan failed: {e}"))
             finally:
                 _put(None)  # sentinel
 

@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.core.config import GZIP_MIN_BYTES
 from api.models.responses import ErrorResponse
-from api.routers import branches, commit, file, manifest, meta
+from api.routers import branches, commit, file, manifest, meta, timeline
 from api.core.middleware import SSEGZipMiddleware
 from api.routers.static import make_static_router
 
@@ -86,6 +86,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     app.include_router(commit.router)
     app.include_router(branches.router)
     app.include_router(manifest.router)
+    app.include_router(timeline.router)
     app.include_router(make_static_router(static_dir or DEFAULT_STATIC_DIR))
     return app
 

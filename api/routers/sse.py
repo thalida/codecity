@@ -1,19 +1,25 @@
-"""Running a blocking scan on a worker thread and streaming what it emits.
+"""Server-Sent Events: how an event is shaped, and how the work behind one runs.
 
 The scan and timeline builds are synchronous and long. Both need the same
-scaffolding: a thread to run the work, a queue to carry events back to the
+scaffolding — a thread to run the work, a queue to carry events back to the
 event loop, a watch on the client so a disconnect cancels the work rather than
 letting it run on as an orphan, and a chance to persist the result afterwards
-only if the client actually received it.
+only if the client actually received it — and both emit events in the same
+shape, so that lives here too rather than in whichever route was written first.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from typing import Any, AsyncIterator, Awaitable, Callable
 
 from fastapi import Request
+from pydantic import BaseModel
+
+from api.core.constants import ErrorCode, ScanEvent, TimelineEvent
+from api.models.events import ErrorEvent
 
 # How long to wait on the queue before re-checking whether the client is gone.
 # Bounds how long a disconnect goes unnoticed; the work itself is unaffected.
@@ -75,3 +81,34 @@ async def stream(
 
     if not disconnected and on_complete is not None:
         await on_complete()
+
+
+def _as_json(obj: object) -> Any:
+    """json.dumps hook: the manifest and timeline payloads are Pydantic models,
+    everything else in an event payload is already a JSON primitive."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    raise TypeError(f"not JSON-serialisable: {type(obj).__name__}")
+
+
+def event(name: ScanEvent | TimelineEvent, payload: dict[str, Any]) -> dict[str, Any]:
+    """An sse-starlette event dict: {'event': name, 'data': json-string}.
+
+    None values are dropped, so every event matches what its model documents:
+    absent-or-value, never null. A progress line carrying no object count would
+    otherwise ship `"objects": null` for the client to special-case."""
+    return {
+        "event": name,
+        "data": json.dumps(
+            {k: v for k, v in payload.items() if v is not None}, default=_as_json
+        ),
+    }
+
+
+def error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
+    """An `error` event, single-sourced through the ErrorEvent model so the
+    stream and the JSON routes describe a failure the same way."""
+    return event(
+        ScanEvent.ERROR,
+        ErrorEvent(error=message, code=code).model_dump(exclude_none=True),
+    )

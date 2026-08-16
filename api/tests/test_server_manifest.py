@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.routers.manifest import _norm_excludes
+from api.scan import normalize_excludes as _norm_excludes
 from api.git.clone import (
     BranchNotFoundError,
     CloneError,

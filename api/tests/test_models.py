@@ -227,7 +227,7 @@ class ResponseModelTests(unittest.TestCase):
         import json
 
         from api.core.constants import ScanEvent
-        from api.routers.manifest import _sse
+        from api.routers.sse import event as _sse
 
         event = _sse(
             ScanEvent.CLONE_PROGRESS,

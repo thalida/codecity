@@ -4,15 +4,16 @@ Every route codecity serves is in one of these. `app.py` imports the modules and
 registers `.router` off each; order matters there, because `static` is a
 catch-all that owns every non-`/api` path and must come last.
 
-| module        | routes                                                                              |
-| ------------- | ----------------------------------------------------------------------------------- |
-| `manifest.py` | `/api/manifest`, `/api/manifest/signature`, `/api/manifest/cached`, `/api/timeline` |
-| `file.py`     | `/api/file`, `/api/images`, `/api/fingerprints`                                     |
-| `commit.py`   | `/api/commit`                                                                       |
-| `branches.py` | `/api/branches`                                                                     |
-| `meta.py`     | `/api/health`, `/api/config`, `/api/discover`                                       |
-| `static.py`   | the SPA and its index fallback                                                      |
-| `sse.py`      | not a router — the worker plumbing both streams run on                              |
+| module        | routes                                                             |
+| ------------- | ------------------------------------------------------------------ |
+| `manifest.py` | `/api/manifest`, `/api/manifest/signature`, `/api/manifest/cached` |
+| `timeline.py` | `/api/timeline`                                                    |
+| `file.py`     | `/api/file`, `/api/images`, `/api/fingerprints`                    |
+| `commit.py`   | `/api/commit`                                                      |
+| `branches.py` | `/api/branches`                                                    |
+| `meta.py`     | `/api/health`, `/api/config`, `/api/discover`                      |
+| `static.py`   | the SPA and its index fallback                                     |
+| `sse.py`      | not a router — the worker plumbing both streams run on             |
 
 ## An SSE stream cannot report a 4xx
 

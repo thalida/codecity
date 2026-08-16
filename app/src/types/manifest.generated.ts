@@ -198,23 +198,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/timeline': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Timeline */
-    get: operations['timeline_api_timeline_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/manifest': {
     parameters: {
       query?: never;
@@ -224,6 +207,23 @@ export interface paths {
     };
     /** Manifest */
     get: operations['manifest_api_manifest_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/timeline': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Timeline */
+    get: operations['timeline_api_timeline_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1161,43 +1161,6 @@ export interface operations {
       };
     };
   };
-  timeline_api_timeline_get: {
-    parameters: {
-      query: {
-        src: string;
-        branch?: string | null;
-        no_cache?: boolean;
-        exclude?: string[];
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json':
-            | components['schemas']['TimelineProgressEvent']
-            | components['schemas']['TimelineCompleteEvent']
-            | components['schemas']['ErrorEvent'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
   manifest_api_manifest_get: {
     parameters: {
       query?: {
@@ -1224,6 +1187,43 @@ export interface operations {
             | components['schemas']['ScanProgressEvent']
             | components['schemas']['PartialManifestEvent']
             | components['schemas']['CompleteManifestEvent']
+            | components['schemas']['ErrorEvent'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  timeline_api_timeline_get: {
+    parameters: {
+      query: {
+        src: string;
+        branch?: string | null;
+        no_cache?: boolean;
+        exclude?: string[];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json':
+            | components['schemas']['TimelineProgressEvent']
+            | components['schemas']['TimelineCompleteEvent']
             | components['schemas']['ErrorEvent'];
         };
       };

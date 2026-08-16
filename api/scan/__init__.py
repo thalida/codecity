@@ -19,6 +19,7 @@ The submodules, roughly in the order a scan touches them:
 
 from api.core.exceptions import NotAGitRepoError, ScanCancelledError
 from .scanner import reconstruct_manifest, scan_tree, signature_tree
+from .skiprules import normalize_excludes
 from .timeline import ASSEMBLE_STEPS, assemble_tick, build_timeline_bundle
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "ASSEMBLE_STEPS",
     "assemble_tick",
     "build_timeline_bundle",
+    "normalize_excludes",
     "reconstruct_manifest",
     "scan_tree",
     "signature_tree",
