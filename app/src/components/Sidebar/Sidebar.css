@@ -2,39 +2,39 @@
 
 /* Scrollbars for both sidebars. Firefox's scrollbar-width / -color are set
    further down, on the children that actually overflow. */
-#right-sidebar ::-webkit-scrollbar,
-#left-sidebar ::-webkit-scrollbar {
+#city-sidebar-right ::-webkit-scrollbar,
+#city-sidebar-left ::-webkit-scrollbar {
   width: 4px;
 }
-#right-sidebar ::-webkit-scrollbar-track,
-#left-sidebar ::-webkit-scrollbar-track {
+#city-sidebar-right ::-webkit-scrollbar-track,
+#city-sidebar-left ::-webkit-scrollbar-track {
   background: transparent;
 }
-#right-sidebar ::-webkit-scrollbar-thumb,
-#left-sidebar ::-webkit-scrollbar-thumb {
+#city-sidebar-right ::-webkit-scrollbar-thumb,
+#city-sidebar-left ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
 }
-#right-sidebar ::-webkit-scrollbar-thumb:hover,
-#left-sidebar ::-webkit-scrollbar-thumb:hover {
+#city-sidebar-right ::-webkit-scrollbar-thumb:hover,
+#city-sidebar-left ::-webkit-scrollbar-thumb:hover {
   background: var(--cc-track-hover);
 }
 
 /* Firefox */
-#right-sidebar .editor-body,
-#right-sidebar .code-editor {
+#city-sidebar-right .editor-body,
+#city-sidebar-right .code-editor {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
-#left-sidebar .tree-root {
+#city-sidebar-left .tree-root {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
-#left-sidebar .search-pane > .pane-body {
+#city-sidebar-left .search-pane > .pane-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
-#left-sidebar .info-body {
+#city-sidebar-left .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }

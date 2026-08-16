@@ -1,6 +1,6 @@
 /* ── Right sidebar shell ───────────────────────────────────────────────────── */
 
-#right-sidebar {
+#city-sidebar-right {
   position: relative;
   /* Rigid: a drag stops at the other panel rather than pushing it narrower. */
   flex: 0 0 auto;
@@ -15,7 +15,7 @@
   z-index: 100;
 }
 
-#right-sidebar.open {
+#city-sidebar-right.open {
   width: var(--sidebar-width, var(--cc-sidebar-w));
   min-width: 280px;
   max-width: 70vw;
@@ -24,7 +24,7 @@
 /* A drawer on a phone, where its floor is most of the screen. No scrim: tapping
    another building is how you change what this shows. */
 @media (max-width: 640px) {
-  #right-sidebar.open {
+  #city-sidebar-right.open {
     position: absolute;
     top: 0;
     bottom: 0;

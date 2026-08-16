@@ -1,9 +1,8 @@
-// utils/syntaxLanguages.ts — Resolve file → hljs language id, and
-// language id → human-readable label. Reads the lookup tables in
-// constants/syntaxLanguages.ts.
+// utils/syntaxLanguages.ts — a file to its hljs language id, and an id to its
+// label, over the tables in constants/syntaxLanguageMap.
 
 import type { FileNode } from '../types';
-import { EXT_LANG, NAME_LANG, LANGUAGE_LABELS } from '../constants/syntaxLanguages';
+import { EXT_LANG, NAME_LANG, LANGUAGE_LABELS } from '../constants/syntaxLanguageMap';
 
 /**
  * Resolve a file's hljs language id, or null if no hint matches.

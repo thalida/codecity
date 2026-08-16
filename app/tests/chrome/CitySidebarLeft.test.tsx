@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LeftSidebar } from '@/chrome/LeftSidebar/LeftSidebar';
+import { CitySidebarLeft } from '@/chrome/CitySidebarLeft/CitySidebarLeft';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setManifest } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -32,7 +32,7 @@ function makeSceneHandle() {
   };
 }
 
-describe('LeftSidebar', () => {
+describe('CitySidebarLeft', () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {
@@ -42,7 +42,7 @@ describe('LeftSidebar', () => {
     // still seeded for the picker the panes read.
     setManifest({ tree: TEST_TREE } as never);
     SCENE_HANDLE.value = makeSceneHandle() as never;
-    render(<LeftSidebar />, container);
+    render(<CitySidebarLeft />, container);
     await flush();
   });
 
@@ -76,7 +76,9 @@ describe('LeftSidebar', () => {
 
   it('starts collapsed by default, with no active tab', () => {
     // The sidebar opens closed so a fresh load shows the city unobscured.
-    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(true);
+    expect(container.querySelector('#city-sidebar-left')!.classList.contains('is-collapsed')).toBe(
+      true
+    );
     expect(container.querySelector('.activity-bar-icon.active')).toBeNull();
     // Info is still the default tab (its pane is mounted, just hidden), so
     // opening the sidebar lands on the almanac; inactive tabs aren't rendered.
@@ -104,7 +106,7 @@ describe('LeftSidebar', () => {
     // Open the sidebar on a non-default tab.
     container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="explore"]')!.click();
     await flush();
-    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(
+    expect(container.querySelector('#city-sidebar-left')!.classList.contains('is-collapsed')).toBe(
       false
     );
     expect(container.querySelector('.explore-pane')).not.toBeNull();
@@ -113,7 +115,9 @@ describe('LeftSidebar', () => {
     CURRENT_SOURCE.value = { src: 'github.com/o/r' };
     // Two-hop settle: CURRENT_SOURCE → effect → activeTab/collapsed → re-render.
     await drainAsync();
-    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(true);
+    expect(container.querySelector('#city-sidebar-left')!.classList.contains('is-collapsed')).toBe(
+      true
+    );
     expect(container.querySelector('.activity-bar-icon.active')).toBeNull();
     expect(container.querySelector('.explore-pane')).toBeNull();
     expect(container.querySelector('.info-pane')).not.toBeNull();

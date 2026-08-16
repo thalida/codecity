@@ -5,7 +5,7 @@
 import { NodeKind } from '@/types';
 import type { Manifest, DirNode, FileLeader, DirLeader, CommitLeader } from '@/types';
 import { formatShortDate } from '@/utils/dates';
-import { formatBytes } from '@/utils/bytes';
+import { formatBytes } from '@/utils/format';
 import { formatCount, pluralize } from '@/utils/format';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;

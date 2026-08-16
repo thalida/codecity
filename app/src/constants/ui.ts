@@ -41,7 +41,7 @@ export interface ActivityBarTab {
 
 export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
   // Info leads: the almanac is the first thing a freshly-loaded world greets you
-  // with (see DEFAULT_SIDEBAR_TAB + LeftSidebar's on-load switch).
+  // with (see DEFAULT_SIDEBAR_TAB + CitySidebarLeft's on-load switch).
   { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Explore, icon: Compass, title: 'Explore' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },

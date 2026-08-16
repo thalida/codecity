@@ -1,6 +1,6 @@
-// constants/fileIcons.ts — extension / filename / folder-name to Material Icon
-// Theme basename. Static data; the resolver lives in utils/fileIcons.ts and
-// constants/materialIcons.ts maps each basename to its bundled SVG.
+// constants/fileIconMap.ts — extension / filename / folder-name to Material
+// Icon Theme basename. The resolver over it is utils/fileIcons; the basename to
+// bundled SVG map is constants/materialIcons.
 
 // `document`, not the plain `file` outline: it holds its own beside the
 // colourful per-type icons instead of reading as a placeholder.

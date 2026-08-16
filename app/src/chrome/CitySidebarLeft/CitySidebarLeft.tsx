@@ -1,8 +1,8 @@
-// layout/LeftSidebar.tsx — the left sidebar: which pane is mounted, whether it
+// layout/CitySidebarLeft.tsx — the left sidebar: which pane is mounted, whether it
 // is collapsed, its resize handle, and the bridge between the tree pane and the
 // picker.
 
-import './LeftSidebar.css';
+import './CitySidebarLeft.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
@@ -81,7 +81,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 
 // ── Main component ───────────────────────────────────────────────────
 
-export function LeftSidebar() {
+export function CitySidebarLeft() {
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
   const activeTab = SIDEBAR_TAB;
@@ -154,7 +154,7 @@ export function LeftSidebar() {
 
   return (
     <Sidebar
-      id="left-sidebar"
+      id="city-sidebar-left"
       side={SidebarSide.Left}
       ariaLabel="Explore"
       class={effectiveCollapsed ? 'is-collapsed' : ''}

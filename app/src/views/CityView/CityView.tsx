@@ -10,8 +10,8 @@ import { useSignalEffect } from '@preact/signals';
 import { CityHeader } from '@/chrome/CityHeader/CityHeader';
 import { CityFooter } from '@/chrome/CityFooter/CityFooter';
 import { CityStage } from '@/chrome/CityStage/CityStage';
-import { LeftSidebar } from '@/chrome/LeftSidebar/LeftSidebar';
-import { RightSidebar } from '@/chrome/RightSidebar/RightSidebar';
+import { CitySidebarLeft } from '@/chrome/CitySidebarLeft/CitySidebarLeft';
+import { CitySidebarRight } from '@/chrome/CitySidebarRight/CitySidebarRight';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
@@ -59,9 +59,9 @@ export function CityView() {
           you are in is the fetch layer's call. */}
       <CityHeader onSwitchSource={() => goHome()} onRefresh={refreshCurrentSource} />
       <main id="city-body" tabIndex={-1}>
-        <LeftSidebar />
+        <CitySidebarLeft />
         <CityStage />
-        <RightSidebar />
+        <CitySidebarRight />
       </main>
       <CityFooter
         onRunCollisionCheck={runCollisionCheck}

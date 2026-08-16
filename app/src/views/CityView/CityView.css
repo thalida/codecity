@@ -33,8 +33,8 @@
 /* Capture mode (?shot=): hide the chrome so a canvas screenshot has nothing
    floating over it. The canvas auto-fits the room that frees up. */
 #app.cc-capture #city-header,
-#app.cc-capture #left-sidebar,
-#app.cc-capture #right-sidebar,
+#app.cc-capture #city-sidebar-left,
+#app.cc-capture #city-sidebar-right,
 #app.cc-capture #city-footer,
 #app.cc-capture #scene-controls,
 #app.cc-capture .selection-chip {

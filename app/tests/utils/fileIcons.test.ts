@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getFileIconName } from '@/utils/fileIcons';
-import { GENERIC_BINARY } from '@/constants/fileIcons';
+import { GENERIC_BINARY } from '@/constants/fileIconMap';
 
 describe('getFileIconName — binary data files', () => {
   it('keeps a known binary type on its own icon, not the hex fallback', () => {

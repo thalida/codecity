@@ -1,8 +1,8 @@
-// layout/RightSidebar.tsx — the right panel: its width, its resize handle, and
+// layout/CitySidebarRight.tsx — the right panel: its width, its resize handle, and
 // which of the three panes the selection calls for. Their view-state is computed
 // from the picker and MANIFEST, so a live-update poll re-derives them.
 
-import './RightSidebar.css';
+import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { NodeKind } from '@/types';
@@ -64,7 +64,7 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
 
 // ── Main component ───────────────────────────────────────────────────
 
-export function RightSidebar() {
+export function CitySidebarRight() {
   // Computeds read during render: no effect writing signals, no bridge, and a
   // live-update poll re-derives every pane on its own.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
@@ -169,7 +169,7 @@ export function RightSidebar() {
 
   return (
     <Sidebar
-      id="right-sidebar"
+      id="city-sidebar-right"
       side={SidebarSide.Right}
       ariaLabel="Selection details"
       class={open ? 'open' : ''}

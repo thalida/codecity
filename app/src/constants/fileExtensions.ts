@@ -1,6 +1,6 @@
-// constants/fileKinds.ts — file-extension → kind lists, shared by the preview
-// pane (which viewer) and the city data-building facade (which facade to render).
-// Lowercase, dot-prefixed.
+// constants/fileExtensions.ts — extension lists by kind, read by the preview
+// pane (which viewer) and the data-building facade (which facade). Lowercase and
+// dot-prefixed. What KIND a file is, from the manifest, is utils/fileKind.
 
 export const IMAGE_EXTS = [
   '.png',

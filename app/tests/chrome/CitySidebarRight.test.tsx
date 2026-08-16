@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import { RightSidebar } from '@/chrome/RightSidebar/RightSidebar';
+import { CitySidebarRight } from '@/chrome/CitySidebarRight/CitySidebarRight';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -101,7 +101,7 @@ function makeSceneHandle() {
   };
 }
 
-describe('RightSidebar', () => {
+describe('CitySidebarRight', () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {
@@ -109,7 +109,7 @@ describe('RightSidebar', () => {
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
     SCENE_HANDLE.value = makeSceneHandle() as never;
-    render(<RightSidebar />, container);
+    render(<CitySidebarRight />, container);
     await flush();
   });
 
@@ -131,11 +131,11 @@ describe('RightSidebar', () => {
     });
     await flush();
   };
-  const aside = () => container.querySelector<HTMLElement>('aside#right-sidebar')!;
+  const aside = () => container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
   const isOpen = () => aside().classList.contains('open');
 
-  it('renders an <aside id="right-sidebar"> closed by default', () => {
-    const aside = container.querySelector<HTMLElement>('aside#right-sidebar');
+  it('renders an <aside id="city-sidebar-right"> closed by default', () => {
+    const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right');
     expect(aside).not.toBeNull();
     expect(aside!.classList.contains('open')).toBe(false);
   });
@@ -150,7 +150,7 @@ describe('RightSidebar', () => {
     });
     await flush();
 
-    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
+    const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     expect(aside.classList.contains('open')).toBe(true);
     // The file preview pane is mounted (look for its pane title slot).
     expect(aside.querySelector('.pane')).not.toBeNull();
@@ -159,7 +159,7 @@ describe('RightSidebar', () => {
   it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
     TIMELINE_MODE.value = true;
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
-    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
+    const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
 
     // File selection while scrubbing → panel opens (the sidebar is now the only
     // place a selection is shown; the pane notes it reads HEAD, not the commit).
@@ -188,7 +188,7 @@ describe('RightSidebar', () => {
   it('Timeline mode: the exclude button is available for a selected file', async () => {
     TIMELINE_MODE.value = true;
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
-    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
+    const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file: FILE_NODE,

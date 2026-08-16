@@ -4,7 +4,7 @@
 
 import type { FileNode, DirNode } from '@/types';
 import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
-import { formatBytes } from '@/utils/bytes';
+import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import type { PaneStatItem } from './PaneStats';

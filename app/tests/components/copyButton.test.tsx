@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { CopyButton, CopyButtonVariant } from '@/components/CopyButton/CopyButton';
-import { CLUSTER_ITEM } from '@/components/ChromeCluster/ChromeCluster';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { flush } from '../_helpers/preact';
 
 let container: HTMLDivElement;
@@ -24,30 +23,22 @@ afterEach(() => {
 describe('CopyButton', () => {
   const button = () => container.querySelector('button')!;
 
-  it('takes the cluster box in a chrome bar, so it matches its neighbours', async () => {
-    render(
-      <CopyButton variant={CopyButtonVariant.Cluster} text="/repos/x" label="Copy" />,
-      container
-    );
+  // The button is the same button everywhere: a chrome bar restyles it from
+  // the cluster it sits in, rather than the button knowing where it is.
+  it('renders one button shape, whatever it sits in', async () => {
+    render(<CopyButton text="/repos/x" label="Copy" />, container);
     await flush();
-    expect(button().classList.contains(CLUSTER_ITEM)).toBe(true);
-    expect(button().classList.contains('btn-icon')).toBe(false);
+    expect(button().classList.contains('btn-icon')).toBe(true);
   });
 
-  // The copied flash used to be styled only as .btn-icon.is-copied, which the
-  // cluster variant never carries — so the header's copy button gave no
-  // feedback at all.
-  it('flashes copied feedback in both variants', async () => {
-    for (const variant of [CopyButtonVariant.Cluster, undefined]) {
-      render(<CopyButton variant={variant} text="/repos/x" label="Copy" />, container);
-      await flush();
-      await act(async () => {
-        button().click();
-        await Promise.resolve();
-      });
-      await flush();
-      expect(button().classList.contains('is-copied')).toBe(true);
-      render(null, container);
-    }
+  it('flashes copied feedback', async () => {
+    render(<CopyButton text="/repos/x" label="Copy" />, container);
+    await flush();
+    await act(async () => {
+      button().click();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(button().classList.contains('is-copied')).toBe(true);
   });
 });

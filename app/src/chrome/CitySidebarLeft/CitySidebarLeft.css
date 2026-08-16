@@ -1,6 +1,6 @@
 /* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
 
-#left-sidebar {
+#city-sidebar-left {
   position: relative;
   flex: 0 0 auto;
   /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
@@ -17,18 +17,18 @@
 }
 /* Empty until showLeftSidebar populates the tree, where it would paint as a
    lighter strip through the fetch. Hidden, so the first paint is the header. */
-#left-sidebar:empty {
+#city-sidebar-left:empty {
   display: none;
 }
 
 /* Collapsed: only the activity bar. Outranks the base width by specificity,
  * so un-collapsing restores the dragged width with nothing to clear. */
-#left-sidebar.is-collapsed {
+#city-sidebar-left.is-collapsed {
   width: var(--cc-rail-w);
   min-width: var(--cc-rail-w);
 }
-#left-sidebar.is-collapsed > .pane,
-#left-sidebar.is-collapsed .resize-handle {
+#city-sidebar-left.is-collapsed > .pane,
+#city-sidebar-left.is-collapsed .resize-handle {
   display: none;
 }
 
@@ -141,14 +141,14 @@
 /* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
    The sidebar overlays the city rather than squeezing it to a sliver. */
 @media (max-width: 640px) {
-  #left-sidebar.is-collapsed {
+  #city-sidebar-left.is-collapsed {
     width: var(--cc-rail-w);
     min-width: var(--cc-rail-w);
   }
 
   /* Against #city-body, so it spans exactly the room between the bars. Keeps the
      base z-index: a selection pane (100) covers this one, never the reverse. */
-  #left-sidebar:not(.is-collapsed) {
+  #city-sidebar-left:not(.is-collapsed) {
     position: absolute;
     inset: 0;
     width: auto;

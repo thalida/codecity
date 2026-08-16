@@ -8,7 +8,6 @@ import { ChevronsUpDown } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
 import { useSignal, type Signal } from '@preact/signals';
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { useDismissable } from '@/hooks/useDismissable';
 import { IS_PHONE } from '@/state/stores/viewport';
 
@@ -118,7 +117,7 @@ export function Popover({
       <button
         ref={triggerRef}
         type="button"
-        class={`${CLUSTER_ITEM_PRESS} popover-trigger${triggerClass ? ` ${triggerClass}` : ''}`}
+        class={`popover-trigger${triggerClass ? ` ${triggerClass}` : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={triggerLabel ?? label}

@@ -1,5 +1,5 @@
-// constants/syntaxLanguages.ts — extension / filename to hljs language id.
-// Resolvers live in utils/syntaxLanguages.ts.
+// constants/syntaxLanguageMap.ts — extension / filename to hljs language id.
+// The resolvers over it are utils/syntaxLanguages.
 
 /** Extension hints, matching what highlight.js/lib/common bundles. Anything
  *  unlisted falls through to auto-detection. */

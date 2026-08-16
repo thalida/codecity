@@ -1,5 +1,7 @@
 /* ChromeCluster — one outlined group of related controls in a chrome bar.
-   Every item is the same box, so nothing here needs a per-item exception. */
+   Every direct child is an item and the cluster styles it here, so nothing has
+   to know it is inside one. CopyButton's screen-reader announcer is the one
+   child that is not an item. */
 
 .chrome-cluster {
   display: flex;
@@ -17,9 +19,9 @@
   /* No overflow: hidden — it would clip the scan panel at the bar. */
 }
 
-/* The project chip's box, for every item. The inline padding clears the pill's
-   curve at the ends as well as spacing the dividers. */
-.cluster-item {
+/* The project chip's box. The inline padding clears the pill's curve at the
+   ends as well as spacing the dividers. */
+.chrome-cluster > *:not(.sr-only) {
   appearance: none;
   flex: 0 1 auto;
   min-width: 0;
@@ -38,35 +40,35 @@
   text-decoration: none;
 }
 
-/* Accent marks what's pressable. accent-light, the same step .link--chrome
-   uses, so buttons and links in these bars are one colour rather than two. */
-.cluster-item--press {
+/* Accent marks what's pressable, and everything in a cluster is. accent-light
+   is the step .link--chrome uses, so buttons and links read as one colour. */
+.chrome-cluster > *:not(.sr-only) {
   color: var(--cc-accent-light);
   cursor: pointer;
 }
 /* The shared engaged state (see buttons.css): accent glyph on an accent fill. */
-.cluster-item--press:not(:disabled):hover {
+.chrome-cluster > *:not(.sr-only):not(:disabled):hover {
   color: var(--cc-accent);
   background: var(--cc-accent-bg-soft);
 }
-.cluster-item:disabled {
+.chrome-cluster > *:not(.sr-only):disabled {
   cursor: default;
   opacity: 0.5;
 }
 
-/* On the item, so a conditional one can't strand a divider. General sibling,
-   not adjacent: CopyButton renders an announcer between itself and the next. */
-.cluster-item ~ .cluster-item {
+/* General sibling, not adjacent: CopyButton renders an announcer between
+   itself and the next item. */
+.chrome-cluster > *:not(.sr-only) ~ *:not(.sr-only) {
   border-left: 1px solid var(--cc-border-input);
 }
 
 /* Only the cluster's own edge rounds, so an end item's hover fill follows the
    pill. :last-of-type counts per element name, so it matched too early. */
-.cluster-item:first-child {
+.chrome-cluster > *:not(.sr-only):first-child {
   border-start-start-radius: var(--cc-radius-pill);
   border-end-start-radius: var(--cc-radius-pill);
 }
-.cluster-item:not(:has(~ .cluster-item)) {
+.chrome-cluster > *:not(.sr-only):not(:has(~ *:not(.sr-only))) {
   border-start-end-radius: var(--cc-radius-pill);
   border-end-end-radius: var(--cc-radius-pill);
 }
@@ -77,21 +79,21 @@
   position: absolute;
 }
 
-.cluster-item > svg {
+.chrome-cluster > *:not(.sr-only) > svg {
   display: block;
   flex: 0 0 auto;
 }
 
 /* Sized off the cluster, not the bar: icons are 1em (icons.css) and the header
    and footer set different text sizes. */
-.cluster-item .icon {
+.chrome-cluster .icon {
   font-size: var(--cc-font-sm);
   color: var(--cc-text-strong);
 }
 
 /* The "this opens something" glyph. ChevronsUpDown draws in the middle 10/24 of
    its box, so its trailing bearing reads as padding; pull the box back by it. */
-.cluster-item .cluster-cue {
+.chrome-cluster .cluster-cue {
   margin-inline-end: -0.29em;
   /* A rung, not the action glyph dimmed: an opacity on top of a colour lands
      between two steps of the ladder and reads as a third grey. */
@@ -99,28 +101,28 @@
 }
 
 /* Copy feedback. Also on .icon, which carries its own colour above. */
-.cluster-item.is-copied,
-.cluster-item.is-copied .icon {
+.chrome-cluster > .is-copied,
+.chrome-cluster > .is-copied .icon {
   color: var(--cc-success);
 }
-.cluster-item.is-copied {
+.chrome-cluster > .is-copied {
   background: var(--cc-success-bg);
 }
 /* Hover, focus, press and open all read as engaged (see buttons.css). Open is
    keyed off aria-expanded so it can't drift from the ARIA. */
-.cluster-item--press:not(:disabled):hover .icon,
-.cluster-item--press:not(:disabled):focus-visible,
-.cluster-item--press:not(:disabled):focus-visible .icon,
-.cluster-item--press:not(:disabled):active,
-.cluster-item--press:not(:disabled):active .icon,
-.cluster-item--press[aria-expanded='true'],
-.cluster-item--press[aria-expanded='true'] .icon {
+.chrome-cluster > *:not(:disabled):hover .icon,
+.chrome-cluster > *:not(:disabled):focus-visible,
+.chrome-cluster > *:not(:disabled):focus-visible .icon,
+.chrome-cluster > *:not(:disabled):active,
+.chrome-cluster > *:not(:disabled):active .icon,
+.chrome-cluster > *[aria-expanded='true'],
+.chrome-cluster > *[aria-expanded='true'] .icon {
   color: var(--cc-accent);
 }
-.cluster-item--press:not(:disabled):focus-visible,
-.cluster-item--press[aria-expanded='true'] {
+.chrome-cluster > *:not(:disabled):focus-visible,
+.chrome-cluster > *[aria-expanded='true'] {
   background: var(--cc-accent-bg-soft);
 }
-.cluster-item--press:not(:disabled):active {
+.chrome-cluster > *:not(:disabled):active {
   background: var(--cc-accent-bg);
 }

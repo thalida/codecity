@@ -7,7 +7,7 @@
 
 import { fetchFileBytes } from '@/api/file';
 import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
-import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileKinds';
+import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';

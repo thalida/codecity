@@ -10,9 +10,9 @@ import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { goHome } from '@/state/stores/ui';
 import { IS_PHONE } from '@/state/stores/viewport';
-import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
+import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
-import { CopyButton, CopyButtonVariant } from '@/components/CopyButton/CopyButton';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
 
 export interface AppHeaderProps {
@@ -41,11 +41,9 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
         />
         {/* Dropped on a phone: a repo path on a phone's clipboard has nowhere
             to go, and the room buys the repo name back. */}
-        {si.src && !IS_PHONE.value && (
-          <CopyButton variant={CopyButtonVariant.Cluster} text={si.src} label="Copy repo source" />
-        )}
+        {si.src && !IS_PHONE.value && <CopyButton text={si.src} label="Copy repo source" />}
         {remoteUrl && (
-          <ClusterLink
+          <a
             href={remoteUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -53,7 +51,7 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
             aria-label="Open repo on origin"
           >
             <ExternalLink class="icon" />
-          </ClusterLink>
+          </a>
         )}
       </ChromeCluster>
 

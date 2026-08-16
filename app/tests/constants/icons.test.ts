@@ -8,7 +8,7 @@ import {
   FOLDER_ICON,
   GENERIC_FILE,
   GENERIC_FOLDER,
-} from '@/constants/fileIcons';
+} from '@/constants/fileIconMap';
 import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
 
 describe('material icons: every resolvable name is bundled', () => {

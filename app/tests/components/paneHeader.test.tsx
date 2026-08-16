@@ -1,5 +1,5 @@
 // The header's close button doesn't close anything: it puts a panel away, and a
-// right-sidebar selection outlives it. The glyph has to say which panel and
+// right sidebar's selection outlives it. The glyph has to say which panel and
 // which direction, so it's chosen from the sidebar the pane is rendered in.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

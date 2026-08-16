@@ -1,5 +1,5 @@
 // components/Sidebar.tsx — Shared sidebar chrome: the <aside> shell + a
-// drag-to-resize handle. LeftSidebar / RightSidebar fill in their own content
+// drag-to-resize handle. CitySidebarLeft / CitySidebarRight fill in their own content
 // and state class; the resize mechanics live here once so the two can't drift.
 
 import './Sidebar.css';
@@ -90,7 +90,7 @@ function ResizeHandle({ side, targetRef }: ResizeHandleProps) {
 }
 
 export interface SidebarProps {
-  /** DOM id — drives CSS (e.g. #left-sidebar). */
+  /** DOM id — drives CSS (e.g. #city-sidebar-left). */
   id: string;
   side: SidebarSide;
   /** Accessible name for the complementary landmark, so the two <aside>s are

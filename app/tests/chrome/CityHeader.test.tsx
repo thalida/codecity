@@ -84,9 +84,10 @@ describe('CityHeader', () => {
     expect(freshness).not.toBeNull();
     expect(freshness.querySelector('.freshness-status')).not.toBeNull();
     expect(freshness.classList.contains('chrome-cluster')).toBe(true);
-    // The readout is the whole cluster: acting on it happens in its panel, so a
-    // second item in the bar would be a duplicate of a row in there.
-    expect(freshness.querySelectorAll('.cluster-item')).toHaveLength(1);
+    // The readout is the whole cluster: acting on it happens in its panel, so
+    // a second item in the bar would duplicate a row in there.
+    const items = [...freshness.children].filter((el) => !el.classList.contains('sr-only'));
+    expect(items).toHaveLength(1);
   });
 
   // The trigger and its panel are siblings, so the cluster's dividers and

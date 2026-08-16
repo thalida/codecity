@@ -6,7 +6,6 @@
 import './ProjectSwitcher.css';
 import { BranchPill } from '@/components/BranchPill/BranchPill';
 import { ChevronsUpDown } from 'lucide-preact';
-import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { HostingIcon } from '@/components/HostingIcon/HostingIcon';
 
@@ -28,7 +27,7 @@ export function ProjectSwitcher({ rootLabel, branch, src, onSwitchSource }: Proj
   return (
     <button
       type="button"
-      class={`${CLUSTER_ITEM_PRESS} project-switcher`}
+      class="project-switcher"
       title="Switch project"
       aria-label="Switch project"
       disabled={!onSwitchSource}

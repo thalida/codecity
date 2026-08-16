@@ -1,4 +1,4 @@
-/* The project switcher is a .cluster-item (see ChromeCluster). The label and
+/* The switcher takes its box from the cluster it sits in. The label and
    branch pill truncate with an ellipsis so a long repo name can't overflow and
    overlap its neighbours; the full name stays reachable via the switcher. */
 
@@ -35,7 +35,7 @@
 .project-switcher:not(:disabled):active .project-switcher-label {
   color: inherit;
 }
-/* Size comes from .cluster-item .icon, so this chip's glyphs match every other
+/* Size comes from the cluster's .icon rule, so these glyphs match every other
    item's; only the shrink behaviour is the chip's own. */
 .project-switcher .icon {
   flex: 0 0 auto;

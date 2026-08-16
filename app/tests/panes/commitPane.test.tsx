@@ -22,7 +22,7 @@ const [COMMIT] = buildCommits({
 // setCommit(commit, opts) assigns the signal and flushes.
 type SetOpts = Omit<CommitPaneState, 'commit'>;
 
-// Stand-in for the backend's AuthorStat.hue map, which RightSidebar threads in.
+// Stand-in for the backend's AuthorStat.hue map, which CitySidebarRight threads in.
 const AUTHOR_HUES: Record<string, number> = { Alice: 10, Bob: 120, Carol: 250 };
 
 describe('CommitPane', () => {

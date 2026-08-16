@@ -1,6 +1,6 @@
 // views/FilePreviewPane.tsx — body content for the right sidebar: an image,
 // video, audio, pdf or highlighted-code preview of the selected file. Owns
-// nothing about the sidebar shell itself, which is layout/RightSidebar.tsx.
+// nothing about the sidebar shell itself, which is layout/CitySidebarRight.tsx.
 
 import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
@@ -23,13 +23,19 @@ import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/PaneStats/statItems';
 import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
-import { IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS, PDF_EXTS, FONT_EXTS } from '@/constants/fileKinds';
+import {
+  IMAGE_EXTS,
+  VIDEO_EXTS,
+  AUDIO_EXTS,
+  PDF_EXTS,
+  FONT_EXTS,
+} from '@/constants/fileExtensions';
 import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
-import { formatBytes } from '@/utils/bytes';
+import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/fileKind';
