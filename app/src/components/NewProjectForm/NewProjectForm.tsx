@@ -20,7 +20,7 @@ import {
 } from '@/utils/sources';
 import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
-import type { SourcePayload } from '@/state/stores/ui';
+import type { SourcePayload } from '@/types/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
 // Named hosts and then the general case: "any git host" alone reads as a claim,

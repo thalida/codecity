@@ -4,11 +4,8 @@
 import type { FileNode } from '../types';
 import { EXT_LANG, NAME_LANG, LANGUAGE_LABELS } from '../constants/syntaxLanguageMap';
 
-/**
- * Resolve a file's hljs language id, or null if no hint matches.
- * Lookup order: extension > exact filename. Returning null is a
- * legitimate "let hljs auto-detect" signal.
- */
+/** A file's hljs language id by extension, then exact filename. null is the
+ *  legitimate "let hljs auto-detect" answer. */
 export function languageFor(file: { extension?: string; name?: string }): string | null {
   const ext = (file.extension || '').toLowerCase();
   if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
@@ -17,12 +14,8 @@ export function languageFor(file: { extension?: string; name?: string }): string
   return null;
 }
 
-/**
- * Map a file to a human-readable language label.
- *   - Known hljs id → display label from LANGUAGE_LABELS.
- *   - Unknown id but has extension → uppercased extension (e.g. "EXR").
- *   - No id at all → "Plain Text".
- */
+/** A file's language as a person reads it: the label for a known id, the
+ *  uppercased extension for an unknown one, else "Plain Text". */
 export function humanLanguageFor(file: FileNode): string {
   const key = languageFor(file);
   if (!key) {
@@ -32,12 +25,8 @@ export function humanLanguageFor(file: FileNode): string {
   return LANGUAGE_LABELS[key] || key;
 }
 
-/**
- * Friendly language label for a bare extension (".ts" → "TypeScript"). Unknown
- * extensions fall back to the uppercased extension ("EXR"). Returns null for a
- * missing extension (empty/null) — there's no language to name, so callers drop
- * the clause instead of printing a placeholder.
- */
+/** ".ts" → "TypeScript", an unknown extension uppercased, and null when there
+ *  is no extension at all, so callers drop the clause rather than print one. */
 export function languageLabelForExt(ext: string | null): string | null {
   if (!ext) return null;
   const key = EXT_LANG[ext.toLowerCase()];

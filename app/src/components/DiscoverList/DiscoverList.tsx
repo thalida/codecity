@@ -16,7 +16,7 @@ import { DISCOVER } from '@/state/stores/discover';
 import { ACTIVE_SOURCE } from '@/state/stores/source';
 import { sameSourceIdentity } from '@/utils/sources';
 import { SourceRow } from '@/components/SourceRow/SourceRow';
-import type { SourcePayload } from '@/state/stores/ui';
+import type { SourcePayload } from '@/types/ui';
 
 export interface DiscoverListProps {
   onOpen: (payload: SourcePayload) => void;

@@ -12,7 +12,7 @@ import { useState } from 'preact/hooks';
 import { RECENTS, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
-import type { SourcePayload } from '@/state/stores/ui';
+import type { SourcePayload } from '@/types/ui';
 import { RecentRow } from './RecentRow';
 
 export interface RecentsListProps {

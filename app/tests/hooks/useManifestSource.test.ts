@@ -15,7 +15,7 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/loading';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';

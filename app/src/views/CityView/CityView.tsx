@@ -7,18 +7,19 @@ import './CityView.css';
 import { useEffect } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 
-import { CityHeader } from '@/chrome/CityHeader/CityHeader';
-import { CityFooter } from '@/chrome/CityFooter/CityFooter';
-import { CityStage } from '@/chrome/CityStage/CityStage';
-import { CitySidebarLeft } from '@/chrome/CitySidebarLeft/CitySidebarLeft';
-import { CitySidebarRight } from '@/chrome/CitySidebarRight/CitySidebarRight';
+import { CityHeader } from './chrome/CityHeader/CityHeader';
+import { CityFooter } from './chrome/CityFooter/CityFooter';
+import { CityStage } from './chrome/CityStage/CityStage';
+import { CitySidebarLeft } from './chrome/CitySidebarLeft/CitySidebarLeft';
+import { CitySidebarRight } from './chrome/CitySidebarRight/CitySidebarRight';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import { goHome, LOADING_CANCEL } from '@/state/stores/ui';
+import { goHome } from '@/state/stores/home';
+import { LOADING_CANCEL } from '@/state/stores/loading';
 import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
 import {
   clearSelection,

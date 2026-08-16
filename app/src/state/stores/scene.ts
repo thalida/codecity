@@ -5,7 +5,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { createCity } from '../../city';
-import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './ui';
+import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from './sidebars';
 import { IS_PHONE } from './viewport';
 
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;

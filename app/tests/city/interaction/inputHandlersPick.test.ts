@@ -9,7 +9,7 @@ import {
   SELECTION_PANE_DISMISSED,
   dismissSelectionPane,
   openSelectionPane,
-} from '@/state/stores/ui';
+} from '@/state/stores/sidebars';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 

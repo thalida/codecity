@@ -24,7 +24,7 @@ import {
   hideLoadingOverlay,
   setLoadingCancel,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/ui';
+} from '@/state/stores/loading';
 import {
   LoadingStep,
   TIMELINE_LOADING_STEPS,

@@ -13,7 +13,7 @@ import {
   markDecorating,
   markIdle,
 } from '@/state/stores/manifest';
-import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
+import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/loading';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';

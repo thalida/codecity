@@ -3,7 +3,7 @@
 // easy to miss, so this is how it is realistically reached.
 
 import { useEffect } from 'preact/hooks';
-import { openShortcuts, OVERLAY_OPEN } from '@/state/stores/ui';
+import { openShortcuts, OVERLAY_OPEN } from '@/state/stores/modals';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 

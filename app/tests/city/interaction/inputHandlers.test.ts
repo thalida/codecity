@@ -4,7 +4,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/ui';
+import { openShortcuts, closeShortcuts } from '@/state/stores/modals';
+import { SELECTION_PANE_DISMISSED } from '@/state/stores/sidebars';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ON_HOME, HOME_OPTS, goHome, OVERLAY_OPEN } from '@/state/stores/ui';
+import { ON_HOME, HOME_OPTS, goHome } from '@/state/stores/home';
+import { OVERLAY_OPEN } from '@/state/stores/modals';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { navigate, HREF } from '@/router/location';
 import { ROUTES } from '@/router/paths';

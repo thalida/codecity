@@ -95,9 +95,8 @@ export function Popover({
   );
   useDismissable(open, [triggerRef, panelRef], close);
 
-  // The panel's offset parent is the whole chrome cluster, so without this every
-  // item in a cluster opens its panel at the same place. Measured rather than
-  // declared: the trigger's position depends on which siblings rendered.
+  // The offset parent is the whole cluster, so without this every item opens
+  // its panel in the same spot. Measured: siblings decide where a trigger is.
   const [anchor, setAnchor] = useState<AnchorOffset | null>(null);
   useLayoutEffect(() => {
     if (!open) {

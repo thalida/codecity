@@ -35,8 +35,8 @@ import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
-import type { SourcePayload } from '@/state/stores/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
+import type { SourcePayload } from '@/types/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/loading';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

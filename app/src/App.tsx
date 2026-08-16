@@ -9,7 +9,7 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
-import { goHome } from '@/state/stores/ui';
+import { goHome } from '@/state/stores/home';
 import { SOURCE_ERROR } from '@/state/stores/source';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';

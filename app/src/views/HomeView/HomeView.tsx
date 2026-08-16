@@ -9,7 +9,9 @@ import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'luci
 import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
-import { HOME_OPTS, LOADING_OVERLAY, clearHomeError, type SourcePayload } from '@/state/stores/ui';
+import { HOME_OPTS, clearHomeError } from '@/state/stores/home';
+import { LOADING_OVERLAY } from '@/state/stores/loading';
+import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY } from '@/state/stores/backdrop';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';

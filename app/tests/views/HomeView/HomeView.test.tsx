@@ -19,7 +19,8 @@ vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
   cancelLoad: vi.fn(),
 }));
 import { HomeView } from '@/views/HomeView/HomeView';
-import { HOME_OPTS, goHome, setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
+import { HOME_OPTS, goHome } from '@/state/stores/home';
+import { setLoadingStepTail, PENDING_SOURCE_LABEL } from '@/state/stores/loading';
 import { BACKDROP_CITY, BackdropKind } from '@/state/stores/backdrop';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { navigate } from '@/router/location';

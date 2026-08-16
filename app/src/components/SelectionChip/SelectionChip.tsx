@@ -7,7 +7,7 @@ import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { SCENE_HANDLE, clearSelection } from '@/state/stores/scene';
-import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/ui';
+import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/sidebars';
 import { KindBadge } from '@/components/Badge/Badge';
 
 /** What the chip names: the node's own label, plus the kind badge its pane

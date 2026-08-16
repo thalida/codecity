@@ -13,7 +13,7 @@ import {
   REBUILD_DETAIL,
   BUILD_PROGRESS,
 } from '@/state/stores/manifest';
-import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/ui';
+import { LOADING_OVERLAY, LOADING_CANCEL } from '@/state/stores/loading';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { BuildStage } from '@/constants/buildStages';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
