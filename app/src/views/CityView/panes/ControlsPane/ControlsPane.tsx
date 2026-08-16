@@ -5,7 +5,7 @@
 
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
-import { DynamicSection } from '@/components/DynamicSection/DynamicSection';
+import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
 import type { SectionNode } from '@/types/controls';
 import { VIEW_SECTION } from './sectionConfigs/View';
 import { WORLD_SECTION } from './sectionConfigs/World';
@@ -17,8 +17,8 @@ import { TREES_SECTION } from './sectionConfigs/Trees';
 import { FIREFLIES_SECTION } from './sectionConfigs/Fireflies';
 import { POST_PROCESSING_SECTION } from './sectionConfigs/PostProcessing';
 import { TIMELINE_SECTION } from './sectionConfigs/Timeline';
-import { Pane } from '@/components/Pane/Pane';
-import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
+import { Pane } from '@/components/panes/Pane/Pane';
+import { PaneHeader } from '@/components/panes/PaneHeader/PaneHeader';
 import { RotateCcw } from 'lucide-preact';
 import {
   commit as commitDrafts,

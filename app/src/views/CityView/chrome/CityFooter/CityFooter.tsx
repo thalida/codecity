@@ -3,12 +3,12 @@
 // pane's footer, beside the thing they describe.
 
 import './CityFooter.css';
-import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
-import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
-import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
-import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
+import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeCluster';
+import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
+import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
+import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
 import { isDebugMode } from '@/utils/debugMode';
-import { MetaLine } from '@/components/MetaLine/MetaLine';
+import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 
 export interface AppFooterProps {
   onRunCollisionCheck?: () => void;

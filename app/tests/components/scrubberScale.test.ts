@@ -7,7 +7,7 @@ import {
   fractionToIndex,
   msToIndex,
   snapToStop,
-} from '@/components/TimeTravelBar/scrubberScale';
+} from '@/components/timeline/TimelineScrubber/scrubberScale';
 
 const DAY = 86_400_000;
 

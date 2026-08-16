@@ -30,7 +30,7 @@ import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
 import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
-import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
+import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */

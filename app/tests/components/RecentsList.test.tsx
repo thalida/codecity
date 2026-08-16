@@ -6,7 +6,7 @@ import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
-import { RecentsList } from '@/components/RecentsList/RecentsList';
+import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
 

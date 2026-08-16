@@ -13,7 +13,7 @@ import {
 const SHOWCASE_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 45,
     min: 0,
     max: 90,
@@ -23,7 +23,7 @@ const SHOWCASE_FIELDS = {
   },
   AZIMUTH: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 35,
     min: -180,
     max: 180,
@@ -33,7 +33,7 @@ const SHOWCASE_FIELDS = {
   },
   DISTANCE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 2,
@@ -43,7 +43,7 @@ const SHOWCASE_FIELDS = {
   },
   ROTATE_SPEED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.2,
     min: 0,
     max: 3,

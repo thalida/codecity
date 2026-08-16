@@ -41,7 +41,7 @@ const GEM_FIELDS = {
   },
   BODY_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1,
@@ -103,14 +103,14 @@ const GEM_FIELDS = {
   // ── Glow halo (sub-feature) ──
   GLOW_ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Adds a soft glowing halo behind the gem.',
   },
   GLOW_INNER_SCALE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 4.0,
     min: 1,
     max: 12,
@@ -120,7 +120,7 @@ const GEM_FIELDS = {
   },
   GLOW_INNER_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1,
@@ -130,7 +130,7 @@ const GEM_FIELDS = {
   },
   GLOW_OUTER_SCALE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 15.0,
     min: 1,
     max: 30,
@@ -140,7 +140,7 @@ const GEM_FIELDS = {
   },
   GLOW_OUTER_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -150,14 +150,14 @@ const GEM_FIELDS = {
   },
   GLOW_ANIMATE_COLORS: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Animate colors',
     tip: 'Cycle the halo color through the gem face palette. Off uses the edge color from Appearance above.',
   },
   GLOW_CYCLE_PERIOD_SECONDS: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 10.0,
     min: 1,
     max: 30,
@@ -167,7 +167,7 @@ const GEM_FIELDS = {
   },
   GLOW_EMISSION: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 5.0,
@@ -179,7 +179,7 @@ const GEM_FIELDS = {
   // ── Animation ──
   ROTATION_SPEED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 3,
@@ -189,7 +189,7 @@ const GEM_FIELDS = {
   },
   BOB_FREQUENCY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 5,
@@ -199,7 +199,7 @@ const GEM_FIELDS = {
   },
   BOB_AMPLITUDE_FRAC: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 2,
@@ -209,7 +209,7 @@ const GEM_FIELDS = {
   },
   HOVER_SCALE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.25,
     min: 1,
     max: 3,
@@ -219,7 +219,7 @@ const GEM_FIELDS = {
   },
   SCALE_LERP_SPEED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.1,
     min: 0.01,
     max: 1,
@@ -237,7 +237,7 @@ export type GemConfig = ConfigOf<typeof GEM_FIELDS>;
 const GEM_SIZING_FIELDS = {
   RADIUS_AS_STREET_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0.05,
     max: 1,
@@ -263,14 +263,14 @@ export type GemSizingConfig = ConfigOf<typeof GEM_SIZING_FIELDS>;
 const REPO_LABEL_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Master toggle for the floating holographic repo-name label.',
   },
   HEIGHT_PCT: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 85,
     min: 0,
     max: 200,
@@ -280,7 +280,7 @@ const REPO_LABEL_FIELDS = {
   },
   FONT_SIZE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 192,
     min: 10,
     max: 300,
@@ -290,7 +290,7 @@ const REPO_LABEL_FIELDS = {
   },
   ANIMATION_SPEED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 4,
@@ -300,7 +300,7 @@ const REPO_LABEL_FIELDS = {
   },
   OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.9,
     min: 0,
     max: 1,

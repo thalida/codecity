@@ -59,7 +59,7 @@ const STREETS_FIELDS = {
   },
   LABEL_STROKE_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.2,
     min: 0,
     max: 0.5,
@@ -69,7 +69,7 @@ const STREETS_FIELDS = {
   },
   LABEL_HEIGHT_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 2,
@@ -80,7 +80,7 @@ const STREETS_FIELDS = {
 
   PATH_LINEWIDTH_PCT: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 15,
     min: 1,
     max: 50,
@@ -90,7 +90,7 @@ const STREETS_FIELDS = {
   },
   PATH_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.95,
     min: 0,
     max: 1,
@@ -106,7 +106,7 @@ const STREETS_FIELDS = {
   },
   HOVER_PATH_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.25,
     min: 0,
     max: 1,

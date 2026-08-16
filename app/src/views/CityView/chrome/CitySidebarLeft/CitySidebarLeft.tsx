@@ -18,7 +18,7 @@ import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
+import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

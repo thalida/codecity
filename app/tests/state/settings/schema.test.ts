@@ -17,17 +17,17 @@ describe('settingSignal', () => {
   const STORE = settingSignal('TEST_SCHEMA_STORE', {
     A: {
       route: ChangeRoute.Refresh,
-      kind: FieldKind.Slider,
+      kind: FieldKind.SliderField,
       default: 5,
       min: 0,
       max: 10,
       step: 1,
       label: 'A',
     },
-    B: { route: ChangeRoute.Refresh, kind: FieldKind.Toggle, default: true, label: 'B' },
+    B: { route: ChangeRoute.Refresh, kind: FieldKind.ToggleField, default: true, label: 'B' },
     C: {
       route: ChangeRoute.Refresh,
-      kind: FieldKind.RangePair,
+      kind: FieldKind.RangePairField,
       default: [1, 2] as [number, number],
       min: 0,
       max: 9,
@@ -47,9 +47,9 @@ describe('settingSignal', () => {
 
   it('looks up a field definition by (store, key)', () => {
     const a = getFieldDef(STORE, 'A');
-    expect(a?.kind).toBe(FieldKind.Slider);
+    expect(a?.kind).toBe(FieldKind.SliderField);
     expect(a?.max).toBe(10);
-    expect(getFieldDef(STORE, 'B')?.kind).toBe(FieldKind.Toggle);
+    expect(getFieldDef(STORE, 'B')?.kind).toBe(FieldKind.ToggleField);
   });
 
   it('returns undefined for an unknown key or unregistered store', () => {
@@ -68,7 +68,7 @@ describe('settingSignal hydration validation', () => {
   const FIELDS: FieldMap = {
     N: {
       route: ChangeRoute.Refresh,
-      kind: FieldKind.Slider,
+      kind: FieldKind.SliderField,
       default: 16,
       min: 1,
       max: 50,
@@ -76,7 +76,7 @@ describe('settingSignal hydration validation', () => {
     },
     PAIR: {
       route: ChangeRoute.Refresh,
-      kind: FieldKind.RangePair,
+      kind: FieldKind.RangePairField,
       default: [20, 100] as [number, number],
       min: 0,
       max: 100,
@@ -92,7 +92,7 @@ describe('settingSignal hydration validation', () => {
       ],
       label: 'SEL',
     },
-    TOG: { route: ChangeRoute.Refresh, kind: FieldKind.Toggle, default: true, label: 'TOG' },
+    TOG: { route: ChangeRoute.Refresh, kind: FieldKind.ToggleField, default: true, label: 'TOG' },
   };
 
   // Seed a persisted diff (persist stores only non-default keys) under a unique
@@ -117,11 +117,11 @@ describe('settingSignal hydration validation', () => {
     expect(loadWith({ N: null }).N).toBe(16);
   });
 
-  it('clamps each end of a RangePair to [min, max]', () => {
+  it('clamps each end of a RangePairField to [min, max]', () => {
     expect(loadWith({ PAIR: [-5, 150] }).PAIR).toEqual([0, 100]);
   });
 
-  it('resets a malformed RangePair to its default', () => {
+  it('resets a malformed RangePairField to its default', () => {
     expect(loadWith({ PAIR: [1] }).PAIR).toEqual([20, 100]);
   });
 

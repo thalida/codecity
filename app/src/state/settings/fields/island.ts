@@ -15,14 +15,14 @@ const ISLAND_FIELDS = {
   // ── Geometry ──
   ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Show island',
     tip: 'Master toggle for the floating-island mesh. When off, the city sits over empty sky.',
   },
   SIDES: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 32,
     min: 6,
     max: 48,
@@ -32,7 +32,7 @@ const ISLAND_FIELDS = {
   },
   IRREGULARITY: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.12,
     min: 0,
     max: 0.5,
@@ -42,7 +42,7 @@ const ISLAND_FIELDS = {
   },
   TIERS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 5,
     min: 1,
     max: 10,
@@ -52,7 +52,7 @@ const ISLAND_FIELDS = {
   },
   DEPTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.2,
     min: 0.2,
     max: 2.0,
@@ -62,7 +62,7 @@ const ISLAND_FIELDS = {
   },
   ROUNDNESS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.7,
     min: 0,
     max: 1,
@@ -72,7 +72,7 @@ const ISLAND_FIELDS = {
   },
   GRASS_THICKNESS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.025,
     min: 0,
     max: 0.1,
@@ -84,7 +84,7 @@ const ISLAND_FIELDS = {
   // ── Materials ──
   GRASS_TEXTURE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0,
     max: 1,
@@ -104,7 +104,7 @@ const ISLAND_FIELDS = {
   },
   ROCK_TEXTURE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.1,
     min: 0,
     max: 1,
@@ -167,7 +167,7 @@ export type IslandConfig = ConfigOf<typeof ISLAND_FIELDS>;
 const WORLD_FIELDS = {
   GROUND_BUFFER_PERCENT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0,
     min: 0,
     max: 100,

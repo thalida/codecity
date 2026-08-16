@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
+import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -18,10 +18,10 @@ const TEST_MANIFEST = {
 };
 
 function btns(container: HTMLElement) {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>('.scene-mode-btn'));
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('.timeline-toggle-btn'));
 }
 
-describe('SceneModeToggle', () => {
+describe('TimelineToggle', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -39,15 +39,15 @@ describe('SceneModeToggle', () => {
   });
 
   it('does not render before a source is loaded', async () => {
-    render(<SceneModeToggle />, container);
+    render(<TimelineToggle />, container);
     await flush();
-    expect(container.querySelector('.scene-mode-toggle')).toBeNull();
+    expect(container.querySelector('.timeline-toggle')).toBeNull();
   });
 
   it('renders once a source is loaded, Live active by default', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    render(<SceneModeToggle />, container);
+    render(<TimelineToggle />, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -60,7 +60,7 @@ describe('SceneModeToggle', () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
     TIMELINE_MODE.value = true;
-    render(<SceneModeToggle />, container);
+    render(<TimelineToggle />, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -71,7 +71,7 @@ describe('SceneModeToggle', () => {
   it('clicking Timeline while live calls loadTimelineScene, not exit', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    render(<SceneModeToggle />, container);
+    render(<TimelineToggle />, container);
     await flush();
 
     btns(container)[1].click(); // Timeline
@@ -83,7 +83,7 @@ describe('SceneModeToggle', () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
     TIMELINE_MODE.value = true;
-    render(<SceneModeToggle />, container);
+    render(<TimelineToggle />, container);
     await flush();
 
     btns(container)[0].click(); // Live

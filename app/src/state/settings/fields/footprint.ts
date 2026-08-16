@@ -16,7 +16,7 @@ import {
 const FOOTPRINT_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'When off, the slab is hidden and trees can grow inside the halo area.',
@@ -40,7 +40,7 @@ const FOOTPRINT_FIELDS = {
   },
   CORNER_RADIUS: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 2.0,
     min: 0,
     max: 2,

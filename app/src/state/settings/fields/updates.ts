@@ -16,7 +16,7 @@ import {
 const LIVE_UPDATES_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Auto-refresh',
     tip: "Re-render the city whenever the project's files change.",

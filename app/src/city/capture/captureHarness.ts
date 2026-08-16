@@ -48,13 +48,7 @@ export function initCaptureHarness(): void {
   const stop = effect(() => {
     const handle = SCENE_HANDLE.value;
     const manifest = MANIFEST.value as Manifest;
-    if (
-      posed ||
-      !handle ||
-      !manifest ||
-      REBUILD_STATUS.value !== RebuildStatus.Idle
-    )
-      return;
+    if (posed || !handle || !manifest || REBUILD_STATUS.value !== RebuildStatus.Idle) return;
     // A skeleton also reaches Idle, and framing on its root-street bbox locks
     // onto a close-up. Reading anchors subscribes to bbox, so this re-fires.
     if (handle.rig.captureAnchors().tallestHeight <= 0) return;

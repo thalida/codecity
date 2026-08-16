@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { flush } from '../_helpers/preact';
 
 describe('PaneTabs', () => {
@@ -31,10 +31,8 @@ describe('PaneTabs', () => {
     await flush();
     expect(tabByLabel('World').getAttribute('aria-selected')).toBe('true');
     expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
-    // Regression: .pane-tabs has overflow-x: auto, which forces overflow-y to
-    // auto too (CSS Overflow spec), turning it into a scrollport that can clip
-    // a default-offset focus ring. `focus-inset` draws the ring inside the tab's
-    // border box so the scrollport can never clip it.
+    // overflow-x: auto forces overflow-y too, making a scrollport that clips an
+    // offset focus ring; focus-inset draws it inside the border box.
     expect(tabByLabel('World').classList.contains('focus-inset')).toBe(true);
     expect(tabByLabel('Readme').classList.contains('focus-inset')).toBe(true);
   });

@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
-import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
+import { PaneHeader } from '@/components/panes/PaneHeader/PaneHeader';
+import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 
 describe('PaneHeader close button', () => {
   let container: HTMLDivElement;

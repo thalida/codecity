@@ -10,10 +10,10 @@ import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
-import { Pane } from '@/components/Pane/Pane';
-import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
-import { PaneCloseButton } from '@/components/PaneCloseButton/PaneCloseButton';
-import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
+import { Pane } from '@/components/panes/Pane/Pane';
+import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
+import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
+import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

@@ -13,7 +13,7 @@ import {
 const FIREFLIES_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Fireflies enabled',
     tip: 'Master toggle. When off, no firefly orbs are placed or rendered.',
@@ -21,7 +21,7 @@ const FIREFLIES_FIELDS = {
 
   SCALE_MIN: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 2.0,
     min: 0.1,
     max: 5.0,
@@ -31,7 +31,7 @@ const FIREFLIES_FIELDS = {
   },
   SCALE_MAX: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 5.0,
     min: 0.5,
     max: 10.0,
@@ -42,7 +42,7 @@ const FIREFLIES_FIELDS = {
 
   ORBIT_SPEED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.3,
     min: 0,
     max: 3.0,
@@ -52,7 +52,7 @@ const FIREFLIES_FIELDS = {
   },
   BOB_AMPLITUDE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 2.0,
@@ -62,7 +62,7 @@ const FIREFLIES_FIELDS = {
   },
   BOB_SPEED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.1,
     min: 0,
     max: 5.0,
@@ -73,7 +73,7 @@ const FIREFLIES_FIELDS = {
 
   EMISSION_STRENGTH: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.5,
     min: 0,
     max: 5.0,
@@ -83,7 +83,7 @@ const FIREFLIES_FIELDS = {
   },
   PULSE_AMPLITUDE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1.0,
@@ -93,7 +93,7 @@ const FIREFLIES_FIELDS = {
   },
   PULSE_SPEED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.5,
     min: 0,
     max: 5.0,
@@ -103,7 +103,7 @@ const FIREFLIES_FIELDS = {
   },
   FLICKER_AMOUNT: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1.0,
@@ -114,14 +114,14 @@ const FIREFLIES_FIELDS = {
 
   ORBIT_RING_ENABLED: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Show orbit ring',
     tip: "Draws a subtle ring around each tree showing the firefly's orbital path.",
   },
   ORBIT_RING_THICKNESS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.15,
     min: 0.02,
     max: 0.5,

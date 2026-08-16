@@ -14,7 +14,7 @@ import {
 const RAINBOW_FIELDS = {
   SPEED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.0005,
     min: 0,
     max: 0.005,
@@ -24,7 +24,7 @@ const RAINBOW_FIELDS = {
   },
   SATURATION: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -33,7 +33,7 @@ const RAINBOW_FIELDS = {
   },
   LIGHTNESS: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -50,14 +50,14 @@ export type RainbowConfig = ConfigOf<typeof RAINBOW_FIELDS>;
 const BLOOM_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Turns off the glow pass and keeps windows flat, for a before/after look.',
   },
   STRENGTH: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0,
     max: 1,
@@ -67,7 +67,7 @@ const BLOOM_FIELDS = {
   },
   RADIUS: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1.0,
@@ -77,7 +77,7 @@ const BLOOM_FIELDS = {
   },
   THRESHOLD: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 2.0,

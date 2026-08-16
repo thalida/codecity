@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
+import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
 import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { drainAsync, flush } from '../_helpers/preact';

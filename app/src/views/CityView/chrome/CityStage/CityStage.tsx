@@ -3,9 +3,9 @@
 
 import './CityStage.css';
 import { City } from '@/city/City';
-import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
-import { SelectionChip } from '@/components/SelectionChip/SelectionChip';
+import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
+import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
+import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 
 export function CityStage() {
   return (
@@ -13,8 +13,8 @@ export function CityStage() {
       <City />
       <SelectionChip />
       <div id="scene-controls">
-        <TimeTravelBar />
-        <SceneModeToggle />
+        <TimelineScrubber />
+        <TimelineToggle />
       </div>
     </div>
   );

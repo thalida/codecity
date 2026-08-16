@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
+import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';

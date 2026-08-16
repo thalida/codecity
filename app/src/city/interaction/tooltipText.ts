@@ -1,17 +1,12 @@
-// city/interaction/tooltipText.ts — Pure content for the hover tooltip. Given a
-// pick target and the project's root directory name, returns the three parts the
-// renderer draws (or null when nothing should show). Side-effect-free so it's
-// unit-testable in isolation; the live wiring in inputHandlers.ts reads the root
-// name off the manifest signal and hands it in.
-//
-// Stats come from the same builders the selection pane uses, so hovering a
-// building and selecting it cannot report different numbers.
-
+// city/interaction/tooltipText.ts — the hover tooltip's content, given a pick
+// target and the root's name. Side-effect-free so it tests in isolation, and it
+// shares the selection pane's stat builders, so hovering a building and
+// selecting it cannot report different numbers.
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/constants/manifest';
-import { fileStatItems, directoryStatItems } from '@/components/PaneStats/statItems';
+import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
 
 /** Longest path rendered before the middle segments collapse to an ellipsis. */
 const PATH_BUDGET_CHARS = 44;
@@ -27,9 +22,8 @@ export interface TooltipContent {
   deleted: boolean;
 }
 
-// Prepend the root directory name (with a leading slash) to a manifest-relative
-// path so it reads as absolute-looking (e.g. "/codecity/app" rather than "app").
-// The root's own path is ROOT_PATH — render just "/codecity", not "codecity/.".
+// Root name + a leading slash, so a relative path reads absolute-looking. The
+// root itself is ROOT_PATH, which renders "/codecity", not "codecity/.".
 function withRoot(relPath: string, rootName: string | null): string {
   if (!rootName) return relPath || '';
   if (!relPath || relPath === ROOT_PATH) return `/${rootName}`;
@@ -42,11 +36,8 @@ function parentOf(relPath: string): string {
   return cut === -1 ? '' : relPath.slice(0, cut);
 }
 
-/**
- * Drop whole segments from the middle until the path fits the budget, keeping
- * the first and last. Truncating the tail instead would hide the segment
- * nearest the file, which is the informative end.
- */
+/** Drop middle segments until it fits, keeping first and last: truncating the
+ *  tail would hide the end nearest the file, which is the informative one. */
 export function middleTruncatePath(path: string, budget = PATH_BUDGET_CHARS): string {
   if (path.length <= budget) return path;
   const lead = path.startsWith('/') ? '/' : '';

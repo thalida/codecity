@@ -13,7 +13,7 @@ import {
 const TREES_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Trees enabled',
     tip: 'Master toggle. When off, every tree canopy and trunk is hidden.',
@@ -21,7 +21,7 @@ const TREES_FIELDS = {
 
   CITY_CLEARANCE_PERCENT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 4,
     min: 0,
     max: 50,
@@ -31,7 +31,7 @@ const TREES_FIELDS = {
   },
   CITY_CLEARANCE_LIMITS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.RangePair,
+    kind: FieldKind.RangePairField,
     default: [0, 256] as [number, number],
     min: 0,
     max: 2000,
@@ -41,7 +41,7 @@ const TREES_FIELDS = {
   },
   DENSITY_FALLOFF: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.5,
     min: 0,
     max: 50,
@@ -51,7 +51,7 @@ const TREES_FIELDS = {
   },
   EDGE_INSET_PERCENT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1,
     min: 0,
     max: 50,
@@ -61,7 +61,7 @@ const TREES_FIELDS = {
   },
   EDGE_INSET_LIMITS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.RangePair,
+    kind: FieldKind.RangePairField,
     default: [0, 256] as [number, number],
     min: 0,
     max: 2000,
@@ -93,7 +93,7 @@ const TREES_FIELDS = {
   },
   SHADING_STRENGTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.65,
     min: 0,
     max: 1,
@@ -104,7 +104,7 @@ const TREES_FIELDS = {
 
   MIN_HEIGHT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 32,
     min: 4,
     max: 400,
@@ -114,7 +114,7 @@ const TREES_FIELDS = {
   },
   MAX_HEIGHT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 128,
     min: 16,
     max: 800,
@@ -124,7 +124,7 @@ const TREES_FIELDS = {
   },
   HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 30,
     min: 1,
     max: 3650,
@@ -135,7 +135,7 @@ const TREES_FIELDS = {
 
   TRUNK_HEIGHT_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.35,
     min: 0.05,
     max: 1,
@@ -144,7 +144,7 @@ const TREES_FIELDS = {
   },
   CANOPY_TRUNK_OVERLAP_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.1,
     min: 0,
     max: 1,
@@ -155,7 +155,7 @@ const TREES_FIELDS = {
 
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 80,
     min: 2,
     max: 400,
@@ -165,7 +165,7 @@ const TREES_FIELDS = {
   },
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 160,
     min: 4,
     max: 600,
@@ -175,7 +175,7 @@ const TREES_FIELDS = {
   },
   TRUNK_RADIUS_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.15,
     min: 0.05,
     max: 0.5,
@@ -184,7 +184,7 @@ const TREES_FIELDS = {
   },
   WIDTH_AGE_FLOOR: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -214,7 +214,7 @@ const TREES_FIELDS = {
   },
   OUTLINE_HOVER_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -223,7 +223,7 @@ const TREES_FIELDS = {
   },
   OUTLINE_SELECTED_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1,

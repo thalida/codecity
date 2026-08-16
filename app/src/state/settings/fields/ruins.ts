@@ -12,14 +12,14 @@ import {
 const RUINS_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Show deleted files',
     tip: 'When on, a file deleted before the scrubbed commit leaves a faint gray stub instead of vanishing. Roads and plots of a deleted folder fade in too.',
   },
   BUILDING_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.2,
     min: 0.02,
     max: 1,
@@ -29,7 +29,7 @@ const RUINS_FIELDS = {
   },
   STUB_HEIGHT: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0.05,
     max: 4,
@@ -39,7 +39,7 @@ const RUINS_FIELDS = {
   },
   DESATURATION: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -49,7 +49,7 @@ const RUINS_FIELDS = {
   },
   X_ENABLED: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Cross out the roof',
     tip: 'When on, a deleted file’s roof is crossed out. The file-type icon stays readable underneath.',
@@ -63,7 +63,7 @@ const RUINS_FIELDS = {
   },
   X_WIDTH: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.3,
     min: 0.02,
     max: 0.6,

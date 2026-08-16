@@ -12,7 +12,7 @@ import {
 const SCRUBBER_FIELDS = {
   INDEX_WEIGHT: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0,
     min: 0,
     max: 1,

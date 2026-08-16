@@ -23,14 +23,14 @@ const SCENE_FIELDS = {
   // ── Stars ──
   STARS_ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'When off, no stars or twinkle appear.',
   },
   STARS_DENSITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.0075,
     min: 0,
     max: 0.02,
@@ -42,14 +42,14 @@ const SCENE_FIELDS = {
   // ── Aurora ──
   AURORA_ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'When off, no aurora appears.',
   },
   AURORA_INTENSITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.022,
     min: 0,
     max: 0.15,
@@ -61,7 +61,7 @@ const SCENE_FIELDS = {
   // ── Ground haze (fog) ──
   FOG_ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'When off, there is no haze. Turning it back on restores the other fog settings below.',
@@ -75,7 +75,7 @@ const SCENE_FIELDS = {
   },
   FOG_INTENSITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -85,7 +85,7 @@ const SCENE_FIELDS = {
   },
   FOG_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,

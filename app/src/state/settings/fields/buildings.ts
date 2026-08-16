@@ -23,7 +23,7 @@ const FADE_DETAIL_OPTIONS = [
 const BUILDING_DIMENSIONS_FIELDS = {
   MIN_FLOORS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1,
     min: 1,
     max: 200,
@@ -33,7 +33,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   MAX_FLOORS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 64,
     min: 1,
     max: 200,
@@ -43,7 +43,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   FULL_HEIGHT_LINES: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 2000,
     min: 100,
     max: 10000,
@@ -53,7 +53,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   FLOOR_HEIGHT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 16,
     min: 1,
     max: 50,
@@ -63,7 +63,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   EMPTY_SLAB_FLOORS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0.01,
     max: 1,
@@ -73,7 +73,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 16,
     min: 1,
     max: 200,
@@ -83,7 +83,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 128,
     min: 1,
     max: 200,
@@ -93,7 +93,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   FULL_WIDTH_KB: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 64,
     min: 1,
     max: 1024,
@@ -113,7 +113,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   DATA_HEIGHT_RATIO: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.7,
     min: 0.1,
     max: 2,
@@ -132,7 +132,7 @@ const BUILDINGS_FIELDS = {
   // ── Palette (HSL) — rebuild ──
   HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 90,
     min: 1,
     max: 730,
@@ -142,7 +142,7 @@ const BUILDINGS_FIELDS = {
   },
   SATURATION_MIN: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 50,
     min: 0,
     max: 100,
@@ -152,7 +152,7 @@ const BUILDINGS_FIELDS = {
   },
   SATURATION_MAX: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 100,
     min: 0,
     max: 100,
@@ -162,7 +162,7 @@ const BUILDINGS_FIELDS = {
   },
   LIGHTNESS_MIN: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 5,
     min: 0,
     max: 100,
@@ -172,7 +172,7 @@ const BUILDINGS_FIELDS = {
   },
   LIGHTNESS_MAX: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 40,
     min: 0,
     max: 100,
@@ -208,7 +208,7 @@ const BUILDINGS_FIELDS = {
   },
   OUTLINE_HOVER_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -217,7 +217,7 @@ const BUILDINGS_FIELDS = {
   },
   OUTLINE_SELECTED_OPACITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -241,7 +241,7 @@ const BUILDINGS_FIELDS = {
   // ── Facade geometry — shader-side (*_FRAC), refresh ──
   SLAB_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0,
     max: 0.4,
@@ -251,7 +251,7 @@ const BUILDINGS_FIELDS = {
   },
   WINDOW_WIDTH_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -260,7 +260,7 @@ const BUILDINGS_FIELDS = {
   },
   WINDOW_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.45,
     min: 0,
     max: 1,
@@ -269,7 +269,7 @@ const BUILDINGS_FIELDS = {
   },
   WINDOW_MARGIN_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.08,
     min: 0,
     max: 0.2,
@@ -279,7 +279,7 @@ const BUILDINGS_FIELDS = {
   },
   DOOR_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1,
@@ -288,7 +288,7 @@ const BUILDINGS_FIELDS = {
   },
   ROOF_BORDER_FRAC: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.05,
     min: 0,
     max: 0.1,
@@ -320,7 +320,7 @@ const BUILDINGS_FIELDS = {
   },
   DOOR_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.2,
     min: 0,
     max: 1,
@@ -332,7 +332,7 @@ const BUILDINGS_FIELDS = {
   // ── Facade contrast (HSL lightness Δ) — refresh ──
   SLAB_LIGHTNESS_DELTA: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: -10,
     min: -100,
     max: 100,
@@ -342,7 +342,7 @@ const BUILDINGS_FIELDS = {
   },
   DOOR_LIGHTNESS_DELTA: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: -50,
     min: -100,
     max: 100,
@@ -354,7 +354,7 @@ const BUILDINGS_FIELDS = {
   // ── Window lighting — refresh ──
   UNLIT_LIGHTNESS_DELTA: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: -10,
     min: -20,
     max: 20,
@@ -364,7 +364,7 @@ const BUILDINGS_FIELDS = {
   },
   GAP_BASE_THRESHOLD: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.25,
     min: 0,
     max: 1,
@@ -374,7 +374,7 @@ const BUILDINGS_FIELDS = {
   },
   GAP_AGE_BONUS: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -384,7 +384,7 @@ const BUILDINGS_FIELDS = {
   },
   LIT_FRESHNESS_EXPONENT: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 2.0,
     min: 1,
     max: 4,
@@ -401,7 +401,7 @@ const BUILDINGS_FIELDS = {
   },
   WINDOW_EMISSION: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 3.0,
@@ -413,14 +413,14 @@ const BUILDINGS_FIELDS = {
   // ── Billboards (media files) — rebuild (geometry baked at apply time) ──
   MEDIA_ENABLED: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Render the image/video billboard on media-file buildings. Off skips the mesh entirely, no fetch or decode: the buildings still show, without the picture.',
   },
   MEDIA_SIDE_MARGIN_FRAC: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.1,
     min: 0,
     max: 0.4,
@@ -430,7 +430,7 @@ const BUILDINGS_FIELDS = {
   },
   MEDIA_BOTTOM_OFFSET_FLOORS: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 3,
@@ -447,7 +447,7 @@ const BUILDINGS_FIELDS = {
   },
   MEDIA_EMISSION: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.6,
     min: 0,
     max: 5.0,
@@ -459,7 +459,7 @@ const BUILDINGS_FIELDS = {
   // ── Data blocks (binary files) — rebuild ──
   DATA_ENABLED: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and blank.',
@@ -473,7 +473,7 @@ const BUILDINGS_FIELDS = {
   },
   DATA_EMISSION: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.6,
     min: 0,
     max: 5.0,
@@ -485,14 +485,14 @@ const BUILDINGS_FIELDS = {
   // ── Aging (createdAge-driven weathering) — refresh ──
   GRIME_ENABLED: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Enabled',
     tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Turn off for clean facades regardless of age.',
   },
   GRIME_INTENSITY: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.RangePair,
+    kind: FieldKind.RangePairField,
     default: [0, 1] as [number, number],
     min: 0,
     max: 1,
@@ -502,7 +502,7 @@ const BUILDINGS_FIELDS = {
   },
   GRIME_COVERAGE: {
     route: ChangeRoute.Refresh,
-    kind: FieldKind.RangePair,
+    kind: FieldKind.RangePairField,
     default: [0, 0.55] as [number, number],
     min: 0,
     max: 1,
@@ -523,14 +523,14 @@ const BUILDINGS_FIELDS = {
   },
   DEFAULT_OUTLINE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: false,
     label: 'Outline',
     tip: 'Show the wireframe edge overlay.',
   },
   DEFAULT_BODY_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -540,7 +540,7 @@ const BUILDINGS_FIELDS = {
   },
   DEFAULT_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -559,13 +559,13 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL1_OUTLINE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: false,
     label: 'Outline',
   },
   LEVEL1_BODY_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -574,7 +574,7 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL1_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 1.0,
     min: 0,
     max: 1,
@@ -592,13 +592,13 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL2_OUTLINE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Outline',
   },
   LEVEL2_BODY_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -607,7 +607,7 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL2_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -625,13 +625,13 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL3_OUTLINE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Outline',
   },
   LEVEL3_BODY_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,
@@ -640,7 +640,7 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL3_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.75,
     min: 0,
     max: 1,
@@ -658,13 +658,13 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL4_OUTLINE: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Toggle,
+    kind: FieldKind.ToggleField,
     default: true,
     label: 'Outline',
   },
   LEVEL4_BODY_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.25,
     min: 0,
     max: 1,
@@ -673,7 +673,7 @@ const BUILDINGS_FIELDS = {
   },
   LEVEL4_OUTLINE_OPACITY: {
     route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
+    kind: FieldKind.SliderField,
     default: 0.5,
     min: 0,
     max: 1,

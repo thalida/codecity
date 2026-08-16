@@ -19,8 +19,8 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { PaneStats } from '@/components/PaneStats/PaneStats';
-import { fileStatItems } from '@/components/PaneStats/statItems';
+import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
+import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import {
@@ -31,10 +31,10 @@ import {
   FONT_EXTS,
 } from '@/constants/fileExtensions';
 import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
-import { Pane } from '@/components/Pane/Pane';
-import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
+import { Pane } from '@/components/panes/Pane/Pane';
+import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
+import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';

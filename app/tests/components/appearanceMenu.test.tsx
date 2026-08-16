@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
+import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
 import {
   ACCENT_THEME,
   ACCENT_THEME_DEFAULT,

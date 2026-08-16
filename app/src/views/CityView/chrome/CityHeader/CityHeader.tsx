@@ -11,10 +11,10 @@ import type { Manifest } from '@/types';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { IS_PHONE } from '@/state/stores/viewport';
-import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
-import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
-import { CopyButton } from '@/components/CopyButton/CopyButton';
-import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
+import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeCluster';
+import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
+import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
+import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */

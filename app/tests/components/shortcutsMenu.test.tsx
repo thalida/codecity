@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
+import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
 import { SHORTCUTS_OPEN, openShortcuts } from '@/state/stores/chrome';
 import { flush, drainAsync } from '../_helpers/preact';
 

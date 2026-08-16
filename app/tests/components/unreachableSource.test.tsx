@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/UnreachableSource';
+import {
+  UnreachableSource,
+  NoticeReason,
+} from '@/components/sources/UnreachableSource/UnreachableSource';
 import { flush } from '../_helpers/preact';
 
 type Body = 'clone' | 'run-locally' | 'turn-on';
@@ -20,9 +23,8 @@ const PREAMBLE: Record<NoticeReason, RegExp | null> = {
 // The extra step, only where turning it on is both possible and needed.
 const PREREQ = /turn on local paths, clone it yourself/i;
 
-// Every state the form can actually reach. standing and path-blocked both
-// require local paths to be off (the form gates them on it), so a mounted
-// instance only ever produces the unreachable rows.
+// Every state the form can reach: standing and path-blocked both need local
+// paths off, so a mounted instance only produces the unreachable rows.
 const STATES: {
   reason: NoticeReason;
   hosted: boolean;
@@ -185,9 +187,8 @@ describe('UnreachableSource', () => {
     expect(text()).not.toContain('git clone');
   });
 
-  // GitHub 404s a private repo to an unauthenticated caller exactly as it 404s
-  // a typo, so claiming privacy would be a guess; and "you don't have access"
-  // blames the user for a property of this server.
+  // GitHub 404s a private repo exactly as it 404s a typo, so claiming privacy
+  // would be a guess.
   it('never asserts the repo is private, and never blames the user', async () => {
     for (const { reason, hosted, allowLocal } of STATES) {
       await show(reason, hosted, allowLocal);

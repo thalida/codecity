@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { SyntaxThemeRow } from '@/components/SyntaxThemeRow/SyntaxThemeRow';
+import { SyntaxThemeField } from '@/components/fields/SyntaxThemeField/SyntaxThemeField';
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/syntaxTheme';
 import { _resetForTests } from '@/state/settings/drafts';
 // Load every settings store for its registration side-effect (settingSignal
@@ -145,7 +145,7 @@ describe('subgroup group reset button', () => {
   });
 });
 
-describe('SyntaxThemeRow', () => {
+describe('SyntaxThemeField', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -162,7 +162,7 @@ describe('SyntaxThemeRow', () => {
 
   // Appearance autosaves: no Save step, the store takes the value on change.
   it('applies the picked theme immediately', async () => {
-    act(() => render(<SyntaxThemeRow />, container));
+    act(() => render(<SyntaxThemeField />, container));
     const select = container.querySelector('select') as HTMLSelectElement;
     expect(select).toBeTruthy();
 

@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
+import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import * as branchesApi from '@/api/branches';
 import { ScanError } from '@/api/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
@@ -73,9 +73,8 @@ describe('NewProjectForm', () => {
     await flush();
     expect(select.value).toBe('feat');
 
-    // Now point the field at a different repo entirely. This repo has no
-    // detectable default (default: null), so nothing auto-preselects a branch —
-    // if the stale 'feat' pick isn't cleared, it rides along unnoticed.
+    // This repo has no detectable default, so nothing preselects a branch: an
+    // uncleared 'feat' would ride along unnoticed.
     resolve.mockResolvedValueOnce({ branches: ['main'], default: null });
     setInput(field(container), 'https://github.com/o/second');
     await drainAsync();
@@ -198,9 +197,8 @@ describe('NewProjectForm', () => {
   });
 
   it('offers the remedy when the branch lookup says the repo is unreachable', async () => {
-    // The bug this guards: pasting a private repo URL failed at the branch
-    // lookup, which showed raw git stderr and no remedy, because the code was
-    // only threaded through the manifest stream.
+    // A private repo URL failed at the branch lookup and showed raw git stderr,
+    // because the code was only threaded through the manifest stream.
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
     );
@@ -312,9 +310,8 @@ describe('NewProjectForm', () => {
     expect(submitBtn.disabled).toBe(true);
   });
 
-  // A blocked path used to leave the informational notice standing under a
-  // field already painted red, and aria-describedby unset, so the invalid
-  // field pointed at nothing.
+  // A blocked path left the notice standing under an already-red field with
+  // aria-describedby unset, so the invalid field pointed at nothing.
   it('turns the notice into an error once a blocked path is typed', async () => {
     render(
       <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
@@ -339,9 +336,8 @@ describe('NewProjectForm', () => {
     expect(input.getAttribute('aria-describedby')).toBe(note?.id);
   });
 
-  // The message from a failed open used to render in a banner above the card,
-  // so a single failure spoke from two places and the field it described was
-  // never marked invalid.
+  // A failed open used to also render a banner above the card, so one failure
+  // spoke twice and the field it described was never marked invalid.
   it('puts the message from a failed open in the field slot, not above it', async () => {
     render(
       <NewProjectForm
@@ -411,10 +407,8 @@ describe('NewProjectForm', () => {
   });
 
   it('keeps the field mounted (and shows no path error) while typing a git URL char-by-char when local repos are off', async () => {
-    // Regression guard: srcKind() classifies any string without "://" as Local,
-    // so a URL's first keystrokes read as a path. The field must never unmount
-    // (it once did, dropping focus), and a half-typed URL must not flash the
-    // "local paths" error — that's gated on looksLikePath.
+    // srcKind() reads anything without "://" as Local, so a URL's first
+    // keystrokes look like a path: the field must not unmount or flash.
     render(
       <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
       container

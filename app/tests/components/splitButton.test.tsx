@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { SplitButton } from '@/components/SplitButton/SplitButton';
+import { SplitButton } from '@/components/buttons/SplitButton/SplitButton';
 import { drainAsync, flush } from '../_helpers/preact';
 
-// Preact schedules useEffect on rAF, which jsdom fires around 16ms, so the
-// open effect (focus the first item, register the outside-press listeners)
-// needs a real timer yield rather than flush()'s microtask hop.
+// Preact schedules useEffect on rAF, so the open effect needs a real timer
+// yield rather than flush()'s microtask hop.
 const settleEffects = () => drainAsync(3, 20);
 
 describe('SplitButton', () => {

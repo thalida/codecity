@@ -14,12 +14,12 @@ export interface SelectOption {
 }
 
 export enum FieldKind {
-  Slider = 'slider',
+  SliderField = 'slider',
   Number = 'number',
   Color = 'color',
-  Toggle = 'toggle',
+  ToggleField = 'toggle',
   Select = 'select',
-  RangePair = 'rangePair',
+  RangePairField = 'rangePair',
   /** An ordered array of { min_descendants, width } street tiers — one width
    *  slider per tier. The field's value is the whole array (see STREET_TIERS). */
   TierWidths = 'tierWidths',
@@ -118,18 +118,18 @@ function clampToBounds(n: number, def: FieldDef): number {
 function sanitizeField(value: unknown, def: FieldDef): unknown {
   const fallback = def.default;
   switch (def.kind) {
-    case FieldKind.Slider:
+    case FieldKind.SliderField:
     case FieldKind.Number:
       return typeof value === 'number' && Number.isFinite(value)
         ? clampToBounds(value, def)
         : fallback;
-    case FieldKind.RangePair:
+    case FieldKind.RangePairField:
       return Array.isArray(value) &&
         value.length === 2 &&
         value.every((n) => typeof n === 'number' && Number.isFinite(n))
         ? [clampToBounds(value[0] as number, def), clampToBounds(value[1] as number, def)]
         : fallback;
-    case FieldKind.Toggle:
+    case FieldKind.ToggleField:
       return typeof value === 'boolean' ? value : fallback;
     case FieldKind.Select:
       return def.options?.some((o) => o.value === value) ? value : fallback;

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { DynamicSection } from '@/components/DynamicSection/DynamicSection';
+import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
 import type { SectionChild, FieldRef } from '@/types/controls';
 import { TREES_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Trees';
 import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
@@ -130,7 +130,7 @@ describe('DynamicSection rendering', () => {
     expect(container.textContent).toContain('Placement');
     expect(container.textContent).toContain('Height by age');
 
-    // One .setting-row per placed field (RangePair counts as one row).
+    // One .setting-row per placed field (RangePairField counts as one row).
     const placed = collectRefs(TREES_SECTION.children ?? []).length;
     expect(container.querySelectorAll('.setting-row').length).toBe(placed);
   });

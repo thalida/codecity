@@ -1,16 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
+import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
 import { NodeKind } from '@/types';
 import { flush } from '../_helpers/preact';
 
-// jsdom doesn't actually fetch the icon src — we just validate the URL the
-// component picks. The `data-icon-name` data attribute on the rendered <img>
-// exposes the resolved icon basename to tests without parsing the URL.
-//
-// NodeIcon dispatches on node.type: a node without type (or any non-directory
-// type) is treated as a file; type === NodeKind.Directory picks the folder
-// resolver.
+// jsdom never fetches the src, so these assert the URL the component picks, via
+// the data-icon-name attribute rather than by parsing it.
 
 describe('NodeIcon — files', () => {
   let container: HTMLDivElement;
