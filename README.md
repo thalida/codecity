@@ -255,8 +255,14 @@ there is hand-edited and it's always safe to delete.
 
 ### Worktrees
 
+```sh
+just worktree-setup fix/my-branch      # the branch has to exist first
+just worktree-teardown fix/my-branch   # once its PR is merged
+```
+
 - Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
-- `.env.local` sits at the repo root, so each worktree has its own
+- `.env.local` and `.claude/settings.json` are gitignored, so `worktree-setup` copies yours across
+- `worktree-teardown` takes the docker stack and its volumes with it
 
 ### Backend
 
