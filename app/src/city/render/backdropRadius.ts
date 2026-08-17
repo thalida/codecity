@@ -1,11 +1,11 @@
-// city/render/showcaseRadius.ts — how far the showcase orbit sits from the gem,
+// city/render/backdropRadius.ts — how far the backdrop orbit sits from the gem,
 // counted in the gem's own framing distance. The city's extent grows with the
 // project, so measuring in that put one setting on top of a small repo and
 // miles off a large one.
 
 import type { WorldBounds } from '@/city/utils/floorBounds';
 
-export interface ShowcaseGeometry {
+export interface BackdropGeometry {
   /** The gem's own radius, from the layout. */
   gemRadius: number | null;
   /** Where the default camera rests. Off the root street's width, which is
@@ -17,10 +17,10 @@ export interface ShowcaseGeometry {
 
 /** `t` in units of that framing distance: 1 sits where opening the project
  *  leaves you. Clamped to the camera's own limits, and never inside the gem. */
-export function showcaseRadius(
+export function backdropRadius(
   t: number,
   limits: { minDistance: number; maxDistance: number },
-  geometry: ShowcaseGeometry
+  geometry: BackdropGeometry
 ): number {
   const unit =
     geometry.gemFitDistance ??

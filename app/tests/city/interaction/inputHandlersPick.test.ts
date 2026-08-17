@@ -1,6 +1,6 @@
 // A canvas pick decides whether the details show. It owns that call: the pane's
 // dismissal used to be cleared by an effect watching the selection, which also
-// fired on the picker's own bookkeeping (a showcase save/restore round trip).
+// fired on the picker's own bookkeeping (a backdrop save/restore round trip).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';

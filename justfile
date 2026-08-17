@@ -248,6 +248,21 @@ setup: install-hooks
      fi
     @echo "[just] setup complete — try 'just dev'"
 
+# Add a worktree for an existing BRANCH, carrying over the gitignored files (.env.local, .claude/settings.json) git leaves behind.
+worktree BRANCH DIR='':
+    @set -e ; \
+     DIR="{{DIR}}" ; \
+     [ -n "$DIR" ] || DIR=".claude/worktrees/$(printf '%s' '{{BRANCH}}' | tr '/' '+')" ; \
+     git worktree add "$DIR" "{{BRANCH}}" ; \
+     for f in .env.local .claude/settings.json ; do \
+         if [ -f "$f" ] && [ ! -f "$DIR/$f" ]; then \
+             mkdir -p "$DIR/$(dirname "$f")" ; \
+             cp "$f" "$DIR/$f" ; \
+             echo "[just] carried over $f" ; \
+         fi ; \
+     done ; \
+     echo "[just] worktree ready at $DIR — cd there and run 'just setup'"
+
 # ── Git hooks ────────────────────────────────────────────────────
 # Install repo-local git hooks. Run once after cloning.
 # `core.hooksPath` is per-clone (not committed), so this bootstrap is required.

@@ -6,6 +6,7 @@
 import type { SceneHandle } from '@/city/sceneHandle';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
+import { CameraMode } from '@/city/render/cameraRig';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
@@ -97,11 +98,13 @@ export const SHOTS: Record<string, ShotPose> = {
     handle.rig.reset();
   },
 
-  // The landing's wallpaper (`just hero-image`). Shot from the showcase's own
-  // pose, since the landing swaps this image for a live showcase city.
+  // The landing's wallpaper (`just hero-image`), shot from the backdrop's own
+  // pose: the landing swaps this image for a live backdrop city.
   hero: (handle) => {
     if (!handle.rig.captureAnchors().gem) return false; // no city yet
-    handle.rig.enterShowcase({ autoRotate: false });
+    // Still: a capture wants the frame the turntable opens on, not wherever a
+    // spin happened to be when the shutter fell.
+    handle.rig.setMode(CameraMode.Backdrop, { autoRotate: false });
   },
 
   // The city part-built, at the defaults. The load is async, so this returns

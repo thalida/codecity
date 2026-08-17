@@ -7,6 +7,7 @@ import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@/city';
+import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -39,9 +40,11 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     let unsubApply: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
-    // Start the scene empty; the apply-effect below paints the first real
-    // manifest as soon as the fetch layer publishes it.
-    createCity(canvas)
+    // Start empty; the apply-effect below paints the first manifest. The variant
+    // is also what the camera is FOR, so the rig opens on the right pose itself.
+    createCity(canvas, {
+      cameraMode: variant === CityVariant.Backdrop ? CameraMode.Backdrop : CameraMode.Project,
+    })
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).

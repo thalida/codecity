@@ -6,7 +6,7 @@ import { TREES_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfig
 import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { CAMERA } from '@/state/settings/fields/camera';
-import { SHOWCASE } from '@/state/settings/fields/showcase';
+import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { SCENE } from '@/state/settings/fields/scene';
 import { ISLAND, WORLD } from '@/state/settings/fields/island';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/settings/fields/streets';
@@ -35,7 +35,7 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
 // here but left unplaced, or a field dropped in a move, fails below.
 const CONTROLS_STORES: [string, object][] = [
   ['CAMERA', CAMERA],
-  ['SHOWCASE', SHOWCASE],
+  ['HOME_BACKDROP', HOME_BACKDROP],
   ['SCENE', SCENE],
   ['WORLD', WORLD],
   ['ISLAND', ISLAND],
