@@ -99,11 +99,13 @@ jobs:
       - name: Format check (prettier)
         run: docker compose -f docker-compose.test.yml run --rm prettier
 
-      # On the runner, not in a container: it needs uv and npx together, and
-      # openapi-typescript is already installed in app/ by the steps above.
+      # On the runner, not a container: it needs uv and npx together. The npm
+      # steps above install into an anonymous volume, so nothing is out here.
       - name: Generated types match the models
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+          npm ci --ignore-scripts
+          (cd app && npm ci --ignore-scripts)
           "$HOME/.local/bin/uv" run python bin/check-generated-types.py
 
       - name: Trivy scan

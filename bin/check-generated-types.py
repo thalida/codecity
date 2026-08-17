@@ -24,6 +24,19 @@ from pathlib import Path
 COMMITTED = Path("app/src/types/manifest.generated.ts")
 
 
+def run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    """Run `argv`, surfacing its stderr if it fails.
+
+    check=True alone raises a CalledProcessError naming only the command, so a
+    captured failure reaches CI as an exit code and no reason at all."""
+    result = subprocess.run(argv, capture_output=True, text=True, **kwargs)  # type: ignore[call-overload]
+    if result.returncode != 0:
+        print(f"$ {' '.join(argv)}", file=sys.stderr)
+        print(result.stderr or result.stdout, file=sys.stderr)
+        raise SystemExit(result.returncode)
+    return result
+
+
 def main() -> int:
     for tool in ("uv", "npx"):
         if shutil.which(tool) is None:
@@ -35,25 +48,28 @@ def main() -> int:
         generated = Path(tmp) / "manifest.generated.ts"
 
         schema.write_text(
-            subprocess.run(
-                ["uv", "run", "python", "scripts/gen_openapi.py"],
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout,
+            run(["uv", "run", "python", "scripts/gen_openapi.py"]).stdout,
             encoding="utf-8",
         )
-        subprocess.run(
-            ["npx", "openapi-typescript", str(schema), "-o", str(generated)],
+        # --no-install: npx would otherwise fetch latest, and the file would
+        # then differ by generator version rather than by drift in the models.
+        run(
+            [
+                "npx",
+                "--no-install",
+                "openapi-typescript",
+                str(schema),
+                "-o",
+                str(generated),
+            ],
             cwd="app",
-            capture_output=True,
-            check=True,
         )
         # Format the fresh copy the way the committed one is, or every line
         # reads as changed. --config because prettier resolves it per-FILE.
-        subprocess.run(
+        run(
             [
                 "npx",
+                "--no-install",
                 "prettier",
                 "--write",
                 "--ignore-path",
@@ -61,9 +77,7 @@ def main() -> int:
                 "--config",
                 str(Path(".prettierrc.json").resolve()),
                 str(generated),
-            ],
-            capture_output=True,
-            check=True,
+            ]
         )
 
         want = generated.read_text(encoding="utf-8")
