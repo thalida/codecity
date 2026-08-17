@@ -30,6 +30,7 @@ from api.cache.storage.paths import (
     repo_key,
     timeline_cache_path,
 )
+from api.cache.storage.retention import sweep_to_budget
 from api.cache.storage.store import load_gz_envelope, save_gz_envelope
 from api.models.manifest import Manifest, TimelineBundle
 
@@ -40,8 +41,8 @@ TIMELINE_VERSION = 7
 # when EITHER the manifest schema or the git-history shape moves.
 MANIFEST_VERSION: str = f"m{MANIFEST_SCHEMA_VERSION}-g{HISTORY_VERSION}"
 
-# How many entries per repo survive a sweep. Uncapped, this directory reached
-# 844 files / 281 MB on one dev machine. The caps differ because reuse does:
+# How many entries ONE repo keeps, so a burst in one family can't push out
+# another's. Bytes are storage/retention.py's job: a count cannot bound them.
 _KEEP = {
     # A signature dies the moment any tracked file is edited, so old ones are
     # near-worthless.
@@ -49,9 +50,24 @@ _KEEP = {
     # A resolved commit is immutable, so these never go stale, and scrubbing
     # revisits them.
     ManifestFamily.REF: 20,
-    # Whole-history bundles, far the largest entries here.
-    ManifestFamily.TIMELINE: 3,
+    # Immutable per (HEAD, excludes) like a ref, and the most expensive thing
+    # here to rebuild — minutes, against seconds for anything else.
+    ManifestFamily.TIMELINE: 10,
 }
+
+
+def drop_dead(path: Path) -> None:
+    """Delete an entry that just failed to load.
+
+    Every reason a load fails here is permanent for that file: a bumped version,
+    a shape that no longer validates, bytes that no longer parse. Leaving it
+    costs its size until the repo is scanned again, and repos that never are
+    kept 385MB of unreadable entries on the machine this was measured on.
+    """
+    try:
+        path.unlink()
+    except OSError:
+        pass  # already gone, or not ours to remove
 
 
 def _load_manifest(path: Path) -> Manifest | None:
@@ -60,13 +76,16 @@ def _load_manifest(path: Path) -> Manifest | None:
     A blob whose shape no longer validates is a miss, like a corrupt or
     version-mismatched one: handing a half-matching manifest to the renderer is
     worse than rescanning."""
+    if not path.exists():
+        return None
     payload = load_gz_envelope(path, envelope_key="manifest", version=MANIFEST_VERSION)
-    if payload is None:
-        return None
-    try:
-        return Manifest.model_validate(payload)
-    except ValidationError:
-        return None
+    if payload is not None:
+        try:
+            return Manifest.model_validate(payload)
+        except ValidationError:
+            pass
+    drop_dead(path)
+    return None
 
 
 def _save_manifest(path: Path, manifest: Manifest) -> None:
@@ -79,12 +98,22 @@ def _save_manifest(path: Path, manifest: Manifest) -> None:
 
 
 def prune_manifest_cache(abs_root: Path, *, protect: Path | None = None) -> int:
-    """Drop this root's oldest entries, per family. Returns the count deleted.
+    """Sweep the cache after a save. Returns the count deleted.
 
-    `protect` is never evicted: one-second mtime resolution lets a burst of
-    saves tie, which could sort the just-written entry into the tail. Ordered by
-    mtime, not atime (relatime doesn't track it), so a much-read old signature
-    still ages out."""
+    Two passes, because they bound different things: this root's per-family
+    counts, then a byte budget over every repo's entries. The second is what
+    reaches repos that are never scanned again, which the first cannot — it only
+    ever runs against the root being saved.
+
+    `protect` is never evicted by either: one-second mtime resolution lets a
+    burst of saves tie, which could sort the just-written entry into the tail.
+    Ordered by mtime, not atime (relatime doesn't track it), so a much-read old
+    signature still ages out."""
+    return _prune_families(abs_root, protect=protect) + sweep_to_budget(protect=protect)
+
+
+def _prune_families(abs_root: Path, *, protect: Path | None = None) -> int:
+    """Drop this root's oldest manifests/ entries, per family."""
     if not manifest_dir().exists():
         return 0
 
@@ -172,17 +201,17 @@ def cache_load_timeline(
     abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
 ) -> TimelineBundle | None:
     """The cached bundle for (root, head_sha, excludes)."""
-    payload = load_gz_envelope(
-        timeline_cache_path(abs_root, head_sha, excludes),
-        envelope_key="bundle",
-        version=TIMELINE_VERSION,
-    )
-    if payload is None:
+    path = timeline_cache_path(abs_root, head_sha, excludes)
+    if not path.exists():
         return None
-    try:
-        return TimelineBundle.model_validate(payload)
-    except ValidationError:
-        return None  # same treatment as a corrupt blob; see _load_manifest
+    payload = load_gz_envelope(path, envelope_key="bundle", version=TIMELINE_VERSION)
+    if payload is not None:
+        try:
+            return TimelineBundle.model_validate(payload)
+        except ValidationError:
+            pass  # same treatment as a corrupt blob; see _load_manifest
+    drop_dead(path)
+    return None
 
 
 def cache_save_timeline(

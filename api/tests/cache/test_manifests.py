@@ -73,6 +73,28 @@ class ManifestCacheTests(CacheTestBase):
             fh.write(payload.encode("utf-8"))
         # Loader must reject.
         self.assertIsNone(cache_load_manifest(root, sig))
+        # And collect it: a version bump makes every earlier entry permanently
+        # unreadable, and a repo never scanned again is never revisited.
+        self.assertFalse(path.exists())
+
+    def test_a_corrupt_entry_is_collected_on_read(self) -> None:
+        from api.cache import cache_load_manifest
+        from api.cache.storage.paths import manifest_cache_path
+
+        root, sig = Path("/fake/root"), "beefbeef" * 8
+        path = manifest_cache_path(root, sig)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"not gzip, not json, not anything")
+
+        self.assertIsNone(cache_load_manifest(root, sig))
+        self.assertFalse(path.exists())
+
+    def test_a_cold_miss_does_not_touch_the_directory(self) -> None:
+        """Nothing to collect when the entry was never written, and a miss must
+        not create or disturb anything on the way past."""
+        from api.cache import cache_load_manifest
+
+        self.assertIsNone(cache_load_manifest(Path("/never/scanned"), "f" * 32))
 
     def test_ref_manifest_roundtrip(self) -> None:
         root = Path("/some/repo")

@@ -73,13 +73,31 @@ Then:
 
 ## Retention
 
-`results/manifests.py` sweeps on every save, per repo, per family, oldest-first
-by mtime. Uncapped it reached 844 files / 281 MB on one dev machine.
+Two passes run after every save, bounding two different things.
 
-The just-written entry is passed as `protect` and never counted: mtime has
-one-second resolution, so a burst of saves can tie and sort the new entry into
-the tail. Ordering is by mtime rather than atime because `relatime` doesn't
-reliably track reads — a much-read old signature still ages out.
+**Per-repo family counts** (`results/manifests.py`) stop a burst in one family
+from pushing out another's — thirty rescans while you edit shouldn't cost you
+the timeline bundle that took minutes to build. They cannot bound disk: entries
+here run from under a kilobyte to 93MB, so a count says nothing about bytes.
 
-The per-family caps are counts, not bytes, so total disk use varies with what
-the repo looks like. Worth revisiting if it starts to matter.
+**A byte budget** (`storage/retention.py`) is what actually bounds disk, across
+every repo rather than only the one being written. That distinction is the
+whole point. The family pass only ever runs against the root being saved, so it
+tidies the repos in active use and never reaches the ones scanned once and
+abandoned — a machine measured before this held 845 entries over 688 repos,
+385MB, of which every byte was already unreadable after a schema bump.
+
+`clones/` is outside both. `git/clone.py` owns it, a clone can be in use by a
+running scan, and dropping one costs a re-clone rather than a re-read. It is
+also, by a wide margin, the biggest thing on disk — 18GB against 700MB for
+everything here — and it has no retention at all.
+
+In both passes the just-written entry is `protect`ed: mtime has one-second
+resolution, so a burst of saves can tie and sort the new entry into the tail.
+Ordering is by mtime rather than atime because `relatime` doesn't reliably track
+reads, so a much-read old signature still ages out.
+
+Entries are also collected on read. Every reason a load fails — bumped version,
+shape that no longer validates, bytes that no longer parse — is permanent for
+that file, so a reader that finds one deletes it rather than leaving it to
+occupy disk until a rescan that may never come.

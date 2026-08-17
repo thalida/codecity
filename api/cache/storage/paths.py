@@ -60,6 +60,20 @@ def manifest_dir() -> Path:
     return CACHE_ROOT / "manifests"
 
 
+def swept_dirs() -> list[Path]:
+    """Every directory the retention sweep may delete from.
+
+    clones/ is deliberately absent: git/clone.py owns it, a clone can be in use
+    by a running scan, and removing one costs a re-clone rather than a re-read.
+    """
+    return [
+        CACHE_ROOT / "files",
+        CACHE_ROOT / "blobs",
+        CACHE_ROOT / "git-history",
+        manifest_dir(),
+    ]
+
+
 def manifest_path(abs_root: Path, name: str) -> Path:
     """One manifests/ entry for this root. Every writer goes through here so the
     name shape stays in lockstep with the glob below."""
