@@ -31,8 +31,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # System deps. The base image's apt snapshot can lag published security fixes,
 # so apply available upgrades before installing — Trivy fails CI on FIXED
-# HIGH/CRITICAL OS CVEs (e.g. libcurl, pulled in by git), and waiting on a base
-# image rebuild leaves the gate red. Dependabot still bumps the base tag.
+# HIGH/CRITICAL OS CVEs (e.g. libcurl, pulled in by git). Only useful if this
+# layer actually re-runs: ci.yml excludes this stage from the build cache,
+# because a cached copy pins the upgrade to the day it was first built.
 # Note: PID 1 init duties are handled by Docker's --init flag (compose: init: true),
 # so we don't install tini here.
 RUN apt-get update \

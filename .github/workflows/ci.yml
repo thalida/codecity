@@ -40,6 +40,10 @@ jobs:
             VERSION=0.0.0+g${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # A cached runtime layer pins its apt-get upgrade to the day it was
+          # first built, which is how Trivy fails on a CVE apt could already fix.
+          no-cache-filters: runtime
+          pull: true
 
       - name: Run pytest with coverage
         # pyproject.toml's pytest addopts already include
