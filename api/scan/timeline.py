@@ -3,22 +3,19 @@ client-side for smooth scrubbing. Read-only; reuses git/objects' plumbing."""
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
+from api.cache import BlobEntry
 from api.git import (
     blob_sizes_batch,
-    blob_stats_batch,
     collect_git_history,
     empty_repo_info,
     git_argv,
     is_git_repo,
     reconstructed_repo_info,
 )
-from api.utils.media import media_kind
 from api.core.constants import TimelineStage
 from api.models.manifest import (
     CommitEntry,
@@ -30,14 +27,14 @@ from api.models.manifest import (
     TimelineChange,
     TimelineDelta,
 )
-from api.scan.filemeta import basename, extension
+from api.scan.blobmeta import MISSING_BLOB, blob_file_node, resolve_blob_stats
 from api.scan.manifest import wrap_manifest
 from api.core.progress import Throttle, log
 from api.utils.dates import iso_to_ms
 from api.core.exceptions import NotAGitRepoError
-from api.scan.signatures import derive_tree_signals, hash_file_entry
+from api.scan.signatures import derive_tree_signals, new_signature
 from api.scan.skiprules import SkipRules
-from api.scan.treebuild import build_file_node, build_tree, dir_children_from_paths
+from api.scan.treebuild import build_tree, dir_children_from_paths
 
 _UNION_FILE_CAP = 50000  # union files above this window to the most recent commits
 
@@ -159,52 +156,27 @@ def _collect_blob_tables(
     on_progress: OnTimelineProgress | None = None,
 ) -> tuple[dict[str, int], dict[str, int], dict[str, BlobEntry]]:
     """Resolve every touched blob's stats (lines, binary, binaryType, media dims)
-    keyed by sha, plus a byte-size table. Stats go through the same content-
-    addressed blob cache reconstruct_manifest uses (cat-file only the misses);
-    sizes are a separate uncached batch. The blob-check batch resolves the total
-    up front, so ``on_progress`` only needs a start + done tick — the done tick
-    lands after the size batch, which is the rest of this stage's real work."""
-    shas = list({sha for d in deltas for _, sha in d.changes if sha})
+    keyed by sha, plus a byte-size table. Stats share reconstruct_manifest's
+    content-addressed resolver; sizes are a separate uncached batch. The done
+    tick lands after that size batch, which is the rest of this stage's real
+    work."""
+    wanted = [(sha, path) for d in deltas for path, sha in d.changes if sha]
+    shas = list({sha for sha, _ in wanted})
     total = len(shas)
-    media_shas = frozenset(
-        sha
-        for d in deltas
-        for path, sha in d.changes
-        if sha and media_kind(extension(basename(path)))
-    )
-    cached = cache_load_blobs(root) if use_cache else {}
-    misses = [s for s in shas if s not in cached]
-    log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
-    if on_progress is not None:
-        on_progress(
-            {"stage": TimelineStage.BLOBS, "done": total - len(misses), "total": total}
-        )
-    done = total - len(misses)
 
-    def _resolved(n: int) -> None:
+    def _resolved(done: int, _total: int) -> None:
         if on_progress is not None:
-            on_progress(
-                {"stage": TimelineStage.BLOBS, "done": done + n, "total": total}
-            )
+            on_progress({"stage": TimelineStage.BLOBS, "done": done, "total": total})
 
-    fresh = (
-        blob_stats_batch(root, misses, media_shas=media_shas, on_progress=_resolved)
-        if misses
-        else {}
+    blob_stats = resolve_blob_stats(
+        root, wanted, use_cache=use_cache, on_resolved=_resolved
     )
-    for sha, st in fresh.items():
-        cached[sha] = blob_entry(st)
-    if fresh:
-        cache_save_blobs(root, cached)
-    log(f"  done — {total:,} blobs resolved")
-    lines = {s: cached[s]["lines"] for s in shas if s in cached}
+    lines = {sha: entry["lines"] for sha, entry in blob_stats.items()}
     # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
     sizes = blob_sizes_batch(root, shas)
-    for s in shas:
-        entry = cached.get(s)
-        if entry is not None and "size" in entry:
-            sizes[s] = entry["size"]
-    blob_stats = {s: cached[s] for s in shas if s in cached}
+    for sha, entry in blob_stats.items():
+        if "size" in entry:
+            sizes[sha] = entry["size"]
     if on_progress is not None:
         on_progress({"stage": TimelineStage.BLOBS, "done": total, "total": total})
     return lines, sizes, blob_stats
@@ -239,35 +211,28 @@ def build_union_manifest(
             size = blob_sizes.get(sha, 0)
             if path not in max_size or size >= max_size[path]:
                 max_size[path] = size
-                rep_stats[path] = blob_stats.get(sha, {"lines": 0, "binary": False})
+                rep_stats[path] = blob_stats.get(sha, MISSING_BLOB)
             max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
 
     root_abs = str(Path(root).resolve())
     children_map = dir_children_from_paths(max_size.keys())
-    sig = hashlib.blake2b(digest_size=16)
+    sig = new_signature()
     head_sha = commits[-1].sha if commits else ""
 
     def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
         return children_map.get(rel_dir, [])
 
     def make_file_node(name: str, rel_path: str) -> FileNode:
-        size = max_size.get(rel_path, 0)
-        hash_file_entry(sig, rel_path, size, 0.0, False)
-        st = rep_stats.get(rel_path, {"lines": 0, "binary": False})
-        return build_file_node(
+        return blob_file_node(
+            sig,
             name=name,
             rel_path=rel_path,
-            full_path=f"{root_abs}/{rel_path}",
-            ext=extension(name),
-            size=size,
+            root_abs=root_abs,
+            size=max_size.get(rel_path, 0),
             lines=max_lines.get(rel_path, 0),
-            binary=st["binary"],
-            dirty=False,
+            stats=rep_stats.get(rel_path, MISSING_BLOB),
             created=git_created.get(rel_path, ""),
             modified=git_modified.get(rel_path, ""),
-            media_width=st.get("media_width"),
-            media_height=st.get("media_height"),
-            binary_type=st.get("binaryType"),
         )
 
     tree = build_tree(

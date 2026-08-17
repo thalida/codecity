@@ -18,7 +18,6 @@ from typing import Any, Callable, Iterator, NamedTuple
 from api.core.constants import ScanEvent
 from api.git import (
     GitState,
-    blob_stats_batch,
     collect_git_history,
     collect_git_state,
     is_git_repo,
@@ -26,14 +25,8 @@ from api.git import (
     reconstructed_repo_info,
     resolve_ref,
 )
-from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
-from api.scan.filemeta import (
-    FileMeta,
-    basename,
-    extension,
-    populate_file_metadata,
-    stat_fields,
-)
+from api.scan.blobmeta import MISSING_BLOB, blob_file_node, resolve_blob_stats
+from api.scan.filemeta import extension, populate_file_metadata, stat_fields
 from api.scan.manifest import utc_now_iso, wrap_manifest
 from api.models.manifest import (
     DirNode,
@@ -41,7 +34,6 @@ from api.models.manifest import (
     Manifest,
     SignatureResponse,
 )
-from api.utils.media import media_kind
 from api.core.progress import Heartbeat, log
 from api.core.exceptions import NotAGitRepoError, check_cancel
 from api.scan.signatures import (
@@ -294,18 +286,9 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
     ]
     by_path = {b.path: b for b in blobs}
 
-    # Content-addressed blob cache first, cat-file only the misses. Media dims
-    # are probed only for media extensions, keeping hachoir off source blobs.
-    cached = cache_load_blobs(root_path) if use_cache else {}
-    media_shas = frozenset(
-        b.sha for b in blobs if media_kind(extension(basename(b.path)))
+    stats = resolve_blob_stats(
+        root_path, ((b.sha, b.path) for b in blobs), use_cache=use_cache
     )
-    misses = [b.sha for b in blobs if b.sha not in cached]
-    fresh = blob_stats_batch(root_path, misses, media_shas=media_shas) if misses else {}
-    for sha, stats in fresh.items():
-        cached[sha] = blob_entry(stats)
-    if fresh:
-        cache_save_blobs(root_path, cached)
 
     history = collect_git_history(root_path, use_cache=use_cache, ref=commit_sha)
     children_map = dir_children_from_paths(by_path.keys())
@@ -313,24 +296,17 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
 
     def make_file_node(name: str, rel_path: str) -> FileNode:
         blob = by_path[rel_path]
-        entry: BlobEntry = cached.get(blob.sha, {"lines": 0, "binary": False})
-        meta = FileMeta.from_cache(entry)
-        # mtime 0.0 and dirty False: a committed ref has neither.
-        hash_file_entry(sig, rel_path, blob.size, 0.0, False)
-        return build_file_node(
+        entry = stats.get(blob.sha, MISSING_BLOB)
+        return blob_file_node(
+            sig,
             name=name,
             rel_path=rel_path,
-            full_path=f"{root_abs}/{rel_path}",
-            ext=extension(name),
+            root_abs=root_abs,
             size=blob.size,
-            lines=meta.lines,
-            binary=meta.binary,
-            dirty=False,
+            lines=entry["lines"],
+            stats=entry,
             created=history.created.get(rel_path, ""),
             modified=history.modified.get(rel_path, ""),
-            media_width=meta.media_width,
-            media_height=meta.media_height,
-            binary_type=meta.binary_type,
         )
 
     tree = build_tree(
