@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
+from api.cache.storage.store import int_or_none
+
 if TYPE_CHECKING:
     # Runtime import would cycle: api.git's __init__ imports git.meta, which
     # imports this package.
@@ -46,18 +48,12 @@ class BlobEntry(TypedDict):
     binaryType: NotRequired[str]
 
 
-def _int_or_none(value: object) -> int | None:
-    """bool is an int subclass in Python, and a True that reached a pixel count
-    would be a silent 1."""
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
 def read_media_pair(d: dict[str, object]) -> tuple[int, int] | None:
     """The media dims out of a parsed JSON record, or None unless BOTH are
     present and genuinely ints."""
     width, height = (
-        _int_or_none(d.get("media_width")),
-        _int_or_none(d.get("media_height")),
+        int_or_none(d.get("media_width")),
+        int_or_none(d.get("media_height")),
     )
     return (width, height) if width is not None and height is not None else None
 
@@ -125,11 +121,11 @@ def coerce_blob_entry(value: object) -> BlobEntry | None:
     if not isinstance(value, dict):
         return None
     d = cast(dict[str, object], value)
-    lines, binary = _int_or_none(d.get("lines")), d.get("binary")
+    lines, binary = int_or_none(d.get("lines")), d.get("binary")
     if lines is None or not isinstance(binary, bool):
         return None
     entry: BlobEntry = {"lines": lines, "binary": binary}
-    size = _int_or_none(d.get("size"))
+    size = int_or_none(d.get("size"))
     if size is not None:
         entry["size"] = size
     apply_optionals(entry, d)

@@ -18,8 +18,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from api.cache.history import VERSION as HISTORY_VERSION
-from api.cache.paths import (
+from api.cache.results.history import VERSION as HISTORY_VERSION
+from api.cache.storage.paths import (
     KEY_SEP,
     ManifestFamily,
     entry_family,
@@ -30,7 +30,7 @@ from api.cache.paths import (
     repo_key,
     timeline_cache_path,
 )
-from api.cache.store import load_gz_envelope, save_gz_envelope
+from api.cache.storage.store import load_gz_envelope, save_gz_envelope
 from api.models.manifest import Manifest, TimelineBundle
 
 # Bump when a cached shape changes, so stale blobs miss and re-scan.
@@ -40,10 +40,16 @@ TIMELINE_VERSION = 7
 # when EITHER the manifest schema or the git-history shape moves.
 MANIFEST_VERSION: str = f"m{MANIFEST_SCHEMA_VERSION}-g{HISTORY_VERSION}"
 
-# Keyed by repo CONTENT, so uncapped these grow for the life of the install.
+# How many entries per repo survive a sweep. Uncapped, this directory reached
+# 844 files / 281 MB on one dev machine. The caps differ because reuse does:
 _KEEP = {
+    # A signature dies the moment any tracked file is edited, so old ones are
+    # near-worthless.
     ManifestFamily.CONTENT: 5,
+    # A resolved commit is immutable, so these never go stale, and scrubbing
+    # revisits them.
     ManifestFamily.REF: 20,
+    # Whole-history bundles, far the largest entries here.
     ManifestFamily.TIMELINE: 3,
 }
 

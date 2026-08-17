@@ -10,21 +10,12 @@ import json
 from pathlib import Path
 from typing import cast
 
-from api.cache.paths import git_history_cache_path
-from api.cache.store import atomic_write, load_json
+from api.cache.storage.paths import git_history_cache_path
+from api.cache.storage.store import atomic_write, load_json, str_map
 from api.models.manifest import CommitEntry
 from api.utils.shas import is_object_sha
 
 VERSION = 15
-
-
-def _str_map(value: object) -> dict[str, str]:
-    """A parsed JSON object with only its string values kept."""
-    if not isinstance(value, dict):
-        return {}
-    return {
-        k: v for k, v in cast(dict[str, object], value).items() if isinstance(v, str)
-    }
 
 
 def _coerce_commit(value: object) -> CommitEntry | None:
@@ -77,7 +68,7 @@ def cache_load_git_history(
     ):
         return None
     commits = [c for c in map(_coerce_commit, cast(list[object], commits_raw)) if c]
-    return _str_map(raw.get("created")), _str_map(raw.get("modified")), commits
+    return str_map(raw.get("created")), str_map(raw.get("modified")), commits
 
 
 def cache_save_git_history(

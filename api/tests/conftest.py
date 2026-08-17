@@ -97,7 +97,7 @@ def redirect_cache_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Point ``api.cache.paths.CACHE_ROOT`` (and
+    """Point ``api.cache.storage.paths.CACHE_ROOT`` (and
     ``api.git.clone.CLONES_ROOT``) at a per-test tempdir so
     scan/manifest/clone writes don't pollute ``~/.cache/codecity/`` during
     tests.
@@ -107,7 +107,7 @@ def redirect_cache_root(
     setting the env var in a fixture is a no-op for already-imported modules.
     We monkeypatch the per-module attribute directly.
     """
-    from api.cache import paths as cache_paths
+    from api.cache.storage import paths as cache_paths
     from api.git import clone as clone_mod
 
     cache_dir = tmp_path / "cache"

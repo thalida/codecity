@@ -7,6 +7,10 @@ Two invariants the whole package rests on:
   - Reads return None on ANY problem — missing, truncated, wrong version,
     unparseable. Every cache here is rebuildable, so a miss costs time while a
     bad hit costs correctness.
+
+That second rule applies per field as well as per file, so the readers that
+enforce it at field level live here too rather than beside whichever cache
+needed one first.
 """
 
 from __future__ import annotations
@@ -17,6 +21,23 @@ import os
 import tempfile
 from pathlib import Path
 from typing import cast
+
+
+def int_or_none(value: object) -> int | None:
+    """A parsed JSON value as an int, or None.
+
+    bool is an int subclass in Python, and a True that reached a pixel count
+    would be a silent 1."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def str_map(value: object) -> dict[str, str]:
+    """A parsed JSON object with only its string values kept."""
+    if not isinstance(value, dict):
+        return {}
+    return {
+        k: v for k, v in cast(dict[str, object], value).items() if isinstance(v, str)
+    }
 
 
 def atomic_write(path: Path, data: str) -> None:

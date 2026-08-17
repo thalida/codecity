@@ -11,9 +11,9 @@ import json
 from pathlib import Path
 from typing import cast
 
-from api.cache.entries import BlobEntry, coerce_blob_entry
-from api.cache.paths import blob_cache_path
-from api.cache.store import atomic_write, load_json
+from api.cache.content.entries import BlobEntry, coerce_blob_entry
+from api.cache.storage.paths import blob_cache_path
+from api.cache.storage.store import atomic_write, load_json
 
 VERSION = 4
 

@@ -12,9 +12,9 @@ import json
 from pathlib import Path
 from typing import cast
 
-from api.cache.entries import FileEntry, coerce_file_entry
-from api.cache.paths import file_cache_path
-from api.cache.store import atomic_write, load_json
+from api.cache.content.entries import FileEntry, coerce_file_entry
+from api.cache.storage.paths import file_cache_path
+from api.cache.storage.store import atomic_write, load_json
 
 VERSION = 3
 
