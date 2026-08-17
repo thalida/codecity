@@ -6,7 +6,7 @@
     python -m api --reload           Auto-reload on source changes (dev only).
     python -m api --version          Print version.
 
-SINGLE PROCESS by design — see api/security.py (the allowed_roots trust
+SINGLE PROCESS by design — see api/core/security.py (the allowed_roots trust
 set is in-memory; multi-worker would split it). No --workers flag.
 """
 

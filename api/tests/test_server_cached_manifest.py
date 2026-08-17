@@ -45,8 +45,8 @@ def client(tmp_path: Path, redirect_cache_root) -> TestClient:
 def _warm_cache(repo: Path) -> str:
     """Scan once and store it, the way a real open would."""
     manifest = final_manifest(str(repo), use_cache=False)
-    cache_save_manifest(repo, manifest["content_signature"], manifest)
-    return manifest["content_signature"]
+    cache_save_manifest(repo, manifest.content_signature, manifest)
+    return manifest.content_signature
 
 
 def test_missing_src_is_rejected(client: TestClient) -> None:
@@ -82,7 +82,7 @@ def test_serves_a_stale_manifest_after_the_repo_changes(
     """The point of the endpoint: an edited repo still has wallpaper to show."""
     stale = _warm_cache(repo)
     (repo / "f.txt").write_text("edited, so the content signature moves\n")
-    fresh = final_manifest(str(repo), use_cache=False)["content_signature"]
+    fresh = final_manifest(str(repo), use_cache=False).content_signature
     assert fresh != stale, "fixture failed to change the repo"
 
     r = client.get("/api/manifest/cached", params={"src": str(repo)})

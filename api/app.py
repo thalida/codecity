@@ -14,11 +14,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from api.config import GZIP_MIN_BYTES
+from api.core.config import GZIP_MIN_BYTES
 from api.models.responses import ErrorResponse
-from api.routers import branches, commit, file, manifest, meta
-from api.sse_compression import SSEGZipMiddleware
-from api.static import make_static_router
+from api.routers import branches, commit, file, manifest, meta, timeline
+from api.core.middleware import SSEGZipMiddleware
+from api.routers.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -63,9 +63,8 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:
-    # NB: the process-global TRUST set is intentionally NOT reset here — the
-    # factory must be side-effect-free on session auth state. A fresh process
-    # starts with an empty TRUST; tests isolate it via an autouse fixture.
+    # TRUST is deliberately NOT reset here: the factory must be side-effect-free
+    # on session auth state. Tests isolate it via an autouse fixture.
     app = FastAPI(
         title="CodeCity API",
         docs_url=None,  # disable Swagger UI
@@ -87,6 +86,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     app.include_router(commit.router)
     app.include_router(branches.router)
     app.include_router(manifest.router)
+    app.include_router(timeline.router)
     app.include_router(make_static_router(static_dir or DEFAULT_STATIC_DIR))
     return app
 

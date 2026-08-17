@@ -32,7 +32,7 @@ from api.git.clone import (
     ensure_clone,
     hydrate_blobs,
 )
-from api.errors import ScanCancelledError
+from api.core.exceptions import ScanCancelledError
 
 
 os.environ["CODECITY_QUIET"] = "1"
@@ -89,10 +89,8 @@ class EnsureCloneTests(unittest.TestCase):
 
     def test_second_call_reuses_directory(self) -> None:
         first = ensure_clone(self.url)
-        # Drop a sentinel file; if a reclone happened it would survive (we
-        # reset --hard) but the marker we want is "no second .git inside".
-        # Instead: verify the local path is identical and git rev-parse
-        # still points at origin/main.
+        # A reclone would survive reset --hard, so assert on the path being
+        # identical and rev-parse still pointing at origin/main.
         second = ensure_clone(self.url)
         self.assertEqual(first, second)
         head = subprocess.run(
@@ -149,10 +147,8 @@ class EnsureCloneTests(unittest.TestCase):
         files = [p.name for p in local.iterdir() if p.name != ".git"]
         self.assertEqual(files, [])
 
-        # Second call (update path) — this is where the bug was: the
-        # old code unconditionally called `git symbolic-ref
-        # refs/remotes/origin/HEAD` which exits non-zero on an unborn
-        # HEAD and bubbled the cryptic git stderr to the picker modal.
+        # The update path is where this broke: symbolic-ref on an unborn
+        # HEAD exits non-zero, and git's stderr reached the picker modal.
         ensure_clone(url)
         files_after = [p.name for p in local.iterdir() if p.name != ".git"]
         self.assertEqual(files_after, [])
@@ -163,10 +159,8 @@ class EnsureCloneTests(unittest.TestCase):
         local = ensure_clone(self.url)
         self.assertTrue((local / "README.md").is_file())
 
-        # Reproduce the broken on-disk shape: branches present, origin/HEAD
-        # gone, HEAD parked on the dangling ref git uses when it gives up.
-        # `--delete` removes the symref itself; `update-ref -d` would deref it
-        # and delete origin/main instead, which a fetch just puts back.
+        # --delete removes the symref itself; update-ref -d would deref it
+        # and delete origin/main, which a fetch just puts back.
         _run("git", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD", cwd=local)
         _run("git", "read-tree", "--empty", cwd=local)
         (local / "README.md").unlink()
@@ -264,9 +258,8 @@ def test_clone_stderr_classification(label, branch, stderr, expected, needle):
         assert needle in str(excinfo.value).lower()
 
 
-# A host asking for credentials is the same situation as one that 404s: this
-# server has none by design. The wording must not claim the repo is private,
-# which is a guess the server cannot make.
+# Same situation as a 404: this server has no credentials by design, so
+# claiming the repo is private would be a guess.
 @pytest.mark.parametrize(
     "stderr",
     [
@@ -293,9 +286,8 @@ def test_clone_errors_share_a_base(exc):
 
 class NetGitRetryTests(unittest.TestCase):
     def test_retryable_falls_back_to_http1_1_then_succeeds(self) -> None:
-        # A transient network drop retries and then succeeds. The first attempt
-        # rides git's own default (HTTP/2 against GitHub); only the retry drops
-        # to HTTP/1.1, so a healthy transfer keeps its multiplexing.
+        # Only the RETRY drops to HTTP/1.1, so a healthy transfer keeps its
+        # multiplexing.
         calls: list[tuple[str, ...]] = []
 
         def fake(*args: str, **kw: object) -> str:
@@ -472,10 +464,8 @@ class HydrateBlobsTests(unittest.TestCase):
         self.assertFalse(hydrate_blobs(clone))  # idempotent: the marker is down
 
     def test_hydrate_retries_when_a_previous_attempt_did_not_finish(self) -> None:
-        # The widened filter has to be in place for the refetch, so it cannot
-        # double as "finished": a cancel mid-fetch used to leave the clone
-        # looking hydrated with its history still missing, and every later
-        # timeline read those blobs as 0 lines and 0 bytes.
+        # The widened filter precedes the refetch, so it cannot double as
+        # "finished" — a cancel mid-fetch would look hydrated but not be.
         bare = self._multi_commit_remote()
         clone = self.tmp_path / "clone"
         _run(
@@ -537,10 +527,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             tmp = Path(td)
             self._patch_cache(tmp)
             with self.assertRaises(RepoNotFoundError):
-                # /nonexistent.git: git emits "Repository ... does not exist"
-                # On macOS/Linux this manifests as "fatal: ...: '...' does not appear to be a git repository"
-                # We mock the streaming runner (used by first-clone) to emit
-                # the canonical "Repository not found" stderr.
+                # git's exact wording varies by platform, so mock the
+                # streaming runner to emit the canonical stderr.
                 with mock.patch.object(
                     clone_mod,
                     "_run_git_streaming",
@@ -602,11 +590,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            # Step 3: Call ensure_clone again for the same (url, "feature") pair.
-            # The cache dir exists → update path runs:
-            #   git fetch --prune origin  (succeeds, prunes origin/feature)
-            #   git reset --hard origin/feature  (fails — unknown revision)
-            # → caught by dispatcher → BranchNotFoundError.
+            # The cache dir exists, so the update path runs: fetch prunes
+            # origin/feature, then reset fails on the unknown revision.
             with self.assertRaises(BranchNotFoundError):
                 ensure_clone(url, branch="feature")
 
@@ -627,9 +612,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             target = ensure_clone(url)
             self.assertTrue((target / "README.md").is_file())
 
-            # Corrupt it: drop .git so the next fetch fails with a NON-clean
-            # error ("not a git repository") — the classic wedged clone that
-            # fetch+reset can't repair (e.g. a clone interrupted mid-checkout).
+            # Drop .git so the next fetch fails with a NON-clean error: the
+            # wedged clone that fetch+reset cannot repair.
             shutil.rmtree(target / ".git")
             self.assertFalse((target / ".git").exists())
 
@@ -730,9 +714,8 @@ class StallWatchdogTests(unittest.TestCase):
                 self.stdout = io.BytesIO(b"")
                 self.stderr = io.BytesIO(lines)
                 self._done = threading.Event()
-                # Exit before the silent gap exceeds the heartbeat
-                # threshold (0.15s). Mirrors a real fast clone where
-                # stderr finishes a few ms before proc.wait returns.
+                # Exit before the silent gap trips the heartbeat, as a real
+                # fast clone does.
                 threading.Timer(0.05, self._done.set).start()
 
             def wait(self) -> int:
@@ -853,10 +836,8 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
         assert isinstance(args, clone_mod.CloneProgress)
         assert args.stage in {"counting", "receiving", "resolving"}
         assert 0 <= args.percent <= 100
-    # Verify the throttle: at least one stage-transition payload should
-    # come through (counting → receiving or receiving → resolving), and
-    # total should be capped (we sent 7 progress lines; expect ≤ 7 fires
-    # but ≥ 1, with throttling further reducing within-stage duplicates).
+    # At least one stage transition comes through, and the total is capped:
+    # 7 lines in, so between 1 and 7 fires.
     seen_stages = {call.args[0][0] for call in on_progress.call_args_list}
     assert len(seen_stages) >= 1, "expected at least one stage emitted"
     assert on_progress.call_count <= 7, (
@@ -873,10 +854,8 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     from unittest.mock import MagicMock
     from api.git import clone as clone_mod
 
-    # Many rapid progress lines per stage; the throttle will block
-    # most of them. Without the flush fix, "Receiving 100%" gets
-    # silently dropped because it lands within 250ms of the previous
-    # emit, leaving the UI frozen at e.g. 66%.
+    # Without the flush, "Receiving 100%" lands inside the window and is
+    # dropped, leaving the UI frozen at whatever came before it.
     fake_stderr = (
         b"Cloning into '/tmp/foo'...\n"
         b"Counting objects:  10%\n"

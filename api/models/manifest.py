@@ -1,6 +1,9 @@
-"""Pydantic wire models for the scan manifest. Single source of truth for
-the OpenAPI schema and the generated app/src/types/manifest.ts. JSON shape
-is byte-compatible with the prior TypedDicts."""
+"""The manifest, defined once.
+
+These models are what the scanner builds, what the caches persist, what the SSE
+stream serialises, and what the OpenAPI schema — and from it
+app/src/types/manifest.generated.ts — is generated from. There is no second
+definition to keep in step."""
 
 from __future__ import annotations
 
@@ -8,13 +11,22 @@ from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, WithJsonSchema, model_validator
 
-# Optional-but-non-nullable: the field may be absent, but when present is never
-# null. The Python type stays Optional (so the default is None and validators
-# can check `is None`), while the emitted JSON schema is the bare non-nullable
-# type — matching the true wire (absent-or-value, never null). Shared with
-# api/models/events.py.
+# Optional-but-non-nullable: may be absent, never null when present. The two
+# kinds of optional here are not interchangeable — see the README.
 OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
 OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
+
+# A scan stage a manifest can still be waiting on; see Manifest.pending.
+ScanStage = Literal["metadata", "history"]
+
+
+class NodeKind:
+    """String constants matching app/types/manifest.ts:NodeKind. A plain class
+    with string attrs rather than an enum.Enum so the Literal discriminators on
+    FileNode/DirNode can reference them as bare string literals."""
+
+    FILE = "file"
+    DIRECTORY = "directory"
 
 
 class FileNode(BaseModel):
@@ -57,9 +69,8 @@ class FileNode(BaseModel):
     # otherwise — never null); see OptionalInt above.
     media_width: OptionalInt = None
     media_height: OptionalInt = None
-    # Friendly magic-byte type for binary files ("SQLite database",
-    # "WebAssembly module"); absent for non-binary or unrecognized files.
-    # See api/binfmt.py:detect_binary_type.
+    # Friendly magic-byte type ("SQLite database"), absent for non-binary or
+    # unrecognized files. See utils/binfmt.py:detect_binary_type.
     binaryType: OptionalStr = None
 
     @model_validator(mode="after")
@@ -98,9 +109,8 @@ class DirNode(BaseModel):
 TreeNode = Annotated[Union[FileNode, DirNode], Field(discriminator="type")]
 
 
-# All four string fields are required-nullable: the scanner always emits them
-# (null for a fresh repo with no HEAD / no remote), so they're present-but-
-# nullable on the wire, not optional.
+# Required-nullable: the scanner always emits all four, null for a fresh repo
+# with no HEAD or no remote.
 class RepoInfo(BaseModel):
     branch: Optional[str]
     remote_url: Optional[str]
@@ -123,10 +133,8 @@ class BusynessThresholds(BaseModel):
     busy: int
 
 
-# All four fields are required-nullable: the scanner always emits them (null
-# for a tree with zero files), so they're present-but-nullable on the wire,
-# not optional. camelCase matches the frontend DateRanges + the fullPath
-# precedent.
+# Required-nullable: always emitted, null for a tree with zero files. camelCase
+# matches the frontend's DateRanges and the fullPath precedent.
 class DateRanges(BaseModel):
     minCreated: Optional[str] = Field(
         description="Earliest resolved create date (ISO), or null for an empty tree"
@@ -250,14 +258,8 @@ class RepoStats(BaseModel):
     authors: list[AuthorStat]
 
 
-# Three signatures form a ladder, each a superset of the one before:
-#   structure_signature: paths + nesting only. Drives icon-atlas assignment
-#     and skeleton/final render stability.
-#   layout_signature: structure, plus per-file size. Gates layout reuse (a
-#     size-only change can still skip a full relayout if paths didn't move).
-#   content_signature: structure, plus size, mtime, dirty, and repo HEAD. The
-#     full change-detection fingerprint: drives the live-update poll and is
-#     the manifest cache key.
+# Three signatures, each a superset of the one before; what computes them and
+# why they must agree across build paths is in api/scan/README.md.
 class Manifest(BaseModel):
     root: str
     scanned_at: str
@@ -275,7 +277,7 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
-    pending: list[Literal["metadata", "history"]] = Field(
+    pending: list[ScanStage] = Field(
         description=(
             "Stages still to come. 'metadata': per-file lines/binary are "
             "placeholders. 'history': dates are filesystem dates and commits is "
@@ -314,7 +316,12 @@ class TimelineDelta(BaseModel):
 
 
 class TimelineBundle(BaseModel):
-    """Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle."""
+    """Everything the client replays for smooth commit scrubbing: commit list,
+    union-of-all-paths manifest (the layout target), per-commit blob deltas,
+    sha -> line-count and sha -> byte-size tables, and per-commit line ranges
+    (height normalisation, so a scrub point matches Live-at-that-commit).
+    `note` is set when a pathological repo is windowed to its most recent
+    commits."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest

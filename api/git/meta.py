@@ -1,37 +1,20 @@
 """Repo-level git metadata: the history walk, the working-tree snapshot, and
 the footer fields for a reconstructed ref.
 
-Complements gitobj.py, which reads the object database."""
+Complements objects.py, which reads the object database."""
 
 from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
 from api.cache import cache_load_git_history, cache_save_git_history
-from api.manifest_types import CommitEntry, RepoInfo
-from api.progress import log
-
-
-def run_git(root: Path, *args: str) -> str:
-    """stdout, or "" on failure.
-
-    ``safe.directory=*`` because codecity scans arbitrary repos, including
-    ones whose owner isn't the process uid (bind-mounted CI workspaces). Git
-    2.35+ otherwise refuses with "dubious ownership" and the empty stdout
-    surfaces downstream as a manifest with 0 files and 0 commits."""
-    try:
-        return subprocess.run(
-            ["git", "-c", "safe.directory=*", "-C", str(root), *args],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout
-    except FileNotFoundError:
-        return ""
+from api.git.cmd import git_argv, run_git
+from api.models.manifest import CommitEntry, RepoInfo
+from api.core.progress import log
+from api.utils.dates import to_utc_iso
 
 
 def is_git_repo(root: Path) -> bool:
@@ -69,19 +52,6 @@ def build_authors_list(primary: str, trailers_raw: str) -> list[str]:
     return out
 
 
-def _iso_to_utc(iso: str) -> str:
-    """git's %aI carries the author's offset; normalize to the Z-suffixed form
-    the filesystem dates use so lexical order == chronological order."""
-    try:
-        return (
-            datetime.fromisoformat(iso)
-            .astimezone(timezone.utc)
-            .strftime("%Y-%m-%dT%H:%M:%SZ")
-        )
-    except ValueError:
-        return iso
-
-
 class GitHistory(NamedTuple):
     """One history walk, indexed three ways.
 
@@ -103,12 +73,8 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
     *current path* appeared — the right semantic for an age signal, since the
     user sees a building for a path, not for a file identity."""
     log("  starting git log walk (full history)…")
-    log_argv = [
-        "git",
-        "-c",
-        "safe.directory=*",
-        "-C",
-        str(root),
+    log_argv = git_argv(
+        root,
         "log",
         "--format=COMMIT:%aI%x09%P%x09%H%x09%an%x09"
         "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
@@ -118,7 +84,7 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
         # Diff merges so a merge still reports a file count; its A/M events are
         # skipped below.
         "--diff-merges=first-parent",
-    ]
+    )
     if ref is not None:
         log_argv.append(ref)  # a resolved sha; limits the walk to its ancestors
     try:
@@ -150,13 +116,16 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
 
     def flush_current() -> None:
         commits_newest_first.append(
-            {
-                "date": current_date,
-                "files": current_files,
-                "sha": current_sha,
-                "authors": build_authors_list(current_author, current_trailers),
-                "subject": current_subject,
-            }
+            CommitEntry(
+                date=current_date,
+                files=current_files,
+                sha=current_sha,
+                authors=build_authors_list(current_author, current_trailers),
+                subject=current_subject,
+                # Baked by annotate_same_day_totals at manifest-wrap, which
+                # always runs before a commit list is emitted.
+                same_day_total=0,
+            )
         )
 
     assert proc.stdout is not None
@@ -172,7 +141,7 @@ def _walk_git_log(root: Path, ref: str | None) -> GitHistory:
                     flush_current()
                 # maxsplit=5 keeps tabs in the subject. %P is space-separated.
                 parts = line[len("COMMIT:") :].split("\t", 5)
-                current_date = _iso_to_utc(parts[0])
+                current_date = to_utc_iso(parts[0])
                 current_is_merge = " " in (parts[1] if len(parts) > 1 else "")
                 current_sha = parts[2] if len(parts) > 2 else ""
                 current_author = parts[3] if len(parts) > 3 else ""
@@ -290,44 +259,53 @@ def parse_dirty_paths(porcelain_z: str) -> set[str]:
     return dirty
 
 
+def empty_repo_info() -> RepoInfo:
+    """A footer with nothing to report: no branch, no remote, no HEAD, clean.
+
+    Every field of RepoInfo is nullable precisely for this case, so the shape
+    is written once here — it is both what _collect_repo_info fills in and what
+    the timeline ships for a history with no commits to describe."""
+    return RepoInfo(
+        branch=None,
+        remote_url=None,
+        head_sha=None,
+        head_subject=None,
+        dirty=False,
+    )
+
+
 def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
     """The manifest's `repo` field plus the dirty-path set.
 
     The porcelain status dominates on a large dirty tree, so it runs once here
     and both results are returned together — `repo.dirty` is just
     `bool(dirty_paths)`."""
-    info: RepoInfo = {
-        "branch": None,
-        "remote_url": None,
-        "head_sha": None,
-        "head_subject": None,
-        "dirty": False,
-    }
+    info = empty_repo_info()
 
     branch = run_git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch and branch != "HEAD":
-        info["branch"] = branch
+        info.branch = branch
     elif branch == "HEAD":
         short = run_git(root, "rev-parse", "--short", "HEAD").strip()
-        info["branch"] = f"detached @ {short}" if short else "detached HEAD"
+        info.branch = f"detached @ {short}" if short else "detached HEAD"
     else:
         # Unborn HEAD: no commits yet, but HEAD still resolves symbolically to
         # the configured default branch, which beats showing "detached HEAD".
         symref = run_git(root, "symbolic-ref", "--short", "HEAD").strip()
         if symref:
-            info["branch"] = symref
+            info.branch = symref
 
     remote = run_git(root, "config", "--get", "remote.origin.url").strip()
-    info["remote_url"] = _normalize_remote_to_web_url(remote) or None
+    info.remote_url = _normalize_remote_to_web_url(remote) or None
 
     head_line = run_git(root, "log", "-1", "--format=%h%x09%s").strip()
     if head_line:
         sha, _, subject = head_line.partition("\t")
-        info["head_sha"] = sha or None
-        info["head_subject"] = subject or None
+        info.head_sha = sha or None
+        info.head_subject = subject or None
 
     dirty_paths = parse_dirty_paths(run_git(root, "status", "--porcelain", "-z"))
-    info["dirty"] = bool(dirty_paths)
+    info.dirty = bool(dirty_paths)
 
     return info, dirty_paths
 
@@ -365,10 +343,10 @@ def reconstructed_repo_info(root: Path, commit_sha: str) -> RepoInfo:
     always False since a committed tree can't be dirty."""
     subject = run_git(root, "log", "-1", "--format=%s", commit_sha).strip()
     remote = run_git(root, "config", "--get", "remote.origin.url").strip()
-    return {
-        "branch": f"@ {commit_sha[:8]}",
-        "remote_url": _normalize_remote_to_web_url(remote) or None,
-        "head_sha": commit_sha[:8],
-        "head_subject": subject or None,
-        "dirty": False,
-    }
+    return RepoInfo(
+        branch=f"@ {commit_sha[:8]}",
+        remote_url=_normalize_remote_to_web_url(remote) or None,
+        head_sha=commit_sha[:8],
+        head_subject=subject or None,
+        dirty=False,
+    )

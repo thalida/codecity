@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter
 
 from api import __version__
-from api.config import (
+from api.core.config import (
     MAX_BATCH_PATHS,
     discover_enabled,
     discover_file,
@@ -24,7 +24,7 @@ from api.models.responses import (
     DiscoverResponse,
     HealthResponse,
 )
-from api.git import label_from_source
+from api.utils.labels import label_from_source
 
 router = APIRouter(prefix="/api", tags=["meta"])
 
@@ -77,15 +77,16 @@ def _with_featured(repos: list[DiscoverEntry]) -> list[DiscoverEntry]:
         return repos
     rest = [r for r in repos if r.url != featured]
     existing = next((r for r in repos if r.url == featured), None)
-    label = existing.label if existing else label_from_source(featured)
+    # `or featured`: a URL we can't derive a label from still gets a row, named
+    # by the URL itself, rather than an unlabelled one.
+    label = existing.label if existing else label_from_source(featured) or featured
     return [DiscoverEntry(url=featured, label=label, featured=True), *rest]
 
 
 @router.get("/discover", response_model=DiscoverResponse)
 def discover() -> DiscoverResponse:
-    # Switching Discover off hides the tab, featured row included. It does not
-    # touch the landing's backdrop, which reads the same env var off /api/config
-    # because rendering a city is not a Discover feature.
+    # Hides the tab, featured row included. The landing's backdrop is
+    # unaffected: rendering a city is not a Discover feature.
     if not discover_enabled():
         return DiscoverResponse(repos=[])
     return DiscoverResponse(repos=_with_featured(_curated_repos()))

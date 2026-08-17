@@ -11,8 +11,9 @@ from unittest import mock
 
 import pytest
 
-from api.scan.filemeta import extension, is_binary, line_count
-from api.git.objects import BINARY_CHUNK, is_binary_bytes
+from api.scan.filemeta import extension, is_binary
+from api.utils.content import count_lines_at as line_count
+from api.utils.content import BINARY_CHUNK, is_binary_bytes
 from api.tests.conftest import (
     CacheRedirectMixin,
     FIXTURE,
@@ -40,7 +41,7 @@ def test_extension(name, expected):
     assert extension(name) == expected
 
 
-# The heuristic is pure and public (gitobj.is_binary_bytes); _is_binary only
+# The heuristic is pure and public (utils.content.is_binary_bytes); _is_binary only
 # adds the read. Classification is tested against bytes, with no filesystem.
 @pytest.mark.parametrize(
     ("label", "content", "expected"),
@@ -72,40 +73,30 @@ def test_is_binary_treats_an_unreadable_file_as_binary():
     assert is_binary(path) is True
 
 
-class LineCountCapTests(unittest.TestCase):
-    """Above ~5 MB the line counter samples and extrapolates instead of
-    reading the entire file. Building height is a relative measure, so
-    an order-of-magnitude estimate is fine on huge files."""
+class LineCountTests(unittest.TestCase):
+    """Counts are exact at every size. They were sampled above ~5 MB once, and
+    the estimate is what these assertions used to allow for."""
 
-    def test_exact_count_below_threshold(self):
-        from api.scan.filemeta import line_count
-
+    def test_exact_count_on_a_small_file(self):
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             fh.write(b"line\n" * 1000)
             small = Path(fh.name)
         self.addCleanup(small.unlink, missing_ok=True)
         self.assertEqual(line_count(small), 1000)
 
-    def test_sample_extrapolation_above_threshold(self):
-        from api.scan.filemeta import line_count
-
-        # 6 MB file with one newline every 50 bytes -> ~125k lines true.
+    def test_exact_count_past_the_old_sampling_threshold(self):
+        # 6 MB, one newline every 50 bytes: exactly 125,829 lines, and the
+        # counter reads it in chunks rather than loading it whole.
+        lines = 6 * 1024 * 1024 // 50
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
-            line = b"x" * 49 + b"\n"  # 50 bytes, one newline
-            for _ in range(6 * 1024 * 1024 // 50):
-                fh.write(line)
+            fh.write((b"x" * 49 + b"\n") * lines)
             big = Path(fh.name)
         self.addCleanup(big.unlink, missing_ok=True)
-        result = line_count(big)
-        # Sample-based estimate; allow ±20%.
-        self.assertGreater(result, 100_000)
-        self.assertLess(result, 150_000)
+        self.assertEqual(line_count(big), lines)
 
     def test_final_line_without_trailing_newline_counts(self):
-        # Count lines, not terminators: a final line with no trailing newline
-        # still counts. Regression: a source map or minified file is one long
-        # line with no trailing newline, which a terminator count reports as 0.
-        from api.scan.filemeta import line_count
+        # Lines, not terminators. A minified file is one long line with no
+        # trailing newline, which a terminator count reports as 0.
 
         def count(content: bytes) -> int:
             with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
@@ -121,11 +112,11 @@ class LineCountCapTests(unittest.TestCase):
 
 
 def _line_count_real():
-    """Get the unwrapped line_count for tests that want to call the
-    real implementation while also mocking it."""
-    from api.scan.filemeta import line_count
+    """The unwrapped counter, for tests that mock the name filemeta calls while
+    still wanting the real result."""
+    from api.utils.content import count_lines_at
 
-    return line_count
+    return count_lines_at
 
 
 class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
@@ -142,7 +133,7 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
         _final_manifest(str(FIXTURE))  # cold: populates cache
 
         with (
-            patch("api.scan.filemeta.line_count") as line_mock,
+            patch("api.scan.filemeta.count_lines_at") as line_mock,
             patch("api.scan.filemeta.is_binary") as binary_mock,
         ):
             _final_manifest(str(FIXTURE))  # warm: should not call either
@@ -156,10 +147,10 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
     def test_warm_run_signature_matches_cold_run(self):
         cold = _final_manifest(str(FIXTURE))
         warm = _final_manifest(str(FIXTURE))
-        self.assertEqual(cold["content_signature"], warm["content_signature"])
+        self.assertEqual(cold.content_signature, warm.content_signature)
         # And tree shape — confirm `lines` survives the cache roundtrip.
-        cold_lines = {n["path"]: n["lines"] for n in walk_files(cold["tree"])}
-        warm_lines = {n["path"]: n["lines"] for n in walk_files(warm["tree"])}
+        cold_lines = {n.path: n.lines for n in walk_files(cold.tree)}
+        warm_lines = {n.path: n.lines for n in walk_files(warm.tree)}
         self.assertEqual(cold_lines, warm_lines)
 
     def test_modified_file_recomputed(self):
@@ -170,10 +161,10 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
         # Change one file's mtime by writing to it.
         target = next(
             n
-            for n in walk_files(_final_manifest(str(FIXTURE))["tree"])
-            if n["name"] == "index.ts"
+            for n in walk_files(_final_manifest(str(FIXTURE)).tree)
+            if n.name == "index.ts"
         )
-        target_path = Path(target["fullPath"])
+        target_path = Path(target.fullPath)
         original_text = target_path.read_text()
         target_path.write_text(original_text + "\n// changed\n")
 
@@ -185,7 +176,9 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
                 line_calls.append(p)
                 return original_line_count(p)
 
-            with patch("api.scan.filemeta.line_count", side_effect=counting_line_count):
+            with patch(
+                "api.scan.filemeta.count_lines_at", side_effect=counting_line_count
+            ):
                 _final_manifest(str(FIXTURE))
 
             # Only the modified file should be recomputed.
@@ -199,7 +192,7 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # populate cache
 
-        with patch("api.scan.filemeta.line_count", return_value=42) as line_mock:
+        with patch("api.scan.filemeta.count_lines_at", return_value=42) as line_mock:
             _final_manifest(str(FIXTURE), use_cache=False)
             # use_cache=False -> every file gets re-read
             self.assertGreater(line_mock.call_count, 0)
@@ -233,19 +226,18 @@ class MediaDimsInScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(tmp_path)
 
             manifest = _final_manifest(str(tmp_path))
-            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            files = [c for c in manifest.tree.children if c.type == "file"]
             self.assertEqual(len(files), 1)
-            self.assertEqual(files[0]["media_width"], 50)
-            self.assertEqual(files[0]["media_height"], 30)
+            self.assertEqual(files[0].media_width, 50)
+            self.assertEqual(files[0].media_height, 30)
 
-            # Warm path: second scan should hit the file-stat cache and
-            # still stamp media_width / media_height on the node — the
-            # cache-hit branch in _populate_file_metadata.
+            # The warm path stamps media dims from the cache, which is a
+            # different branch from the cold read.
             manifest2 = _final_manifest(str(tmp_path))
-            files2 = [c for c in manifest2["tree"]["children"] if c["type"] == "file"]
+            files2 = [c for c in manifest2.tree.children if c.type == "file"]
             self.assertEqual(len(files2), 1)
-            self.assertEqual(files2[0]["media_width"], 50)
-            self.assertEqual(files2[0]["media_height"], 30)
+            self.assertEqual(files2[0].media_width, 50)
+            self.assertEqual(files2[0].media_height, 30)
 
     def test_scan_omits_media_dims_for_non_media(self):
         with TemporaryDirectory() as tmp:
@@ -254,7 +246,7 @@ class MediaDimsInScanTests(CacheRedirectMixin, unittest.TestCase):
             (tmp_path / "code.py").write_text("print('hi')\n")
             commit_all(tmp_path)
             manifest = _final_manifest(str(tmp_path))
-            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            files = [c for c in manifest.tree.children if c.type == "file"]
             self.assertEqual(len(files), 1)
             self.assertNotIn("media_width", files[0])
             self.assertNotIn("media_height", files[0])
@@ -264,8 +256,8 @@ def test_line_count_is_exact_not_sampled_over_5mb(tmp_path):
     """A >5MB file is counted EXACTLY, not sample-extrapolated. The first 1MB is
     newline-free (the old sample window), so the dropped estimator would have
     returned 1; the exact stream count returns the true total. Matches
-    gitobj.count_lines so a file's Live count equals its Timeline blob count."""
-    from api.git.objects import count_lines
+    utils.content.count_lines so a file's Live count equals its Timeline blob count."""
+    from api.utils.content import count_lines
 
     content = (
         b"x" * (1024 * 1024) + b"y\n" * 2_500_000
@@ -283,9 +275,9 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
 
     def test_binary_flag_on_png(self):
         m = _final_manifest(str(FIXTURE))
-        for node in walk_files(m["tree"]):
-            if node["name"] == "logo.png":
-                self.assertTrue(node["binary"])
+        for node in walk_files(m.tree):
+            if node.name == "logo.png":
+                self.assertTrue(node.binary)
                 return
         self.fail("logo.png not found in manifest")
 
@@ -293,7 +285,7 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
         # A media file carries its backend-computed classification; a code
         # file carries None. This is the single source the frontend reads.
         m = _final_manifest(str(FIXTURE))
-        kinds = {n["name"]: n.get("mediaKind") for n in walk_files(m["tree"])}
+        kinds = {n.name: n.mediaKind for n in walk_files(m.tree)}
         self.assertEqual(kinds.get("logo.png"), "image")
         self.assertIsNone(kinds.get("package.json"))
 
@@ -309,6 +301,6 @@ class BinaryAndMediaFlagTests(CacheRedirectMixin, unittest.TestCase):
             )
             commit_all(root)
             m = _final_manifest(str(root))
-            types = {n["name"]: n.get("binaryType") for n in walk_files(m["tree"])}
+            types = {n.name: n.binaryType for n in walk_files(m.tree)}
             self.assertEqual(types.get("app.db"), "SQLite database")
             self.assertIsNone(types.get("code.py"))

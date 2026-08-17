@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from api.config import local_repos_allowed
-from api.models.events import ErrorCode
-from api.security import TRUST
+from api.core.config import local_repos_allowed
+from api.git.cmd import git_argv
+from api.core.constants import ErrorCode
 from api.git.clone import (
     BranchNotFoundError,
     CloneError,
@@ -54,9 +54,8 @@ _LOCAL_DISABLED_ERROR = "local repositories are disabled"
 class ResolveError(Exception):
     status: int
     message: str
-    # Set only where the UI answers the failure differently. Carried here so a
-    # caller that flattens a clone exception into a ResolveError doesn't lose
-    # which failure it was.
+    # Set only where the UI answers the failure differently, and carried here so
+    # flattening a clone exception into a ResolveError doesn't lose which it was.
     code: ErrorCode | None = None
 
 
@@ -87,41 +86,29 @@ def classify(raw: str) -> SourceKind:
     return SourceKind.INVALID
 
 
-def label_from_source(src: str | None) -> str | None:
-    """Display label for a source string — a git URL OR a local path.
-
-    Git URL → "owner/repo" (last two path segments, sans .git). Local path →
-    its basename. An optional trailing "@branch" is stripped first.
-
-    THE single primitive for the repo's display name, used in exactly two
-    places: the scanner bakes tree.name from the git remote's URL
-    (scan._wrap_manifest), and the manifest route derives the pending progress
-    label from the raw src. Nothing else derives a name."""
-    if not src:
-        return None
-    no_branch = re.sub(r"@[^@/]+$", "", src)  # strip a trailing @branch
-    if "://" in no_branch or _GIT_SSH_FORM.match(no_branch):
-        m = re.search(r"[/:]([^/]+)/([^/]+?)(?:\.git)?$", no_branch)
-        return f"{m.group(1)}/{m.group(2)}" if m else no_branch
-    parts = [p for p in re.split(r"[/\\]", no_branch) if p]  # local path → basename
-    return parts[-1] if parts else no_branch
-
-
 def _is_git_working_tree(path: Path) -> bool:
     """Return True if path is inside a git working tree.
 
-    Runs git rev-parse --is-inside-work-tree with cwd=path:
+    Runs git rev-parse --is-inside-work-tree against `path`:
       - working tree (top-level OR subdir OR linked worktree) → "true"
       - bare repo → "false"
       - non-git directory → command fails with non-zero exit
+
+    Goes through git_argv for the ``safe.directory=*`` bypass. Without it a
+    bind-mounted repo whose owner isn't the process uid — the normal case for
+    the container reading a host mount — fails with "dubious ownership", and
+    this returns False, which surfaces as "not a git working tree, try
+    `git init`" over a repo that is perfectly fine.
+
+    Its own subprocess call rather than cmd.run_git: the timeout is the point,
+    since this runs against a path the user just typed.
 
     Failures (missing git binary, timeout, OS error) all fall through to
     False — better to reject with a clear message than to scan a path we
     can't verify."""
     try:
         r = subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=str(path),
+            git_argv(path, "rev-parse", "--is-inside-work-tree"),
             capture_output=True,
             text=True,
             check=False,
@@ -196,8 +183,7 @@ def resolve_source(src: str, branch: str | None) -> Path:
         raise ResolveError(400, "unrecognized source: pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
         try:
-            with TRUST.clone_lock:
-                return ensure_clone(src, branch)
+            return ensure_clone(src, branch)
         except RepoNotFoundError as e:
             raise ResolveError(400, str(e), ErrorCode.REPO_NOT_FOUND)
         except (BranchNotFoundError, HostUnreachableError) as e:

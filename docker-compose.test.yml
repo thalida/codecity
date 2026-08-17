@@ -41,9 +41,11 @@ services:
       - './uv.lock:/srv/uv.lock:ro'
       - './pyproject.toml:/srv/pyproject.toml:ro'
 
-  # `ruff format --check` is the Python equivalent of the frontend's
-  # `prettier --check`. Read-only mounts: it only verifies formatting, never
-  # writes (use `just fmt` to apply). Re-syncs to add the dev group (ruff).
+  # Python's `npm run lint` + `prettier --check` in one service: `ruff check`
+  # is the linter, `ruff format --check` the formatter. Lint first so a real
+  # error isn't hidden behind a formatting diff. Read-only mounts: it only
+  # verifies, never writes (use `just fmt` to apply). Re-syncs to add the dev
+  # dependency group (ruff).
   ruff:
     image: codecity:test
     build:
@@ -54,7 +56,7 @@ services:
       [
         'sh',
         '-c',
-        'uv sync --frozen && exec /srv/.venv/bin/ruff format --check api bin scripts "$@"',
+        'uv sync --frozen && /srv/.venv/bin/ruff check api bin scripts && exec /srv/.venv/bin/ruff format --check api bin scripts "$@"',
         '--',
       ]
     volumes:
@@ -64,8 +66,58 @@ services:
       - './uv.lock:/srv/uv.lock:ro'
       - './pyproject.toml:/srv/pyproject.toml:ro'
 
+  # Python's `npm run typecheck`. pyproject.toml sets strict mode over api/.
+  #
+  # Run as `python -m pyright` from the synced venv (like the pytest service)
+  # so pyright resolves fastapi/pydantic from that venv rather than guessing an
+  # interpreter. PYRIGHT_PYTHON_FORCE_VERSION is pinned because the pip package
+  # is a launcher that otherwise downloads whatever pyright is newest at run
+  # time — an unpinned typechecker means the gate can turn red on a day nobody
+  # pushed. The launcher fetches its own node, so the cache is a named volume:
+  # downloaded once, not per run (same reason as the npm cache below).
+  #
+  # libatomic1: that fetched node links against it and python:3.13-slim doesn't
+  # ship it, so node dies with "libatomic.so.1: cannot open shared object file".
+  # Installed here rather than in the Dockerfile — the production image has no
+  # business carrying a dependency only the typechecker needs. Same reason the
+  # vitest service installs libexpat1 for node-canvas.
+  pyright:
+    image: codecity:test
+    build:
+      context: .
+    user: 'root'
+    init: true
+    entrypoint:
+      [
+        'sh',
+        '-c',
+        'apt-get update >/dev/null && apt-get install -y --no-install-recommends libatomic1 >/dev/null && uv sync --frozen && exec /srv/.venv/bin/python -m pyright "$@"',
+        '--',
+      ]
+    environment:
+      - PYRIGHT_PYTHON_FORCE_VERSION=${PYRIGHT_VERSION:-1.1.409}
+    volumes:
+      - './api:/srv/api:ro'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
+      - 'codecity-test-pyright-cache:/root/.cache/pyright-python'
+
   # Separate from `vitest` because that service only mounts ./app, and
   # prettier's install and config are at the root.
+  # Regenerates the TS types from a schema `just gen-types` already wrote to
+  # .local/, and diffs. Its own service because it needs app's node_modules and
+  # the repo root together, which neither vitest nor prettier mounts.
+  gentypes:
+    image: node:24-bookworm-slim
+    working_dir: /repo/app
+    init: true
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
+    volumes:
+      - '.:/repo'
+      - '/repo/node_modules'
+      - '/repo/app/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+
   prettier:
     image: node:24-bookworm-slim
     working_dir: /repo
@@ -107,7 +159,9 @@ services:
       - 'codecity-test-npm-cache:/root/.npm' # persist npm + prebuild-install cache
       - 'codecity-test-node-cache:/root/.cache' # prebuild-install may cache here too
 
-# Named caches so canvas's prebuilt binary is downloaded once, not per push.
+# Named caches so canvas's prebuilt binary and pyright's bundled node are
+# downloaded once, not per push.
 volumes:
   codecity-test-npm-cache:
   codecity-test-node-cache:
+  codecity-test-pyright-cache:

@@ -62,6 +62,7 @@ Everything codecity reads is an env var, passed with `-e`:
 | `CODECITY_DISCOVER`          | on                  | The Discover tab of repos worth rendering. Set `off` to hide it                                                        |
 | `CODECITY_DISCOVER_FILE`     | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}`                                                      |
 | `CODECITY_CACHE_ROOT`        | `/cache`            | Where clones and the manifest cache live                                                                               |
+| `CODECITY_CACHE_BUDGET_MB`   | `1024`              | Ceiling for the derived caches, swept oldest-first. Clones aren't counted and aren't swept                             |
 | `CODECITY_QUIET`             | off                 | Silence disconnect and scan logs                                                                                       |
 
 Booleans take `1`/`true`/`yes`/`on`.
@@ -219,7 +220,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 | `just dev`       | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
 | `just url`       | print this worktree's dev URL (`open $(just url)`)              |
 | `just test`      | pytest + vitest in containers                                   |
-| `just lint`      | ruff, eslint, prettier, and typecheck                           |
+| `just lint`      | ruff, pyright, eslint, prettier, and typecheck                  |
 | `just gen-types` | regenerate the frontend wire types from the OpenAPI schema      |
 | `just clean`     | tear down this worktree's containers and volumes                |
 
@@ -259,7 +260,7 @@ there is hand-edited and it's always safe to delete.
 
 ### Backend
 
-- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (the in-memory scan-root trust set in `api/security.py` can't be split across workers)
+- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (the in-memory scan-root trust set in `api/core/security.py` can't be split across workers)
 - scan progress streams over Server-Sent Events (`GET /api/manifest`)
 - API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
 

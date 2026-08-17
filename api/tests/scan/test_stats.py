@@ -1,5 +1,13 @@
 import pytest
 
+from api.models.manifest import (
+    AuthorStat,
+    BusynessThresholds,
+    CommitDateRange,
+    CommitLeader,
+    RangeStat,
+)
+from api.tests.conftest import make_commit, make_dir_node, make_file_node
 from api.scan.stats import (
     _author_hue,
     annotate_same_day_totals,
@@ -9,58 +17,22 @@ from api.scan.stats import (
 )
 
 
-def _file(
-    path,
-    *,
-    lines=10,
-    size=100,
-    created="2020-01-01T00:00:00Z",
-    modified="2020-01-01T00:00:00Z",
-    binary=False,
-    dirty=False,
-    media=None,
-    mw=None,
-    mh=None,
-):
-    n = {
-        "name": path.split("/")[-1],
-        "type": "file",
-        "path": path,
-        "fullPath": "/" + path,
-        "extension": "." + path.split(".")[-1] if "." in path else "",
-        "mediaKind": media,
-        "size": size,
-        "lines": lines,
-        "binary": binary,
-        "dirty": dirty,
-        "created": created,
-        "modified": modified,
-    }
+def _file(path, *, media=None, mw=None, mh=None, **kw):
+    """FileNode fixture. `media`/`mw`/`mh` keep the call sites below readable;
+    everything else passes straight through to the shared builder."""
     assert (mw is None) == (mh is None), "supply both mw and mh or neither"
-    if mw is not None:
-        n["media_width"], n["media_height"] = mw, mh
-    return n
+    return make_file_node(path, mediaKind=media, media_width=mw, media_height=mh, **kw)
 
 
 def _dir(name, path, children, created=None, modified=None):
-    files = [c for c in children if c["type"] == "file"]
-    return {
-        "name": name,
-        "type": "directory",
-        "path": path,
-        "fullPath": "/" + path,
-        "children": children,
-        "children_count": len(children),
-        "children_file_count": len(files),
-        "children_dir_count": len(children) - len(files),
-        "descendants_count": len(children),
-        "descendants_file_count": len(files),
-        "descendants_dir_count": len(children) - len(files),
-        "descendants_size": 0,
-        "descendants_ext_breakdown": [],
-        "descendants_created_min": created,
-        "descendants_modified_max": modified,
-    }
+    return make_dir_node(
+        path,
+        children,
+        name=name,
+        descendants_size=0,
+        descendants_created_min=created,
+        descendants_modified_max=modified,
+    )
 
 
 def test_file_leaders_partition_media_and_text():
@@ -82,25 +54,25 @@ def test_file_leaders_partition_media_and_text():
     tree = _dir("repo", "", [code, empty, img])
     s = compute_repo_stats(tree, [])
 
-    assert s["maxLinesFile"]["path"] == "a.ts"
-    assert s["minLinesFile"]["path"] == "a.ts"  # only a.ts is text with lines>0
-    assert s["maxBytesFile"]["path"] == "a.ts"
-    assert s["minBytesFile"]["path"] == "__init__.py"
-    assert s["maxMediaBytesFile"]["path"] == "pic.png"
-    assert s["maxMediaPixelsFile"]["path"] == "pic.png"
-    assert s["maxMediaPixelsFile"]["media_width"] == 1920
-    assert s["oldestCreatedFile"]["path"] == "__init__.py"
-    assert s["newestCreatedFile"]["path"] == "a.ts"
-    assert s["newestModifiedFile"]["path"] == "a.ts"
-    assert s["oldestModifiedFile"]["path"] == "__init__.py"
+    assert s.maxLinesFile.path == "a.ts"
+    assert s.minLinesFile.path == "a.ts"  # only a.ts is text with lines>0
+    assert s.maxBytesFile.path == "a.ts"
+    assert s.minBytesFile.path == "__init__.py"
+    assert s.maxMediaBytesFile.path == "pic.png"
+    assert s.maxMediaPixelsFile.path == "pic.png"
+    assert s.maxMediaPixelsFile.media_width == 1920
+    assert s.oldestCreatedFile.path == "__init__.py"
+    assert s.newestCreatedFile.path == "a.ts"
+    assert s.newestModifiedFile.path == "a.ts"
+    assert s.oldestModifiedFile.path == "__init__.py"
     # Ranges span ALL files with non-zero values (media included for bytes); the
     # 0-line/0-byte __init__.py is excluded from both.
-    assert s["lineCountRange"] == {"min": 40, "max": 40}  # only a.ts has lines>0
-    assert s["byteSizeRange"] == {"min": 400, "max": 9000}  # a.ts .. pic.png(media)
-    assert s["mediaCount"] == 1
+    assert s.lineCountRange == RangeStat(min=40, max=40)  # only a.ts has lines>0
+    assert s.byteSizeRange == RangeStat(min=400, max=9000)  # a.ts .. pic.png(media)
+    assert s.mediaCount == 1
     # Sums are over non-media files only (a.ts + __init__.py; pic.png excluded).
-    assert s["totalLines"] == 40
-    assert s["codeBytes"] == 400
+    assert s.totalLines == 40
+    assert s.codeBytes == 400
 
 
 def test_binaries_are_their_own_category_not_code_superlatives():
@@ -113,18 +85,18 @@ def test_binaries_are_their_own_category_not_code_superlatives():
     s = compute_repo_stats(tree, [])
 
     # Code superlatives ignore binaries entirely.
-    assert s["maxBytesFile"]["path"] == "a.ts"  # not data.db, despite 50 KB
-    assert s["minBytesFile"]["path"] == "a.ts"
-    assert s["maxLinesFile"]["path"] == "a.ts"
+    assert s.maxBytesFile.path == "a.ts"  # not data.db, despite 50 KB
+    assert s.minBytesFile.path == "a.ts"
+    assert s.maxLinesFile.path == "a.ts"
     # Binaries get their own count + byte leaders.
-    assert s["binaryCount"] == 2
-    assert s["maxBinaryBytesFile"]["path"] == "data.db"
-    assert s["minBinaryBytesFile"]["path"] == "tiny.wasm"
+    assert s.binaryCount == 2
+    assert s.maxBinaryBytesFile.path == "data.db"
+    assert s.minBinaryBytesFile.path == "tiny.wasm"
     # Binary bytes are excluded from the code overview average.
-    assert s["codeBytes"] == 400
+    assert s.codeBytes == 400
     # ...but binaries still count toward the world-wide byte NORMALIZATION range
     # (they render as byte-sized buildings, so their size must scale the range).
-    assert s["byteSizeRange"] == {"min": 400, "max": 50_000}
+    assert s.byteSizeRange == RangeStat(min=400, max=50_000)
 
 
 def test_dir_leaders_exclude_root():
@@ -132,10 +104,10 @@ def test_dir_leaders_exclude_root():
     src = _dir("src", "src", [deep, _file("src/m.ts")])  # 2 direct children
     tree = _dir("repo", "", [src, _file("r.ts")])
     s = compute_repo_stats(tree, [])
-    assert s["maxDepthDir"]["path"] == "src/a/b"  # most nested
-    assert s["maxChildrenDir"]["path"] == "src"  # most direct children (2)
-    assert s["maxChildrenDir"]["children"] == 2
-    assert s["minChildrenDir"]["path"] == "src/a/b"  # fewest direct children (1)
+    assert s.maxDepthDir.path == "src/a/b"  # most nested
+    assert s.maxChildrenDir.path == "src"  # most direct children (2)
+    assert s.maxChildrenDir.children == 2
+    assert s.minChildrenDir.path == "src/a/b"  # fewest direct children (1)
 
 
 def test_street_age_leaders_take_the_subtree_dates():
@@ -146,10 +118,10 @@ def test_street_age_leaders_take_the_subtree_dates():
     src = _dir("src", "src", [old, new], created="2019-01-01", modified="2024-06-02")
     tree = _dir("repo", "", [src], created="2019-01-01", modified="2024-06-02")
     s = compute_repo_stats(tree, [])
-    assert s["oldestCreatedDir"]["path"] == "src/old"
-    assert s["oldestCreatedDir"]["created"] == "2019-01-01"
-    assert s["newestCreatedDir"]["path"] == "src/new"
-    assert s["newestCreatedDir"]["created"] == "2024-06-01"
+    assert s.oldestCreatedDir.path == "src/old"
+    assert s.oldestCreatedDir.created == "2019-01-01"
+    assert s.newestCreatedDir.path == "src/new"
+    assert s.newestCreatedDir.created == "2024-06-01"
 
 
 def test_street_age_leaders_skip_undated_dirs():
@@ -158,67 +130,59 @@ def test_street_age_leaders_skip_undated_dirs():
     bare = _dir("bare", "src/bare", [])
     tree = _dir("repo", "", [bare])
     s = compute_repo_stats(tree, [])
-    assert s["oldestCreatedDir"] is None
-    assert s["newestCreatedDir"] is None
+    assert s.oldestCreatedDir is None
+    assert s.newestCreatedDir is None
 
 
 def test_commit_leaders_authors_and_streak():
     commits = [
-        {
-            "date": "2022-01-01",
-            "files": 2,
-            "sha": "aaa",
-            "authors": ["Ada"],
-            "subject": "a",
-            "same_day_total": 1,
-        },
-        {
-            "date": "2022-01-02",
-            "files": 40,
-            "sha": "bbb",
-            "authors": ["Ada", "Bo"],
-            "subject": "b",
-            "same_day_total": 2,
-        },
-        {
-            "date": "2022-01-03",
-            "files": 1,
-            "sha": "ccc",
-            "authors": ["Bo"],
-            "subject": "c",
-            "same_day_total": 2,
-        },
-        {
-            "date": "2022-02-10",
-            "files": 5,
-            "sha": "ddd",
-            "authors": ["Ada"],
-            "subject": "d",
-            "same_day_total": 1,
-        },
+        make_commit(
+            "aaa",
+            date="2022-01-01",
+            files=2,
+            authors=["Ada"],
+            subject="a",
+            same_day_total=1,
+        ),
+        make_commit(
+            "bbb",
+            date="2022-01-02",
+            files=40,
+            authors=["Ada", "Bo"],
+            subject="b",
+            same_day_total=2,
+        ),
+        make_commit(
+            "ccc",
+            date="2022-01-03",
+            files=1,
+            authors=["Bo"],
+            subject="c",
+            same_day_total=2,
+        ),
+        make_commit(
+            "ddd",
+            date="2022-02-10",
+            files=5,
+            authors=["Ada"],
+            subject="d",
+            same_day_total=1,
+        ),
     ]
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), commits)
-    assert s["maxFilesPerCommit"] == {
-        "sha": "bbb",
-        "files": 40,
-        "date": "2022-01-02",
-    }
+    assert s.maxFilesPerCommit == CommitLeader(sha="bbb", files=40, date="2022-01-02")
     # The history's ends carry their sha, so the almanac can fly the camera to
     # the tree rather than only naming a date.
-    assert s["oldestCommit"]["sha"] == "aaa"
-    assert s["oldestCommit"]["date"] == "2022-01-01"
-    assert s["newestCommit"]["sha"] == "ddd"
-    assert s["newestCommit"]["date"] == "2022-02-10"
-    assert s["minFilesPerCommit"] == {
-        "sha": "ccc",
-        "files": 1,
-        "date": "2022-01-03",
-    }
-    assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
-    assert s["maxCommitsPerDay"]["count"] == 2
-    assert s["maxCommitStreakDays"] == 3
-    assert s["authors"][0] == {"name": "Ada", "commits": 3, "hue": _author_hue("Ada")}
-    assert [a["name"] for a in s["authors"]] == ["Ada", "Bo"]
+    assert s.oldestCommit.sha == "aaa"
+    assert s.oldestCommit.date == "2022-01-01"
+    assert s.newestCommit.sha == "ddd"
+    assert s.newestCommit.date == "2022-02-10"
+    assert s.minFilesPerCommit == CommitLeader(sha="ccc", files=1, date="2022-01-03")
+    assert s.commitDates == CommitDateRange(oldest="2022-01-01", newest="2022-02-10")
+    assert s.maxCommitsPerDay.count == 2
+    assert s.maxCommitStreakDays == 3
+    assert s.authors[0] == AuthorStat(name="Ada", commits=3, hue=_author_hue("Ada"))
+    assert [a.name for a in s.authors] == ["Ada", "Bo"]
 
 
 def test_newest_commit_is_the_last_one_that_day():
@@ -226,48 +190,44 @@ def test_newest_commit_is_the_last_one_that_day():
     leader must be the LAST of them: comparing truncated dates kept the first,
     so the almanac named a commit two behind HEAD."""
     same_day = [
-        {
-            "date": f"2026-08-15T0{i}:00:00Z",
-            "files": 1,
-            "sha": sha,
-            "authors": ["Ada"],
-            "subject": sha,
-            "same_day_total": 3,
-        }
+        make_commit(
+            sha,
+            date=f"2026-08-15T0{i}:00:00Z",
+            authors=["Ada"],
+            subject=sha,
+            same_day_total=3,
+        )
         for i, sha in enumerate(["aaa", "bbb", "ccc"])
     ]
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), same_day)
 
-    assert s["newestCommit"]["sha"] == "ccc"
-    assert s["oldestCommit"]["sha"] == "aaa"
+    assert s.newestCommit.sha == "ccc"
+    assert s.oldestCommit.sha == "aaa"
     # The day range is still a day, whatever the timestamps carry.
-    assert s["commitDates"] == {"oldest": "2026-08-15", "newest": "2026-08-15"}
+    assert s.commitDates == CommitDateRange(oldest="2026-08-15", newest="2026-08-15")
 
 
 def test_empty_tree_and_no_commits():
     s = compute_repo_stats(_dir("repo", "", []), [])
-    assert s["maxLinesFile"] is None
-    assert s["maxFilesPerCommit"] is None
-    assert s["maxCommitStreakDays"] == 0
-    assert s["authors"] == []
-    assert s["commitDates"] == {"oldest": None, "newest": None}
-    assert s["lineCountRange"] == {"min": 0, "max": 0}
-    assert s["mediaCount"] == 0
+    assert s.maxLinesFile is None
+    assert s.maxFilesPerCommit is None
+    assert s.maxCommitStreakDays == 0
+    assert s.authors == []
+    assert s.commitDates == CommitDateRange(oldest=None, newest=None)
+    assert s.lineCountRange == RangeStat(min=0, max=0)
+    assert s.mediaCount == 0
 
 
 def test_ranges_span_all_files_excluding_zero():
-    # The byte range must include the media file and exclude the 0-byte file —
-    # this matches the client's computeFileStats so building widths are
-    # identical. The 0-byte file excluded means the frontend never sees log(0).
+    # Matches the client's computeFileStats, so building widths agree. The
+    # 0-byte file is excluded so the frontend never sees log(0).
     code = _file("a.ts", lines=10, size=200)
     big = _file("big.png", lines=0, size=9000, media="image", mw=4, mh=4)
     empty = _file("empty.py", lines=0, size=0)
     s = compute_repo_stats(_dir("repo", "", [code, big, empty]), [])
-    assert s["lineCountRange"] == {"min": 10, "max": 10}  # only a.ts has lines>0
-    assert s["byteSizeRange"] == {
-        "min": 200,
-        "max": 9000,
-    }  # a.ts + media; empty excluded
+    assert s.lineCountRange == RangeStat(min=10, max=10)  # only a.ts has lines>0
+    # a.ts + media; empty excluded
+    assert s.byteSizeRange == RangeStat(min=200, max=9000)
 
 
 def test_media_only_repo_ranges():
@@ -275,18 +235,18 @@ def test_media_only_repo_ranges():
     # still drive the byte range so media buildings size correctly.
     img = _file("a.png", lines=0, size=500, media="image", mw=10, mh=10)
     s = compute_repo_stats(_dir("repo", "", [img]), [])
-    assert s["lineCountRange"] == {"min": 0, "max": 0}
-    assert s["byteSizeRange"] == {"min": 500, "max": 500}
+    assert s.lineCountRange == RangeStat(min=0, max=0)
+    assert s.byteSizeRange == RangeStat(min=500, max=500)
 
 
 def test_media_min_max_leaders():
     small = _file("small.png", lines=0, size=100, media="image", mw=10, mh=10)
     big = _file("big.png", lines=0, size=9000, media="image", mw=1920, mh=1080)
     s = compute_repo_stats(_dir("repo", "", [small, big]), [])
-    assert s["maxMediaBytesFile"]["path"] == "big.png"
-    assert s["minMediaBytesFile"]["path"] == "small.png"
-    assert s["maxMediaPixelsFile"]["path"] == "big.png"
-    assert s["minMediaPixelsFile"]["path"] == "small.png"
+    assert s.maxMediaBytesFile.path == "big.png"
+    assert s.minMediaBytesFile.path == "small.png"
+    assert s.maxMediaPixelsFile.path == "big.png"
+    assert s.minMediaPixelsFile.path == "small.png"
 
 
 def test_empty_files_only_ranges():
@@ -294,8 +254,8 @@ def test_empty_files_only_ranges():
     # frontend's _safeRange turns these into {1,1} (no divide-by-zero).
     empty = _file("__init__.py", lines=0, size=0)
     s = compute_repo_stats(_dir("repo", "", [empty]), [])
-    assert s["lineCountRange"] == {"min": 0, "max": 0}
-    assert s["byteSizeRange"] == {"min": 0, "max": 0}
+    assert s.lineCountRange == RangeStat(min=0, max=0)
+    assert s.byteSizeRange == RangeStat(min=0, max=0)
 
 
 def test_author_hue_matches_the_javascript_hash_it_replaced():
@@ -312,13 +272,7 @@ def test_author_hue_matches_the_javascript_hash_it_replaced():
 def _commits_per_day(*per_day: int) -> list:
     """Commits spread over consecutive dates, `per_day[i]` of them on day i."""
     return [
-        {
-            "date": f"2026-01-{day:02d}",
-            "files": 1,
-            "sha": "0" * 40,
-            "authors": [],
-            "subject": "",
-        }
+        make_commit(date=f"2026-01-{day:02d}")
         for day, n in enumerate(per_day, start=1)
         for _ in range(n)
     ]
@@ -327,12 +281,12 @@ def _commits_per_day(*per_day: int) -> list:
 @pytest.mark.parametrize(
     ("per_day", "expected"),
     [
-        ((), {"avg": 1, "busy": 1}),
+        ((), BusynessThresholds(avg=1, busy=1)),
         # Sorted per-day counts [1,1,2,5]: avg is the median 2, busy the 75th
         # percentile 5.
-        ((1, 1, 2, 5), {"avg": 2, "busy": 5}),
+        ((1, 1, 2, 5), BusynessThresholds(avg=2, busy=5)),
         # Uniform: median and 75th both 2, so busy clamps to avg + 1.
-        ((2, 2, 2, 2), {"avg": 2, "busy": 3}),
+        ((2, 2, 2, 2), BusynessThresholds(avg=2, busy=3)),
     ],
 )
 def test_busyness_thresholds(per_day, expected):
@@ -350,9 +304,6 @@ def test_busyness_thresholds(per_day, expected):
     ],
 )
 def test_annotate_same_day_totals(dates, expected):
-    commits = [
-        {"date": d, "files": 1, "sha": str(i) * 40, "authors": [], "subject": ""}
-        for i, d in enumerate(dates)
-    ]
+    commits = [make_commit(str(i) * 40, date=d) for i, d in enumerate(dates)]
     annotate_same_day_totals(commits, commit_day_counts(commits))
-    assert [c["same_day_total"] for c in commits] == expected
+    assert [c.same_day_total for c in commits] == expected

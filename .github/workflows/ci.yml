@@ -40,6 +40,10 @@ jobs:
             VERSION=0.0.0+g${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # A cached runtime layer pins its apt-get upgrade to the day it was
+          # first built, which is how Trivy fails on a CVE apt could already fix.
+          no-cache-filters: runtime
+          pull: true
 
       - name: Run pytest with coverage
         # pyproject.toml's pytest addopts already include
@@ -52,8 +56,18 @@ jobs:
           docker compose -f docker-compose.test.yml run --rm pytest \
             --cov-report=xml:/srv/api/coverage.xml
 
-      - name: Python format check (ruff)
+      - name: Python lint + format check (ruff)
         run: docker compose -f docker-compose.test.yml run --rm ruff
+
+      # Stdlib-only, so it runs on the runner rather than paying for a container.
+      - name: Python comment cap
+        run: python3 bin/check-comments.py api bin scripts
+
+      # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
+      # automatically — no `env:` mirror needed here, unlike NPM_VERSION
+      # (which the shell steps below interpolate themselves).
+      - name: Python typecheck (pyright)
+        run: docker compose -f docker-compose.test.yml run --rm pyright
 
       - name: Run vitest with coverage
         # Override the default compose command (which runs `npm test`) to
@@ -88,6 +102,16 @@ jobs:
       # Its own service: the app-scoped vitest service can't see the root config.
       - name: Format check (prettier)
         run: docker compose -f docker-compose.test.yml run --rm prettier
+
+      # Only the schema is written out here; the container owns everything node.
+      # npm on the runner cannot work: compose mounts anonymous volumes over
+      # node_modules, leaving those directories root-owned on the host.
+      - name: Generated types match the models
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          mkdir -p .local
+          "$HOME/.local/bin/uv" run python scripts/gen_openapi.py > .local/openapi.generated.json
+          docker compose -f docker-compose.test.yml run --rm gentypes
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0

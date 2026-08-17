@@ -4,6 +4,7 @@ that the client replays to reconstruct any commit's file set."""
 import os
 import subprocess
 from pathlib import Path
+from api.models.manifest import DateRangeMs, RangeStat
 
 from api.scan.timeline import walk_deltas
 
@@ -81,13 +82,13 @@ def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) ->
     recon_paths: set[str] = set()
 
     def walk(n: dict) -> None:
-        if n["type"] == "file":
-            recon_paths.add(n["path"])
+        if n.type == "file":
+            recon_paths.add(n.path)
         else:
-            for ch in n["children"]:
+            for ch in n.children:
                 walk(ch)
 
-    walk(recon["tree"])
+    walk(recon.tree)
     assert "x.txt" not in recon_paths
     assert set(state) == recon_paths
 
@@ -121,23 +122,23 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     nodes: dict[str, dict] = {}
 
     def walk(n: dict) -> None:
-        if n["type"] == "file":
-            nodes[n["path"]] = n
+        if n.type == "file":
+            nodes[n.path] = n
         else:
-            for c in n["children"]:
+            for c in n.children:
                 walk(c)
 
-    walk(m["tree"])
+    walk(m.tree)
     assert set(nodes) == {"a.txt", "gone.txt", "app.db"}  # deleted file is in the union
-    assert nodes["a.txt"]["size"] == len("x\ny\nz\n")  # MAX size over history
-    assert m["repo"]["dirty"] is False
-    assert "T" in nodes["a.txt"]["created"]  # full ISO timestamp, not day-precision
-    assert "T" in nodes["a.txt"]["modified"]
+    assert nodes["a.txt"].size == len("x\ny\nz\n")  # MAX size over history
+    assert m.repo.dirty is False
+    assert "T" in nodes["a.txt"].created  # full ISO timestamp, not day-precision
+    assert "T" in nodes["a.txt"].modified
     # Regression: a binary file must carry binary/binaryType in the union manifest
     # too (was hardcoded binary=False), so Timeline renders it as a data building.
-    assert nodes["app.db"]["binary"] is True
-    assert nodes["app.db"]["binaryType"] == "SQLite database"
-    assert nodes["a.txt"]["binary"] is False
+    assert nodes["app.db"].binary is True
+    assert nodes["app.db"].binaryType == "SQLite database"
+    assert nodes["a.txt"].binary is False
 
 
 def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
@@ -162,7 +163,7 @@ def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
     m = build_union_manifest(
         tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
     )
-    assert len(m["commits"]) == len(commits) == 4
+    assert len(m.commits) == len(commits) == 4
 
 
 def test_compute_commit_line_ranges() -> None:
@@ -178,10 +179,10 @@ def test_compute_commit_line_ranges() -> None:
         CommitDelta("c4", [("a.txt", None)]),  # a.txt deleted → only b=5 present
     ]
     assert compute_commit_line_ranges(deltas, blob_lines) == [
-        {"min": 3, "max": 3},
-        {"min": 5, "max": 10},
-        {"min": 5, "max": 10},  # binary + empty (0 lines) excluded
-        {"min": 5, "max": 5},  # a.txt gone
+        RangeStat(min=3, max=3),
+        RangeStat(min=5, max=10),
+        RangeStat(min=5, max=10),  # binary + empty (0 lines) excluded
+        RangeStat(min=5, max=5),  # a.txt gone
     ]
 
 
@@ -205,16 +206,16 @@ def test_head_line_range_matches_live_scan(tmp_path: Path) -> None:
 
     live = None
     for ev in scan_tree(str(tmp_path), use_cache=False):
-        if ev["phase"] == "manifest-complete":
-            live = ev["manifest"]
+        if ev.phase == "manifest-complete":
+            live = ev.manifest
     assert live is not None
-    live_range = live["stats"]["lineCountRange"]
+    live_range = live.stats.lineCountRange
 
     deltas = walk_deltas(tmp_path)
     blob_lines, _sizes, _stats = _collect_blob_tables(tmp_path, deltas, use_cache=False)
     ranges = compute_commit_line_ranges(deltas, blob_lines)
 
-    assert live_range == {"min": 1, "max": 100}  # b=1, big=100; binary excluded
+    assert live_range == RangeStat(min=1, max=100)  # b=1, big=100; binary excluded
     assert ranges[-1] == live_range  # Timeline HEAD == Live
 
 
@@ -223,11 +224,8 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     equals the live scan's dateRanges for the same repo, so weathering at HEAD
     normalizes identically. Compared as epoch ms, which is what the client
     consumes."""
-    from api.scan.timeline import (
-        _iso_ms,
-        compute_commit_date_ranges,
-        walk_deltas,
-    )
+    from api.scan.timeline import compute_commit_date_ranges, walk_deltas
+    from api.utils.dates import iso_to_ms
     from api.git.meta import collect_git_history
     from api.scan.scanner import scan_tree
 
@@ -241,24 +239,24 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
 
     live = None
     for ev in scan_tree(str(tmp_path), use_cache=False):
-        if ev["phase"] == "manifest-complete":
-            live = ev["manifest"]
+        if ev.phase == "manifest-complete":
+            live = ev.manifest
     assert live is not None
-    live_dates = live["dateRanges"]
+    live_dates = live.dateRanges
 
     deltas = walk_deltas(tmp_path)
     git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
-    assert ranges[-1] == {
-        "minCreated": _iso_ms(live_dates["minCreated"]),
-        "maxCreated": _iso_ms(live_dates["maxCreated"]),
-        "minModified": _iso_ms(live_dates["minModified"]),
-        "maxModified": _iso_ms(live_dates["maxModified"]),
-    }
+    assert ranges[-1] == DateRangeMs(
+        minCreated=iso_to_ms(live_dates.minCreated),
+        maxCreated=iso_to_ms(live_dates.maxCreated),
+        minModified=iso_to_ms(live_dates.minModified),
+        maxModified=iso_to_ms(live_dates.maxModified),
+    )
     # One range per commit, and the created span never runs backwards.
     assert len(ranges) == len(deltas)
-    assert all(r["minCreated"] <= r["maxCreated"] for r in ranges)
+    assert all(r.minCreated <= r.maxCreated for r in ranges)
 
 
 def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
@@ -279,9 +277,9 @@ def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     # At c1 only old.txt exists, so the span is a single instant.
-    assert ranges[0]["minCreated"] == ranges[0]["maxCreated"]
+    assert ranges[0].minCreated == ranges[0].maxCreated
     # At HEAD only new.txt survives, so its creation is both ends again.
-    assert ranges[-1]["minCreated"] == ranges[-1]["maxCreated"]
+    assert ranges[-1].minCreated == ranges[-1].maxCreated
 
 
 def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
@@ -315,36 +313,36 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     union_paths: set[str] = set()
 
     def walk_union(n: dict) -> None:
-        if n["type"] == "file":
-            union_paths.add(n["path"])
+        if n.type == "file":
+            union_paths.add(n.path)
         else:
-            for ch in n["children"]:
+            for ch in n.children:
                 walk_union(ch)
 
-    walk_union(bundle["unionManifest"]["tree"])
+    walk_union(bundle.unionManifest.tree)
     assert union_paths & excluded == set(), "skipped paths leaked into the union"
 
-    for i, c in enumerate(bundle["commits"]):
+    for i, c in enumerate(bundle.commits):
         state: dict[str, str] = {}
-        for d in bundle["deltas"][: i + 1]:
-            for ch in d["changes"]:
-                if ch["sha"] is None:
-                    state.pop(ch["path"], None)
+        for d in bundle.deltas[: i + 1]:
+            for ch in d.changes:
+                if ch.sha is None:
+                    state.pop(ch.path, None)
                 else:
-                    state[ch["path"]] = ch["sha"]
+                    state[ch.path] = ch.sha
         assert state.keys() & excluded == set(), f"skipped path replayed at {i}"
-        replay = {p: bundle["blobLines"][s] for p, s in state.items()}
-        recon = reconstruct_manifest(str(tmp_path), c["sha"], use_cache=False)
+        replay = {p: bundle.blobLines[s] for p, s in state.items()}
+        recon = reconstruct_manifest(str(tmp_path), c.sha, use_cache=False)
         expect: dict[str, int] = {}
 
         def walk(n: dict) -> None:
-            if n["type"] == "file":
-                expect[n["path"]] = n["lines"]
+            if n.type == "file":
+                expect[n.path] = n.lines
             else:
-                for ch in n["children"]:
+                for ch in n.children:
                     walk(ch)
 
-        walk(recon["tree"])
+        walk(recon.tree)
         assert replay == expect, f"mismatch at commit {i}"
 
 
@@ -370,19 +368,19 @@ def test_bundle_excludes_drop_paths_everywhere(tmp_path: Path) -> None:
     union_paths: set[str] = set()
 
     def walk(n: dict) -> None:
-        if n["type"] == "file":
-            union_paths.add(n["path"])
+        if n.type == "file":
+            union_paths.add(n.path)
         else:
-            for ch in n["children"]:
+            for ch in n.children:
                 walk(ch)
 
-    walk(bundle["unionManifest"]["tree"])
+    walk(bundle.unionManifest.tree)
     assert "keep.txt" in union_paths
     assert not any(p.startswith("secrets") for p in union_paths)
 
-    delta_paths = {c["path"] for d in bundle["deltas"] for c in d["changes"]}
+    delta_paths = {c.path for d in bundle.deltas for c in d.changes}
     assert not any(p.startswith("secrets") for p in delta_paths)
-    assert len(bundle["deltas"]) == len(bundle["commits"]) == 2
+    assert len(bundle.deltas) == len(bundle.commits) == 2
 
 
 def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
@@ -394,8 +392,8 @@ def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
-    assert bundle["note"] is not None  # windowed, surfaced
-    assert len(bundle["commits"]) < 4
+    assert bundle.note is not None  # windowed, surfaced
+    assert len(bundle.commits) < 4
 
 
 def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
@@ -411,5 +409,5 @@ def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
-    assert len(bundle["commits"]) >= 1  # never an empty timeline
-    assert bundle["note"] is not None
+    assert len(bundle.commits) >= 1  # never an empty timeline
+    assert bundle.note is not None

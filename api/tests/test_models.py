@@ -167,7 +167,7 @@ class ResponseModelTests(unittest.TestCase):
     def test_error_response(self) -> None:
         from api.models.responses import ErrorResponse
 
-        from api.models.events import ErrorCode
+        from api.core.constants import ErrorCode
 
         # Absent-or-value, like the stream's error event: no null to special-case.
         self.assertEqual(
@@ -202,7 +202,8 @@ class ResponseModelTests(unittest.TestCase):
         )
 
     def test_sse_event_serialization(self) -> None:
-        from api.models.events import ErrorCode, ScanProgressEvent, ErrorEvent
+        from api.core.constants import ErrorCode
+        from api.models.events import ErrorEvent, ScanProgressEvent
 
         self.assertEqual(
             ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
@@ -221,13 +222,12 @@ class ResponseModelTests(unittest.TestCase):
         )
 
     def test_sse_drops_nulls_so_the_client_never_sees_one(self) -> None:
-        # Progress payloads are built as plain dicts, and git's own lines carry
-        # different fields ("Counting objects: 12%" has no object counts). A
-        # null reaching the client is a crash there, not a missing value.
+        # git's lines carry different fields per stage, and a null reaching
+        # the client is a crash there rather than a missing value.
         import json
 
-        from api.models.events import ScanEvent
-        from api.routers.manifest import _sse
+        from api.core.constants import ScanEvent
+        from api.routers.sse import event as _sse
 
         event = _sse(
             ScanEvent.CLONE_PROGRESS,

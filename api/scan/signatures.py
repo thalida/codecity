@@ -16,8 +16,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any, NamedTuple
 
+from api.models.manifest import DateRanges, DirNode, FileNode, RepoInfo
 from api.scan.filemeta import stat_fields
-from api.manifest_types import DateRanges, DirNode, NodeKind, RepoInfo, TreeNode
 from api.scan.skiprules import SkipRules, tracked_entries
 
 
@@ -45,8 +45,8 @@ def hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
     waiting for file mtimes to shift."""
     sig.update(
         (
-            f"{repo_info['branch']}|{repo_info['remote_url']}|"
-            f"{repo_info['head_sha']}|{repo_info['dirty']}"
+            f"{repo_info.branch}|{repo_info.remote_url}|"
+            f"{repo_info.head_sha}|{repo_info.dirty}"
         ).encode("utf-8")
     )
 
@@ -100,20 +100,21 @@ def derive_tree_signals(tree_root: DirNode) -> TreeSignals:
     layout = hashlib.blake2b(digest_size=8)
     cmin = cmax = mmin = mmax = None
 
-    def walk(node: TreeNode) -> None:
+    def walk(node: FileNode | DirNode) -> None:
         nonlocal cmin, cmax, mmin, mmax
-        struct.update(node["path"].encode("utf-8"))
+        struct.update(node.path.encode("utf-8"))
         struct.update(b"\x00")
-        layout.update(b"d" if node["type"] == NodeKind.DIRECTORY else b"f")
-        layout.update(node["path"].encode("utf-8"))
+        is_dir = isinstance(node, DirNode)
+        layout.update(b"d" if is_dir else b"f")
+        layout.update(node.path.encode("utf-8"))
         layout.update(b"\x00")
-        if node["type"] == NodeKind.DIRECTORY:
-            for c in sorted(node["children"], key=lambda n: n["path"]):
+        if isinstance(node, DirNode):
+            for c in sorted(node.children, key=lambda n: n.path):
                 walk(c)
         else:
-            layout.update(str(node["size"]).encode("ascii"))
+            layout.update(str(node.size).encode("ascii"))
             layout.update(b"\x00")
-            cr, md = node["created"], node["modified"]
+            cr, md = node.created, node.modified
             cmin = cr if cmin is None or cr < cmin else cmin
             cmax = cr if cmax is None or cr > cmax else cmax
             mmin = md if mmin is None or md < mmin else mmin
@@ -123,10 +124,10 @@ def derive_tree_signals(tree_root: DirNode) -> TreeSignals:
     return TreeSignals(
         structure_signature=struct.hexdigest(),
         layout_signature=layout.hexdigest(),
-        date_ranges={
-            "minCreated": cmin,
-            "maxCreated": cmax,
-            "minModified": mmin,
-            "maxModified": mmax,
-        },
+        date_ranges=DateRanges(
+            minCreated=cmin,
+            maxCreated=cmax,
+            minModified=mmin,
+            maxModified=mmax,
+        ),
     )

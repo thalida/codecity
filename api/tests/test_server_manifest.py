@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.routers.manifest import _norm_excludes
+from api.scan import normalize_excludes as _norm_excludes
 from api.git.clone import (
     BranchNotFoundError,
     CloneError,
@@ -153,9 +153,8 @@ def test_manifest_cold_scan_then_warm_cache_hit(
 def test_manifest_stream_gzip_when_accepted(
     client: TestClient, repo: Path, allow_local_repos
 ) -> None:
-    # Accept-Encoding: gzip -> stream is gzip-compressed (browsers/httpx decode
-    # transparently). httpx auto-decompresses but keeps the header; the events
-    # round-trip intact.
+    # httpx auto-decompresses but keeps the header, so the events round-trip
+    # intact through the gzip path.
     with client.stream(
         "GET",
         "/api/manifest",

@@ -33,6 +33,9 @@ dev = [
     "pytest>=8",
     "pytest-xdist>=3",
     "pytest-cov>=4",
+    # Shuffles test order, matching vitest's `sequence: { shuffle: true }`. A
+    # suite that only passes in file order is sharing state between tests.
+    "pytest-randomly>=3",
     "pyright>=1.1",
     "ruff>=0.8",
     # Starlette 1.2.x's TestClient prefers httpx2 (`import httpx2 as httpx`);
@@ -57,6 +60,13 @@ include = ["api"]
 exclude = ["api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
+# Without this pyright resolves imports against whatever `python` is first on
+# PATH. That happens to be the uv venv locally, but in the test container it is
+# the system interpreter, where fastapi and pydantic don't exist — 253 phantom
+# "could not be resolved" errors. uv puts the venv at <root>/.venv in both
+# places, so naming it here makes the two runs agree.
+venvPath = "."
+venv = ".venv"
 
 [tool.coverage.run]
 source = ["api"]

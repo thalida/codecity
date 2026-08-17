@@ -63,10 +63,8 @@ def test_ls_tree_and_blob_stats(tmp_path: Path) -> None:
 
 
 def test_ls_tree_files_skips_symlinks(tmp_path: Path) -> None:
-    # A committed symlink is git type "blob" (mode 120000) too, but the live
-    # scan drops symlinks entirely (is_file()/is_dir() with
-    # follow_symlinks=False match neither). ls_tree_files must skip them so
-    # reconstruction doesn't introduce an extra node the live scan lacks.
+    # A committed symlink is git type "blob" too, and the live scan drops
+    # symlinks — so skipping them here is what keeps the two trees equal.
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("one\ntwo\n")
     os.symlink("a.txt", tmp_path / "link.txt")
@@ -86,9 +84,8 @@ def test_blob_stats_batch_empty_and_missing_sha(tmp_path: Path) -> None:
 
     assert blob_stats_batch(tmp_path, []) == {}
 
-    # A sha git doesn't have (never committed) comes back "missing" from
-    # cat-file --batch and must be skipped rather than raise or corrupt
-    # the parse of the sibling entries around it.
+    # An unknown sha comes back "missing" and must be skipped without
+    # corrupting the parse of the entries around it.
     bogus = "f" * 40
     stats = blob_stats_batch(tmp_path, [bogus, blob.sha])
     assert bogus not in stats
@@ -101,9 +98,8 @@ def test_blob_stats_batch_media_probe_gated_by_extension(tmp_path: Path) -> None
     source files, which would otherwise pay hachoir's full format battery
     (and its stderr `[warn] Skip parser ...` spam) for nothing."""
     _init(tmp_path)
-    # Generate a real PNG inline (PIL is the probe's own decoder) rather than read
-    # a committed fixture — the fixtures/sample-repo dir is gitignored, so a file
-    # there is absent on a fresh CI checkout.
+    # Inline rather than a committed fixture: fixtures/sample-repo is
+    # gitignored, so a file there is absent on a fresh CI checkout.
     import io
 
     from PIL import Image
@@ -147,10 +143,8 @@ def test_blob_sizes_batch(tmp_path):
 
 
 def test_missing_blob_is_skipped_not_fetched(tmp_path):
-    # A sha absent from the object store (on a blobless clone: a historical blob
-    # not backfilled) must report as missing — GIT_NO_LAZY_FETCH keeps it from
-    # triggering a per-object promisor fetch, which would hang. Present blobs
-    # still resolve alongside the missing one.
+    # A blob absent from the store must report missing, not trigger a
+    # per-object fetch that hangs. Present blobs resolve alongside it.
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("one\ntwo\n")
     _commit(tmp_path, "c1")

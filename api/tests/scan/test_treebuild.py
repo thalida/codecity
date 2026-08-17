@@ -38,7 +38,7 @@ def test_build_tree_callable_seam_matches_live_scan(tmp_path):
     commit_all(tmp_path, "c1")
 
     root_abs = str(tmp_path.resolve())
-    live = _final_manifest(root_abs, use_cache=False)["tree"]
+    live = _final_manifest(root_abs, use_cache=False).tree
 
     # Drive the shared builder through the exact seam scan_tree uses, proving
     # the loop is a pure function of that seam.
@@ -53,15 +53,17 @@ def test_build_tree_callable_seam_matches_live_scan(tmp_path):
     apply_git_dates(built, history.created, history.modified)
 
     def normalize(node):
-        n = dict(node)
+        """Compare as dicts, with the fields populate_file_metadata fills in
+        later flattened away — the two build paths must agree on structure, not
+        on metadata that hasn't been read yet."""
+        n = node.model_dump()
         if n["type"] == "file":
-            # Filled in post-build by _populate_file_metadata, so absent here.
             n["lines"] = 0
             n["binary"] = False
             n.pop("media_width", None)
             n.pop("media_height", None)
         else:
-            n["children"] = [normalize(c) for c in n["children"]]
+            n["children"] = [normalize(c) for c in node.children]
         return n
 
     built_norm = normalize(built)
@@ -84,31 +86,29 @@ class ExtBreakdownTests(CacheRedirectMixin, unittest.TestCase):
 
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
-        tree = m["tree"]
+        tree = m.tree
         # +1 for CONTRIBUTORS.md (second-author commit) and +1 for
         # MULTIAUTHOR.md (multi-author/co-authored commit).
-        self.assertEqual(tree["descendants_file_count"], 11)
-        self.assertEqual(tree["descendants_dir_count"], 4)
+        self.assertEqual(tree.descendants_file_count, 11)
+        self.assertEqual(tree.descendants_dir_count, 4)
         # descendants_count = files + dirs.
-        self.assertEqual(tree["descendants_count"], 15)
-        self.assertGreater(tree["descendants_size"], 0)
+        self.assertEqual(tree.descendants_count, 15)
+        self.assertGreater(tree.descendants_size, 0)
 
     def test_ext_breakdown_rolls_up(self):
         m = _final_manifest(str(FIXTURE))
-        tree = m["tree"]
-        breakdown = tree["descendants_ext_breakdown"]
+        tree = m.tree
+        breakdown = tree.descendants_ext_breakdown
         for entry in breakdown:
-            self.assertEqual(set(entry.keys()), {"ext", "count", "size"})
+            self.assertEqual(set(type(entry).model_fields), {"ext", "count", "size"})
         # Per-ext counts/sizes partition the descendant files exactly.
-        self.assertEqual(
-            sum(e["count"] for e in breakdown), tree["descendants_file_count"]
-        )
-        self.assertEqual(sum(e["size"] for e in breakdown), tree["descendants_size"])
+        self.assertEqual(sum(e.count for e in breakdown), tree.descendants_file_count)
+        self.assertEqual(sum(e.size for e in breakdown), tree.descendants_size)
         # Sorted by count descending.
-        counts = [e["count"] for e in breakdown]
+        counts = [e.count for e in breakdown]
         self.assertEqual(counts, sorted(counts, reverse=True))
         # Extension keys are lowercase, dot-prefixed; the fixture has .md files.
-        self.assertIn(".md", {e["ext"] for e in breakdown})
+        self.assertIn(".md", {e.ext for e in breakdown})
 
     def test_ext_breakdown_leaf_dir_only_counts_own_files(self):
         # A nested directory's breakdown must cover only its own subtree,
@@ -116,27 +116,26 @@ class ExtBreakdownTests(CacheRedirectMixin, unittest.TestCase):
         m = _final_manifest(str(FIXTURE))
 
         def _find_dir_with_files(node):
-            if node["type"] != "directory":
+            if node.type != "directory":
                 return None
-            if node["children_file_count"] > 0 and node["path"] != ".":
+            if node.children_file_count > 0 and node.path != ".":
                 return node
-            for child in node["children"]:
+            for child in node.children:
                 found = _find_dir_with_files(child)
                 if found:
                     return found
             return None
 
-        sub = _find_dir_with_files(m["tree"])
+        sub = _find_dir_with_files(m.tree)
         if sub is not None:
             self.assertEqual(
-                sum(e["count"] for e in sub["descendants_ext_breakdown"]),
-                sub["descendants_file_count"],
+                sum(e.count for e in sub.descendants_ext_breakdown),
+                sub.descendants_file_count,
             )
 
     def test_ext_breakdown_extensionless_files_use_null(self):
-        # Extensionless files bucket under a null `ext` (not a "(none)"
-        # sentinel string), so the UI can branch on null instead of a
-        # magic value.
+        # Null `ext`, not a "(none)" sentinel, so the UI branches on null
+        # rather than a magic string.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -145,8 +144,8 @@ class ExtBreakdownTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
 
             m = _final_manifest(str(root))
-            breakdown = m["tree"]["descendants_ext_breakdown"]
-            exts = {e["ext"] for e in breakdown}
+            breakdown = m.tree.descendants_ext_breakdown
+            exts = {e.ext for e in breakdown}
             self.assertIn(None, exts)
             self.assertNotIn("(none)", exts)
             self.assertIn(".py", exts)

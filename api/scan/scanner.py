@@ -10,40 +10,32 @@ silence it with CODECITY_QUIET=1."""
 
 from __future__ import annotations
 
-import copy
 import os
 import threading
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 
-from api.models.events import ScanEvent
-from api.git import objects as gitobj
-from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
-from api.scan.filemeta import (
-    FileMeta,
-    basename,
-    extension,
-    populate_file_metadata,
-    stat_fields,
-)
-from api.git.meta import (
+from api.core.constants import ScanEvent
+from api.git import (
     GitState,
     collect_git_history,
     collect_git_state,
     is_git_repo,
+    ls_tree_files,
     reconstructed_repo_info,
+    resolve_ref,
 )
+from api.scan.blobmeta import MISSING_BLOB, blob_file_node, resolve_blob_stats
+from api.scan.filemeta import extension, populate_file_metadata, stat_fields
 from api.scan.manifest import utc_now_iso, wrap_manifest
-from api.manifest_types import (
+from api.models.manifest import (
     DirNode,
     FileNode,
     Manifest,
-    ScanStreamEvent,
     SignatureResponse,
 )
-from api.media import media_kind
-from api.progress import Heartbeat, log
-from api.errors import NotAGitRepoError, check_cancel
+from api.core.progress import Heartbeat, log
+from api.core.exceptions import NotAGitRepoError, check_cancel
 from api.scan.signatures import (
     derive_tree_signals,
     hash_file_entry,
@@ -60,6 +52,18 @@ from api.scan.treebuild import (
     dir_children_from_paths,
     force_skeleton_placeholders,
 )
+
+
+class ScanStreamEvent(NamedTuple):
+    """One manifest emission from scan_tree.
+
+    `phase` separates the early "manifest-partial" emission (real structure,
+    placeholder metadata) from "manifest-complete". Internal to the scan ->
+    router handoff, so a NamedTuple rather than a wire model: the router reads
+    `phase` to name the SSE event and serialises `manifest` on its own."""
+
+    phase: ScanEvent
+    manifest: Manifest
 
 
 def _resolved_git_root(root: str) -> tuple[str, Path]:
@@ -182,15 +186,15 @@ def scan_tree(
 
     # Deep-copied so the skeleton's placeholder mutation doesn't touch the tree
     # populate_file_metadata is about to modify. ~50ms on linux.
-    skeleton = copy.deepcopy(tree)
+    skeleton = tree.model_copy(deep=True)
     force_skeleton_placeholders(skeleton)
     # No commits: they're ~89% of the payload and the skeleton draws none of them.
-    yield {
-        "phase": ScanEvent.MANIFEST_PARTIAL,
-        "manifest": wrap_manifest(
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_PARTIAL,
+        manifest=wrap_manifest(
             root_abs, skeleton, sig, signals, git.repo, [], ["metadata", "history"]
         ),
-    }
+    )
 
     check_cancel(cancel_event)
     log("resolving file metadata")
@@ -199,12 +203,18 @@ def scan_tree(
     )
     check_cancel(cancel_event)
     log("emitting metadata manifest")
-    yield {
-        "phase": ScanEvent.MANIFEST_PARTIAL,
-        "manifest": wrap_manifest(
-            root_abs, copy.deepcopy(tree), sig, signals, git.repo, [], ["history"]
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_PARTIAL,
+        manifest=wrap_manifest(
+            root_abs,
+            tree.model_copy(deep=True),
+            sig,
+            signals,
+            git.repo,
+            [],
+            ["history"],
         ),
-    }
+    )
 
     check_cancel(cancel_event)
     log("collecting git metadata…")
@@ -217,12 +227,12 @@ def scan_tree(
 
     check_cancel(cancel_event)
     log("emitting final manifest")
-    yield {
-        "phase": ScanEvent.MANIFEST_COMPLETE,
-        "manifest": wrap_manifest(
+    yield ScanStreamEvent(
+        phase=ScanEvent.MANIFEST_COMPLETE,
+        manifest=wrap_manifest(
             root_abs, tree, sig, signals, git.repo, history.commits, []
         ),
-    }
+    )
 
 
 def signature_tree(
@@ -246,11 +256,11 @@ def signature_tree(
         sig=sig,
     )
     hash_repo_info(sig, git.repo)
-    return {
-        "root": root_abs,
-        "scanned_at": utc_now_iso(),
-        "content_signature": sig.hexdigest(),
-    }
+    return SignatureResponse(
+        root=root_abs,
+        scanned_at=utc_now_iso(),
+        content_signature=sig.hexdigest(),
+    )
 
 
 def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Manifest:
@@ -264,7 +274,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
 
     Raises ValueError for a ref that doesn't resolve to a commit."""
     root_abs, root_path = _resolved_git_root(root)
-    commit_sha = gitobj.resolve_ref(root_path, ref)
+    commit_sha = resolve_ref(root_path, ref)
     if commit_sha is None:
         raise ValueError(f"ref does not resolve to a commit: {ref!r}")
 
@@ -272,28 +282,13 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
     # doesn't jump around as the ref moves.
     rules = SkipRules.load(root_path)
     blobs = [
-        b
-        for b in gitobj.ls_tree_files(root_path, commit_sha)
-        if not rules.skips_path(b.path)
+        b for b in ls_tree_files(root_path, commit_sha) if not rules.skips_path(b.path)
     ]
     by_path = {b.path: b for b in blobs}
 
-    # Content-addressed blob cache first, cat-file only the misses. Media dims
-    # are probed only for media extensions, keeping hachoir off source blobs.
-    cached = cache_load_blobs(root_path) if use_cache else {}
-    media_shas = frozenset(
-        b.sha for b in blobs if media_kind(extension(basename(b.path)))
+    stats = resolve_blob_stats(
+        root_path, ((b.sha, b.path) for b in blobs), use_cache=use_cache
     )
-    misses = [b.sha for b in blobs if b.sha not in cached]
-    fresh = (
-        gitobj.blob_stats_batch(root_path, misses, media_shas=media_shas)
-        if misses
-        else {}
-    )
-    for sha, stats in fresh.items():
-        cached[sha] = blob_entry(stats)
-    if fresh:
-        cache_save_blobs(root_path, cached)
 
     history = collect_git_history(root_path, use_cache=use_cache, ref=commit_sha)
     children_map = dir_children_from_paths(by_path.keys())
@@ -301,24 +296,17 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
 
     def make_file_node(name: str, rel_path: str) -> FileNode:
         blob = by_path[rel_path]
-        entry: BlobEntry = cached.get(blob.sha, {"lines": 0, "binary": False})
-        meta = FileMeta.from_cache(entry)
-        # mtime 0.0 and dirty False: a committed ref has neither.
-        hash_file_entry(sig, rel_path, blob.size, 0.0, False)
-        return build_file_node(
+        entry = stats.get(blob.sha, MISSING_BLOB)
+        return blob_file_node(
+            sig,
             name=name,
             rel_path=rel_path,
-            full_path=f"{root_abs}/{rel_path}",
-            ext=extension(name),
+            root_abs=root_abs,
             size=blob.size,
-            lines=meta.lines,
-            binary=meta.binary,
-            dirty=False,
+            lines=entry["lines"],
+            stats=entry,
             created=history.created.get(rel_path, ""),
             modified=history.modified.get(rel_path, ""),
-            media_width=meta.media_width,
-            media_height=meta.media_height,
-            binary_type=meta.binary_type,
         )
 
     tree = build_tree(

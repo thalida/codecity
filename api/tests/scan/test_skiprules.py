@@ -45,7 +45,7 @@ class ExtraExcludePathsTests(CacheRedirectMixin, unittest.TestCase):
             (vendored / "lib.js").write_text("x\n" * 100)
             commit_all(root)
             m = _final_manifest(str(root), extra_exclude_paths=frozenset({"vendor"}))
-            paths = [n["path"] for n in walk_dirs(m["tree"])]
+            paths = [n.path for n in walk_dirs(m.tree)]
             self.assertNotIn("vendor", paths)
             self.assertNotIn("vendor/big", paths)
 
@@ -57,7 +57,7 @@ class ExtraExcludePathsTests(CacheRedirectMixin, unittest.TestCase):
             (root / "drop.md").write_text("d")
             commit_all(root)
             m = _final_manifest(str(root), extra_exclude_paths=frozenset({"drop.md"}))
-            names = [c["name"] for c in m["tree"]["children"]]
+            names = [c.name for c in m.tree.children]
             self.assertIn("keep.txt", names)
             self.assertNotIn("drop.md", names)
 
@@ -75,8 +75,8 @@ class ExtraExcludePathsTests(CacheRedirectMixin, unittest.TestCase):
                 str(root), extra_exclude_paths=frozenset({"sub"})
             )
             self.assertLess(
-                filtered["tree"]["descendants_file_count"],
-                full["tree"]["descendants_file_count"],
+                filtered.tree.descendants_file_count,
+                full.tree.descendants_file_count,
             )
 
     def test_signature_differs_and_is_stable(self):
@@ -88,13 +88,11 @@ class ExtraExcludePathsTests(CacheRedirectMixin, unittest.TestCase):
             sub.mkdir()
             (sub / "b.txt").write_text("b")
             commit_all(root)
-            base = signature_tree(str(root))["content_signature"]
-            ex1 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "content_signature"
-            ]
-            ex2 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "content_signature"
-            ]
+            base = signature_tree(str(root)).content_signature
+            excluded = frozenset({"sub"})
+            ex1 = signature_tree(str(root), extra_exclude_paths=excluded)
+            ex2 = signature_tree(str(root), extra_exclude_paths=excluded)
+            ex1, ex2 = ex1.content_signature, ex2.content_signature
             self.assertNotEqual(base, ex1)
             self.assertEqual(ex1, ex2)
 
@@ -107,7 +105,7 @@ class ExtraExcludePathsTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             # Excluding a normal file still works; .git stays gone regardless.
             m = _final_manifest(str(root), extra_exclude_paths=frozenset({"a.txt"}))
-            names = [c["name"] for c in m["tree"]["children"]]
+            names = [c.name for c in m.tree.children]
             self.assertNotIn(".git", names)
             self.assertNotIn("a.txt", names)
 
@@ -119,7 +117,7 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
 
     def test_git_dir_is_excluded(self):
         m = _final_manifest(str(FIXTURE))
-        names = [n["name"] for n in walk_dirs(m["tree"])]
+        names = [n.name for n in walk_dirs(m.tree)]
         self.assertNotIn(".git", names)
 
     def test_untracked_files_excluded_from_git_repo(self):
@@ -129,7 +127,7 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
         untracked.write_text("not tracked")
         try:
             m = _final_manifest(str(FIXTURE))
-            names = [n["name"] for n in walk_files(m["tree"])]
+            names = [n.name for n in walk_files(m.tree)]
             self.assertNotIn("untracked-temp.txt", names)
         finally:
             untracked.unlink(missing_ok=True)
@@ -147,13 +145,12 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             (root / ".codecityignore").write_text("# project-specific\nnoisy-fixture\n")
             m = _final_manifest(str(root))
-            names = [n["name"] for n in walk_dirs(m["tree"])]
+            names = [n.name for n in walk_dirs(m.tree)]
             self.assertNotIn("noisy-fixture", names)
 
     def test_codecityignore_path_excludes_specific_path_only(self):
-        # A line containing '/' is anchored to the scan root. A dir at
-        # a different relative path with the same final segment is NOT
-        # excluded.
+        # A line with '/' is anchored to the root, so the same final segment
+        # elsewhere is not excluded.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -166,7 +163,7 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             (root / ".codecityignore").write_text("stash/legacy\n")
             m = _final_manifest(str(root))
-            paths = [n["path"] for n in walk_dirs(m["tree"])]
+            paths = [n.path for n in walk_dirs(m.tree)]
             self.assertNotIn("stash/legacy", paths)
             # The other "legacy" at a different path stays visible.
             self.assertIn("legacy", paths)
@@ -180,7 +177,7 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             self.assertFalse((root / ".codecityignore").exists())  # sanity
             m = _final_manifest(str(root))
-            self.assertGreater(m["tree"]["descendants_file_count"], 0)
+            self.assertGreater(m.tree.descendants_file_count, 0)
 
     def test_codecityignore_comments_and_blanks(self):
         # Comments and blank lines are silently dropped.
@@ -199,13 +196,12 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
                 "# trailing comment\n"
             )
             m = _final_manifest(str(root))
-            names = [n["name"] for n in walk_dirs(m["tree"])]
+            names = [n.name for n in walk_dirs(m.tree)]
             self.assertNotIn("noisy-comment-test", names)
 
     def test_codecityignore_negation_unignores_always_skip(self):
-        # `!node_modules` overrides ALWAYS_SKIP, so the dir surfaces.
-        # node_modules is normally gitignored; here we force it into the
-        # repo so the ALWAYS_SKIP rule is the only thing hiding it.
+        # Forced into the repo despite the usual gitignore, so ALWAYS_SKIP is
+        # the only thing hiding it and the negation has something to override.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -215,7 +211,7 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             (root / ".codecityignore").write_text("!node_modules\n")
             m = _final_manifest(str(root))
-            names = [n["name"] for n in walk_dirs(m["tree"])]
+            names = [n.name for n in walk_dirs(m.tree)]
             self.assertIn("node_modules", names)
 
     def test_sbom_json_is_always_skipped(self):
@@ -227,14 +223,13 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             (root / "sbom.json").write_text('{"bomFormat": "CycloneDX"}\n')
             commit_all(root)
             m = _final_manifest(str(root))
-            names = [n["name"] for n in walk_files(m["tree"])]
+            names = [n.name for n in walk_files(m.tree)]
             self.assertIn("app.py", names)
             self.assertNotIn("sbom.json", names)
 
     def test_codecityignore_negation_path_anchored(self):
-        # `!stash/legacy` un-ignores only that exact path. Another dir
-        # named `legacy` at a different rel-path stays excluded by the
-        # bare `legacy` rule.
+        # `!stash/legacy` un-ignores that exact path only; another `legacy`
+        # elsewhere stays excluded by the bare rule.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -248,15 +243,13 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             # Ignore both names at the bare level, then un-ignore one path.
             (root / ".codecityignore").write_text("legacy\n!stash/legacy\n")
             m = _final_manifest(str(root))
-            paths = [n["path"] for n in walk_dirs(m["tree"])]
+            paths = [n.path for n in walk_dirs(m.tree)]
             self.assertIn("stash/legacy", paths)
             self.assertNotIn("elsewhere/legacy", paths)
 
     def test_codecityignore_negation_does_not_unignore_git_dir(self):
-        # `!.git` is silently ignored — walking the object database is
-        # always disallowed regardless of user config. _init_repo gives
-        # us a real .git/ directory; the hardcoded `name == ".git"`
-        # check should drop it even with the negation in place.
+        # `!.git` is silently ignored: walking the object database is never
+        # allowed, whatever the user config says.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             init_repo(root)
@@ -264,5 +257,5 @@ class SkipRulesScanTests(CacheRedirectMixin, unittest.TestCase):
             commit_all(root)
             (root / ".codecityignore").write_text("!.git\n")
             m = _final_manifest(str(root))
-            names = [n["name"] for n in walk_dirs(m["tree"])]
+            names = [n.name for n in walk_dirs(m.tree)]
             self.assertNotIn(".git", names)

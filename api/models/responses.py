@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from api.models.events import ErrorCode
+from api.core.constants import ErrorCode
 
 
 class ErrorResponse(BaseModel):
@@ -43,9 +43,8 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     allowLocalRepos: bool
-    # Whether this is the public deployment, where a local path can never
-    # resolve. `allowLocalRepos` alone can't say that: it's also false on a
-    # local instance that simply hasn't mounted anything.
+    # `allowLocalRepos` alone can't say this: it is also false on a local
+    # instance that simply hasn't mounted anything.
     hosted: bool
     maxBatchPaths: int
     version: str
@@ -61,9 +60,8 @@ class DiscoverEntry(BaseModel):
 
     url: str
     label: str
-    # The one the landing renders behind itself. At most one entry carries it,
-    # and the landing reads it from here rather than from a second config field
-    # that could disagree with the list.
+    # At most one entry carries it, and the landing reads it from here rather
+    # than a second config field that could disagree with the list.
     featured: bool = False
 
 

@@ -18,18 +18,17 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.config import CACHE_ROOT, quiet
+from api.core.config import CACHE_ROOT
+from api.core.progress import Throttle, log
 
-# Cancellation is signalled by the same threading.Event the scan honors, so a
-# client disconnect aborts the clone phase too. scan.py does not import clone,
-# so this import is cycle-free.
-from api.errors import ScanCancelledError
+# The scan's own cancel Event, so a client disconnect aborts the clone too.
+# Cycle-free: the scan package never imports clone.
+from api.core.exceptions import ScanCancelledError
 
 
 class CloneError(RuntimeError):
@@ -71,19 +70,12 @@ __all__ = [
 
 
 def _log(msg: str) -> None:
-    if not quiet():
-        print(f"[clone] {msg}", file=sys.stderr, flush=True)
+    log(msg, prefix="clone")
 
 
 # Where git clones are cached: a `clones/` subdir under the shared cache root
 # (config.CACHE_ROOT). Tests monkeypatch clone.CLONES_ROOT.
 CLONES_ROOT = CACHE_ROOT / "clones"
-
-
-# The server forwards every progress callback as one NDJSON event, and git
-# emits ~1% steps on a big clone. Short enough to feel live, long enough to
-# coalesce those.
-CLONE_PROGRESS_THROTTLE_S = 0.25
 
 
 _CLONE_PROGRESS_RE = re.compile(
@@ -136,8 +128,7 @@ _REPO_NOT_FOUND_PATTERNS = (
     re.compile(r"does not exist or you do not have access", re.IGNORECASE),
 )
 # A host that asks for credentials rather than 404ing. The server has none by
-# design, so this is the unreachable case with a different wording: Forgejo,
-# GitLab, and git's own "could not read Username" once prompts are disabled.
+# design, so this is the unreachable case wearing different words.
 _AUTH_REQUIRED_PATTERNS = (
     re.compile(r"Authentication failed", re.IGNORECASE),
     re.compile(r"Credentials are incorrect or have expired", re.IGNORECASE),
@@ -153,10 +144,8 @@ _HOST_UNREACHABLE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
-# The URL reached a server, but it isn't a git repo — a typo'd path, or a copied
-# web-page URL with an #anchor / ?query / /tree/<branch> suffix. git says
-# "... not valid: is this a git repository?" or "does not appear to be a git
-# repository".
+# The URL reached a server that isn't serving a git repo — usually a copied web
+# page URL with an #anchor, ?query or /tree/<branch> still on the end.
 _NOT_A_REPO_PATTERNS = (
     re.compile(r"is this a git repository", re.IGNORECASE),
     re.compile(r"does not appear to be a git repository", re.IGNORECASE),
@@ -171,19 +160,16 @@ _NETWORK_INTERRUPTED_PATTERNS = (
     re.compile(r"The remote end hung up unexpectedly", re.IGNORECASE),
 )
 
-# git --progress spam ("Receiving objects: 42%", "remote: Enumerating objects: …")
-# arrives on stderr and, on failure, would otherwise be dumped verbatim into the
-# error — thousands of percentage lines burying the one that matters.
+# git --progress writes to stderr, so without this a failure buries its one real
+# error line under thousands of percentages.
 _PROGRESS_NOISE_RE = re.compile(
     r"(?:Receiving|Resolving|Compressing|Counting|Enumerating)\s+(?:objects|deltas)",
     re.IGNORECASE,
 )
 
 
-# What a retry falls back to. GitHub's HTTP/2 multiplexing intermittently RSTs
-# the pack transfer on very large repos ("curl 92 … CANCEL" → early EOF), and
-# HTTP/1.1 rides that out at equivalent throughput for a one-pack clone. First
-# attempts stay on git's own default. Must precede the subcommand.
+# GitHub's HTTP/2 multiplexing intermittently RSTs the pack transfer on very
+# large repos; HTTP/1.1 rides that out. Must precede the subcommand.
 _HTTP1_1 = ("-c", "http.version=HTTP/1.1")
 # git ends a clone/fetch with a DETACHED `maintenance run --auto` (older git:
 # `gc --auto`) that keeps writing into the repo, racing whoever reads or deletes it next.
@@ -271,10 +257,8 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
     return proc.stdout
 
 
-# Heartbeat cadence for the stall watchdog. Sized for the silent gap after
-# "Resolving deltas: 100% done" on a --filter=blob:none clone, where the
-# promisor fetch materializes the tree emitting no progress at all. Long enough
-# that a normal small clone never fires one.
+# Sized for the silent gap after "Resolving deltas: 100%" on a blobless clone,
+# where the promisor fetch materializes the tree emitting no progress at all.
 _STALL_HEARTBEAT_SECS = 5.0
 
 
@@ -333,49 +317,26 @@ def _run_git_streaming(
     # Wall-clock of the last stderr line we forwarded. The watchdog
     # treats anything older than _STALL_HEARTBEAT_SECS as a stall.
     last_output_at = [time.monotonic()]
-    # Throttle state for on_progress. A stage change always passes, so the
-    # client sees counting → receiving → resolving regardless of the window.
-    # Last-seen is tracked alongside last-emitted so each stage's terminal 100%
-    # gets flushed rather than dropped inside the window, which would leave the
-    # UI frozen at whatever percent happened to pass.
-    last_progress_at = [0.0]
-    last_emitted_payload: list[CloneProgress | None] = [None]
-    last_seen_payload: list[CloneProgress | None] = [None]
+    progress: Throttle[CloneProgress] = Throttle(on_progress)
+    last_stage: list[str | None] = [None]
     proc_done = threading.Event()
 
     def _maybe_emit_progress(line: str) -> None:
-        if on_progress is None:
-            return
         parsed = _parse_clone_progress_line(line)
         if parsed is None:
             return
-        now = time.monotonic()
-        prev = last_emitted_payload[0]
-        same_stage = prev is not None and prev.stage == parsed.stage
-        # Stage change: flush the previous stage's terminal value first
-        # so the UI sees e.g. "resolving 100%" before "receiving 1%".
-        if not same_stage and prev is not None:
-            last_seen = last_seen_payload[0]
-            if last_seen is not None and last_seen != prev:
-                on_progress(last_seen)
-                last_emitted_payload[0] = last_seen
-        last_seen_payload[0] = parsed
-        if same_stage and now - last_progress_at[0] < CLONE_PROGRESS_THROTTLE_S:
-            return
-        on_progress(parsed)
-        last_progress_at[0] = now
-        last_emitted_payload[0] = parsed
+        # A stage change flushes the old stage's terminal value and skips the
+        # window, so the client sees "resolving 100%" before "receiving 1%".
+        changed = last_stage[0] is not None and last_stage[0] != parsed.stage
+        if changed:
+            progress.flush()
+        last_stage[0] = parsed.stage
+        progress.send(parsed, force=changed)
 
     def _flush_progress() -> None:
-        """Emit the most recently seen payload if it wasn't emitted.
-        Called at end-of-stream so the terminal value (e.g. 100%) reaches
-        the UI even when the throttle suppressed it."""
-        if on_progress is None:
-            return
-        last_seen = last_seen_payload[0]
-        if last_seen is not None and last_seen != last_emitted_payload[0]:
-            on_progress(last_seen)
-            last_emitted_payload[0] = last_seen
+        """Called at end-of-stream so each stage's terminal value reaches the
+        UI even when the throttle suppressed it."""
+        progress.flush()
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None
@@ -385,9 +346,8 @@ def _run_git_streaming(
             if not chunk:
                 break
             buf.extend(chunk)
-            # Emit every complete line (terminated by either \n or \r,
-            # whichever comes first). Anything past the last separator
-            # stays in buf for the next chunk.
+            # Split on \n or \r, whichever comes first; anything past the last
+            # separator waits for the next chunk.
             start = 0
             for i, b in enumerate(buf):
                 if b == 0x0A or b == 0x0D:  # LF or CR
@@ -419,9 +379,8 @@ def _run_git_streaming(
         is set so the user sees actual download progress during the
         promisor blob fetch (which is otherwise invisible)."""
         last_bytes: int | None = None
-        # Poll faster than the threshold so we notice stalls within
-        # roughly one threshold period, not two. Capped at 1s so quick
-        # commands don't pay any noticeable thread-wakeup overhead.
+        # Poll faster than the threshold so a stall shows within one period, not
+        # two. Capped at 1s so quick commands pay no noticeable wakeup cost.
         poll = min(1.0, _STALL_HEARTBEAT_SECS / 3)
         while not proc_done.wait(poll):
             silent_for = time.monotonic() - last_output_at[0]
@@ -442,9 +401,8 @@ def _run_git_streaming(
                     size_note = f", {current_mb} MB on disk"
                 last_bytes = current
             _log(f"still working… ({silent_for:.0f}s silent{size_note})")
-            # Forward the heartbeat to the UI so the otherwise-silent promisor
-            # blob fetch (no git progress lines) shows the tree materializing
-            # instead of the clone-progress bar freezing at its last percent.
+            # The promisor blob fetch emits no git progress at all, so without
+            # this the clone bar freezes while the tree materializes.
             if on_heartbeat is not None:
                 on_heartbeat(current_mb)
             # Reset so the next heartbeat fires at a regular cadence
@@ -458,10 +416,8 @@ def _run_git_streaming(
     t_out.start()
     t_heartbeat.start()
 
-    # Cancel watcher: if cancellation is requested mid-clone (client
-    # disconnected), kill git so proc.wait() below returns promptly instead of
-    # running the whole clone to completion as an orphan. No-op (returns at
-    # once) when no cancel_event is supplied.
+    # Kill git on cancellation so proc.wait() below returns promptly instead of
+    # running the whole clone to completion as an orphan.
     def _watch_cancel() -> None:
         if cancel_event is None:
             return
@@ -495,8 +451,11 @@ def _run_git_streaming(
 def _run_net_git(
     *args: str,
     before_retry: Callable[[], None] | None = None,
+    cwd: Path | None = None,
+    progress_dir: Path | None = None,
+    on_progress: Callable[[CloneProgress], None] | None = None,
+    on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
-    **stream_kwargs: object,
 ) -> str:
     """_run_git_streaming for the big network ops, hardened against the flaky
     transfers that plague very large repos:
@@ -518,8 +477,11 @@ def _run_net_git(
                 *(() if attempt == 0 else _HTTP1_1),
                 *_NO_AUTO_MAINTENANCE,
                 *args,
+                cwd=cwd,
+                progress_dir=progress_dir,
+                on_progress=on_progress,
+                on_heartbeat=on_heartbeat,
                 cancel_event=cancel_event,
-                **stream_kwargs,
             )
         except CloneError as e:
             last_err = e
@@ -686,9 +648,8 @@ def _pull_lfs(
         _log(f"git lfs pull failed ({e}); leaving pointer files in place")
 
 
-# git lfs pull only materializes HEAD; the timeline walks every commit, so its
-# historical blobs need their objects too. Skip a multi-GB history rather than
-# block a scan on a huge download.
+# `lfs pull` materializes HEAD only, but the timeline walks every commit. Capped
+# so a multi-GB history doesn't block a scan.
 _LFS_HISTORY_CAP_BYTES = 5 * 1024 * 1024 * 1024
 
 
@@ -753,11 +714,9 @@ def _fresh_clone(
     _log(f"cloning {url} → {target}")
     target.parent.mkdir(parents=True, exist_ok=True)
     pack_dir = target / ".git" / "objects" / "pack"
-    # --filter=blob:none: HEAD's tree is still fully checked out and all commit
-    # and tree history is kept, so per-file dates survive. Only historical file
-    # contents are skipped, which scan.py never reads. Later fetches inherit the
-    # filter via promisor config.
-    #
+    # --filter=blob:none keeps every commit and tree, so per-file dates survive;
+    # only historical file CONTENT is skipped, which the live scan never reads.
+
     # --progress: stderr isn't a TTY here, so git needs telling.
     args = ["clone", "--filter=blob:none", "--progress"]
     if branch:
@@ -784,6 +743,11 @@ def _fresh_clone(
     return target
 
 
+# Serializes clone-or-update so two concurrent requests can't race the same
+# working tree. Held inside ensure_clone, so no caller can forget it.
+_CLONE_LOCK = threading.Lock()
+
+
 def ensure_clone(
     url: str,
     branch: str | None = None,
@@ -795,6 +759,9 @@ def ensure_clone(
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
 
+    Serialized process-wide: concurrent calls for the same URL queue rather
+    than racing the same working tree.
+
     ``on_progress`` receives the CloneProgress parsed from git's
     ``--progress`` stderr, throttled to ~250ms.
 
@@ -805,6 +772,25 @@ def ensure_clone(
     Raises BranchNotFoundError, RepoNotFoundError, HostUnreachableError, or
     CloneError.
     """
+    with _CLONE_LOCK:
+        return _clone_or_update(
+            url,
+            branch,
+            on_progress=on_progress,
+            on_heartbeat=on_heartbeat,
+            cancel_event=cancel_event,
+        )
+
+
+def _clone_or_update(
+    url: str,
+    branch: str | None,
+    *,
+    on_progress: Callable[[CloneProgress], None] | None,
+    on_heartbeat: Callable[[int | None], None] | None,
+    cancel_event: "threading.Event | None",
+) -> Path:
+    """ensure_clone's body, minus the lock — see it for the contract."""
     target = clone_dir_for(url, branch)
     if target.exists():
         try:
@@ -838,11 +824,8 @@ def ensure_clone(
             # A clean user-facing cause (branch/repo gone, host down) is real —
             # translate + surface it, leaving the existing clone untouched.
             _maybe_raise_clean_clone_error(url, branch, str(e))
-            # Otherwise the on-disk clone is corrupt or incomplete — classically
-            # a --filter=blob:none clone interrupted mid-materialization, which
-            # fetch+reset can't repair. Self-heal: discard it and clone fresh so
-            # a wedged clone recovers on the next load instead of staying broken
-            # with no UI escape hatch.
+            # Otherwise the clone on disk is corrupt — classically a blobless
+            # clone interrupted mid-materialization, which fetch cannot repair.
             _log(f"update failed ({e}); discarding clone and re-cloning fresh")
             shutil.rmtree(target, ignore_errors=True)
             # fall through to the fresh clone below
@@ -857,18 +840,13 @@ def ensure_clone(
     )
 
 
-# Per-blob size ceiling for the timeline backfill. Source/lock/media blobs sit
-# far below this; the cap only skips checked-in monster binaries (datasets,
-# models) whose per-commit copies would otherwise pull unbounded data across
-# history. A skipped blob stays absent and reads as 0 lines (GIT_NO_LAZY_FETCH),
-# never a hang.
+# Only bites on checked-in monster binaries, whose per-commit copies would pull
+# unbounded data across history. A skipped blob reads as 0 lines, never a hang.
 _HYDRATE_BLOB_LIMIT = "50m"
 
 
-# Written only once the backfill has actually landed. The widened filter can't
-# say that: it has to be in place for the refetch, so a cancel or a network drop
-# mid-fetch left the clone looking hydrated with its history still missing —
-# every later timeline then read those blobs as 0 lines, 0 bytes.
+# Written only once the backfill has landed. The widened filter can't say that:
+# it precedes the refetch, so a drop mid-fetch looks hydrated but isn't.
 _HYDRATED_MARKER = "codecity-hydrated"
 
 
@@ -930,15 +908,13 @@ def _partial_clone_filter(target: Path) -> str | None:
         return None
 
 
-# ls-remote timeout: bounded so a black-holed remote can't wedge a request.
-# 20s covers a slow-but-live remote; a real hang trips it and surfaces a clean
-# HostUnreachableError to the caller.
+# Bounded so a black-holed remote can't wedge a request. 20s covers a
+# slow-but-live one; a real hang trips it into HostUnreachableError.
 _LS_REMOTE_TIMEOUT_S = 20
 
 
-# Fallback default-branch names, in priority order, for servers that don't
-# advertise a symbolic HEAD (seen on some Forgejo/Gitea instances). Used only
-# when ls-remote gives no symref HEAD to read.
+# In priority order, for servers that don't advertise a symbolic HEAD (seen on
+# some Forgejo/Gitea instances).
 _DEFAULT_BRANCH_FALLBACKS = ("main", "master", "develop", "trunk", "default")
 
 

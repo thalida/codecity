@@ -1,35 +1,40 @@
 """Timeline bundle: one git-history walk → per-commit blob deltas, replayed
-client-side for smooth scrubbing. Read-only; reuses gitobj's git plumbing."""
+client-side for smooth scrubbing. Read-only; reuses git/objects' plumbing."""
 
 from __future__ import annotations
 
-import hashlib
 import subprocess
-import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
-from api.git.objects import _git_argv, blob_sizes_batch, blob_stats_batch
-from api.manifest_types import (
+from api.cache import BlobEntry
+from api.git import (
+    blob_sizes_batch,
+    collect_git_history,
+    empty_repo_info,
+    git_argv,
+    is_git_repo,
+    reconstructed_repo_info,
+)
+from api.core.constants import TimelineStage
+from api.models.manifest import (
     CommitEntry,
     DateRangeMs,
     FileNode,
     Manifest,
     RangeStat,
     TimelineBundle,
+    TimelineChange,
+    TimelineDelta,
 )
-from api.media import media_kind
-from api.models.events import TimelineStage
-from api.scan.filemeta import basename, extension
-from api.git.meta import collect_git_history, is_git_repo, reconstructed_repo_info
+from api.scan.blobmeta import MISSING_BLOB, blob_file_node, resolve_blob_stats
 from api.scan.manifest import wrap_manifest
-from api.progress import SCAN_PROGRESS_THROTTLE_S, log
-from api.errors import NotAGitRepoError
-from api.scan.signatures import derive_tree_signals, hash_file_entry
+from api.core.progress import Throttle, log
+from api.utils.dates import iso_to_ms
+from api.core.exceptions import NotAGitRepoError
+from api.scan.signatures import derive_tree_signals, new_signature
 from api.scan.skiprules import SkipRules
-from api.scan.treebuild import build_file_node, build_tree, dir_children_from_paths
+from api.scan.treebuild import build_tree, dir_children_from_paths
 
 _UNION_FILE_CAP = 50000  # union files above this window to the most recent commits
 
@@ -39,10 +44,8 @@ OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
 
-# Assembly's four steps, each owning a quarter of the reported percent. The last
-# is the router's: serialising the bundle onto the wire is the step nothing else
-# can report. A percent, not a step name — what the steps are called is this
-# module's business, and the client's row wants a number like the rows above it.
+# Four steps, a quarter of the percent each. The last is the router's:
+# serialising the bundle is the step nothing else can report.
 ASSEMBLE_STEPS = 4
 # Commits between ticks inside a step that reports its own progress.
 _ASSEMBLE_HEARTBEAT_EVERY = 200
@@ -76,7 +79,7 @@ def walk_deltas(
     commits (also time-throttled, for repos where git log outpaces that
     count), plus a final tick with the true total."""
     log("walking commit history for timeline deltas…")
-    argv = _git_argv(
+    argv = git_argv(
         root,
         "log",
         "--format=COMMIT:%H",
@@ -100,7 +103,7 @@ def walk_deltas(
     newest_first: list[CommitDelta] = []
     cur: CommitDelta | None = None
     commits = 0
-    last_emit = 0.0
+    ticks: Throttle[dict[str, object]] = Throttle(on_progress)
     assert proc.stdout is not None
     try:
         for raw in proc.stdout:
@@ -113,13 +116,7 @@ def walk_deltas(
                 commits += 1
                 if commits % _HISTORY_HEARTBEAT_EVERY == 0:
                     log(f"  walked {commits:,} commits…")
-                    if on_progress is not None:
-                        now = time.monotonic()
-                        if now - last_emit >= SCAN_PROGRESS_THROTTLE_S:
-                            on_progress(
-                                {"stage": TimelineStage.HISTORY, "commits": commits}
-                            )
-                            last_emit = now
+                    ticks.send({"stage": TimelineStage.HISTORY, "commits": commits})
                 continue
             if not line.startswith(":") or cur is None:
                 continue
@@ -144,10 +141,9 @@ def walk_deltas(
             proc.kill()
         proc.wait()
     log(f"  done — {commits:,} commits walked")
-    if on_progress is not None:
-        on_progress(
-            {"stage": TimelineStage.HISTORY, "commits": commits}
-        )  # final, unthrottled
+    # Forced: the true total must land even if the last tick fell inside the
+    # throttle window, or the row sits on a stale count for the rest of the run.
+    ticks.send({"stage": TimelineStage.HISTORY, "commits": commits}, force=True)
     newest_first.reverse()
     return newest_first
 
@@ -160,52 +156,27 @@ def _collect_blob_tables(
     on_progress: OnTimelineProgress | None = None,
 ) -> tuple[dict[str, int], dict[str, int], dict[str, BlobEntry]]:
     """Resolve every touched blob's stats (lines, binary, binaryType, media dims)
-    keyed by sha, plus a byte-size table. Stats go through the same content-
-    addressed blob cache reconstruct_manifest uses (cat-file only the misses);
-    sizes are a separate uncached batch. The blob-check batch resolves the total
-    up front, so ``on_progress`` only needs a start + done tick — the done tick
-    lands after the size batch, which is the rest of this stage's real work."""
-    shas = list({sha for d in deltas for _, sha in d.changes if sha})
+    keyed by sha, plus a byte-size table. Stats share reconstruct_manifest's
+    content-addressed resolver; sizes are a separate uncached batch. The done
+    tick lands after that size batch, which is the rest of this stage's real
+    work."""
+    wanted = [(sha, path) for d in deltas for path, sha in d.changes if sha]
+    shas = list({sha for sha, _ in wanted})
     total = len(shas)
-    media_shas = frozenset(
-        sha
-        for d in deltas
-        for path, sha in d.changes
-        if sha and media_kind(extension(basename(path)))
-    )
-    cached = cache_load_blobs(root) if use_cache else {}
-    misses = [s for s in shas if s not in cached]
-    log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
-    if on_progress is not None:
-        on_progress(
-            {"stage": TimelineStage.BLOBS, "done": total - len(misses), "total": total}
-        )
-    done = total - len(misses)
 
-    def _resolved(n: int) -> None:
+    def _resolved(done: int, _total: int) -> None:
         if on_progress is not None:
-            on_progress(
-                {"stage": TimelineStage.BLOBS, "done": done + n, "total": total}
-            )
+            on_progress({"stage": TimelineStage.BLOBS, "done": done, "total": total})
 
-    fresh = (
-        blob_stats_batch(root, misses, media_shas=media_shas, on_progress=_resolved)
-        if misses
-        else {}
+    blob_stats = resolve_blob_stats(
+        root, wanted, use_cache=use_cache, on_resolved=_resolved
     )
-    for sha, st in fresh.items():
-        cached[sha] = blob_entry(st)
-    if fresh:
-        cache_save_blobs(root, cached)
-    log(f"  done — {total:,} blobs resolved")
-    lines = {s: cached[s]["lines"] for s in shas if s in cached}
+    lines = {sha: entry["lines"] for sha, entry in blob_stats.items()}
     # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
     sizes = blob_sizes_batch(root, shas)
-    for s in shas:
-        entry = cached.get(s)
-        if entry is not None and "size" in entry:
-            sizes[s] = entry["size"]
-    blob_stats = {s: cached[s] for s in shas if s in cached}
+    for sha, entry in blob_stats.items():
+        if "size" in entry:
+            sizes[sha] = entry["size"]
     if on_progress is not None:
         on_progress({"stage": TimelineStage.BLOBS, "done": total, "total": total})
     return lines, sizes, blob_stats
@@ -230,10 +201,8 @@ def build_union_manifest(
     per-commit reconstruction it will be scrubbed against."""
     max_size: dict[str, int] = {}
     max_lines: dict[str, int] = {}
-    # Stats of each path's largest-seen blob — the representative version whose
-    # binary/media character the union node inherits (binary-ness is stable per
-    # file, so any version's flag is fine; the largest keeps it consistent with
-    # the footprint `size`).
+    # Each path's largest-seen blob: the version whose binary/media character
+    # the union node inherits, keeping it consistent with the footprint `size`.
     rep_stats: dict[str, BlobEntry] = {}
     for d in deltas:
         for path, sha in d.changes:
@@ -242,51 +211,38 @@ def build_union_manifest(
             size = blob_sizes.get(sha, 0)
             if path not in max_size or size >= max_size[path]:
                 max_size[path] = size
-                rep_stats[path] = blob_stats.get(sha, {"lines": 0, "binary": False})
+                rep_stats[path] = blob_stats.get(sha, MISSING_BLOB)
             max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
 
     root_abs = str(Path(root).resolve())
     children_map = dir_children_from_paths(max_size.keys())
-    sig = hashlib.blake2b(digest_size=16)
+    sig = new_signature()
+    head_sha = commits[-1].sha if commits else ""
 
     def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
         return children_map.get(rel_dir, [])
 
     def make_file_node(name: str, rel_path: str) -> FileNode:
-        size = max_size.get(rel_path, 0)
-        hash_file_entry(sig, rel_path, size, 0.0, False)
-        st = rep_stats.get(rel_path, {"lines": 0, "binary": False})
-        return build_file_node(
+        return blob_file_node(
+            sig,
             name=name,
             rel_path=rel_path,
-            full_path=f"{root_abs}/{rel_path}",
-            ext=extension(name),
-            size=size,
+            root_abs=root_abs,
+            size=max_size.get(rel_path, 0),
             lines=max_lines.get(rel_path, 0),
-            binary=st["binary"],
-            dirty=False,
+            stats=rep_stats.get(rel_path, MISSING_BLOB),
             created=git_created.get(rel_path, ""),
             modified=git_modified.get(rel_path, ""),
-            media_width=st.get("media_width"),
-            media_height=st.get("media_height"),
-            binary_type=st.get("binaryType"),
         )
 
     tree = build_tree(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node
     )
     signals = derive_tree_signals(tree)
-    head_sha = commits[-1]["sha"] if commits else ""
     repo_info = (
         reconstructed_repo_info(Path(root_abs), head_sha)
         if head_sha
-        else {
-            "branch": None,
-            "remote_url": None,
-            "head_sha": None,
-            "head_subject": None,
-            "dirty": False,
-        }
+        else empty_repo_info()
     )
     # Uncapped: the scrubber indexes the bundle's commits and the city the
     # union manifest's, so sampling one would slide every tree off its commit.
@@ -317,20 +273,8 @@ def compute_commit_line_ranges(
                 lo = n
             if n > hi:
                 hi = n
-        ranges.append({"min": lo, "max": hi})
+        ranges.append(RangeStat(min=lo, max=hi))
     return ranges
-
-
-def _iso_ms(value: str | None) -> int | None:
-    """Epoch ms for a Z-suffixed UTC stamp, or None. Semantics match JS
-    Date.parse, since these values are compared against client-side dates."""
-    if not value:
-        return None
-    try:
-        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
-    except ValueError:
-        return None
-    return int(parsed.replace(tzinfo=timezone.utc).timestamp() * 1000)
 
 
 def compute_commit_date_ranges(
@@ -345,12 +289,11 @@ def compute_commit_date_ranges(
     commit; range[HEAD] equals the live manifest's dateRanges (weathering
     normalizes against these). replay.ts walks the same deltas for a different
     output (per-frame scrub index) — neither is a copy of the other."""
-    commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
-    # Parsed once per path, not once per (commit, path): the inner loop below
-    # runs commits x files-present times, ~98M on a big repo, and re-parsing an
-    # ISO stamp that many times is most of what made this the slowest step.
-    created_ms = {p: _iso_ms(v) for p, v in git_created.items()}
-    modified_ms = {p: _iso_ms(v) for p, v in git_modified.items()}
+    commit_ms = [iso_to_ms(c.date) or 0 for c in commits]
+    # Parsed once per path, not per (commit, path): the loop below runs ~98M
+    # times on a big repo, and re-parsing there is what made this the slow step.
+    created_ms = {p: iso_to_ms(v) for p, v in git_created.items()}
+    modified_ms = {p: iso_to_ms(v) for p, v in git_modified.items()}
 
     final_idx: dict[str, int] = {}
     genesis_idx: dict[str, int] = {}
@@ -397,12 +340,12 @@ def compute_commit_date_ranges(
         # An empty present set collapses to a zero span, which the client already
         # treats as "no spread" (freshest / newest).
         ranges.append(
-            {
-                "minCreated": min_created or 0,
-                "maxCreated": max_created or 0,
-                "minModified": min_modified or 0,
-                "maxModified": max_modified or 0,
-            }
+            DateRangeMs(
+                minCreated=min_created or 0,
+                maxCreated=max_created or 0,
+                minModified=min_modified or 0,
+                maxModified=max_modified or 0,
+            )
         )
         if on_commit is not None and i % _ASSEMBLE_HEARTBEAT_EVERY == 0:
             on_commit(i, len(deltas))
@@ -498,16 +441,19 @@ def build_timeline_bundle(
     )
     log("timeline bundle complete")
 
-    return {
-        "commits": commits,
-        "unionManifest": union_manifest,
-        "deltas": [
-            {"sha": d.sha, "changes": [{"path": p, "sha": s} for p, s in d.changes]}
+    return TimelineBundle(
+        commits=commits,
+        unionManifest=union_manifest,
+        deltas=[
+            TimelineDelta(
+                sha=d.sha,
+                changes=[TimelineChange(path=p, sha=s) for p, s in d.changes],
+            )
             for d in deltas
         ],
-        "blobLines": blob_lines,
-        "blobSizes": blob_sizes,
-        "commitLineRanges": commit_line_ranges,
-        "commitDateRanges": commit_date_ranges,
-        "note": note,
-    }
+        blobLines=blob_lines,
+        blobSizes=blob_sizes,
+        commitLineRanges=commit_line_ranges,
+        commitDateRanges=commit_date_ranges,
+        note=note,
+    )
