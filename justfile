@@ -249,7 +249,7 @@ setup: install-hooks
     @echo "[just] setup complete — try 'just dev'"
 
 # Add a worktree for an existing BRANCH, carrying over the gitignored files (.env.local, .claude/settings.json) git leaves behind.
-worktree BRANCH DIR='':
+worktree-setup BRANCH DIR='':
     @set -e ; \
      DIR="{{DIR}}" ; \
      [ -n "$DIR" ] || DIR=".claude/worktrees/$(printf '%s' '{{BRANCH}}' | tr '/' '+')" ; \
@@ -262,6 +262,32 @@ worktree BRANCH DIR='':
          fi ; \
      done ; \
      echo "[just] worktree ready at $DIR — cd there and run 'just setup'"
+
+# Tear down a MERGED branch: docker stack, worktree, branch, and every volume its two project names own (swept by prefix, so no cache family is ever missed).
+worktree-teardown BRANCH:
+    @set -e ; \
+     BRANCH='{{BRANCH}}' ; \
+     if [ -z "$(gh pr list --state merged --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null)" ]; then \
+         echo "[just] refusing: no merged PR for $BRANCH" >&2 ; exit 1 ; \
+     fi ; \
+     WT=$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '/^worktree /{w=$2} /^branch /{if ($2==b) print w}') ; \
+     if [ -n "$WT" ] && [ "$WT" = "$(git rev-parse --show-toplevel)" ]; then \
+         echo "[just] refusing: run this from the main clone, not the worktree it removes" >&2 ; exit 1 ; \
+     fi ; \
+     SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     IDS=$(docker ps -aq --filter "name=codecity-$SLUG") ; \
+     [ -z "$IDS" ] || { docker rm -f $IDS >/dev/null ; echo "[just] removed containers" ; } ; \
+     docker network rm "codecity-${SLUG}_default" >/dev/null 2>&1 && echo "[just] removed network" || true ; \
+     PREFIXES="codecity-${SLUG}_" ; \
+     [ -z "$WT" ] || PREFIXES="$PREFIXES $(basename "$WT" | tr -cd '[:alnum:]-')_" ; \
+     for p in $PREFIXES ; do \
+         V=$(docker volume ls -q --filter "name=^$p") ; \
+         [ -z "$V" ] || { docker volume rm $V >/dev/null ; echo "[just] removed volumes: $(echo $V | tr '\n' ' ')" ; } ; \
+     done ; \
+     [ -z "$WT" ] || git worktree remove "$WT" ; \
+     git branch -D "$BRANCH" ; \
+     git remote prune origin ; \
+     echo "[just] tore down $BRANCH"
 
 # ── Git hooks ────────────────────────────────────────────────────
 # Install repo-local git hooks. Run once after cloning.
