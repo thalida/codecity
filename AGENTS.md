@@ -42,12 +42,16 @@ BRANCH=$PREFIX/issue-$N-$SLUG
 gh issue edit $N --add-assignee @me                 # assign it to yourself
 gh issue develop $N --base main --name $BRANCH       # create the branch ON GitHub, linked in the issue's Development panel
 git fetch origin
-git worktree add .claude/worktrees/${PREFIX}+issue-$N-$SLUG $BRANCH
+just worktree $BRANCH                                # worktree at .claude/worktrees/${PREFIX}+issue-$N-$SLUG
+cd .claude/worktrees/${PREFIX}+issue-$N-$SLUG && just setup
 ```
 
 `gh issue develop` is what creates the real issue↔branch link (and a base for
 `gh pr create`); plain `git worktree add -b` skips that link. Open the PR with
 `Closes #N` so merging auto-closes the issue.
+
+`just worktree` carries over `.env.local` and `.claude/settings.json`: both are
+gitignored, so a plain `git worktree add` leaves the new tree unconfigured.
 
 **Never commit to `main`.** All work for an issue is committed on its worktree
 branch — do every edit and `git commit` from inside the worktree, never in the

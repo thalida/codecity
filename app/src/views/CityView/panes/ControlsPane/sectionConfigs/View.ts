@@ -1,30 +1,32 @@
-// views/ControlsPane/sections/View.ts — the two camera poses, as siblings
-// because both are just an elevation/azimuth pair.
+// views/ControlsPane/sections/View.ts — the opening pose of each camera the app
+// has: the one a project opens at, and the one the landing's wallpaper orbits.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 import { CAMERA } from '@/state/settings/fields/camera';
-import { SHOWCASE } from '@/state/settings/fields/showcase';
+import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 
 export const VIEW_SECTION: SectionNode = {
   key: 'view',
   label: 'Camera',
-  description: 'The angle a project opens at, and the orbit that circles it behind the switcher.',
+  description:
+    'The angle a project opens at, and the orbit that circles the city on the home page.',
   children: [
     {
-      key: 'default-angle',
-      label: 'Default angle',
-      description: 'How the default view frames the city, always looking at the root gem.',
+      key: 'project-view',
+      label: 'Project view',
+      description:
+        'How a project opens, and where Reset view returns to. Always looking at the root gem.',
       children: [field(CAMERA, 'ELEVATION'), field(CAMERA, 'AZIMUTH')],
     },
     {
-      key: 'showcase-orbit',
-      label: 'Showcase orbit',
-      description: 'The ground-level orbit the project switcher circles the gem in.',
+      key: 'home-backdrop',
+      label: 'Home backdrop',
+      description: 'The turntable circling the gem behind the home page, where you pick a project.',
       children: [
-        field(SHOWCASE, 'ELEVATION'),
-        field(SHOWCASE, 'AZIMUTH'),
-        field(SHOWCASE, 'DISTANCE'),
-        field(SHOWCASE, 'ROTATE_SPEED'),
+        field(HOME_BACKDROP, 'ELEVATION'),
+        field(HOME_BACKDROP, 'AZIMUTH'),
+        field(HOME_BACKDROP, 'DISTANCE'),
+        field(HOME_BACKDROP, 'ROTATE_SPEED'),
       ],
     },
   ],

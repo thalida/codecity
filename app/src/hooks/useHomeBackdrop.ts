@@ -16,10 +16,6 @@ import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/st
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import type { Manifest } from '@/types';
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
-
 interface Candidate {
   src: string;
   branch?: string;
@@ -100,7 +96,6 @@ export function useHomeBackdrop(): void {
         }
         await handle.applyManifest(manifest);
         if (signal.aborted) return;
-        handle.rig.enterShowcase({ autoRotate: !prefersReducedMotion() });
         BACKDROP_CITY.value = {
           src: next.src,
           label: manifest.tree?.name ?? next.src,

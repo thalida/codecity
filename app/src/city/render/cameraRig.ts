@@ -1,7 +1,7 @@
-// city/render/cameraRig.ts — the perspective camera, OrbitControls, the initial
-// framing, and the focus/reset animations. First-frame framing is one-shot by
-// construction: update() does it behind a flag, and a Recenter focus spends that
-// flag itself. The pose is never persisted; every load starts at the gem framing.
+// city/render/cameraRig.ts — the perspective camera, OrbitControls, the opening
+// pose, and the focus/reset animations. The rig knows what it is FOR: a project
+// opens at the gem framing, a backdrop at its turntable, and reset() puts
+// either back. The pose is never persisted; every load opens at its mode's.
 
 import * as THREE from 'three';
 import { computed, effect, untracked } from '@preact/signals';
@@ -24,15 +24,15 @@ import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
 import { CAMERA } from '@/state/settings/fields/camera';
-import { SHOWCASE } from '@/state/settings/fields/showcase';
+import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
-import { showcaseRadius } from './showcaseRadius';
+import { backdropRadius } from './backdropRadius';
 
-// The showcase fields that PLACE the camera. Rotation speed is out: dragging it
+// The backdrop fields that PLACE the camera. Rotation speed is out: dragging it
 // mid-spin should change the speed, not yank the orbit back to its start azimuth.
-const SHOWCASE_POSE = computed(() => {
-  const s = SHOWCASE.value;
+const BACKDROP_POSE = computed(() => {
+  const s = HOME_BACKDROP.value;
   return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
 });
 
@@ -46,11 +46,20 @@ export enum FocusMode {
   Recenter = 'recenter',
 }
 
-/** A snapshot of the user's camera, restored verbatim on switcher dismiss. */
-export interface CameraPose {
-  position: THREE.Vector3;
+/** What the camera is FOR. The opening pose, what reset() returns to, and which
+ *  settings section steers the camera all follow from this. */
+export enum CameraMode {
+  /** The opened project: framed on the root gem, off the user's Project view. */
+  Project = 'project',
+  /** Wallpaper behind the landing: a turntable circling the gem, off Home
+   *  backdrop. Spins unless the user asked for less motion. */
+  Backdrop = 'backdrop',
+}
+
+/** Where a mode's opening pose puts the camera, and what it looks at. */
+interface CameraPlacement {
   target: THREE.Vector3;
-  up: THREE.Vector3;
+  camPos: THREE.Vector3;
 }
 
 export interface CameraRigDeps {
@@ -87,14 +96,27 @@ const TOP_DOWN_PADDING_MULT = 2.8;
 // of vertical FOV is the sky that keeps it off it.
 const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
 
+/** A spinning turntable is exactly the motion this asks us to drop. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+/** Only a backdrop spins, and only when the caller hasn't asked for a still
+ *  frame (the wallpaper capture) or the user for less motion. */
+function _autoRotateFor(mode: CameraMode, wanted?: boolean): boolean {
+  return mode === CameraMode.Backdrop && (wanted ?? !prefersReducedMotion());
+}
+
 export function createCameraRig({
   canvas,
   deps,
   cityState,
+  mode: initialMode = CameraMode.Project,
 }: {
   canvas: HTMLCanvasElement;
   deps: CameraRigDeps;
   cityState: CityState;
+  mode?: CameraMode;
 }) {
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
@@ -118,7 +140,11 @@ export function createCameraRig({
     RIGHT: THREE.MOUSE.PAN,
   };
 
-  let firstFrame = true;
+  let mode = initialMode;
+  controls.autoRotate = _autoRotateFor(mode);
+  // The opening pose lands on the first frame with a city to frame; after that
+  // the camera is the user's (or the turntable's) until something resets it.
+  let opened = false;
   let initialCamPos: THREE.Vector3 | null = null;
   let initialTarget: THREE.Vector3 | null = null;
 
@@ -251,17 +277,6 @@ export function createCameraRig({
   const _scratchUserPos = new THREE.Vector3();
   const _scratchUserTarget = new THREE.Vector3();
 
-  function _frameToBbox() {
-    if (!_captureFraming() || !initialCamPos || !initialTarget) return false;
-
-    // First-frame only: move the camera to the default framed pose.
-    camera.position.copy(initialCamPos);
-    camera.lookAt(initialTarget);
-    controls.target.copy(initialTarget);
-
-    return true;
-  }
-
   // bbox is reassigned only on a non-reuse apply, which is exactly when the
   // framing should update. Whether to SNAP is the composer's call, not this.
   const _disposeReframeEffect = effect(() => {
@@ -271,17 +286,17 @@ export function createCameraRig({
     untracked(_captureFraming);
   });
 
-  // A saved angle re-frames: reset() reads it and snaps. On construction the
-  // bbox is empty, so this no-ops.
+  // A saved angle re-frames the project it steers: reset() reads it and snaps.
+  // On construction the bbox is empty, so this no-ops.
   const _disposeCameraAngleEffect = effect(() => {
     void CAMERA.value;
-    untracked(reset);
+    untracked(() => {
+      if (mode === CameraMode.Project) reset();
+    });
   });
 
   function update(_dtMs: number): void {
-    if (firstFrame) {
-      if (_frameToBbox()) firstFrame = false;
-    }
+    if (!opened) reset();
     controls.update();
   }
 
@@ -309,48 +324,54 @@ export function createCameraRig({
     requestAnimationFrame(step);
   }
 
-  function reset() {
+  /** Put the camera where this city opens; false while there is nothing to frame
+   *  yet. The only thing that places the opening pose, so it marks it placed. */
+  function reset(): boolean {
     // Recapture every call: the final manifest is a reuse apply, so the bbox
     // effect never fires for it and a cached pose would be stale.
-    if (!_captureFraming() || !initialCamPos || !initialTarget) return;
-    // Or an in-flight focus keeps walking the camera off the snap target.
-    camAnimToken++;
-    camera.up.copy(WORLD_UP);
-    // Not controls.reset(): its trailing update() re-applies the user's
-    // residual deltas, drifting back. Damping off consumes them in one frame.
-    const wasDamping = controls.enableDamping;
-    controls.enableDamping = false;
-    camera.position.copy(initialCamPos);
-    controls.target.copy(initialTarget);
-    camera.lookAt(initialTarget);
-    controls.update();
-    controls.enableDamping = wasDamping;
-    // Refresh saveState so subsequent controls.reset() calls (e.g. from
-    // a future canceled focus tween) snap to the now-current pose.
-    controls.saveState();
+    if (!_captureFraming()) return false;
+    const pose = mode === CameraMode.Backdrop ? _backdropPose() : _projectPose();
+    if (!pose) return false;
+    _snapTo(pose.target, pose.camPos, WORLD_UP);
+    opened = true;
+    return true;
   }
 
-  /** Hard-snap the camera to a pose, matching reset()'s damping-off snap so
-   *  residual inertia can't drift it off the placed pose. */
+  /** Framed on the root gem at the user's Project view angle: what _captureFraming
+   *  just worked out. */
+  function _projectPose(): CameraPlacement | null {
+    if (!initialCamPos || !initialTarget) return null;
+    return { target: initialTarget.clone(), camPos: initialCamPos.clone() };
+  }
+
+  /** Hard-snap the camera onto a pose. Not controls.reset(): its trailing
+   *  update() re-applies the user's residual deltas and drifts back off. */
   function _snapTo(target: THREE.Vector3, camPos: THREE.Vector3, up: THREE.Vector3): void {
-    camAnimToken++; // cancel any in-flight tween
+    camAnimToken++; // or an in-flight focus keeps walking the camera off the pose
+    // Both off across the update() below, which would otherwise feed residual
+    // inertia into the pose and carry a spinning turntable past its azimuth.
     const wasDamping = controls.enableDamping;
+    const wasAutoRotate = controls.autoRotate;
     controls.enableDamping = false;
+    controls.autoRotate = false;
     camera.up.copy(up);
     camera.position.copy(camPos);
     controls.target.copy(target);
     camera.lookAt(target);
     controls.update();
     controls.enableDamping = wasDamping;
+    controls.autoRotate = wasAutoRotate;
+    // Refresh saveState so a later controls.reset() (a canceled focus tween)
+    // snaps to the now-current pose.
     controls.saveState();
   }
 
   // Slide the pivot onto p; the camera shifts by the same delta, so the scene
   // slides under a camera that never turns or zooms.
   function _recenterOn(p: THREE.Vector3): void {
-    // Spend the pending opening framing here: a URL restore runs before it, and
-    // it would overwrite the centred pose a frame later.
-    if (firstFrame && _frameToBbox()) firstFrame = false;
+    // Recenter keeps the angle and distance it finds, so a URL restore (same
+    // apply, before any frame) must find the opening pose, not the identity one.
+    if (!opened) reset();
     const delta = p.clone().sub(controls.target);
     _snapTo(p.clone(), camera.position.clone().add(delta), WORLD_UP);
   }
@@ -537,29 +558,9 @@ export function createCameraRig({
     else if (sel.kind === NodeKind.Commit) _focusTree(sel.commit.sha, mode);
   }
 
-  // ── Showcase mode ────────────────────────────────────────────────
+  // ── Home backdrop ────────────────────────────────────────────────
 
-  // The pose lives on camera/controls, not a signal, so the caller snapshots
-  // and snaps back. Untweened: a tween read as jarring over the chrome-hide.
-
-  // Carries the caller's autoRotate, so a settings change re-enters on the
-  // same terms.
-  let showcaseMode: { autoRotate: boolean } | null = null;
-
-  function getPose(): CameraPose {
-    return {
-      position: camera.position.clone(),
-      target: controls.target.clone(),
-      up: camera.up.clone(),
-    };
-  }
-
-  /** Restore a snapshot verbatim (the switcher's dismiss path). */
-  function applyPose(pose: CameraPose): void {
-    _snapTo(pose.target, pose.position, pose.up);
-  }
-
-  /** The distance the default camera rests at, which the showcase counts in.
+  /** The distance the default camera rests at, which the backdrop counts in.
    *  Same inputs as _captureFraming's widthDist, so 1 lands where opening does. */
   function _gemFitDistance(): number | null {
     const rootStreet = cityState.rootStreet.value;
@@ -569,10 +570,10 @@ export function createCameraRig({
     return (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
   }
 
-  /** Where the showcase orbit sits, in units of that framing distance. */
-  function _showcaseRadius(distance: number): number {
+  /** Where the backdrop orbit sits, in units of that framing distance. */
+  function _backdropRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
-    return showcaseRadius(distance, controls, {
+    return backdropRadius(distance, controls, {
       gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, GEM_SIZING.value) : null,
       gemFitDistance: _gemFitDistance(),
       worldBounds: cityState.latestWorldBounds.value,
@@ -581,54 +582,50 @@ export function createCameraRig({
 
   /** A ground-level orbit circling the root gem, sized from the city's own
    *  geometry so every project is framed in proportion. */
-  function enterShowcase({ autoRotate }: { autoRotate: boolean }): void {
-    showcaseMode = { autoRotate };
-    // Off across the snap: _snapTo ends in controls.update(), which would advance
-    // an already-spinning orbit past the azimuth just placed.
-    controls.autoRotate = false;
+  function _backdropPose(): CameraPlacement | null {
     const gem = cityState.gemWorldPos.value;
-    const showcase = SHOWCASE.value;
-    if (gem) {
-      const dir = computeFramingDir(
-        showcase.ELEVATION,
-        showcase.AZIMUTH,
-        cityState.rootStreet.value?.orientation ?? null
-      );
-      const target = gem.clone();
-      _snapTo(
-        target,
-        target.clone().addScaledVector(dir, _showcaseRadius(showcase.DISTANCE)),
-        WORLD_UP
-      );
-    }
-    controls.autoRotate = autoRotate;
+    if (!gem) return null;
+    const backdrop = HOME_BACKDROP.value;
+    const dir = computeFramingDir(
+      backdrop.ELEVATION,
+      backdrop.AZIMUTH,
+      cityState.rootStreet.value?.orientation ?? null
+    );
+    const target = gem.clone();
+    return {
+      target,
+      camPos: target.clone().addScaledVector(dir, _backdropRadius(backdrop.DISTANCE)),
+    };
   }
 
-  function exitShowcase(): void {
-    showcaseMode = null;
-    controls.autoRotate = false;
+  /** Swap what the camera is for, opening on the new mode at once: the wallpaper
+   *  capture drives a project rig into a still backdrop with no frame to wait. */
+  function setMode(next: CameraMode, opts: { autoRotate?: boolean } = {}): void {
+    mode = next;
+    controls.autoRotate = _autoRotateFor(next, opts.autoRotate);
+    reset();
   }
 
-  // Saving a Showcase draft re-frames a running turntable in place, so the
-  // backdrop reflects the new pose without leaving and reopening the switcher.
-  const _disposeShowcasePoseEffect = effect(() => {
-    void SHOWCASE_POSE.value;
+  // Saving a Home backdrop draft re-frames a running turntable in place, so the
+  // wallpaper reflects the new pose without a reload.
+  const _disposeBackdropPoseEffect = effect(() => {
+    void BACKDROP_POSE.value;
     untracked(() => {
-      if (showcaseMode) enterShowcase(showcaseMode);
+      if (mode === CameraMode.Backdrop) reset();
     });
   });
 
   // Sole writer of autoRotateSpeed: runs on construction and on every change, so
-  // enterShowcase never has to set it.
-  const _disposeShowcaseSpeedEffect = effect(() => {
-    controls.autoRotateSpeed = SHOWCASE.value.ROTATE_SPEED;
+  // no mode swap has to set it.
+  const _disposeBackdropSpeedEffect = effect(() => {
+    controls.autoRotateSpeed = HOME_BACKDROP.value.ROTATE_SPEED;
   });
 
   function dispose() {
     _disposeReframeEffect();
     _disposeCameraAngleEffect();
-    _disposeShowcasePoseEffect();
-    _disposeShowcaseSpeedEffect();
+    _disposeBackdropPoseEffect();
+    _disposeBackdropSpeedEffect();
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 
@@ -642,10 +639,7 @@ export function createCameraRig({
     captureAnchors,
     treeAnchor,
     streetAnchor,
-    getPose,
-    applyPose,
-    enterShowcase,
-    exitShowcase,
+    setMode,
     dispose,
   };
 }

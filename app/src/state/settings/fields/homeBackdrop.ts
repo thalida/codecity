@@ -1,6 +1,6 @@
-// state/settings/fields/showcase.ts — the hero turntable the switcher and the
-// featured city drive the world into: a ground-level orbit circling the root
-// gem. All Live-routed: no rebuild reaction, the rig drives the update itself.
+// state/settings/fields/homeBackdrop.ts — the turntable the home page's wallpaper
+// city runs: a ground-level orbit circling the root gem. All Live-routed: no
+// rebuild reaction, the rig drives the update itself.
 
 import {
   settingSignal,
@@ -10,7 +10,7 @@ import {
   type FieldMap,
 } from '@/state/settings/schema';
 
-const SHOWCASE_FIELDS = {
+const HOME_BACKDROP_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.SliderField,
@@ -19,7 +19,7 @@ const SHOWCASE_FIELDS = {
     max: 90,
     step: 1,
     label: 'Elevation',
-    tip: 'Angle above the horizon the showcase orbits at. 0° is street level, looking straight across the city at the gem.',
+    tip: 'Angle above the horizon the backdrop orbits at. 0° is street level, looking straight across the city at the gem.',
   },
   AZIMUTH: {
     route: ChangeRoute.Live,
@@ -29,7 +29,7 @@ const SHOWCASE_FIELDS = {
     max: 180,
     step: 1,
     label: 'Azimuth',
-    tip: 'Where the orbit starts out, off the main street axis. Auto-rotate carries it around from there.',
+    tip: 'Where the orbit starts out, off the main street axis. The rotation carries it around from there.',
   },
   DISTANCE: {
     route: ChangeRoute.Live,
@@ -53,5 +53,5 @@ const SHOWCASE_FIELDS = {
   },
 } satisfies FieldMap;
 
-export const SHOWCASE = settingSignal('SHOWCASE', SHOWCASE_FIELDS);
-export type ShowcaseConfig = ConfigOf<typeof SHOWCASE_FIELDS>;
+export const HOME_BACKDROP = settingSignal('HOME_BACKDROP', HOME_BACKDROP_FIELDS);
+export type HomeBackdropConfig = ConfigOf<typeof HOME_BACKDROP_FIELDS>;

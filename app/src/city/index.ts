@@ -37,7 +37,7 @@ import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
 import type { City, SceneComponent, SceneContext } from './types';
-import { createCameraRig } from './render/cameraRig';
+import { createCameraRig, CameraMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
@@ -45,7 +45,10 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
-export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
+export async function createCity(
+  canvas: HTMLCanvasElement,
+  { cameraMode = CameraMode.Project }: { cameraMode?: CameraMode } = {}
+): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
 
@@ -119,6 +122,7 @@ export async function createCity(canvas: HTMLCanvasElement): Promise<City> {
   const rig = createCameraRig({
     canvas,
     cityState,
+    mode: cameraMode,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
       // the first tick, and framing that waits frames a different city (#62).

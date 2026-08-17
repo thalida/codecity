@@ -4,12 +4,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
+import { createCameraRig, CameraMode, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
-import { SHOWCASE } from '@/state/settings/fields/showcase';
+import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { getDefault } from '@/state/persist';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
@@ -274,22 +274,22 @@ describe('cameraRig recenter focus', () => {
   });
 });
 
-describe('cameraRig showcase orbit', () => {
-  // Every rig registers effects on the SHOWCASE store, so a leaked one would
+describe('cameraRig home backdrop orbit', () => {
+  // Every rig registers effects on the HOME_BACKDROP store, so a leaked one would
   // keep answering the next test's slider writes.
   const rigs: CameraRig[] = [];
-  function makeRig(cityState: CityState): CameraRig {
-    const rig = createCameraRig({ canvas: makeCanvas(), deps: makeStubWorld(), cityState });
+  function makeRig(cityState: CityState, mode = CameraMode.Backdrop): CameraRig {
+    const rig = createCameraRig({ canvas: makeCanvas(), deps: makeStubWorld(), cityState, mode });
     rigs.push(rig);
     return rig;
   }
 
   beforeEach(() => {
-    SHOWCASE.value = { ...getDefault(SHOWCASE) };
+    HOME_BACKDROP.value = { ...getDefault(HOME_BACKDROP) };
   });
   afterEach(() => {
     while (rigs.length) rigs.pop()?.dispose();
-    SHOWCASE.value = { ...getDefault(SHOWCASE) };
+    HOME_BACKDROP.value = { ...getDefault(HOME_BACKDROP) };
   });
 
   it('circles the gem at the configured elevation, part way out', () => {
@@ -297,8 +297,7 @@ describe('cameraRig showcase orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     const at = (t: number): number => {
-      SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 12, DISTANCE: t };
-      rig.enterShowcase({ autoRotate: false });
+      HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 12, DISTANCE: t };
       return rig.camera.position.distanceTo(gem);
     };
 
@@ -317,8 +316,7 @@ describe('cameraRig showcase orbit', () => {
   it('puts a value at the same distance whatever the city sprawls to', () => {
     const at = (cs: CityState, t: number): number => {
       const rig = makeRig(cs);
-      SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: t };
-      rig.enterShowcase({ autoRotate: false });
+      HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: t };
       return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
     };
     // Same root street, wildly different sprawl: 20x the depth behind the gem.
@@ -332,8 +330,7 @@ describe('cameraRig showcase orbit', () => {
   it('is as close as the camera may ever sit at 0', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
-    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 0 };
-    rig.enterShowcase({ autoRotate: false });
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 0 };
 
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(rig.controls.minDistance, 6);
@@ -346,59 +343,76 @@ describe('cameraRig showcase orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
 
-    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 1 };
-    rig.enterShowcase({ autoRotate: false });
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 1 };
     const framed = rig.camera.position.distanceTo(gem);
 
-    SHOWCASE.value = { ...SHOWCASE.value, DISTANCE: 2 };
-    rig.enterShowcase({ autoRotate: false });
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 2 };
     const pulledBack = rig.camera.position.distanceTo(gem);
 
     expect(pulledBack).toBeGreaterThan(framed);
     expect(pulledBack).toBeLessThanOrEqual(rig.controls.maxDistance + 1e-6);
   });
 
-  it('re-frames live when a pose slider is dragged mid-showcase', () => {
+  // The bug the mode exists to kill: a pose snapped in before the first frame
+  // used to be overwritten by the still-pending opening framing a tick later.
+  it('opens on the orbit, and every re-frame keeps it there', () => {
+    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 8, AZIMUTH: 120, DISTANCE: 1.6 };
+    const rig = makeRig(cs);
+    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    // Held still, so anything that moves across a frame is a framing, not the orbit.
+    rig.setMode(CameraMode.Backdrop, { autoRotate: false });
+    const placed = rig.camera.position.clone();
+
+    rig.update(16);
+    expect(rig.camera.position.distanceTo(placed)).toBeLessThan(1e-6);
+
+    // What the composer calls when the backdrop swaps one city for the next.
+    rig.reset();
+    expect(rig.camera.position.distanceTo(placed)).toBeLessThan(1e-6);
+    expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(8, 3);
+  });
+
+  it('re-frames live when a pose slider is dragged mid-orbit', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
-    rig.enterShowcase({ autoRotate: false });
 
     const before = rig.camera.position.distanceTo(gem);
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 0.25 };
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 45, DISTANCE: 0.25 };
 
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
     expect(rig.camera.position.distanceTo(gem)).toBeLessThan(before);
   });
 
-  it('leaves the camera alone when a slider moves outside the showcase', () => {
+  it('leaves a project camera alone when a backdrop slider moves', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
-    const rig = makeRig(cs);
-    rig.update(16); // boot framing, the pose the user is actually sitting at
-    const beforeEnter = rig.camera.position.clone();
+    const rig = makeRig(cs, CameraMode.Project);
+    rig.update(16); // the opening framing, the pose the user is actually sitting at
+    const opened = rig.camera.position.clone();
 
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 45, DISTANCE: 1200 };
-    expect(rig.camera.position.distanceTo(beforeEnter)).toBeLessThan(1e-6);
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 45, DISTANCE: 1.2 };
+    expect(rig.camera.position.distanceTo(opened)).toBeLessThan(1e-6);
 
-    // …and again once the showcase has been exited.
-    rig.enterShowcase({ autoRotate: true });
-    rig.exitShowcase();
+    // …and again once a rig that WAS a backdrop has gone back to its project.
+    rig.setMode(CameraMode.Backdrop);
+    rig.setMode(CameraMode.Project);
     expect(rig.controls.autoRotate).toBe(false);
     const afterExit = rig.camera.position.clone();
 
-    SHOWCASE.value = { ...SHOWCASE.value, ELEVATION: 70, DISTANCE: 400 };
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 70, DISTANCE: 0.4 };
     expect(rig.camera.position.distanceTo(afterExit)).toBeLessThan(1e-6);
   });
 
   it('applies rotation speed without yanking the orbit back to its start', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
-    rig.enterShowcase({ autoRotate: true });
-    // Stand in for the orbit having spun on from where it entered.
+    expect(rig.controls.autoRotate).toBe(true);
+    // Stand in for the orbit having spun on from where it opened.
     rig.camera.position.set(0, 100, 500);
     const spun = rig.camera.position.clone();
 
-    SHOWCASE.value = { ...SHOWCASE.value, ROTATE_SPEED: 2.5 };
+    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ROTATE_SPEED: 2.5 };
 
     expect(rig.controls.autoRotateSpeed).toBe(2.5);
     expect(rig.controls.autoRotate).toBe(true);
