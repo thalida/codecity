@@ -104,6 +104,20 @@ services:
 
   # Separate from `vitest` because that service only mounts ./app, and
   # prettier's install and config are at the root.
+  # Regenerates the TS types from a schema `just gen-types` already wrote to
+  # .local/, and diffs. Its own service because it needs app's node_modules and
+  # the repo root together, which neither vitest nor prettier mounts.
+  gentypes:
+    image: node:24-bookworm-slim
+    working_dir: /repo/app
+    init: true
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
+    volumes:
+      - '.:/repo'
+      - '/repo/node_modules'
+      - '/repo/app/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+
   prettier:
     image: node:24-bookworm-slim
     working_dir: /repo

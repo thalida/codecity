@@ -99,14 +99,15 @@ jobs:
       - name: Format check (prettier)
         run: docker compose -f docker-compose.test.yml run --rm prettier
 
-      # On the runner, not a container: it needs uv and npx together. The npm
-      # steps above install into an anonymous volume, so nothing is out here.
+      # Only the schema is written out here; the container owns everything node.
+      # npm on the runner cannot work: compose mounts anonymous volumes over
+      # node_modules, leaving those directories root-owned on the host.
       - name: Generated types match the models
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          npm ci --ignore-scripts
-          (cd app && npm ci --ignore-scripts)
-          "$HOME/.local/bin/uv" run python bin/check-generated-types.py
+          mkdir -p .local
+          "$HOME/.local/bin/uv" run python scripts/gen_openapi.py > .local/openapi.generated.json
+          docker compose -f docker-compose.test.yml run --rm gentypes
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0

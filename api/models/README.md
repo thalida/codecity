@@ -25,8 +25,12 @@ kept aligned by hand, and it drifted: `RepoStats` was four fields behind for
 long enough to ship. If you are tempted to add a fast path that redeclares one
 of these shapes, that is the outcome to expect.
 
-After a change here, run `just gen-types`. `bin/check-generated-types.py` fails
-the build otherwise, and pre-push runs it.
+After a change here, run `just gen-types`. `just check-types-fresh` fails the
+build otherwise, and pre-push runs it as step 7.
+
+The committed `manifest.generated.ts` is raw openapi-typescript output and is
+prettierignored. Formatting it makes that diff report the formatting instead of
+the models, which is what it is there to catch.
 
 ## Two kinds of optional, and they are not interchangeable
 

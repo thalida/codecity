@@ -128,10 +128,15 @@ comment-check *paths='api bin scripts':
     uv run python bin/check-comments.py {{paths}}
 
 # manifest.contract.ts guards manifest.ts against the generated types; this
-# guards the generated types against the models they come from. Runs on the
-# host, not in a container: it needs uv and npx together.
+# guards the generated types against the models they come from. Same two steps
+# as `gen-types`, diffing instead of writing, so drift can only mean the models
+# moved. The committed file is raw generator output and prettierignored: format
+# it and this diff reports the formatting rather than the models.
 check-types-fresh:
-    uv run python bin/check-generated-types.py
+    @mkdir -p .local
+    @uv run python scripts/gen_openapi.py > .local/openapi.generated.json
+    @docker compose -f docker-compose.test.yml run --rm gentypes \
+        || (echo "[codecity] app/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.

@@ -12,8 +12,8 @@
 #   7. Generated TS types still match the Pydantic models
 #
 # Most of it runs in containers, so the gate doesn't depend on whatever the host
-# happens to have installed. The exceptions are the two stdlib/uv checks that no
-# single image can host: the Python comment cap, and step 7.
+# happens to have installed. The exception is the Python comment cap, which is
+# stdlib-only, and the uv half of step 7 that produces the schema to diff.
 
 set -e
 
@@ -54,8 +54,8 @@ docker compose -f docker-compose.test.yml run --rm vitest \
 echo "[pre-push] 6/7  prettier --check (repo root)"
 docker compose -f docker-compose.test.yml run --rm prettier >/dev/null
 
-# On the host, not in a container: it needs uv and npx in the same place.
+# uv writes the schema on the host, the container regenerates and diffs it.
 echo "[pre-push] 7/7  generated types match the models"
-uv run python bin/check-generated-types.py
+just check-types-fresh >/dev/null
 
 echo "[pre-push] all checks passed — pushing"
