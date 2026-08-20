@@ -22,12 +22,14 @@ from .clone import (
     HostUnreachableError,
     RepoNotFoundError,
     clone_dir_for,
+    clones_root,
     ensure_clone,
     fetch_lfs_history,
     hydrate_blobs,
     list_remote_branches,
 )
 from .cmd import git_argv, run_git
+from .retention import record_clone_use, sweep_clones_to_budget
 from .meta import (
     GitHistory,
     GitState,
@@ -76,6 +78,7 @@ __all__ = [
     "build_authors_list",
     "classify",
     "clone_dir_for",
+    "clones_root",
     "collect_git_history",
     "collect_git_state",
     "empty_repo_info",
@@ -93,5 +96,7 @@ __all__ = [
     "resolve_local",
     "resolve_ref",
     "resolve_source",
+    "record_clone_use",
     "run_git",
+    "sweep_clones_to_budget",
 ]

@@ -87,10 +87,12 @@ tidies the repos in active use and never reaches the ones scanned once and
 abandoned — a machine measured before this held 845 entries over 688 repos,
 385MB, of which every byte was already unreadable after a schema bump.
 
-`clones/` is outside both. `git/clone.py` owns it, a clone can be in use by a
-running scan, and dropping one costs a re-clone rather than a re-read. It is
-also, by a wide margin, the biggest thing on disk — 18GB against 700MB for
-everything here — and it has no retention at all.
+`clones/` is outside both, and has its own budget in `git/retention.py`. It is
+the biggest thing on disk by a wide margin (18GB against 700MB for everything
+here), but it cannot share this sweep: a clone can be in use by a running scan,
+and dropping one costs a re-clone rather than a re-read. So it is swept at
+startup only, when nothing can be scanning, in least-recently-used order against
+`CODECITY_CLONE_BUDGET_MB`.
 
 In both passes the just-written entry is `protect`ed: mtime has one-second
 resolution, so a burst of saves can tie and sort the new entry into the tail.

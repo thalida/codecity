@@ -66,9 +66,11 @@ class Settings(BaseSettings):
     # Root for every on-disk cache. cache/paths.py hangs its subdirs off this,
     # git/clone.py its `clones/` dir.
     cache_root: Path = Path.home() / ".cache" / "codecity"
-    # Ceiling for the derived caches under cache_root, swept oldest-first. Does
-    # not cover clones/, which git/clone.py owns and which dwarfs the rest.
+    # Ceiling for the derived caches under cache_root, swept oldest-first.
     cache_budget_mb: int = 1024
+    # Clones get their own: evicting one costs minutes and a re-clone, not a
+    # re-read, so it cannot share a budget with data that is cheap to rebuild.
+    clone_budget_mb: int = 10240
 
 
 def settings() -> Settings:
@@ -80,6 +82,7 @@ def settings() -> Settings:
 # a writable mount in containers. Tests monkeypatch the per-module copies.
 CACHE_ROOT = settings().cache_root
 CACHE_BUDGET_BYTES = settings().cache_budget_mb * 1024 * 1024
+CLONE_BUDGET_BYTES = settings().clone_budget_mb * 1024 * 1024
 
 
 def local_repos_allowed() -> bool:

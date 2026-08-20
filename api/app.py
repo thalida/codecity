@@ -14,7 +14,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 from api.core.config import GZIP_MIN_BYTES
+from api.git import clones_root, sweep_clones_to_budget
 from api.models.responses import ErrorResponse
 from api.routers import branches, commit, file, manifest, meta, timeline
 from api.core.middleware import SSEGZipMiddleware
@@ -62,6 +66,18 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=status, content=body.model_dump(exclude_none=True))
 
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    """Evict stale clones before the first request.
+
+    Here and nowhere else: a clone is not safe to delete while a scan is
+    walking it, and nothing tracks which are being read. Before the server
+    accepts anything, the question cannot arise. Synchronous for the same
+    reason — a thread would let a scan start beside it."""
+    sweep_clones_to_budget(clones_root())
+    yield
+
+
 def create_app(static_dir: Path | None = None) -> FastAPI:
     # TRUST is deliberately NOT reset here: the factory must be side-effect-free
     # on session auth state. Tests isolate it via an autouse fixture.
@@ -70,6 +86,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
         docs_url=None,  # disable Swagger UI
         redoc_url=None,  # disable default ReDoc
         openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
     )
     # GZip compresses ordinary responses (it skips text/event-stream); the SSE
     # middleware stream-gzips the manifest event stream with per-event flush.

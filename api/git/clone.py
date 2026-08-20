@@ -25,6 +25,7 @@ from typing import Callable, NamedTuple
 
 from api.core.config import CACHE_ROOT
 from api.core.progress import Throttle, log
+from api.git.retention import record_clone_use
 
 # The scan's own cancel Event, so a client disconnect aborts the clone too.
 # Cycle-free: the scan package never imports clone.
@@ -501,6 +502,12 @@ def _run_net_git(
     raise last_err
 
 
+def clones_root() -> Path:
+    """Where clones live. A call, not the constant, so a test that repoints
+    CLONES_ROOT repoints this too."""
+    return CLONES_ROOT
+
+
 def clone_dir_for(url: str, branch: str | None) -> Path:
     # SHA-256 to dodge the FIPS-environment DeprecationWarning on SHA-1; this
     # names a directory, so truncating to 64 bits is fine.
@@ -773,13 +780,17 @@ def ensure_clone(
     CloneError.
     """
     with _CLONE_LOCK:
-        return _clone_or_update(
+        target = _clone_or_update(
             url,
             branch,
             on_progress=on_progress,
             on_heartbeat=on_heartbeat,
             cancel_event=cancel_event,
         )
+    # Stamped here so "last used" means a scan was handed this clone, not that
+    # something wrote in its directory. It is the only record of it.
+    record_clone_use(target)
+    return target
 
 
 def _clone_or_update(

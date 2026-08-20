@@ -62,7 +62,8 @@ Everything codecity reads is an env var, passed with `-e`:
 | `CODECITY_DISCOVER`          | on                  | The Discover tab of repos worth rendering. Set `off` to hide it                                                        |
 | `CODECITY_DISCOVER_FILE`     | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}`                                                      |
 | `CODECITY_CACHE_ROOT`        | `/cache`            | Where clones and the manifest cache live                                                                               |
-| `CODECITY_CACHE_BUDGET_MB`   | `1024`              | Ceiling for the derived caches, swept oldest-first. Clones aren't counted and aren't swept                             |
+| `CODECITY_CACHE_BUDGET_MB`   | `1024`              | Ceiling for the derived caches, swept oldest-first. Clones have their own budget                                       |
+| `CODECITY_CLONE_BUDGET_MB`   | `10240`             | Ceiling for `clones/`, swept least-recently-used at startup only (a scan may be reading one at any other moment)       |
 | `CODECITY_QUIET`             | off                 | Silence disconnect and scan logs                                                                                       |
 
 Booleans take `1`/`true`/`yes`/`on`.

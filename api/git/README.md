@@ -44,6 +44,24 @@ fetches each missing blob on demand — thousands of round trips, minutes of
 apparent hang. `GIT_NO_LAZY_FETCH=1` in `objects.py` is the backstop: a blob
 that is still missing reads as 0 lines rather than triggering that.
 
+## Clones are evicted at startup, and only then
+
+`clones/` has its own byte budget (`CODECITY_CLONE_BUDGET_MB`), separate from
+the derived caches: evicting a manifest costs a re-read, evicting an 8GB clone
+costs minutes and a network round trip.
+
+The sweep runs in the app's lifespan startup and nowhere else. `scan_tree` walks
+a clone directory for the whole duration of a scan, and nothing tracks which
+clones are being read — `_CLONE_LOCK` answers "is anyone cloning", not "is
+anyone using this one". Before the server accepts a request, that question
+cannot arise, which is cheaper than any machinery that could answer it.
+
+Order is least-recently-USED, recorded rather than inferred: `ensure_clone`
+stamps `.git/codecity-usage.json` on its way out, so the timestamp means a scan
+was handed this clone. Directory mtime would not — a fetch that finds nothing
+new may not touch the top level, and one that does says nothing about a city
+ever being rendered. A clone with no record sorts as never used, biggest first.
+
 ## Serving a request never downloads
 
 `read_blob` backs `GET /api/file`, so it reads only what is already on disk: no
