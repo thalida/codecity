@@ -199,6 +199,9 @@ def build_union_manifest(
     modified come from the same full-ISO maps reconstruct_manifest uses. Flows
     through the SHARED tree builder + build_file_node so the layout matches every
     per-commit reconstruction it will be scrubbed against."""
+    # Every path that ever existed, including one whose every version is a blob
+    # the backfill skipped: it belongs in the city, it just has no measurements.
+    seen: set[str] = set()
     max_size: dict[str, int] = {}
     max_lines: dict[str, int] = {}
     # Each path's largest-seen blob: the version whose binary/media character
@@ -208,14 +211,19 @@ def build_union_manifest(
         for path, sha in d.changes:
             if sha is None:
                 continue
-            size = blob_sizes.get(sha, 0)
-            if path not in max_size or size >= max_size[path]:
+            seen.add(path)
+            # Absent from the table means unmeasurable, not empty, so it can't
+            # take part in a max: a 0 would win against nothing and read as one.
+            size = blob_sizes.get(sha)
+            if size is not None and (path not in max_size or size >= max_size[path]):
                 max_size[path] = size
                 rep_stats[path] = blob_stats.get(sha, MISSING_BLOB)
-            max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
+            lines = blob_lines.get(sha)
+            if lines is not None:
+                max_lines[path] = max(max_lines.get(path, 0), lines)
 
     root_abs = str(Path(root).resolve())
-    children_map = dir_children_from_paths(max_size.keys())
+    children_map = dir_children_from_paths(seen)
     sig = new_signature()
     head_sha = commits[-1].sha if commits else ""
 
@@ -228,8 +236,9 @@ def build_union_manifest(
             name=name,
             rel_path=rel_path,
             root_abs=root_abs,
-            size=max_size.get(rel_path, 0),
-            lines=max_lines.get(rel_path, 0),
+            # None when no version of this path could be measured at all.
+            size=max_size.get(rel_path),
+            lines=max_lines.get(rel_path),
             stats=rep_stats.get(rel_path, MISSING_BLOB),
             created=git_created.get(rel_path, ""),
             modified=git_modified.get(rel_path, ""),

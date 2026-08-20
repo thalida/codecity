@@ -127,10 +127,14 @@ class FileMeta(NamedTuple):
 
 
 def _cache_entry(node: FileNode, mtime: float) -> FileEntry:
+    # Live scan only, so both are known: every node here was built from a stat.
+    # Timeline's unmeasured nodes come from blobs and never reach this cache.
+    size = node.size if node.size is not None else 0
+    lines = node.lines if node.lines is not None else 0
     entry: FileEntry = {
-        "size": node.size,
+        "size": size,
         "mtime": mtime,
-        "lines": node.lines,
+        "lines": lines,
         "binary": node.binary,
         "ext": node.extension,
     }

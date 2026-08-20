@@ -529,9 +529,9 @@ export interface components {
             /** Extension */
             extension: string;
             /** Size */
-            size: number;
+            size: number | null;
             /** Lines */
-            lines: number;
+            lines: number | null;
             /** Binary */
             binary: boolean;
             /**

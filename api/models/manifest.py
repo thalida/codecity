@@ -35,8 +35,10 @@ class FileNode(BaseModel):
     path: str
     fullPath: str
     extension: str
-    size: int
-    lines: int
+    # Required-nullable (see README): null is NOT KNOWN, never zero, which an
+    # empty file already means. Only Timeline's union manifest emits it.
+    size: Optional[int]
+    lines: Optional[int]
     binary: bool
     dirty: bool = Field(
         description=(

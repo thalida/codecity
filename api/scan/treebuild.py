@@ -42,8 +42,8 @@ def build_file_node(
     rel_path: str,
     full_path: str,
     ext: str,
-    size: int,
-    lines: int,
+    size: int | None,
+    lines: int | None,
     binary: bool,
     dirty: bool,
     created: str,
@@ -173,7 +173,10 @@ class _DirFrame:
         self.files.append(node)
         self.descendants_count += 1
         self.descendants_file_count += 1
-        self.descendants_size += node.size
+        # An unmeasured file still counts as a file; its bytes just can't join
+        # a total that would then read as complete.
+        if node.size is not None:
+            self.descendants_size += node.size
         self.descendants_created_min = min_iso(
             self.descendants_created_min, node.created
         )
@@ -183,13 +186,14 @@ class _DirFrame:
         raw_ext = node.extension
         self.add_ext(raw_ext.lower() if raw_ext else None, 1, node.size)
 
-    def add_ext(self, ext: str | None, count: int, size: int) -> None:
+    def add_ext(self, ext: str | None, count: int, size: int | None) -> None:
+        # Same rule as the byte rollup: the file counts, its unknown bytes don't.
         bucket = self.ext_breakdown.get(ext)
         if bucket is None:
-            self.ext_breakdown[ext] = [count, size]
+            self.ext_breakdown[ext] = [count, size or 0]
         else:
             bucket[0] += count
-            bucket[1] += size
+            bucket[1] += size or 0
 
     def absorb(self, child: DirNode) -> None:
         self.subdirs.append(child)
