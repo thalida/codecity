@@ -245,11 +245,7 @@ export interface components {
         CloneProgressEvent: {
             /** Label */
             label?: string;
-            /**
-             * Stage
-             * @enum {string}
-             */
-            stage?: "receiving" | "resolving" | "counting" | "updating";
+            stage?: components["schemas"]["CloneStage"] | null;
             /** Percent */
             percent?: number;
             /** Mb On Disk */
@@ -261,6 +257,13 @@ export interface components {
             /** Mib */
             mib?: number;
         };
+        /**
+         * CloneStage
+         * @description Which part of a git clone or fetch a progress tick is reporting.
+         *     `updating` is git's checkout phase ("Updating files: N%").
+         * @enum {string}
+         */
+        CloneStage: "receiving" | "resolving" | "counting" | "updating";
         /** CommitDateRange */
         CommitDateRange: {
             /**
@@ -685,6 +688,14 @@ export interface components {
             authors: components["schemas"]["AuthorStat"][];
         };
         /**
+         * ScanEvent
+         * @description SSE event names for the /api/manifest stream. Values are the exact event
+         *     strings. The two MANIFEST_* members double as scan_tree's emission `phase`
+         *     (the router forwards the phase as the event name).
+         * @enum {string}
+         */
+        ScanEvent: "clone-progress" | "scan-progress" | "manifest-partial" | "manifest-complete" | "error";
+        /**
          * ScanProgressEvent
          * @description `scan-progress` — the working tree is being walked; carries the
          *     heartbeat files-scanned count.
@@ -694,6 +705,16 @@ export interface components {
             label?: string;
             /** Files Scanned */
             files_scanned?: number;
+        };
+        /**
+         * ScanStreamMessage
+         * @description One message on the /api/manifest stream: its SSE `event:` name and the
+         *     JSON `data:` body that follows.
+         */
+        ScanStreamMessage: {
+            event: components["schemas"]["ScanEvent"];
+            /** Data */
+            data: components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
         };
         /** SignatureResponse */
         SignatureResponse: {
@@ -760,6 +781,12 @@ export interface components {
             changes: components["schemas"]["TimelineChange"][];
         };
         /**
+         * TimelineEvent
+         * @description SSE event names for the /api/timeline stream.
+         * @enum {string}
+         */
+        TimelineEvent: "timeline-progress" | "timeline-complete" | "error";
+        /**
          * TimelineProgressEvent
          * @description `timeline-progress` — the history walk, blob-table resolution, union
          *     assembly, or (for a blobless remote clone) the up-front blob backfill is in
@@ -795,6 +822,16 @@ export interface components {
          * @enum {string}
          */
         TimelineStage: "fetch" | "history" | "blobs" | "assemble";
+        /**
+         * TimelineStreamMessage
+         * @description One message on the /api/timeline stream: its SSE `event:` name and the
+         *     JSON `data:` body that follows.
+         */
+        TimelineStreamMessage: {
+            event: components["schemas"]["TimelineEvent"];
+            /** Data */
+            data: components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1121,7 +1158,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
+                    "application/json": components["schemas"]["ScanStreamMessage"];
                 };
             };
             /** @description Validation Error */
@@ -1155,7 +1192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
+                    "application/json": components["schemas"]["TimelineStreamMessage"];
                 };
             };
             /** @description Validation Error */

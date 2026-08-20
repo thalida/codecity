@@ -8,20 +8,21 @@ scanner and git layers also speak, so they live in api/core/constants.py."""
 from __future__ import annotations
 
 from fastapi import HTTPException
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Optional, Union
 
 from pydantic import BaseModel, WithJsonSchema
 
-from api.core.constants import ErrorCode, TimelineStage
+from api.core.constants import (
+    CloneStage,
+    ErrorCode,
+    ScanEvent,
+    TimelineEvent,
+    TimelineStage,
+)
 from api.models.manifest import Manifest, OptionalInt, OptionalStr, TimelineBundle
 
-# 'updating' is git's checkout phase ("Updating files: N%"). A heartbeat during
-# the silent promisor fetch carries mb_on_disk instead of a percent.
-_CLONE_STAGES = ["receiving", "resolving", "counting", "updating"]
-_OptionalStage = Annotated[
-    Optional[Literal["receiving", "resolving", "counting", "updating"]],
-    WithJsonSchema({"enum": _CLONE_STAGES, "type": "string"}),
-]
+# A heartbeat during the silent promisor fetch carries mb_on_disk, no percent.
+_OptionalStage = Optional[CloneStage]
 
 
 class CloneProgressEvent(BaseModel):
@@ -83,8 +84,6 @@ class ErrorEvent(BaseModel):
     code: _OptionalErrorCode = None
 
 
-# Inline in the schema rather than a $ref'd component, matching _CLONE_STAGES:
-# the generated TS then reads as a plain union of the wire strings.
 _TimelineStage = Annotated[
     TimelineStage,
     WithJsonSchema({"enum": [s.value for s in TimelineStage], "type": "string"}),
@@ -118,6 +117,30 @@ class TimelineCompleteEvent(BaseModel):
     cache hit)."""
 
     bundle: TimelineBundle
+
+
+# The event NAME is as much the contract as its payload, and naming it here is
+# what puts it in the schema. Never serialized whole: the stream writes halves.
+class ScanStreamMessage(BaseModel):
+    """One message on the /api/manifest stream: its SSE `event:` name and the
+    JSON `data:` body that follows."""
+
+    event: ScanEvent
+    data: Union[
+        CloneProgressEvent,
+        ScanProgressEvent,
+        PartialManifestEvent,
+        CompleteManifestEvent,
+        ErrorEvent,
+    ]
+
+
+class TimelineStreamMessage(BaseModel):
+    """One message on the /api/timeline stream: its SSE `event:` name and the
+    JSON `data:` body that follows."""
+
+    event: TimelineEvent
+    data: Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEvent]
 
 
 class CodedHTTPException(HTTPException):
