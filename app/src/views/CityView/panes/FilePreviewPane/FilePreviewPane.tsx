@@ -287,8 +287,7 @@ const FONT_SIGNATURES = new Set([
 ]);
 
 /** Null when the bytes are a font we can render, else the reason for the
- *  fallback notice. An unfetched LFS object never reaches here: the endpoint
- *  answers 202 for a pointer rather than serving its text. */
+ *  fallback notice. A pointer never reaches here: the endpoint answers 202. */
 function fontRejectReason(buf: ArrayBuffer): string | null {
   if (buf.byteLength < 4) return 'This file is empty or too small to be a font.';
   const signature = new DataView(buf).getUint32(0, false);

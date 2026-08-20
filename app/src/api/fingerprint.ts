@@ -11,9 +11,8 @@ export function fingerprintUrl(path: string, mtime?: string): string {
   return apiUrl('fingerprint', { path, mtime });
 }
 
-/** A binary file's fingerprint PNG as a Blob. Throws ContentPendingError when
- *  the file itself hasn't been downloaded yet: an undownloaded file has no byte
- *  pattern of its own, and the server won't fingerprint the pointer stub. */
+/** A binary file's fingerprint PNG. Throws ContentPendingError for a file not
+ *  downloaded yet: the server won't fingerprint the pointer stub standing in. */
 export async function fetchFingerprintBlob(path: string, mtime?: string): Promise<Blob> {
   return (await fetchContent(fingerprintUrl(path, mtime))).blob();
 }

@@ -636,10 +636,8 @@ async function _loadFingerprintBuilding(
 ): Promise<void> {
   await _acquireSlot();
   try {
-    // Straight <img> at the endpoint: the PNG arrives as a PNG, so there is no
-    // base64 to decode, and the browser caches it per file like any image.
-    // A file with no fingerprint (missing, or not downloaded yet, which the
-    // server answers 202) just keeps the sealed placeholder.
+    // The PNG arrives as a PNG: nothing to decode, cached per file. No
+    // fingerprint (missing, or not downloaded) keeps the sealed placeholder.
     const img = await _loadImage(url);
     if (img !== null) await ads.loadTextureForBuilding(layer, panelSlots, img);
   } catch {
@@ -657,10 +655,8 @@ async function _loadImageBuilding(
   layer: number,
   panelSlots: number[]
 ): Promise<void> {
-  // Fetched as a Blob rather than pointed at by the <img>, so the status is
-  // readable: 202 means the bytes are still being downloaded, which must keep
-  // the placeholder instead of tinting the building as broken. The fetch is
-  // outside the GPU semaphore; only decode + upload is slot-gated.
+  // A Blob rather than an <img> src, so the status is readable: waiting must
+  // keep the placeholder, not tint the building broken.
   let blob: Blob;
   try {
     blob = await fetchFileBlob(filePath, version, sha);

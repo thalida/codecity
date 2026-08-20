@@ -38,12 +38,8 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
   }
 }
 
-/**
- * Memoized variant. First call hits the network; subsequent calls
- * return the cached promise. Use this from the picker and anywhere
- * else that reads config — `fetchServerConfig` is exposed only for
- * tests that want a fresh roundtrip.
- */
+/** Read config from here: one network call, then the cached promise.
+ *  `fetchServerConfig` is exposed only for tests wanting a fresh roundtrip. */
 export function getServerConfig(): Promise<ServerConfig> {
   if (_cached === null) _cached = fetchServerConfig();
   return _cached;
