@@ -24,8 +24,8 @@ from api.tests.conftest import (
 
 def test_build_tree_callable_seam_matches_live_scan(tmp_path):
     """build_tree, driven by the same LiveTreeSource scan_tree uses, reproduces
-    a live scan's tree exactly (structure, paths, names, fullPaths, sizes,
-    dates, ext-breakdown). lines/binary are filled in by
+    a live scan's tree exactly (structure, paths, names, sizes, dates,
+    ext-breakdown). lines/binary are filled in by
     populate_file_metadata after the build, so they're normalized away here.
     This locks the injected-callable seam to live behavior."""
     init_repo(tmp_path)

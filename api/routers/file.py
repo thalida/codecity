@@ -85,7 +85,9 @@ def _pending(message: str) -> JSONResponse:
     )
 
 
-def _read_versioned(root: Path, target: Path, sha: str | None) -> bytes | BlobUnavailable:
+def _read_versioned(
+    root: Path, target: Path, sha: str | None
+) -> bytes | BlobUnavailable:
     """Bytes for a resolved path: that git blob when `sha` is given, else
     the working tree. A BlobUnavailable instead says why there are none, and
     which kind of nothing it is (see BlobUnavailable). Callers decide how loud
