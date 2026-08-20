@@ -33,6 +33,7 @@ from typing import Any
 import pytest
 
 from api.models.manifest import CommitEntry, DirNode, FileNode, Manifest, TimelineBundle
+from api.git import SourceRef
 
 
 # ── Environment isolation ────────────────────────────────────────────
@@ -76,17 +77,6 @@ def allow_local_repos() -> Iterator[None]:
             os.environ.pop("CODECITY_ALLOW_LOCAL_REPOS", None)
         else:
             os.environ["CODECITY_ALLOW_LOCAL_REPOS"] = prev
-
-
-@pytest.fixture(autouse=True)
-def _reset_trust() -> Iterator[None]:
-    """Isolate the process-global TRUST set per test. create_app() does not
-    reset it (the factory must be side-effect-free on session auth state — see
-    api/app.py), so tests reset it here rather than relying on the factory."""
-    from api.core.security import TRUST
-
-    TRUST.reset()
-    yield
 
 
 # ── Cache redirection ────────────────────────────────────────────────
@@ -330,7 +320,7 @@ def final_manifest(root: str, **kwargs: Any) -> Any:
     from api.scan.scanner import scan_tree
 
     final = None
-    for event in scan_tree(root, **kwargs):
+    for event in scan_tree(root, SourceRef(root), **kwargs):
         if event.phase == "manifest-complete":
             final = event.manifest
     assert final is not None, "scan_tree must yield a final event"
@@ -433,7 +423,6 @@ def make_file_node(path: str, **overrides: Any) -> FileNode:
         "name": name,
         "type": "file",
         "path": path,
-        "fullPath": "/" + path,
         "extension": ("." + name.rsplit(".", 1)[-1]) if "." in name else "",
         "mediaKind": None,
         "size": 100,
@@ -476,7 +465,6 @@ def make_dir_node(path: str, children: list[Any], **overrides: Any) -> DirNode:
         "name": "root" if path == "." else path.rsplit("/", 1)[-1],
         "type": "directory",
         "path": path,
-        "fullPath": "/" + path,
         "children": children,
         "children_count": len(children),
         "children_file_count": len(files),
@@ -492,7 +480,7 @@ def make_dir_node(path: str, children: list[Any], **overrides: Any) -> DirNode:
     return DirNode.model_validate({**fields, **overrides})
 
 
-def make_manifest(root: str = "/repo", **overrides: Any) -> Manifest:
+def make_manifest(src: str = "/repo", **overrides: Any) -> Manifest:
     """A minimal but VALID Manifest, for tests about something other than the
     manifest's contents (cache round-trips, pruning, retention).
 
@@ -528,12 +516,13 @@ def make_manifest(root: str = "/repo", **overrides: Any) -> Manifest:
         )
     )
     fields: dict[str, Any] = {
-        "root": root,
+        "src": src,
+        "branch": None,
         "scanned_at": "2026-05-17T00:00:00Z",
         "content_signature": "deadbeef" * 4,
         "structure_signature": "0" * 16,
         "layout_signature": "1" * 16,
-        "tree": make_dir_node(".", [], name="repo", fullPath=root),
+        "tree": make_dir_node(".", [], name="repo"),
         "repo": {
             "branch": None,
             "remote_url": None,

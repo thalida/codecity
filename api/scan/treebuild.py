@@ -40,7 +40,6 @@ def build_file_node(
     *,
     name: str,
     rel_path: str,
-    full_path: str,
     ext: str,
     size: int | None,
     lines: int | None,
@@ -62,7 +61,6 @@ def build_file_node(
         name=name,
         type="file",
         path=rel_path,
-        fullPath=full_path,
         extension=ext,
         mediaKind=media_kind(ext),
         size=size,
@@ -130,7 +128,6 @@ class _DirFrame:
     __slots__ = (
         "rel_dir",
         "name",
-        "full_path",
         "pending_entries",
         "next_entry",
         "files",
@@ -148,12 +145,10 @@ class _DirFrame:
         self,
         rel_dir: str,
         name: str,
-        full_path: str,
         pending_entries: DirListing,
     ) -> None:
         self.rel_dir = rel_dir
         self.name = name
-        self.full_path = full_path
         self.pending_entries = pending_entries
         # A cursor, not pop(0): popping the front shifts every remaining
         # element, making a wide directory O(entries²) to walk.
@@ -223,7 +218,6 @@ class _DirFrame:
             name=self.name,
             type="directory",
             path=self.rel_dir,
-            fullPath=self.full_path,
             children_count=len(children),
             children_file_count=len(self.files),
             children_dir_count=len(self.subdirs),
@@ -258,8 +252,7 @@ def build_tree(
     packer and the signatures depend on."""
 
     def frame(rel_dir: str, name: str) -> _DirFrame:
-        full_path = root_abs if rel_dir == rel_root else f"{root_abs}/{rel_dir}"
-        return _DirFrame(rel_dir, name, full_path, list_children(rel_dir))
+        return _DirFrame(rel_dir, name, list_children(rel_dir))
 
     stack = [frame(rel_root, os.path.basename(root_abs))]
 

@@ -18,7 +18,8 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.cache import cache_load_timeline, cache_save_timeline
 from api.core.constants import TimelineEvent, TimelineStage
-from api.git import CloneProgress, ResolveError, SourceKind, classify, resolve_ref
+from api.git import CloneProgress, ResolveError, SourceKind, SourceRef, classify
+from api.git import resolve_ref
 from api.git import fetch_lfs_history, hydrate_blobs, resolve_source
 from api.models.events import TimelineStreamMessage
 from api.routers import sse
@@ -122,6 +123,7 @@ async def timeline(
                 fetch_lfs_history(target, cancel_event=cancel)
             bundle = build_timeline_bundle(
                 str(target),
+                SourceRef(src, branch),
                 use_cache=use_cache,
                 extra_exclude_paths=excludes,
                 on_progress=_on_progress,

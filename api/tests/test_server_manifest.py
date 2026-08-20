@@ -107,7 +107,7 @@ def test_manifest_stream_local(
     assert "scan-progress" in names
     assert names[-1] == "manifest-complete"
     final = events[-1][1]
-    assert final["manifest"]["root"]
+    assert final["manifest"]["src"]
     assert final["manifest"]["tree"]["type"] == "directory"
 
 

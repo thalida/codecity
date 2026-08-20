@@ -18,6 +18,7 @@ from typing import Any, Callable, Iterator, NamedTuple
 from api.core.constants import ScanEvent
 from api.git import (
     GitState,
+    SourceRef,
     collect_git_history,
     collect_git_state,
     is_git_repo,
@@ -127,7 +128,6 @@ class LiveTreeSource:
         return build_file_node(
             name=name,
             rel_path=rel_path,
-            full_path=entry.path,
             ext=extension(name),
             size=st.size,
             lines=0,
@@ -148,6 +148,7 @@ class LiveTreeSource:
 
 def scan_tree(
     root: str,
+    source: SourceRef,
     *,
     use_cache: bool = True,
     cancel_event: threading.Event | None = None,
@@ -192,7 +193,7 @@ def scan_tree(
     yield ScanStreamEvent(
         phase=ScanEvent.MANIFEST_PARTIAL,
         manifest=wrap_manifest(
-            root_abs, skeleton, sig, signals, git.repo, [], ["metadata", "history"]
+            source, skeleton, sig, signals, git.repo, [], ["metadata", "history"]
         ),
     )
 
@@ -206,7 +207,7 @@ def scan_tree(
     yield ScanStreamEvent(
         phase=ScanEvent.MANIFEST_PARTIAL,
         manifest=wrap_manifest(
-            root_abs,
+            source,
             tree.model_copy(deep=True),
             sig,
             signals,
@@ -230,7 +231,7 @@ def scan_tree(
     yield ScanStreamEvent(
         phase=ScanEvent.MANIFEST_COMPLETE,
         manifest=wrap_manifest(
-            root_abs, tree, sig, signals, git.repo, history.commits, []
+            source, tree, sig, signals, git.repo, history.commits, []
         ),
     )
 
@@ -257,13 +258,14 @@ def signature_tree(
     )
     hash_repo_info(sig, git.repo)
     return SignatureResponse(
-        root=root_abs,
         scanned_at=utc_now_iso(),
         content_signature=sig.hexdigest(),
     )
 
 
-def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Manifest:
+def reconstruct_manifest(
+    root: str, source: SourceRef, ref: str, *, use_cache: bool = True
+) -> Manifest:
     """The manifest AS OF ``ref``, from ls-tree + cat-file only — the working
     tree is never checked out or written.
 
@@ -301,7 +303,6 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
             sig,
             name=name,
             rel_path=rel_path,
-            root_abs=root_abs,
             size=blob.size,
             lines=entry["lines"],
             stats=entry,
@@ -316,7 +317,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         make_file_node=make_file_node,
     )
     return wrap_manifest(
-        root_abs,
+        source,
         tree,
         sig,
         derive_tree_signals(tree),

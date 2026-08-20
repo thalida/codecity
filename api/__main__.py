@@ -6,8 +6,9 @@
     python -m api --reload           Auto-reload on source changes (dev only).
     python -m api --version          Print version.
 
-SINGLE PROCESS by design — see api/core/security.py (the allowed_roots trust
-set is in-memory; multi-worker would split it). No --workers flag.
+SINGLE PROCESS by design — clone.py serializes clone-or-update on an in-process
+lock, and a second worker would fetch the same working tree underneath the first.
+No --workers flag.
 """
 
 from __future__ import annotations

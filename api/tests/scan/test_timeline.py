@@ -7,6 +7,7 @@ from pathlib import Path
 from api.models.manifest import DateRangeMs, RangeStat
 
 from api.scan.timeline import walk_deltas
+from api.git import SourceRef
 
 
 def _init(root: Path) -> None:
@@ -78,7 +79,9 @@ def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) ->
                 state[path] = sha
     assert "x.txt" not in state
 
-    recon = reconstruct_manifest(str(tmp_path), head, use_cache=False)
+    recon = reconstruct_manifest(
+        str(tmp_path), SourceRef(str(tmp_path)), head, use_cache=False
+    )
     recon_paths: set[str] = set()
 
     def walk(n: dict) -> None:
@@ -124,7 +127,15 @@ def test_a_blob_the_backfill_skipped_reads_as_unknown_not_empty(tmp_path: Path) 
     blob_stats.pop(huge_sha, None)
 
     m = build_union_manifest(
-        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+        tmp_path,
+        SourceRef(str(tmp_path)),
+        deltas,
+        lines,
+        sizes,
+        blob_stats,
+        commits,
+        created,
+        modified,
     )
     nodes: dict[str, object] = {}
 
@@ -174,7 +185,15 @@ def test_unmeasurable_file_stays_out_of_totals_and_superlatives(
     blob_stats.pop(unknown_sha, None)
 
     m = build_union_manifest(
-        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+        tmp_path,
+        SourceRef(str(tmp_path)),
+        deltas,
+        lines,
+        sizes,
+        blob_stats,
+        commits,
+        created,
+        modified,
     )
     stats = compute_repo_stats(m.tree, commits)
 
@@ -212,7 +231,15 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
 
     created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
-        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+        tmp_path,
+        SourceRef(str(tmp_path)),
+        deltas,
+        lines,
+        sizes,
+        blob_stats,
+        commits,
+        created,
+        modified,
     )
 
     nodes: dict[str, dict] = {}
@@ -257,7 +284,15 @@ def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
     lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
     created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
-        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+        tmp_path,
+        SourceRef(str(tmp_path)),
+        deltas,
+        lines,
+        sizes,
+        blob_stats,
+        commits,
+        created,
+        modified,
     )
     assert len(m.commits) == len(commits) == 4
 
@@ -301,7 +336,7 @@ def test_head_line_range_matches_live_scan(tmp_path: Path) -> None:
     _commit(tmp_path, "c1")
 
     live = None
-    for ev in scan_tree(str(tmp_path), use_cache=False):
+    for ev in scan_tree(str(tmp_path), SourceRef(str(tmp_path)), use_cache=False):
         if ev.phase == "manifest-complete":
             live = ev.manifest
     assert live is not None
@@ -334,7 +369,7 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     _commit(tmp_path, "c3")
 
     live = None
-    for ev in scan_tree(str(tmp_path), use_cache=False):
+    for ev in scan_tree(str(tmp_path), SourceRef(str(tmp_path)), use_cache=False):
         if ev.phase == "manifest-complete":
             live = ev.manifest
     assert live is not None
@@ -403,7 +438,9 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     (tmp_path / "package-lock.json").write_text('{"a":2}\n' * 60)
     _commit(tmp_path, "c2")
 
-    bundle = build_timeline_bundle(str(tmp_path), use_cache=False)
+    bundle = build_timeline_bundle(
+        str(tmp_path), SourceRef(str(tmp_path)), use_cache=False
+    )
 
     excluded = {"package-lock.json", "link.txt", "secret/hush.txt"}
     union_paths: set[str] = set()
@@ -428,7 +465,9 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
                     state[ch.path] = ch.sha
         assert state.keys() & excluded == set(), f"skipped path replayed at {i}"
         replay = {p: bundle.blobLines[s] for p, s in state.items()}
-        recon = reconstruct_manifest(str(tmp_path), c.sha, use_cache=False)
+        recon = reconstruct_manifest(
+            str(tmp_path), SourceRef(str(tmp_path)), c.sha, use_cache=False
+        )
         expect: dict[str, int] = {}
 
         def walk(n: dict) -> None:
@@ -458,7 +497,10 @@ def test_bundle_excludes_drop_paths_everywhere(tmp_path: Path) -> None:
     _commit(tmp_path, "c2")
 
     bundle = build_timeline_bundle(
-        str(tmp_path), use_cache=False, extra_exclude_paths=frozenset({"secrets"})
+        str(tmp_path),
+        SourceRef(str(tmp_path)),
+        use_cache=False,
+        extra_exclude_paths=frozenset({"secrets"}),
     )
 
     union_paths: set[str] = set()
@@ -487,7 +529,9 @@ def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
     for i in range(4):
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
-    bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
+    bundle = timeline.build_timeline_bundle(
+        str(tmp_path), SourceRef(str(tmp_path)), use_cache=False
+    )
     assert bundle.notes  # windowed, surfaced
     assert len(bundle.commits) < 4
 
@@ -504,6 +548,8 @@ def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
     for i in range(3):
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
-    bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
+    bundle = timeline.build_timeline_bundle(
+        str(tmp_path), SourceRef(str(tmp_path)), use_cache=False
+    )
     assert len(bundle.commits) >= 1  # never an empty timeline
     assert bundle.notes

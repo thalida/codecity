@@ -49,9 +49,17 @@ yourself parsing a URL for a display string, use `utils.labels`.
 
 ## Serving bytes
 
-`/api/file` and `/api/fingerprint` serve only from registered scan roots. There
-is no global filesystem read: a path must resolve under a root that a successful
-manifest scan registered.
+`/api/file` and `/api/fingerprint` address a file the way the manifest does: the
+`src` (+ `branch`) it was built for, and a path relative to that repo's root.
+`git.resolve_root` turns the source back into a directory — a clone hashes
+straight to its cache dir, a local path is allowed only when
+`CODECITY_ALLOW_LOCAL_REPOS` is on — and `git.within` refuses anything that
+resolves outside it. There is no global filesystem read.
+
+Resolving per request rather than remembering which roots were scanned is what
+makes a read survive a restart: the browser holds a manifest for as long as its
+tab is open, and the process that produced it may be long gone. It also keeps
+absolute server paths off the wire entirely.
 
 Media is returned with an explicit `Content-Encoding: identity` so the app-wide
 GZipMiddleware skips it. Re-deflating already-compressed bytes costs CPU for

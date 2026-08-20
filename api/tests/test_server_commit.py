@@ -9,7 +9,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.core.security import TRUST
 
 
 def _git(*args: str, cwd: Path) -> str:
@@ -47,19 +46,29 @@ def client(tmp_path: Path) -> TestClient:
     return TestClient(create_app(static_dir=static))
 
 
-def test_commit_invalid_sha_400(client: TestClient) -> None:
-    assert client.get("/api/commit", params={"sha": "zzz"}).status_code == 400
+def test_commit_invalid_sha_400(client: TestClient, repo: Path) -> None:
+    r = client.get("/api/commit", params={"src": str(repo), "sha": "zzz"})
+    assert r.status_code == 400
 
 
-def test_commit_no_roots_404(client: TestClient) -> None:
-    r = client.get("/api/commit", params={"sha": "abc1234"})
+def test_commit_from_a_source_that_is_not_on_disk_404s(
+    client: TestClient, tmp_path: Path
+) -> None:
+    r = client.get(
+        "/api/commit",
+        params={"src": str(tmp_path / "never-scanned"), "sha": "abc1234"},
+    )
+    assert r.status_code == 404
+
+
+def test_commit_sha_not_in_this_repo_404s(client: TestClient, repo: Path) -> None:
+    r = client.get("/api/commit", params={"src": str(repo), "sha": "abc1234"})
     assert r.status_code == 404
 
 
 def test_commit_lookup_ok(client: TestClient, repo: Path) -> None:
-    TRUST.register(repo)
     sha = _git("rev-parse", "HEAD", cwd=repo)
-    r = client.get("/api/commit", params={"sha": sha})
+    r = client.get("/api/commit", params={"src": str(repo), "sha": sha})
     assert r.status_code == 200
     body = r.json()
     assert body["sha"] == sha

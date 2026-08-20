@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.core.config import MAX_WIRE_COMMITS
+from api.git import SourceRef
 from api.utils.labels import label_from_source
 from api.models.manifest import (
     CommitEntry,
@@ -40,19 +41,19 @@ def sample_commits(commits: list[CommitEntry]) -> list[CommitEntry]:
 
 
 def _find_root_readme(tree: DirNode) -> tuple[str | None, str | None]:
-    """(fullPath, modified) of the root README, matching any direct child
+    """(path, modified) of the root README, matching any direct child
     whose stem is "readme" — the rule GitHub and VSCode use."""
     for child in tree.children:
         if not isinstance(child, FileNode):
             continue
         name = child.name.lower()
         if name == "readme" or name.startswith("readme."):
-            return child.fullPath, child.modified
+            return child.path, child.modified
     return None, None
 
 
 def wrap_manifest(
-    root_abs: str,
+    source: SourceRef,
     tree: DirNode,
     sig: Any,
     signals: TreeSignals,
@@ -71,7 +72,8 @@ def wrap_manifest(
     tree.name = label_from_source(repo_info.remote_url) or tree.name
     readme_path, readme_modified = _find_root_readme(tree)
     return Manifest(
-        root=root_abs,
+        src=source.src,
+        branch=source.branch,
         scanned_at=utc_now_iso(),
         content_signature=sig.hexdigest(),
         structure_signature=signals.structure_signature,

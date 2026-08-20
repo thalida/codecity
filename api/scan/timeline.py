@@ -9,6 +9,7 @@ from typing import Callable, NamedTuple
 
 from api.cache import BlobEntry
 from api.git import (
+    SourceRef,
     blob_sizes_batch,
     collect_git_history,
     empty_repo_info,
@@ -186,6 +187,7 @@ def _collect_blob_tables(
 
 def build_union_manifest(
     root: Path,
+    source: SourceRef,
     deltas: list[CommitDelta],
     blob_lines: dict[str, int | None],
     blob_sizes: dict[str, int | None],
@@ -237,7 +239,6 @@ def build_union_manifest(
             sig,
             name=name,
             rel_path=rel_path,
-            root_abs=root_abs,
             # None when no version of this path could be measured at all.
             size=max_size.get(rel_path),
             lines=max_lines.get(rel_path),
@@ -258,7 +259,7 @@ def build_union_manifest(
     # Uncapped: the scrubber indexes the bundle's commits and the city the
     # union manifest's, so sampling one would slide every tree off its commit.
     return wrap_manifest(
-        root_abs, tree, sig, signals, repo_info, commits, [], sample=False
+        source, tree, sig, signals, repo_info, commits, [], sample=False
     )
 
 
@@ -366,6 +367,7 @@ def compute_commit_date_ranges(
 
 def build_timeline_bundle(
     root: str,
+    source: SourceRef,
     *,
     use_cache: bool = True,
     extra_exclude_paths: frozenset[str] = frozenset(),
@@ -437,6 +439,7 @@ def build_timeline_bundle(
     assemble_tick(on_progress, 1)  # the union manifest
     union_manifest = build_union_manifest(
         root_path,
+        source,
         deltas,
         blob_lines,
         blob_sizes,

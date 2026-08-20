@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import subprocess
 import unittest
+from unittest import mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api.git import source
+from api.git import clone, source
 from api.utils.labels import label_from_source
 
 
@@ -137,3 +138,96 @@ class WorkingTreeCheckTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResolveRootTests(unittest.TestCase):
+    """Where a source lives on disk, worked out fresh on every read — the whole
+    reason a file read outlives the process that scanned it."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / "repo"
+        (self.root / "sub").mkdir(parents=True)
+        (self.root / "sub" / "f.txt").write_text("hi")
+
+    def test_local_source_resolves_to_its_directory(self) -> None:
+        got = source.resolve_root(source.SourceRef(str(self.root)))
+        self.assertEqual(got, self.root.resolve())
+
+    def test_local_source_refused_when_local_repos_are_off(self) -> None:
+        with mock.patch.object(source, "local_repos_allowed", return_value=False):
+            with self.assertRaises(source.ResolveError) as caught:
+                source.resolve_root(source.SourceRef(str(self.root)))
+        self.assertEqual(caught.exception.status, 403)
+
+    def test_remote_source_resolves_to_its_clone_dir(self) -> None:
+        url = "https://github.com/owner/repo"
+        with mock.patch.object(clone, "CLONES_ROOT", Path(self.tmp.name) / "clones"):
+            on_disk = source.clone_dir_for(url, "main")
+            on_disk.mkdir(parents=True)
+            got = source.resolve_root(source.SourceRef(url, "main"))
+            self.assertEqual(got, on_disk.resolve())
+            # Keyed on the branch AS PASSED, so the manifest has to echo the one
+            # it was built for rather than the branch it resolved to.
+            with self.assertRaises(source.ResolveError):
+                source.resolve_root(source.SourceRef(url, None))
+
+    def test_source_that_was_never_cloned_is_404(self) -> None:
+        with self.assertRaises(source.ResolveError) as caught:
+            source.resolve_root(source.SourceRef("https://github.com/owner/nope"))
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_unrecognized_source_is_400(self) -> None:
+        with self.assertRaises(source.ResolveError) as caught:
+            source.resolve_root(source.SourceRef("not-a-source"))
+        self.assertEqual(caught.exception.status, 400)
+
+
+class WithinTests(unittest.TestCase):
+    """Containment: the only thing standing between a relative path and the
+    rest of the filesystem."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = (Path(self.tmp.name) / "repo").resolve()
+        (self.root / "sub").mkdir(parents=True)
+        (self.root / "sub" / "f.txt").write_text("hi")
+        self.outside = Path(self.tmp.name).resolve() / "secret.txt"
+        self.outside.write_text("nope")
+
+    def test_path_inside_the_root(self) -> None:
+        self.assertEqual(
+            source.within(self.root, "sub/f.txt"), self.root / "sub" / "f.txt"
+        )
+
+    def test_the_root_itself(self) -> None:
+        self.assertEqual(source.within(self.root, "."), self.root)
+
+    def test_dot_dot_escape_refused(self) -> None:
+        for escape in ["../secret.txt", "sub/../../secret.txt", str(self.outside)]:
+            with self.assertRaises(source.ResolveError) as caught:
+                source.within(self.root, escape)
+            self.assertEqual(caught.exception.status, 403, escape)
+
+    def test_symlink_out_of_the_root_refused(self) -> None:
+        (self.root / "escape.txt").symlink_to(self.outside)
+        with self.assertRaises(source.ResolveError) as caught:
+            source.within(self.root, "escape.txt")
+        self.assertEqual(caught.exception.status, 403)
+
+    def test_missing_path_is_404_when_it_has_to_exist(self) -> None:
+        with self.assertRaises(source.ResolveError) as caught:
+            source.within(self.root, "sub/gone.txt")
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_missing_path_resolves_when_it_need_not_exist(self) -> None:
+        """A Timeline blob names a path as it stood at some past commit, so it
+        is allowed to be absent — but not to be outside."""
+        self.assertEqual(
+            source.within(self.root, "sub/gone.txt", must_exist=False),
+            self.root / "sub" / "gone.txt",
+        )
+        with self.assertRaises(source.ResolveError):
+            source.within(self.root, "../gone.txt", must_exist=False)

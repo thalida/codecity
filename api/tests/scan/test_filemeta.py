@@ -164,7 +164,7 @@ class FileStatCacheTests(CacheRedirectMixin, unittest.TestCase):
             for n in walk_files(_final_manifest(str(FIXTURE)).tree)
             if n.name == "index.ts"
         )
-        target_path = Path(target.fullPath)
+        target_path = FIXTURE.resolve() / target.path
         original_text = target_path.read_text()
         target_path.write_text(original_text + "\n// changed\n")
 

@@ -69,7 +69,7 @@ def test_signature_ok(client: TestClient, repo: Path, allow_local_repos) -> None
     r = client.get("/api/manifest/signature", params={"src": str(repo)})
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"root", "scanned_at", "content_signature"}
+    assert set(body) == {"scanned_at", "content_signature"}
 
 
 def test_signature_endpoint_honors_exclude(

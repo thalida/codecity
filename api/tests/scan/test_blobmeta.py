@@ -64,7 +64,6 @@ def test_node_carries_the_whole_optional_trio() -> None:
         new_signature(),
         name="shot.png",
         rel_path="img/shot.png",
-        root_abs="/repo",
         size=4096,
         lines=0,
         stats={
@@ -81,7 +80,6 @@ def test_node_carries_the_whole_optional_trio() -> None:
     assert node.binary is True
     assert node.binaryType == "PNG image"
     assert (node.media_width, node.media_height) == (800, 600)
-    assert node.fullPath == "/repo/img/shot.png"
     assert node.extension == ".png"
     # A commit has neither, whichever git path built this.
     assert node.dirty is False
@@ -94,7 +92,6 @@ def test_node_survives_a_blob_with_no_stats() -> None:
         new_signature(),
         name="a.txt",
         rel_path="a.txt",
-        root_abs="/repo",
         size=12,
         lines=0,
         stats=MISSING_BLOB,
@@ -115,7 +112,6 @@ def test_size_and_lines_are_the_callers_to_choose() -> None:
         new_signature(),
         name="a.txt",
         rel_path="a.txt",
-        root_abs="/repo",
         size=500,
         lines=42,
         stats=stats,

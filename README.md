@@ -266,7 +266,7 @@ just worktree-teardown fix/my-branch   # once its PR is merged
 
 ### Backend
 
-- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (the in-memory scan-root trust set in `api/core/security.py` can't be split across workers)
+- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (clone-or-update is serialized on an in-process lock, so a second worker would fetch the same working tree underneath the first)
 - scan progress streams over Server-Sent Events (`GET /api/manifest`)
 - API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
 

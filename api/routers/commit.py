@@ -1,4 +1,4 @@
-"""GET /api/commit?sha=<sha> — commit detail from any registered scan root."""
+"""GET /api/commit?src=…&sha=<sha> — commit detail from that source's repo."""
 
 from __future__ import annotations
 
@@ -7,8 +7,7 @@ import re
 from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
-from api.core.security import TRUST
-from api.git import build_authors_list, run_git
+from api.git import ResolveError, SourceRef, build_authors_list, resolve_root, run_git
 
 router = APIRouter(prefix="/api", tags=["commit"])
 
@@ -20,27 +19,30 @@ _FMT = (
 
 
 @router.get("/commit", response_model=CommitDetailResponse)
-def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
+def get_commit(
+    src: str = Query(..., description="The manifest's `src`: whose history to read"),
+    branch: str | None = Query(
+        None, description="The manifest's `branch`, as it was passed to /api/manifest"
+    ),
+    sha: str = Query(...),
+) -> CommitDetailResponse:
     if not _SHA_RE.match(sha.strip()):
         raise HTTPException(400, "invalid or missing sha")
-    roots = TRUST.snapshot()
-    if not roots:
-        raise HTTPException(
-            404, "no scan root registered yet: fetch /api/manifest first"
-        )
-    for root in roots:
-        # Empty stdout covers every failure run_git swallows, and the short
-        # split below rejects it the same way it rejects a partial line.
-        out = run_git(root, "show", "-s", f"--format={_FMT}", sha.strip())
-        parts = out.rstrip("\n").split("\x00", 5)
-        if len(parts) < 6:
-            continue
-        full_sha, author, iso_date, subject, trailers_raw, body = parts
-        return CommitDetailResponse(
-            sha=full_sha,
-            authors=build_authors_list(author, trailers_raw),
-            date=iso_date[:10],
-            subject=subject,
-            body=body,
-        )
-    raise HTTPException(404, "sha not found in any registered scan root")
+    try:
+        root = resolve_root(SourceRef(src, branch))
+    except ResolveError as e:
+        raise HTTPException(e.status, e.message)
+    # Empty stdout covers every failure run_git swallows, and the short split
+    # below rejects it the same way it rejects a partial line.
+    out = run_git(root, "show", "-s", f"--format={_FMT}", sha.strip())
+    parts = out.rstrip("\n").split("\x00", 5)
+    if len(parts) < 6:
+        raise HTTPException(404, "sha not found in this repo")
+    full_sha, author, iso_date, subject, trailers_raw, body = parts
+    return CommitDetailResponse(
+        sha=full_sha,
+        authors=build_authors_list(author, trailers_raw),
+        date=iso_date[:10],
+        subject=subject,
+        body=body,
+    )

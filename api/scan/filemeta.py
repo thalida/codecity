@@ -146,11 +146,11 @@ def _cache_entry(node: FileNode, mtime: float) -> FileEntry:
     return entry
 
 
-def _node_mtime(node: FileNode) -> float:
+def _node_mtime(node: FileNode, abs_root: Path) -> float:
     """The node's `modified` is a lossy ISO string; the cache keys on the raw
     float, so re-stat for it."""
     try:
-        return Path(node.fullPath).stat().st_mtime
+        return (abs_root / node.path).stat().st_mtime
     except OSError:
         return 0.0
 
@@ -176,7 +176,7 @@ def populate_file_metadata(
     cache_entries: dict[str, FileEntry] = (
         cache_load_files(abs_root) if use_cache else {}
     )
-    mtimes = [_node_mtime(node) for node in nodes]
+    mtimes = [_node_mtime(node, abs_root) for node in nodes]
 
     misses: list[int] = []
     for i, node in enumerate(nodes):
@@ -195,7 +195,7 @@ def populate_file_metadata(
         f"({len(nodes) - len(misses)} cache hits, {len(misses)} to read)"
     )
     if misses:
-        _read_misses(nodes, misses, cancel_event)
+        _read_misses(nodes, abs_root, misses, cancel_event)
 
     # Always write: use_cache gates only the READ. The union-merge preserves
     # entries for files this scan didn't visit, e.g. when .codecityignore flips.
@@ -209,6 +209,7 @@ def populate_file_metadata(
 
 def _read_misses(
     nodes: list[FileNode],
+    abs_root: Path,
     misses: list[int],
     cancel_event: threading.Event | None,
 ) -> None:
@@ -218,7 +219,7 @@ def _read_misses(
     done = 0
     with ThreadPoolExecutor(max_workers=_POOL_SIZE) as pool:
         future_to_idx = {
-            pool.submit(FileMeta.read, Path(nodes[i].fullPath)): i for i in misses
+            pool.submit(FileMeta.read, abs_root / nodes[i].path): i for i in misses
         }
         try:
             for fut in as_completed(future_to_idx):

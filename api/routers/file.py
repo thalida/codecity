@@ -1,4 +1,9 @@
-"""GET /api/file — serve a file's bytes, restricted to scanned roots.
+"""GET /api/file — serve a file's bytes from inside one source's repo.
+
+A read names its file the way the manifest does: the `src` (+ `branch`) the
+manifest was built for, and a path relative to that repo's root. The server
+resolves the root, so no absolute path is ever on the wire and a read outlives
+the process that scanned it.
 
 Optional `sha` selects a version: absent reads the working tree, present reads
 that git blob, so a scrubbed Timeline commit shows its own content.
@@ -29,9 +34,17 @@ from api.models.responses import (
     ContentPendingResponse,
     FileTooLargeResponse,
 )
-from api.core.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
-from api.git import BlobUnavailable, is_lfs_pointer, read_blob, read_lfs_pointer
+from api.git import (
+    BlobUnavailable,
+    ResolveError,
+    SourceRef,
+    is_lfs_pointer,
+    read_blob,
+    read_lfs_pointer,
+    resolve_root,
+    within,
+)
 from api.utils.media import is_media
 from api.utils.shas import is_object_sha
 
@@ -47,19 +60,16 @@ def _cache_control(versioned: bool) -> str:
     return _CACHE_IMMUTABLE if versioned else _CACHE_REVALIDATE
 
 
-def _resolve_target(path: str, *, must_exist: bool = True) -> Path:
-    """The trust-checked path, or the refusal that keeps this endpoint from
-    reading outside a scanned root."""
+def _resolve(
+    src: str, branch: str | None, path: str, *, must_exist: bool = True
+) -> tuple[Path, Path]:
+    """(repo root, file) for a source-relative read, or the refusal that keeps
+    this endpoint inside that one repo."""
     try:
-        return TRUST.assert_inside(Path(path), must_exist=must_exist)
-    except NoRootsRegisteredError:
-        raise HTTPException(
-            403, "no scan root registered yet: fetch /api/manifest first"
-        )
-    except OutsideRootError:
-        raise HTTPException(403, "outside scan root")
-    except (OSError, RuntimeError):
-        raise HTTPException(404, "not found")
+        root = resolve_root(SourceRef(src, branch))
+        return root, within(root, path, must_exist=must_exist)
+    except ResolveError as e:
+        raise HTTPException(e.status, e.message)
 
 
 def _pending(message: str) -> JSONResponse:
@@ -75,8 +85,8 @@ def _pending(message: str) -> JSONResponse:
     )
 
 
-def _read_versioned(target: Path, sha: str | None) -> bytes | BlobUnavailable:
-    """Bytes for a trust-resolved path: that git blob when `sha` is given, else
+def _read_versioned(root: Path, target: Path, sha: str | None) -> bytes | BlobUnavailable:
+    """Bytes for a resolved path: that git blob when `sha` is given, else
     the working tree. A BlobUnavailable instead says why there are none, and
     which kind of nothing it is (see BlobUnavailable). Callers decide how loud
     each one is.
@@ -89,13 +99,10 @@ def _read_versioned(target: Path, sha: str | None) -> bytes | BlobUnavailable:
             return body
         # The stub means the checkout was never smudged, not that the object
         # is absent: `lfs fetch` downloads without touching the working tree.
-        root = TRUST.root_for(target)
-        resolved = read_lfs_pointer(root, body) if root else None
-        return resolved or BlobUnavailable.PENDING
+        return read_lfs_pointer(root, body) or BlobUnavailable.PENDING
     if not is_object_sha(sha):
         return BlobUnavailable.MISSING
-    root = TRUST.root_for(target)
-    return read_blob(root, sha) if root else BlobUnavailable.MISSING
+    return read_blob(root, sha)
 
 
 # The two pending reads wait on different fetches, and which one it is tells the
@@ -120,7 +127,11 @@ _PENDING_BLOB = (
     },
 )
 def get_file(
-    path: str = Query(..., description="Absolute path inside a scanned root"),
+    src: str = Query(..., description="The manifest's `src`: which repo to read from"),
+    branch: str | None = Query(
+        None, description="The manifest's `branch`, as it was passed to /api/manifest"
+    ),
+    path: str = Query(..., description="Path relative to that repo's root"),
     sha: str | None = Query(
         None, description="Blob sha to read instead of the working tree"
     ),
@@ -132,9 +143,9 @@ def get_file(
         raise HTTPException(400, "sha must be 40 hex characters")
     # With a sha the path need not exist (it names a past commit's file); `..`
     # is still normalized, so containment holds either way.
-    target = _resolve_target(path, must_exist=sha is None)
+    root, target = _resolve(src, branch, path, must_exist=sha is None)
 
-    body = _read_versioned(target, sha)
+    body = _read_versioned(root, target, sha)
     if body is BlobUnavailable.PENDING:
         return _pending(_PENDING_BLOB if sha else _PENDING_WORKING_TREE)
     if body is BlobUnavailable.MISSING:
@@ -179,15 +190,19 @@ def get_file(
     },
 )
 def get_fingerprint(
-    path: str = Query(..., description="Absolute path inside a scanned root"),
+    src: str = Query(..., description="The manifest's `src`: which repo to read from"),
+    branch: str | None = Query(
+        None, description="The manifest's `branch`, as it was passed to /api/manifest"
+    ),
+    path: str = Query(..., description="Path relative to that repo's root"),
     mtime: str | None = Query(
         None, description="Version marker; never read, only cached against"
     ),
 ) -> Response:
-    """A binary file's byte-pattern fingerprint as a PNG. Trust-checked exactly
+    """A binary file's byte-pattern fingerprint as a PNG. Resolved exactly
     like GET /api/file. Raw binary bytes never leave the server: only the head is
     read, and only the image computed from it is returned."""
-    target = _resolve_target(path)
+    _root, target = _resolve(src, branch, path)
     if not target.is_file():
         raise HTTPException(404, "not a file")
 

@@ -53,9 +53,12 @@ from .objects import (
 from .source import (
     ResolveError,
     SourceKind,
+    SourceRef,
     classify,
     resolve_local,
+    resolve_root,
     resolve_source,
+    within,
 )
 
 __all__ = [
@@ -70,6 +73,7 @@ __all__ = [
     "RepoNotFoundError",
     "ResolveError",
     "SourceKind",
+    "SourceRef",
     "TreeBlob",
     "blob_sizes_batch",
     "blob_stats_batch",
@@ -92,6 +96,8 @@ __all__ = [
     "reconstructed_repo_info",
     "resolve_local",
     "resolve_ref",
+    "resolve_root",
     "resolve_source",
     "run_git",
+    "within",
 ]

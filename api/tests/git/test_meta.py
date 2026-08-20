@@ -14,6 +14,7 @@ import pytest
 
 from api.scan.filemeta import epoch_to_iso
 from api.scan.scanner import scan_tree
+from api.git import SourceRef
 from api.tests.conftest import (
     CacheRedirectMixin,
     FIXTURE,
@@ -157,7 +158,7 @@ class GitHistoryParallelTests(CacheRedirectMixin, unittest.TestCase):
         kept as its local-part to avoid leaking the @domain."""
         # The multi-author commit is now the newest; the scanner emits
         # oldest-first so it's last.
-        events = list(scan_tree(str(FIXTURE)))
+        events = list(scan_tree(str(FIXTURE), SourceRef(str(FIXTURE))))
         final = next(e for e in events if e.phase == "manifest-complete")
         commits = final.manifest.commits
         multi = commits[-1]

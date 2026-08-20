@@ -85,7 +85,6 @@ def blob_file_node(
     *,
     name: str,
     rel_path: str,
-    root_abs: str,
     size: int | None,
     lines: int | None,
     stats: BlobEntry,
@@ -103,7 +102,6 @@ def blob_file_node(
     return build_file_node(
         name=name,
         rel_path=rel_path,
-        full_path=f"{root_abs}/{rel_path}",
         ext=extension(name),
         size=size,
         lines=lines,
