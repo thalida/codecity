@@ -405,7 +405,14 @@ export function attachRouteLoad(): () => void {
     }
     claimed = want;
     // Out of the tracking scope: the load writes signals this effect reads.
-    queueMicrotask(() => void bootLoad(boot));
+    queueMicrotask(() => {
+      void bootLoad(boot).finally(() => {
+        // Only a COMMITTED load keeps the claim: held past a canceled one, it
+        // leaves the address bar naming a repo the city will never load.
+        const committed = CURRENT_SOURCE.peek();
+        if (!committed || !sameSourceIdentity(committed, want)) claimed = null;
+      });
+    });
   });
 }
 

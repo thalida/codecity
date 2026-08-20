@@ -1,7 +1,7 @@
 // Native-harness tests for RecentsList — mirrors app/tests/layout/leftSidebar.test.tsx's
 // render/flush/container pattern (this repo has no @testing-library/preact dependency).
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
@@ -40,7 +40,7 @@ describe('RecentsList', () => {
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
-    render(<RecentsList onOpen={() => {}} />, container);
+    render(<RecentsList />, container);
     await flush();
 
     const activeRow = container.querySelector('.source-row--active');
@@ -55,21 +55,25 @@ describe('RecentsList', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
     ];
-    render(<RecentsList onOpen={() => {}} />, container);
+    render(<RecentsList />, container);
     await flush();
     const note = container.querySelector('.source-row--active .source-row-note');
     expect(note?.textContent).toBe('Active');
   });
 
-  it('the active row is clickable and re-opens (reloads) the current project', async () => {
-    const onOpen = vi.fn();
-    render(<RecentsList onOpen={onOpen} />, container);
+  it('every row is a link to the project it names', async () => {
+    // A real href, so the destination shows on hover, cmd-click opens a tab,
+    // and a row can never open a repo other than the one it is labelled with.
+    render(<RecentsList />, container);
     await flush();
 
-    const activeRow = container.querySelector<HTMLButtonElement>('.source-row--active')!;
-    expect(activeRow.disabled).toBe(false);
-    activeRow.click();
-    expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
+    const active = container.querySelector<HTMLAnchorElement>('.source-row--active')!;
+    expect(active.getAttribute('href')).toBe('/city?src=https://github.com/o/alpha&branch=main');
+    const rows = container.querySelectorAll<HTMLAnchorElement>('a.source-row');
+    for (const row of rows) {
+      const named = row.querySelector('.source-row-src')!.textContent!;
+      expect(row.getAttribute('href')).toContain(`src=${named}`);
+    }
   });
 
   it('renders a branch-less local recent with no @branch pill, matched active by path', async () => {
@@ -79,7 +83,7 @@ describe('RecentsList', () => {
     RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
     CURRENT_SOURCE.value = { src: '/Users/me/proj' };
     setManifest({ tree: { name: 'proj' }, repo: { branch: 'feat/x' } } as unknown as Manifest);
-    render(<RecentsList onOpen={() => {}} />, container);
+    render(<RecentsList />, container);
     await flush();
 
     const rows = container.querySelectorAll('.source-list-item');
@@ -89,7 +93,7 @@ describe('RecentsList', () => {
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
-    render(<RecentsList onOpen={() => {}} />, container);
+    render(<RecentsList />, container);
     await flush();
 
     const removeButtons = container.querySelectorAll<HTMLButtonElement>(

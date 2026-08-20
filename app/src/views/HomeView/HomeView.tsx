@@ -143,11 +143,7 @@ export function HomeView() {
               aria-labelledby={`${SOURCE_PANEL_ID}-tab-${activeTab}`}
               class="landing-tabpanel"
             >
-              {activeTab === SOURCE_TAB.recents ? (
-                <RecentsList onOpen={open} />
-              ) : (
-                <DiscoverList onOpen={open} />
-              )}
+              {activeTab === SOURCE_TAB.recents ? <RecentsList /> : <DiscoverList />}
             </div>
           </section>
         </div>

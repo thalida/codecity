@@ -51,6 +51,15 @@ function queryString(params: URLSearchParams): string {
   return params.toString().replace(/%3A/g, ':').replace(/%2F/g, '/');
 }
 
+/** The URL that opens a project. One builder, so a link's href and whatever a
+ *  handler would have navigated to cannot describe different repos. */
+export function cityHref(src: string, branch?: string): string {
+  const params = new URLSearchParams();
+  params.set(URL_PARAMS.SRC, src);
+  if (branch) params.set(URL_PARAMS.BRANCH, branch);
+  return hrefFor(ROUTES.CITY, params);
+}
+
 /** Rewrite the query in place, leaving the path alone. The mutator gets the
  *  live params to set/delete on. */
 export function setRouteParams(

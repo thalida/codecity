@@ -7,14 +7,10 @@ import { useState } from 'preact/hooks';
 import { RECENTS, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
-import type { SourcePayload } from '@/types/ui';
 import { RecentRow } from './RecentRow';
+import { cityHref } from '@/router/location';
 
-export interface RecentsListProps {
-  onOpen: (payload: SourcePayload) => void;
-}
-
-export function RecentsList({ onOpen }: RecentsListProps) {
+export function RecentsList() {
   const recents = RECENTS.value;
   const active = ACTIVE_SOURCE.value;
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
@@ -40,7 +36,7 @@ export function RecentsList({ onOpen }: RecentsListProps) {
           active={isActive(r)}
           unavailable={isUnavailable(r)}
           confirmingRemove={confirming === keyOf(r)}
-          onOpen={() => onOpen({ src: r.src, branch: r.branch })}
+          href={cityHref(r.src, r.branch)}
           onAskRemove={() => setConfirming(keyOf(r))}
           onCancelRemove={() => setConfirming(null)}
           onConfirmRemove={() => {

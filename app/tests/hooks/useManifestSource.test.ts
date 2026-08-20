@@ -402,7 +402,13 @@ describe('the URL drives what is loaded', () => {
   /** Finish the in-flight load, which is what commits the source. */
   const complete = async (name: string): Promise<void> => {
     const es = StubEventSource.instances[StubEventSource.instances.length - 1]!;
-    es.emit('manifest-complete', JSON.stringify({ manifest: { tree: { name } } }));
+    // repo included: commitSource reads repo.branch, and without it the load
+    // throws — which used to look like success here because a failed load kept
+    // its claim on the URL.
+    es.emit(
+      'manifest-complete',
+      JSON.stringify({ manifest: { tree: { name }, repo: { branch: null } } })
+    );
     await flush();
   };
 
@@ -462,6 +468,30 @@ describe('the URL drives what is loaded', () => {
     await flush();
 
     expect(StubEventSource.instances).toHaveLength(1);
+  });
+
+  it('a canceled load leaves its URL loadable', async () => {
+    // The claim exists so a re-run does not restart an in-flight load. Held
+    // past a load that never committed, it makes that URL dead for the rest of
+    // the session: the address bar says one repo and the city stays another.
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    await complete('a');
+
+    navigate('/city?src=%2Frepos%2Fb');
+    await flush();
+    expect(StubEventSource.instances).toHaveLength(2);
+    cancelLoad();
+    await flush();
+    expect(CURRENT_SOURCE.value?.src, 'cancel did not commit b').toBe('/repos/a');
+
+    // Asking for b again has to actually ask again.
+    navigate(ROUTES.HOME, { replace: true });
+    await flush();
+    navigate('/city?src=%2Frepos%2Fb');
+    await flush();
+    expect(StubEventSource.instances).toHaveLength(3);
   });
 
   it('stops following the URL once detached', async () => {

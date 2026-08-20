@@ -1,9 +1,13 @@
-// components/sources/SourceRow/SourceRow.tsx — one openable source: kind glyph, label,
-// branch pill, raw src. Shared by Recents and Discover, since a Discover row is
-// a recent you haven't opened yet. Presentational and click-only: everything
-// around a row (a remove control, an active badge) belongs to its lister.
+// components/sources/SourceRow/SourceRow.tsx — one openable source: kind glyph,
+// label, branch pill, raw src. Shared by Recents and Discover, since a Discover
+// row is a recent you haven't opened yet. Everything around a row (a remove
+// control, an active badge) belongs to its lister.
+//
+// A real <a href>: the destination shows on hover, cmd-click opens a tab, and
+// the row cannot open a repo other than the one it names.
 
 import './SourceRow.css';
+import { navigate } from '@/router/location';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 import { HostingIcon } from '@/components/sources/HostingIcon/HostingIcon';
 
@@ -19,7 +23,8 @@ export interface SourceRowProps {
   unavailable?: boolean;
   /** Why it's unavailable, as a hover title. */
   unavailableReason?: string;
-  onOpen: () => void;
+  /** Where this row goes. Built by the lister from the row's own src+branch. */
+  href: string;
 }
 
 export function SourceRow({
@@ -29,17 +34,23 @@ export function SourceRow({
   active,
   unavailable,
   unavailableReason,
-  onOpen,
+  href,
 }: SourceRowProps) {
   return (
-    <button
-      type="button"
+    <a
+      href={unavailable ? undefined : href}
       class={`row source-row${active ? ' source-row--active' : ''}${
         unavailable ? ' source-row--unavailable' : ''
       }`}
       title={unavailable ? unavailableReason : undefined}
       aria-disabled={unavailable ? 'true' : undefined}
-      onClick={unavailable ? undefined : onOpen}
+      onClick={(e: MouseEvent) => {
+        if (unavailable) return;
+        // Modified clicks belong to the browser: a new tab is a new tab.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        navigate(href);
+      }}
     >
       <span class="source-row-icon">
         <HostingIcon src={src} />
@@ -60,6 +71,6 @@ export function SourceRow({
         </div>
       </div>
       {active && <span class="source-row-note">Active</span>}
-    </button>
+    </a>
   );
 }
