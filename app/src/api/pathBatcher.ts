@@ -3,6 +3,13 @@
 
 import { serverConfigNow } from '@/api/config';
 
+/** What a batch answers when a path has no bytes YET, as opposed to null,
+ *  which means omitted: try the single-file route. Nothing to retry here, so
+ *  the caller keeps its placeholder. A value in the callers' `T`, not a shape
+ *  this module knows: batching is the same regardless of what an entry means. */
+export const PENDING = Symbol('content pending');
+export type Pending = typeof PENDING;
+
 /** One request's resolver. `null` means the server omitted that path. */
 type Waiter<T> = (value: T | null) => void;
 

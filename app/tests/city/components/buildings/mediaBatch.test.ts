@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchMediaBlob } from '@/city/components/buildings/mediaBatch';
+import { PENDING } from '@/api/pathBatcher';
 
 interface FetchCall {
   url: string;
@@ -41,9 +42,9 @@ describe('fetchMediaBlob', () => {
     expect(fn).toHaveBeenCalledTimes(1);
     expect(calls[0].url).toBe('/api/images');
     expect(calls[0].paths).toEqual(['/x/a.png', '/x/b.png']);
-    expect(ba).toBeInstanceOf(Blob);
-    expect(ba!.type).toBe('image/png');
-    expect(ba!.size).toBe('/x/a.png'.length); // atob(btoa(path)) round-trips
+    if (!(ba instanceof Blob)) throw new Error(`expected a Blob, got ${String(ba)}`);
+    expect(ba.type).toBe('image/png');
+    expect(ba.size).toBe('/x/a.png'.length); // atob(btoa(path)) round-trips
     expect(bb).toBeInstanceOf(Blob);
   });
 
@@ -62,6 +63,15 @@ describe('fetchMediaBlob', () => {
     const p = fetchMediaBlob('/x/missing.png');
     await vi.advanceTimersByTimeAsync(20);
     expect(await p).toBeNull();
+  });
+
+  it('resolves PENDING, not null, for a path still being downloaded', async () => {
+    // null would send the caller to the single-file GET, which for this path is
+    // one wasted request per building and a 202 at the end of it.
+    mockFetch((paths) => Object.fromEntries(paths.map((p) => [p, { status: 'pending' }])));
+    const p = fetchMediaBlob('/x/lfs.png');
+    await vi.advanceTimersByTimeAsync(20);
+    expect(await p).toBe(PENDING);
   });
 
   it('resolves null on network failure', async () => {

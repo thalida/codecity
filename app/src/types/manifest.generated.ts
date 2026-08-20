@@ -90,8 +90,10 @@ export interface paths {
          *
          *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
          *     root, missing, non-image, or larger than MAX_BATCH_IMAGE_BYTES are silently
-         *     omitted; the client falls back to the streaming GET for those. Videos are
-         *     never batched (they stream their poster frame), so this is images only.
+         *     omitted; the client falls back to the streaming GET for those. One that
+         *     isn't downloaded yet gets a PendingBatchEntry instead, because for it that
+         *     fallback is a wasted request. Videos are never batched (they stream their
+         *     poster frame), so this is images only.
          */
         post: operations["get_images_api_images_post"];
         delete?: never;
@@ -113,7 +115,8 @@ export interface paths {
          * Get Fingerprints
          * @description Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
          *     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
-         *     unreadable paths are silently omitted. Raw binary bytes never leave the
+         *     unreadable paths are silently omitted, and one whose bytes aren't downloaded
+         *     yet is named pending (see get_images). Raw binary bytes never leave the
          *     server — only the head is read, and only the fingerprint image returned.
          */
         post: operations["get_fingerprints_api_fingerprints_post"];
@@ -363,6 +366,23 @@ export interface components {
             version: string;
             /** Featuredrepo */
             featuredRepo: string;
+        };
+        /**
+         * ContentPendingResponse
+         * @description 202 body for GET /api/file: the content exists, this machine just doesn't
+         *     have it yet. Deliberately not a 404 — a repo mid-fetch would answer a whole
+         *     page of previews with them, and a burst of 404s from one client is what
+         *     edge proxies read as scanning and start blocking.
+         */
+        ContentPendingResponse: {
+            /**
+             * Status
+             * @default pending
+             * @constant
+             */
+            status: "pending";
+            /** Message */
+            message: string;
         };
         /** DateRangeMs */
         DateRangeMs: {
@@ -660,6 +680,21 @@ export interface components {
                 [key: string]: string;
             } | null;
         };
+        /**
+         * PendingBatchEntry
+         * @description A batched path whose bytes aren't downloaded yet. Named rather than
+         *     omitted so the caller can leave its placeholder as-is: an omission means
+         *     "fall back to the single-file GET", which for this path is a wasted request
+         *     per building, and a building painted as failed when nothing failed.
+         */
+        PendingBatchEntry: {
+            /**
+             * Status
+             * @default pending
+             * @constant
+             */
+            status: "pending";
+        };
         /** RangeStat */
         RangeStat: {
             /** Min */
@@ -945,6 +980,15 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Content not downloaded yet; retry later. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentPendingResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -976,7 +1020,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: components["schemas"]["ImageBatchEntry"];
+                        [key: string]: components["schemas"]["ImageBatchEntry"] | components["schemas"]["PendingBatchEntry"];
                     };
                 };
             };
@@ -1011,7 +1055,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: components["schemas"]["FingerprintEntry"];
+                        [key: string]: components["schemas"]["FingerprintEntry"] | components["schemas"]["PendingBatchEntry"];
                     };
                 };
             };

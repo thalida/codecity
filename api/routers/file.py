@@ -19,13 +19,15 @@ from pydantic import BaseModel
 
 from api.core.config import MAX_BATCH_IMAGE_BYTES, MAX_BATCH_PATHS, MAX_FILE_BYTES
 from api.models.responses import (
+    ContentPendingResponse,
     ImageBatchEntry,
     FileTooLargeResponse,
     FingerprintEntry,
+    PendingBatchEntry,
 )
 from api.core.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
-from api.git import read_blob
+from api.git import BlobUnavailable, is_lfs_pointer, read_blob, read_lfs_pointer
 from api.utils.media import is_media
 from api.utils.shas import is_object_sha
 
@@ -39,20 +41,50 @@ class PathBatchRequest(BaseModel):
     shas: dict[str, str] | None = None
 
 
-def _read_versioned(target: Path, sha: str | None) -> bytes | None:
+def _read_versioned(target: Path, sha: str | None) -> bytes | BlobUnavailable:
     """Bytes for a trust-resolved path: that git blob when `sha` is given, else
-    the working tree. None when it can't be read — a malformed or unknown sha,
-    a path outside every root, or nothing there. Callers decide how loud that is.
+    the working tree. A BlobUnavailable instead says why there are none, and
+    which kind of nothing it is (see BlobUnavailable). Callers decide how loud
+    each one is.
     """
     if sha is None:
-        return target.read_bytes() if target.is_file() else None
+        if not target.is_file():
+            return BlobUnavailable.MISSING
+        body = target.read_bytes()
+        if not is_lfs_pointer(body):
+            return body
+        # The stub means the checkout was never smudged, not that the object
+        # is absent: `lfs fetch` downloads without touching the working tree.
+        root = TRUST.root_for(target)
+        resolved = read_lfs_pointer(root, body) if root else None
+        return resolved or BlobUnavailable.PENDING
     if not is_object_sha(sha):
-        return None
+        return BlobUnavailable.MISSING
     root = TRUST.root_for(target)
-    return read_blob(root, sha) if root else None
+    return read_blob(root, sha) if root else BlobUnavailable.MISSING
 
 
-@router.get("/file")
+# The two pending reads wait on different fetches, and which one it is tells the
+# reader whether waiting is worth it, so the copy names it.
+_PENDING_WORKING_TREE = (
+    "This file is stored in Git LFS and has not been downloaded yet. "
+    "It will appear once the LFS fetch finishes."
+)
+_PENDING_BLOB = (
+    "This version's content has not been downloaded yet. "
+    "It will appear once the repo history finishes fetching."
+)
+
+
+@router.get(
+    "/file",
+    responses={
+        202: {
+            "model": ContentPendingResponse,
+            "description": "Content not downloaded yet; retry later.",
+        }
+    },
+)
 def get_file(
     path: str = Query(..., description="Absolute path inside a scanned root"),
     sha: str | None = Query(
@@ -75,7 +107,17 @@ def get_file(
         raise HTTPException(404, "not found")
 
     body = _read_versioned(target, sha)
-    if body is None:
+    if body is BlobUnavailable.PENDING:
+        return JSONResponse(
+            status_code=202,
+            content=ContentPendingResponse(
+                message=_PENDING_BLOB if sha else _PENDING_WORKING_TREE
+            ).model_dump(),
+            # The fetch it's waiting on lands without changing the URL, so a
+            # cached "pending" would outlive the state it describes.
+            headers={"Cache-Control": "no-store"},
+        )
+    if body is BlobUnavailable.MISSING:
         raise HTTPException(404, "no such blob" if sha else "not a file")
 
     size = len(body)
@@ -103,7 +145,7 @@ def get_file(
 
 
 @router.post("/images")
-def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
+def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry | PendingBatchEntry]:
     """Batch image fetch — {path: {mime, b64}} for many small images in one round
     trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
     and omits anything it can't serve. It exists so the scene's billboard loader
@@ -111,10 +153,12 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
 
     Each path is trust-checked exactly like GET /api/file. Paths that are out of
     root, missing, non-image, or larger than MAX_BATCH_IMAGE_BYTES are silently
-    omitted; the client falls back to the streaming GET for those. Videos are
-    never batched (they stream their poster frame), so this is images only.
+    omitted; the client falls back to the streaming GET for those. One that
+    isn't downloaded yet gets a PendingBatchEntry instead, because for it that
+    fallback is a wasted request. Videos are never batched (they stream their
+    poster frame), so this is images only.
     """
-    out: dict[str, ImageBatchEntry] = {}
+    out: dict[str, ImageBatchEntry | PendingBatchEntry] = {}
     for path in req.paths[:MAX_BATCH_PATHS]:
         sha = (req.shas or {}).get(path)
         try:
@@ -125,29 +169,40 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
         if not guessed or not guessed.startswith("image/"):
             continue
         body = _read_versioned(target, sha)
-        if body is None or len(body) > MAX_BATCH_IMAGE_BYTES:
+        if body is BlobUnavailable.PENDING:
+            out[path] = PendingBatchEntry()
+            continue
+        if not isinstance(body, bytes) or len(body) > MAX_BATCH_IMAGE_BYTES:
             continue
         out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
 
 
 @lru_cache(maxsize=512)
-def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
+def _fingerprint_b64(path: str, mtime: float, size: int) -> str | None:
     """Base64 byte-pattern fingerprint PNG, memoized on (path, mtime, size) so an
     edit re-fingerprints and the facade + preview requests collapse to one. Reads
-    only the head, so a multi-MB binary costs one small read."""
+    only the head, so a multi-MB binary costs one small read.
+
+    None for an undownloaded lfs pointer: its head is ASCII metadata, and a
+    fingerprint of that is a picture of the stub worn as the file's own."""
     with open(path, "rb") as fh:
         head = fh.read(FINGERPRINT_SAMPLE_BYTES)
+    if is_lfs_pointer(head):
+        return None
     return base64.b64encode(fingerprint_png(head)).decode()
 
 
 @router.post("/fingerprints")
-def get_fingerprints(req: PathBatchRequest) -> dict[str, FingerprintEntry]:
+def get_fingerprints(
+    req: PathBatchRequest,
+) -> dict[str, FingerprintEntry | PendingBatchEntry]:
     """Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
-    unreadable paths are silently omitted. Raw binary bytes never leave the
+    unreadable paths are silently omitted, and one whose bytes aren't downloaded
+    yet is named pending (see get_images). Raw binary bytes never leave the
     server — only the head is read, and only the fingerprint image returned."""
-    out: dict[str, FingerprintEntry] = {}
+    out: dict[str, FingerprintEntry | PendingBatchEntry] = {}
     for path in req.paths[:MAX_BATCH_PATHS]:
         try:
             target = TRUST.assert_inside(Path(path))
@@ -157,9 +212,8 @@ def get_fingerprints(req: PathBatchRequest) -> dict[str, FingerprintEntry]:
             continue
         try:
             st = target.stat()
-            out[path] = FingerprintEntry(
-                b64=_fingerprint_b64(str(target), st.st_mtime, st.st_size)
-            )
+            b64 = _fingerprint_b64(str(target), st.st_mtime, st.st_size)
         except OSError:
             continue
+        out[path] = PendingBatchEntry() if b64 is None else FingerprintEntry(b64=b64)
     return out

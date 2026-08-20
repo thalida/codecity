@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from api.core.constants import ErrorCode
@@ -18,6 +20,26 @@ class FileTooLargeResponse(BaseModel):
     error: str
     size: int
     limit: int
+
+
+class ContentPendingResponse(BaseModel):
+    """202 body for GET /api/file: the content exists, this machine just doesn't
+    have it yet. Deliberately not a 404 — a repo mid-fetch would answer a whole
+    page of previews with them, and a burst of 404s from one client is what
+    edge proxies read as scanning and start blocking."""
+
+    status: Literal["pending"] = "pending"
+    # Ready to show: the client renders it as-is under its own heading.
+    message: str
+
+
+class PendingBatchEntry(BaseModel):
+    """A batched path whose bytes aren't downloaded yet. Named rather than
+    omitted so the caller can leave its placeholder as-is: an omission means
+    "fall back to the single-file GET", which for this path is a wasted request
+    per building, and a building painted as failed when nothing failed."""
+
+    status: Literal["pending"] = "pending"
 
 
 class ImageBatchEntry(BaseModel):

@@ -8,12 +8,12 @@
 //
 // Coalescing lives in createPathBatcher, shared with the fingerprint batcher.
 
-import { createPathBatcher } from '@/api/pathBatcher';
+import { createPathBatcher, PENDING } from '@/api/pathBatcher';
+import type { Pending } from '@/api/pathBatcher';
+import type { components } from '@/types/manifest.generated';
 
-interface MediaEntry {
-  mime: string;
-  b64: string;
-}
+type MediaEntry =
+  components['schemas']['ImageBatchEntry'] | components['schemas']['PendingBatchEntry'];
 
 // path -> blob sha for the scrubbed commit; empty in Live.
 const shas = new Map<string, string>();
@@ -27,7 +27,8 @@ function shasFor(paths: string[]): Record<string, string> {
   return out;
 }
 
-function decodeBlob(entry: MediaEntry): Blob | null {
+function decodeBlob(entry: MediaEntry): Blob | Pending | null {
+  if ('status' in entry) return PENDING;
   try {
     const bin = atob(entry.b64);
     const bytes = new Uint8Array(bin.length);
@@ -38,7 +39,7 @@ function decodeBlob(entry: MediaEntry): Blob | null {
   }
 }
 
-const batcher = createPathBatcher<Blob, MediaEntry>({
+const batcher = createPathBatcher<Blob | Pending, MediaEntry>({
   endpoint: '/api/images',
   decode: decodeBlob,
   bodyFor: (paths) => ({ shas: shasFor(paths) }),
@@ -46,8 +47,9 @@ const batcher = createPathBatcher<Blob, MediaEntry>({
 });
 
 /** Request a media image's bytes via the batch endpoint. Resolves with a Blob
- *  (use URL.createObjectURL + revoke), or null when the server omitted it. */
-export function fetchMediaBlob(path: string, sha?: string | null): Promise<Blob | null> {
+ *  (use URL.createObjectURL + revoke), PENDING while the bytes are still being
+ *  downloaded, or null when the server omitted it. */
+export function fetchMediaBlob(path: string, sha?: string | null): Promise<Blob | Pending | null> {
   // Recorded before the request so the sha is present when the batch flushes.
   if (sha) shas.set(path, sha);
   return batcher.request(path);

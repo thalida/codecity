@@ -156,6 +156,19 @@ def test_missing_blob_is_skipped_not_fetched(tmp_path):
     assert present in sizes and absent not in sizes
 
 
+def _write_lfs_object(root: Path, oid: str, real: bytes) -> None:
+    obj = root / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+    obj.parent.mkdir(parents=True, exist_ok=True)
+    obj.write_bytes(real)
+
+
+def _lfs_pointer(oid: str, size: int) -> bytes:
+    return (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        b"oid sha256:" + oid.encode() + b"\nsize " + str(size).encode() + b"\n"
+    )
+
+
 def test_resolve_lfs_pointer(tmp_path):
     """A git-lfs pointer resolves to its LOCAL object's bytes + declared size, so
     timeline blob stats match Live's smudged working tree. Missing object (a
@@ -164,18 +177,84 @@ def test_resolve_lfs_pointer(tmp_path):
 
     oid = "a" * 64
     real = b"line1\nline2\nline3\n"
-    obj = tmp_path / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
-    obj.parent.mkdir(parents=True)
-    obj.write_bytes(real)
-    pointer = (
-        b"version https://git-lfs.github.com/spec/v1\n"
-        b"oid sha256:" + oid.encode() + b"\nsize 18\n"
-    )
+    _write_lfs_object(tmp_path, oid, real)
+    pointer = _lfs_pointer(oid, 18)
     assert _parse_lfs_pointer(pointer) == (oid, 18)
-    assert _resolve_lfs(tmp_path, pointer, 132) == (real, 18)  # present → real bytes
-    assert _resolve_lfs(tmp_path, b"plain\n", 6) == (b"plain\n", 6)  # non-pointer as-is
+    assert _resolve_lfs(tmp_path, pointer, 132, download=False) == (real, 18)
+    assert _resolve_lfs(tmp_path, b"plain\n", 6, download=False) == (b"plain\n", 6)
     missing = pointer.replace(oid.encode(), b"f" * 64)
-    assert _resolve_lfs(tmp_path, missing, 132) == (
+    assert _resolve_lfs(tmp_path, missing, 132, download=False) == (
         b"",
         18,
     )  # unfetched → declared size
+
+
+def test_resolve_lfs_downloads_only_when_asked(tmp_path):
+    """The download switch is the whole protection: a request-path read must not
+    reach the lfs endpoint, while the scan's bulk pass still may."""
+    from unittest import mock
+
+    from api.git import objects as objects_mod
+
+    missing = _lfs_pointer("f" * 64, 18)
+    with mock.patch.object(objects_mod, "_lfs_smudge") as smudge:
+        assert objects_mod._resolve_lfs(tmp_path, missing, 132, download=False) == (
+            b"",
+            18,
+        )
+        smudge.assert_not_called()
+
+    with mock.patch.object(
+        objects_mod, "_lfs_smudge", return_value=b"downloaded\n"
+    ) as smudge:
+        assert objects_mod._resolve_lfs(tmp_path, missing, 132, download=True) == (
+            b"downloaded\n",
+            18,
+        )
+        smudge.assert_called_once()
+
+
+def test_read_blob_never_downloads_an_lfs_object(tmp_path):
+    """read_blob backs a browser request, so an unpulled pointer is PENDING, not
+    a download and not a 0-byte body that reads as an empty file."""
+    from unittest import mock
+
+    from api.git import objects as objects_mod
+    from api.git.objects import BlobUnavailable, read_blob
+
+    _init(tmp_path)
+    oid = "b" * 64
+    (tmp_path / "big.bin").write_bytes(_lfs_pointer(oid, 12))
+    _commit(tmp_path, "c1")
+    sha = ls_tree_files(tmp_path, resolve_ref(tmp_path, "HEAD"))[0].sha
+
+    with mock.patch.object(objects_mod, "_lfs_smudge") as smudge:
+        assert read_blob(tmp_path, sha) is BlobUnavailable.PENDING
+        smudge.assert_not_called()
+
+    # Same blob, once the object is on disk: served without touching the remote.
+    _write_lfs_object(tmp_path, oid, b"real bytes\n\n")
+    with mock.patch.object(objects_mod, "_lfs_smudge") as smudge:
+        assert read_blob(tmp_path, sha) == b"real bytes\n\n"
+        smudge.assert_not_called()
+
+
+def test_read_blob_separates_undownloaded_from_unknown(tmp_path):
+    """A full clone knows an absent object doesn't exist. A partial clone can't
+    tell that apart from one it never fetched, so it says PENDING and the caller
+    can retry rather than being told a permanent no."""
+    from api.git.objects import BlobUnavailable, _is_partial_clone, read_blob
+
+    _init(tmp_path)
+    (tmp_path / "a.txt").write_text("one\n")
+    _commit(tmp_path, "c1")
+    absent = "0" * 40
+
+    assert read_blob(tmp_path, absent) is BlobUnavailable.MISSING
+
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "extensions.partialclone", "origin"],
+        check=True,
+    )
+    _is_partial_clone.cache_clear()
+    assert read_blob(tmp_path, absent) is BlobUnavailable.PENDING

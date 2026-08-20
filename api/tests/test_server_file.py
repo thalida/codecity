@@ -1,4 +1,4 @@
-"""TestClient coverage for /api/file (trust gate, 403, 413, traversal, MIME)."""
+"""TestClient coverage for /api/file (trust gate, 403, 413, 202, traversal, MIME)."""
 
 from __future__ import annotations
 
@@ -213,3 +213,145 @@ def test_blob_404s_for_a_sha_not_in_the_repo(
 
     r = client.get("/api/file", params={"path": gone_path, "sha": "0" * 40})
     assert r.status_code == 404
+
+
+# ── 202: the content isn't here YET ─────────────────────────────────────────
+
+# A repo mid-fetch turns one page of previews into a burst, and a burst of 404s
+# is what gets a client blocked. Nor may these download on the request thread.
+
+
+def _lfs_pointer(oid: str, size: int) -> bytes:
+    return (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        b"oid sha256:" + oid.encode() + b"\nsize " + str(size).encode() + b"\n"
+    )
+
+
+def _write_lfs_object(root: Path, oid: str, real: bytes) -> None:
+    obj = root / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+    obj.parent.mkdir(parents=True, exist_ok=True)
+    obj.write_bytes(real)
+
+
+def test_unpulled_lfs_file_is_202_not_the_pointer_text(
+    client: TestClient, project: Path
+) -> None:
+    """A failed `lfs pull` leaves a pointer stub on disk. Serving it 200 hands
+    the preview 130 bytes of metadata to render as the file."""
+    from unittest import mock
+
+    from api.git import objects as objects_mod
+
+    TRUST.reset()
+    TRUST.register(project)
+    (project / "src" / "art.png").write_bytes(_lfs_pointer("a" * 64, 4096))
+
+    with mock.patch.object(objects_mod, "_lfs_smudge") as smudge:
+        r = client.get("/api/file", params={"path": str(project / "src" / "art.png")})
+    smudge.assert_not_called()
+    assert r.status_code == 202
+    assert r.json()["status"] == "pending"
+    assert "Git LFS" in r.json()["message"]
+    # The URL is keyed on mtime, which the fetch landing doesn't change.
+    assert r.headers["cache-control"] == "no-store"
+
+
+def test_lfs_file_is_served_when_its_object_is_already_local(
+    client: TestClient, project: Path
+) -> None:
+    """`lfs fetch` downloads objects without touching the checkout, so a pointer
+    on disk doesn't mean the bytes are absent. Look before answering pending."""
+    TRUST.reset()
+    TRUST.register(project)
+    oid = "c" * 64
+    (project / "src" / "art.png").write_bytes(_lfs_pointer(oid, 8))
+    _write_lfs_object(project, oid, b"\x89PNG\r\n\x1a\nREAL")
+
+    r = client.get("/api/file", params={"path": str(project / "src" / "art.png")})
+    assert r.status_code == 200
+    assert r.content == b"\x89PNG\r\n\x1a\nREAL"
+
+
+def test_unfetched_blob_in_a_partial_clone_is_202(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A blobless clone hasn't downloaded every historical blob, and can't tell
+    "not fetched" from "not here" without the round trip we refuse to make."""
+    repo = tmp_path / "partial"
+    _sha, gone_path = _git_repo_with_history(repo)
+    subprocess.run(
+        ["git", "-C", str(repo), "config", "extensions.partialclone", "origin"],
+        check=True,
+    )
+    from api.git.objects import _is_partial_clone
+
+    _is_partial_clone.cache_clear()
+    TRUST.reset()
+    TRUST.register(repo)
+
+    r = client.get("/api/file", params={"path": gone_path, "sha": "0" * 40})
+    assert r.status_code == 202
+    assert r.json()["status"] == "pending"
+    _is_partial_clone.cache_clear()
+
+
+def test_unpulled_lfs_blob_is_202(client: TestClient, tmp_path: Path) -> None:
+    """Timeline reading a version whose lfs object was never pulled: 202, and no
+    smudge, which would be a download with a browser waiting on it."""
+    from unittest import mock
+
+    from api.git import objects as objects_mod
+
+    repo = tmp_path / "lfshist"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@t"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "t"], check=True)
+    (repo / "clip.mp4").write_bytes(_lfs_pointer("d" * 64, 900))
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "add"], check=True)
+    sha = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD:clip.mp4"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    TRUST.reset()
+    TRUST.register(repo)
+
+    with mock.patch.object(objects_mod, "_lfs_smudge") as smudge:
+        r = client.get("/api/file", params={"path": str(repo / "clip.mp4"), "sha": sha})
+    smudge.assert_not_called()
+    assert r.status_code == 202
+    assert r.json()["status"] == "pending"
+
+
+def test_images_batch_names_an_unpulled_lfs_image_pending(
+    client: TestClient, project: Path
+) -> None:
+    """Pointer text is not an image, but omitting it sends the client to the
+    single-file GET: one wasted request per building, ending in a 202."""
+    TRUST.reset()
+    TRUST.register(project)
+    stub = project / "src" / "stub.png"
+    stub.write_bytes(_lfs_pointer("e" * 64, 4096))
+
+    r = client.post("/api/images", json={"paths": [str(stub)]})
+    assert r.status_code == 200
+    assert r.json() == {str(stub): {"status": "pending"}}
+
+
+def test_fingerprints_batch_refuses_to_fingerprint_a_pointer_stub(
+    client: TestClient, project: Path
+) -> None:
+    """The stub's head is ASCII metadata: fingerprinting it draws a byte pattern
+    of the pointer and hangs it on the building as the file's own."""
+    TRUST.reset()
+    TRUST.register(project)
+    stub = project / "src" / "big.bin"
+    stub.write_bytes(_lfs_pointer("f" * 64, 90000))
+
+    r = client.post("/api/fingerprints", json={"paths": [str(stub)]})
+    assert r.status_code == 200
+    assert r.json() == {str(stub): {"status": "pending"}}

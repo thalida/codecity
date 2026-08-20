@@ -214,9 +214,6 @@ describe('FilePreviewPane', () => {
 
     // A minimal valid TrueType signature (0x00010000) padded to a few bytes.
     const TTF_BYTES = new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-    const LFS_POINTER = new TextEncoder().encode(
-      'version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 4\n'
-    );
 
     // jsdom ships no FontFace, so this stubs one plus a byte-returning fetch;
     // `loads` decides whether FontFace.load() resolves.
@@ -241,6 +238,15 @@ describe('FilePreviewPane', () => {
       (document as unknown as Record<string, unknown>).fonts = { add() {}, delete() {} };
       globalThis.fetch = (async () =>
         new Response(bytes.buffer as ArrayBuffer, { status: 200 })) as unknown as typeof fetch;
+    }
+
+    /** The endpoint's answer for a font whose LFS object was never pulled. */
+    function installPendingFont(): void {
+      installFont(TTF_BYTES);
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+          status: 202,
+        })) as unknown as typeof fetch;
     }
     afterEach(() => {
       (globalThis as Record<string, unknown>).FontFace = origFontFace;
@@ -268,14 +274,17 @@ describe('FilePreviewPane', () => {
       expect(container.querySelectorAll('.font-specimen-glyph').length).toBeGreaterThan(26);
     });
 
-    it('rejects a Git LFS pointer without attempting to decode it', async () => {
-      installFont(LFS_POINTER);
+    it('reads an undownloaded font as waiting, not as a broken font', async () => {
+      installPendingFont();
       mount();
       await setFile(FONT_NODE);
       expect(container.querySelector('.font-specimen')).toBeNull();
-      expect(container.querySelector('.empty-state')).not.toBeNull();
+      expect(container.querySelector('.text-card-title')!.textContent).toContain(
+        'Not downloaded yet'
+      );
       expect(container.querySelector('.text-card-sub')!.textContent).toContain('Git LFS');
-      // The whole point: never hand non-font bytes to the browser's decoder.
+      // The pointer stub never reaches the browser's decoder: the server keeps
+      // it, and 202 carries the reason instead.
       expect(loadCalls).toBe(0);
     });
 

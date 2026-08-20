@@ -44,6 +44,20 @@ fetches each missing blob on demand — thousands of round trips, minutes of
 apparent hang. `GIT_NO_LAZY_FETCH=1` in `objects.py` is the backstop: a blob
 that is still missing reads as 0 lines rather than triggering that.
 
+## Serving a request never downloads
+
+`read_blob` backs `GET /api/file`, so it reads only what is already on disk: no
+promisor fetch (`GIT_NO_LAZY_FETCH`), and no `git lfs smudge`, which downloads
+the object from the LFS endpoint. One preview pane is one such fetch; a media
+repo mid-scan is a page of them at once, on request threads, against an endpoint
+that blocks bursts. Downloading belongs to `_pull_lfs`, `fetch_lfs_history` and
+`blob_stats_batch` — bulk, once, off the request path.
+
+What a request can't serve comes back as `BlobUnavailable.PENDING`, which the
+router answers with `202 Accepted` rather than `404`: the content isn't gone,
+this machine just doesn't have it yet, and a burst of 404s from one client is
+what gets that client blocked.
+
 `_HYDRATED_MARKER` is written only after the refetch lands. The widened filter
 can't stand in for it, because the filter has to be in place _before_ the
 refetch — so a cancel or a network drop mid-fetch would leave a clone that

@@ -18,11 +18,12 @@ export enum PreviewKind {
   Font = 'font',
   Text = 'text',
 }
-import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
+import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/api/file';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { PENDING } from '@/api/pathBatcher';
 import {
   IMAGE_EXTS,
   VIDEO_EXTS,
@@ -30,7 +31,15 @@ import {
   PDF_EXTS,
   FONT_EXTS,
 } from '@/constants/fileExtensions';
-import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
+import {
+  FileWarning,
+  FileX,
+  Info,
+  MousePointerClick,
+  LoaderCircle,
+  Binary,
+  CloudDownload,
+} from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
@@ -91,12 +100,14 @@ export function _previewKind(file: FileNode | { extension?: string }): PreviewKi
 enum TextStateKind {
   Loading = 'loading',
   Text = 'text',
+  Pending = 'pending',
   Error = 'error',
 }
 
 type TextState =
   | { kind: TextStateKind.Loading }
   | { kind: TextStateKind.Text; text: string }
+  | { kind: TextStateKind.Pending; message: string }
   | { kind: TextStateKind.Error; message: string };
 
 interface FileTextPreviewProps {
@@ -119,7 +130,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
       (err) => {
         if (cancelled) return;
         setTextState({
-          kind: TextStateKind.Error,
+          kind: err instanceof ContentPendingError ? TextStateKind.Pending : TextStateKind.Error,
           message: err && err.message ? err.message : 'Unknown error',
         });
       }
@@ -135,6 +146,8 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     <div class="pane preview-shell">
       {textState.kind === TextStateKind.Error ? (
         <PaneEmpty icon={FileWarning} title="Couldn't load this file" sub={textState.message} />
+      ) : textState.kind === TextStateKind.Pending ? (
+        <PaneEmpty icon={CloudDownload} title="Not downloaded yet" sub={textState.message} />
       ) : textState.kind === TextStateKind.Text ? (
         <CodeEditor text={textState.text} file={file} />
       ) : (
@@ -231,12 +244,14 @@ function CodeEditor({ text, file }: CodeEditorProps) {
 enum FontStateKind {
   Loading = 'loading',
   Ready = 'ready',
+  Pending = 'pending',
   Error = 'error',
 }
 
 type FontState =
   | { kind: FontStateKind.Loading }
   | { kind: FontStateKind.Ready }
+  | { kind: FontStateKind.Pending; message: string }
   | { kind: FontStateKind.Error; message: string };
 
 // Specimen content: a waterfall (cases, digits, pangram), then a Font-Book
@@ -273,16 +288,12 @@ const FONT_SIGNATURES = new Set([
 ]);
 
 /** Null when the bytes are a font we can render, else the reason for the
- *  fallback notice. Names the LFS-pointer case specifically. */
+ *  fallback notice. An unfetched LFS object never reaches here: the endpoint
+ *  answers 202 for a pointer rather than serving its text. */
 function fontRejectReason(buf: ArrayBuffer): string | null {
   if (buf.byteLength < 4) return 'This file is empty or too small to be a font.';
   const signature = new DataView(buf).getUint32(0, false);
   if (FONT_SIGNATURES.has(signature)) return null;
-
-  const head = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(48, buf.byteLength)));
-  if (head.startsWith('version https://git-lfs')) {
-    return 'This font is stored in Git LFS and its content could not be fetched (the LFS object may be missing, private, or over its bandwidth quota).';
-  }
   return 'This file is not a recognized font (ttf, otf, woff, or woff2).';
 }
 
@@ -337,7 +348,7 @@ function FontPreview({ file }: FontPreviewProps) {
       (err) => {
         if (cancelled) return;
         setFontState({
-          kind: FontStateKind.Error,
+          kind: err instanceof ContentPendingError ? FontStateKind.Pending : FontStateKind.Error,
           message: err && err.message ? err.message : 'Could not load this file.',
         });
       }
@@ -355,6 +366,8 @@ function FontPreview({ file }: FontPreviewProps) {
     <div class="pane preview-shell">
       {fontState.kind === FontStateKind.Error ? (
         <PaneEmpty icon={FileWarning} title="Couldn't render this font" sub={fontState.message} />
+      ) : fontState.kind === FontStateKind.Pending ? (
+        <PaneEmpty icon={CloudDownload} title="Not downloaded yet" sub={fontState.message} />
       ) : fontState.kind === FontStateKind.Ready ? (
         <div class="font-specimen" style={{ fontFamily: `"${family}", sans-serif` }}>
           <section class="font-specimen-section">
@@ -391,12 +404,14 @@ function FontPreview({ file }: FontPreviewProps) {
 enum FpStateKind {
   Loading = 'loading',
   Ready = 'ready',
+  Pending = 'pending',
   Error = 'error',
 }
 
 type FpState =
   | { kind: FpStateKind.Loading }
   | { kind: FpStateKind.Ready; b64: string }
+  | { kind: FpStateKind.Pending }
   | { kind: FpStateKind.Error };
 
 /** A data card instead of garbled bytes: type, size, dates, and the same
@@ -409,7 +424,11 @@ function BinaryDataCard({ file }: { file: FileNode }) {
     setFp({ kind: FpStateKind.Loading });
     fetchFingerprintB64(file.fullPath || '').then(
       (b64) => {
-        if (!cancelled) setFp(b64 ? { kind: FpStateKind.Ready, b64 } : { kind: FpStateKind.Error });
+        if (cancelled) return;
+        // An undownloaded file has no byte pattern of its own to draw yet, so
+        // the frame says so rather than showing the generic failure glyph.
+        if (b64 === PENDING) setFp({ kind: FpStateKind.Pending });
+        else setFp(b64 ? { kind: FpStateKind.Ready, b64 } : { kind: FpStateKind.Error });
       },
       () => !cancelled && setFp({ kind: FpStateKind.Error })
     );
@@ -430,6 +449,8 @@ function BinaryDataCard({ file }: { file: FileNode }) {
             src={`data:image/png;base64,${fp.b64}`}
             alt="Byte-pattern fingerprint"
           />
+        ) : fp.kind === FpStateKind.Pending ? (
+          <CloudDownload class="binary-fingerprint-fallback" aria-label="Not downloaded yet" />
         ) : (
           <Binary class="binary-fingerprint-fallback" aria-hidden="true" />
         )}

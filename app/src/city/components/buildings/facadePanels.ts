@@ -16,7 +16,8 @@ import {
 } from './facadePanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
-import { fileUrl } from '@/api/file';
+import { fileUrl, isContentPending } from '@/api/file';
+import { PENDING } from '@/api/pathBatcher';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
@@ -636,7 +637,9 @@ async function _loadFingerprintBuilding(
   // Fetch (batched) outside the semaphore so the coalescing window sees every
   // data building at once; only decode + upload is slot-gated.
   const b64 = await fetchFingerprintB64(filePath);
-  if (b64 === null) return;
+  // Nothing to draw either way: an omitted path has no fingerprint, and an
+  // undownloaded one has no byte pattern of its own yet.
+  if (b64 === null || b64 === PENDING) return;
   await _acquireSlot();
   try {
     const img = await _loadImage(`data:image/png;base64,${b64}`);
@@ -659,6 +662,10 @@ async function _loadImageBuilding(
   // Fetch (batched) happens outside the GPU semaphore so the coalescing window
   // sees every media building at once; only decode + upload is slot-gated.
   const blob = await fetchMediaBlob(filePath, scrubbedBlobShaFor(relPath));
+  // Not downloaded yet: the fallback GET would answer 202 and the failed decode
+  // would tint the building as broken. Keep the placeholder and let the next
+  // rebuild pick the image up once its fetch lands.
+  if (blob === PENDING) return;
   const objUrl = blob ? URL.createObjectURL(blob) : null;
   await _acquireSlot();
   let errored = false;
@@ -692,9 +699,12 @@ async function _loadVideoBuilding(
   } catch {
     errored = true;
   } finally {
-    if (errored) ads.markBuildingErrored(panelSlots);
     _releaseSlot();
   }
+  // Videos are never batched, so the poster load is the first thing to learn the
+  // bytes are absent, and it can't tell "not downloaded" from "broken". Ask,
+  // outside the slot, before wearing the error tint for a file merely queued.
+  if (errored && !(await isContentPending(url))) ads.markBuildingErrored(panelSlots);
 }
 
 /** Promise-wrapped image load, resolving null on failure so callers can test
