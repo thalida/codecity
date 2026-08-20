@@ -142,8 +142,38 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
-    // City painted → status leaves Rebuilding → overlay hides.
+    // Decorating lands before the layout is published, so the overlay stays.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('holds the overlay through Decorating, which lands before the city exists', () => {
+    // markDecorating runs BEFORE applyStructure publishes the layout, so the
+    // city does not exist during it. Idle is what means "on screen" now.
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = null;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('lets the overlay go when the build errored', () => {
+    // Nothing will ever paint, so holding for a frame would strand it.
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = null;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Error;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
@@ -158,7 +188,11 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible, 'still building').toBe(true);
     expect(PENDING_SOURCE_LABEL.value, 'header must survive the build phase').toBe('owner/repo');
 
+    // Decorating is still building; the label clears with the overlay.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Idle;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
   });

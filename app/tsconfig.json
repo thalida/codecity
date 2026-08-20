@@ -8,13 +8,13 @@
     "jsx": "preserve",
     "jsxImportSource": "preact",
 
-    // Strict flags will be flipped one at a time in a follow-up PR
-    // (Phase 3 of the migration plan). Each flag will surface a few
-    // hundred annotations and is best reviewed in isolation. See
-    // ~/.claude/plans/codecity-ts-eslint-prettier.md.
+    // Flipped one at a time, each in its own reviewable change. strictNullChecks
+    // came on with the nullable FileNode.size (#186): with it off, making a hot
+    // wire field nullable produced zero errors, so the compiler was blind to the
+    // exact bug being fixed. noImplicitAny is still pending.
     "strict": false,
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
 
     "allowJs": true,
     "checkJs": false,

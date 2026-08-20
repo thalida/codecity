@@ -245,11 +245,7 @@ export interface components {
         CloneProgressEvent: {
             /** Label */
             label?: string;
-            /**
-             * Stage
-             * @enum {string}
-             */
-            stage?: "receiving" | "resolving" | "counting" | "updating";
+            stage?: components["schemas"]["CloneStage"] | null;
             /** Percent */
             percent?: number;
             /** Mb On Disk */
@@ -261,6 +257,13 @@ export interface components {
             /** Mib */
             mib?: number;
         };
+        /**
+         * CloneStage
+         * @description Which part of a git clone or fetch a progress tick is reporting.
+         *     `updating` is git's checkout phase ("Updating files: N%").
+         * @enum {string}
+         */
+        CloneStage: "receiving" | "resolving" | "counting" | "updating";
         /** CommitDateRange */
         CommitDateRange: {
             /**
@@ -526,9 +529,9 @@ export interface components {
             /** Extension */
             extension: string;
             /** Size */
-            size: number;
+            size: number | null;
             /** Lines */
-            lines: number;
+            lines: number | null;
             /** Binary */
             binary: boolean;
             /**
@@ -685,6 +688,14 @@ export interface components {
             authors: components["schemas"]["AuthorStat"][];
         };
         /**
+         * ScanEvent
+         * @description SSE event names for the /api/manifest stream. Values are the exact event
+         *     strings. The two MANIFEST_* members double as scan_tree's emission `phase`
+         *     (the router forwards the phase as the event name).
+         * @enum {string}
+         */
+        ScanEvent: "clone-progress" | "scan-progress" | "manifest-partial" | "manifest-complete" | "error";
+        /**
          * ScanProgressEvent
          * @description `scan-progress` — the working tree is being walked; carries the
          *     heartbeat files-scanned count.
@@ -694,6 +705,16 @@ export interface components {
             label?: string;
             /** Files Scanned */
             files_scanned?: number;
+        };
+        /**
+         * ScanStreamMessage
+         * @description One message on the /api/manifest stream: its SSE `event:` name and the
+         *     JSON `data:` body that follows.
+         */
+        ScanStreamMessage: {
+            event: components["schemas"]["ScanEvent"];
+            /** Data */
+            data: components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
         };
         /** SignatureResponse */
         SignatureResponse: {
@@ -710,8 +731,9 @@ export interface components {
          *     union-of-all-paths manifest (the layout target), per-commit blob deltas,
          *     sha -> line-count and sha -> byte-size tables, and per-commit line ranges
          *     (height normalisation, so a scrub point matches Live-at-that-commit).
-         *     `note` is set when a pathological repo is windowed to its most recent
-         *     commits.
+         *     `notes` are standing caveats about the bundle: a pathological repo windowed
+         *     to its most recent commits, blobs too large to have been backfilled. A list
+         *     because they are independent and a repo can earn both.
          */
         TimelineBundle: {
             /** Commits */
@@ -721,18 +743,18 @@ export interface components {
             deltas: components["schemas"]["TimelineDelta"][];
             /** Bloblines */
             blobLines: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Blobsizes */
             blobSizes: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
             /** Commitdateranges */
             commitDateRanges: components["schemas"]["DateRangeMs"][];
-            /** Note */
-            note: string | null;
+            /** Notes */
+            notes: string[];
         };
         /** TimelineChange */
         TimelineChange: {
@@ -759,6 +781,12 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["TimelineChange"][];
         };
+        /**
+         * TimelineEvent
+         * @description SSE event names for the /api/timeline stream.
+         * @enum {string}
+         */
+        TimelineEvent: "timeline-progress" | "timeline-complete" | "error";
         /**
          * TimelineProgressEvent
          * @description `timeline-progress` — the history walk, blob-table resolution, union
@@ -795,6 +823,16 @@ export interface components {
          * @enum {string}
          */
         TimelineStage: "fetch" | "history" | "blobs" | "assemble";
+        /**
+         * TimelineStreamMessage
+         * @description One message on the /api/timeline stream: its SSE `event:` name and the
+         *     JSON `data:` body that follows.
+         */
+        TimelineStreamMessage: {
+            event: components["schemas"]["TimelineEvent"];
+            /** Data */
+            data: components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1121,7 +1159,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
+                    "application/json": components["schemas"]["ScanStreamMessage"];
                 };
             };
             /** @description Validation Error */
@@ -1155,7 +1193,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
+                    "application/json": components["schemas"]["TimelineStreamMessage"];
                 };
             };
             /** @description Validation Error */

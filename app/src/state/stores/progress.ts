@@ -102,6 +102,8 @@ export function markDecorating(): void {
   enterBuildStage(BuildStage.Decorate);
 }
 
+/** The city is on screen. Set by the composer once the meshes exist and a frame
+ *  carrying them has been presented — NOT when applyStructure returns. */
 export function markIdle(): void {
   REBUILD_STATUS.value = RebuildStatus.Idle;
   BUILT_MANIFEST.value = MANIFEST.peek();
@@ -113,6 +115,9 @@ export function markIdle(): void {
 
 export function markError(err: unknown): void {
   REBUILD_STATUS.value = RebuildStatus.Error;
+  // Logged with the stack, where a developer can use it. The UI shows a generic
+  // line: the message names our internals and a user cannot act on it.
+  console.error('[codecity] city build failed', err);
   LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
   REBUILD_DETAIL.value = null;
   BUILD_PROGRESS.value = null;
@@ -240,9 +245,10 @@ function attachScanReaction(): () => void {
   };
   return effect(() => {
     const p = SCAN_PROGRESS.value;
-    // The stream finishing (p === null) does NOT mean the city is on screen:
-    // hold the overlay through the build, or an empty 3D world flashes.
-    const building = REBUILD_STATUS.value === RebuildStatus.Rebuilding;
+    // The stream finishing is not the city appearing: Idle now means a frame of
+    // it has been presented, so every earlier status keeps the overlay up.
+    const status = REBUILD_STATUS.value;
+    const building = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;

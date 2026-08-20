@@ -5,4 +5,5 @@ export const BuildingKind = {
   Ruin: 1, // Timeline: deleted → crumbled gray stub
   Data: 2, // binary "data" file → windowless facade
   Empty: 3, // 0-byte file → flat slab, no walls or windows
+  Unmeasured: 4, // size never fetched → translucent shell, contents unknown
 } as const;

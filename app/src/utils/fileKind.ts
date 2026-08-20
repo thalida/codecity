@@ -44,6 +44,14 @@ export function isDataBuilding(file: FileLike): boolean {
  *  by design, so they qualify only on a true 0-byte size. */
 export function isEmptyFile(file: FileLike): boolean {
   if (!file) return false;
+  // null is "not measured", which is the opposite of a measured zero.
+  if (file.size == null) return false;
   if (file.size === 0) return true;
   return file.lines === 0 && !file.binary && !isMediaFile(file);
+}
+
+/** Its blob was never fetched, so nothing about its contents is known: not its
+ *  size, not its line count, not whether it is even text. */
+export function isUnmeasuredFile(file: FileLike): boolean {
+  return !!file && file.size == null;
 }

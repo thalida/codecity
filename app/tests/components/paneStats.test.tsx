@@ -76,10 +76,19 @@ describe('statItems', () => {
   });
 
   it('omits stats the node does not carry', () => {
-    const bare: FileNode = { ...FILE, lines: null, size: null, created: null, modified: null };
+    const bare: FileNode = { ...FILE, lines: null, size: null, created: '', modified: '' };
     const texts = fileStatItems(bare, { now: NOW }).map((i) => i.text);
     expect(texts.some((t) => t.includes('lines'))).toBe(false);
     expect(texts.some((t) => t.startsWith('modified'))).toBe(false);
+  });
+
+  it('says a size is unknown rather than leaving the row silent', () => {
+    // A blob the timeline backfill skipped has no measurable size. Showing
+    // nothing reads as a short row; showing 0 B reads as an empty file.
+    const unmeasured: FileNode = { ...FILE, size: null };
+    const texts = fileStatItems(unmeasured, { now: NOW }).map((i) => i.text);
+    expect(texts).toContain('size unknown');
+    expect(texts.some((t) => t.includes('B'))).toBe(false);
   });
 
   it('names the kind before the counts that depend on it', () => {

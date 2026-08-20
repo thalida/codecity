@@ -35,8 +35,10 @@ class FileNode(BaseModel):
     path: str
     fullPath: str
     extension: str
-    size: int
-    lines: int
+    # Required-nullable (see README): null is NOT KNOWN, never zero, which an
+    # empty file already means. Only Timeline's union manifest emits it.
+    size: Optional[int]
+    lines: Optional[int]
     binary: bool
     dirty: bool = Field(
         description=(
@@ -320,17 +322,20 @@ class TimelineBundle(BaseModel):
     union-of-all-paths manifest (the layout target), per-commit blob deltas,
     sha -> line-count and sha -> byte-size tables, and per-commit line ranges
     (height normalisation, so a scrub point matches Live-at-that-commit).
-    `note` is set when a pathological repo is windowed to its most recent
-    commits."""
+    `notes` are standing caveats about the bundle: a pathological repo windowed
+    to its most recent commits, blobs too large to have been backfilled. A list
+    because they are independent and a repo can earn both."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest
     deltas: list[TimelineDelta]
-    blobLines: dict[str, int]
-    blobSizes: dict[str, int]
+    # Every delta sha has an entry so the client can't miss one; the VALUE is
+    # null when the blob was never fetched, which is not a zero (see FileNode).
+    blobLines: dict[str, Optional[int]]
+    blobSizes: dict[str, Optional[int]]
     commitLineRanges: list[RangeStat]
     commitDateRanges: list[DateRangeMs]
-    note: Optional[str]
+    notes: list[str]
 
 
 DirNode.model_rebuild()

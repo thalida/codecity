@@ -443,7 +443,9 @@ function BinaryDataCard({ file }: { file: FileNode }) {
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
   }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
-  const size = typeof file.size === 'number' ? formatBytes(file.size) : '—';
+  // Not '—': the blob was never downloaded, so its size is unknown rather
+  // than absent, and a dash reads as "nothing here".
+  const size = typeof file.size === 'number' ? formatBytes(file.size) : 'Not downloaded';
 
   return (
     <div class="pane preview-shell binary-card">

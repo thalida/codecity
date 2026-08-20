@@ -113,7 +113,7 @@ export function genWeightedTree(
   rng: () => number
 ): any {
   if (budget <= 8 || depth >= 7) {
-    const files = [];
+    const files: ReturnType<typeof mkFile>[] = [];
     for (let i = 0; i < budget; i++) files.push(mkFile(`f${i}.c`, path, rng));
     return mkDir(name, files, path);
   }
@@ -258,7 +258,9 @@ export function makeDigestHasher() {
     h = Math.imul(h, 16777619) >>> 0;
   };
   return {
-    num: (v: number) => mix(Math.round(v * 1e4).toString()),
+    // Building.floors is optional, and undefined must keep hashing as the "NaN"
+    // Math.round already gave it: the digest stays bit-identical.
+    num: (v: number | undefined) => mix(v === undefined ? 'NaN' : Math.round(v * 1e4).toString()),
     str: (v: string) => mix(v),
     arr: (a: ArrayLike<number>) => {
       for (let i = 0; i < a.length; i++) mix(Math.round(a[i] * 1e4).toString());

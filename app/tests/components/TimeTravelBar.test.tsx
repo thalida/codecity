@@ -28,6 +28,7 @@ const BUNDLE = {
   deltas: [],
   blobLines: {},
   blobSizes: {},
+  notes: [],
   note: null,
 } as unknown as TimelineBundle;
 
@@ -277,6 +278,7 @@ describe('TimelineScrubber', () => {
       deltas: [],
       blobLines: {},
       blobSizes: {},
+      notes: [],
       note: null,
     } as unknown as TimelineBundle;
     setScrubPos(0);
@@ -317,6 +319,7 @@ describe('TimelineScrubber', () => {
       deltas: [],
       blobLines: {},
       blobSizes: {},
+      notes: [],
       note: null,
     } as unknown as TimelineBundle;
     setScrubPos(2);

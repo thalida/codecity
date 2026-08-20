@@ -1,9 +1,10 @@
-// components/sources/SourceRow/SourceRow.tsx — one openable source: kind glyph, label,
-// branch pill, raw src. Shared by Recents and Discover, since a Discover row is
-// a recent you haven't opened yet. Presentational and click-only: everything
-// around a row (a remove control, an active badge) belongs to its lister.
+// components/sources/SourceRow/SourceRow.tsx — one openable source: kind glyph,
+// label, branch pill, raw src. Shared by Recents and Discover. A real <a href>,
+// so the destination shows on hover and the row cannot open a repo other than
+// the one it names.
 
 import './SourceRow.css';
+import { Link } from 'wouter-preact';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 import { HostingIcon } from '@/components/sources/HostingIcon/HostingIcon';
 
@@ -19,7 +20,8 @@ export interface SourceRowProps {
   unavailable?: boolean;
   /** Why it's unavailable, as a hover title. */
   unavailableReason?: string;
-  onOpen: () => void;
+  /** Where this row goes. Built by the lister from the row's own src+branch. */
+  href: string;
 }
 
 export function SourceRow({
@@ -29,18 +31,14 @@ export function SourceRow({
   active,
   unavailable,
   unavailableReason,
-  onOpen,
+  href,
 }: SourceRowProps) {
-  return (
-    <button
-      type="button"
-      class={`row source-row${active ? ' source-row--active' : ''}${
-        unavailable ? ' source-row--unavailable' : ''
-      }`}
-      title={unavailable ? unavailableReason : undefined}
-      aria-disabled={unavailable ? 'true' : undefined}
-      onClick={unavailable ? undefined : onOpen}
-    >
+  const className = `row source-row${active ? ' source-row--active' : ''}${
+    unavailable ? ' source-row--unavailable' : ''
+  }`;
+
+  const body = (
+    <>
       <span class="source-row-icon">
         <HostingIcon src={src} />
       </span>
@@ -60,6 +58,21 @@ export function SourceRow({
         </div>
       </div>
       {active && <span class="source-row-note">Active</span>}
-    </button>
+    </>
+  );
+
+  // Nowhere to go, so not a link: a disabled anchor is still an anchor, and
+  // this one would offer a destination that refuses to load.
+  if (unavailable) {
+    return (
+      <div class={className} title={unavailableReason} aria-disabled="true">
+        {body}
+      </div>
+    );
+  }
+  return (
+    <Link href={href} class={className}>
+      {body}
+    </Link>
   );
 }

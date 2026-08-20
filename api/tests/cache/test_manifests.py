@@ -124,7 +124,7 @@ class ManifestCacheTests(CacheTestBase):
         root = Path("/some/repo")
         sha = "a" * 40
         base, filtered = self._make_bundle(), self._make_bundle()
-        filtered.note = "filtered"  # make the two bundles distinguishable
+        filtered.notes = ["filtered"]  # make the two bundles distinguishable
         cache_mod.cache_save_timeline(root, sha, base)
         cache_mod.cache_save_timeline(root, sha, filtered, frozenset({"secrets"}))
 

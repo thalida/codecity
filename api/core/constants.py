@@ -46,6 +46,16 @@ class TimelineEvent(StrEnum):
     ERROR = "error"
 
 
+class CloneStage(StrEnum):
+    """Which part of a git clone or fetch a progress tick is reporting.
+    `updating` is git's checkout phase ("Updating files: N%")."""
+
+    RECEIVING = "receiving"
+    RESOLVING = "resolving"
+    COUNTING = "counting"
+    UPDATING = "updating"
+
+
 class TimelineStage(StrEnum):
     """Which part of the timeline build a progress tick is reporting."""
 

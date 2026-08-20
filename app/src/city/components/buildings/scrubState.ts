@@ -4,7 +4,7 @@
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { Building, FileNode } from '@/types';
 import { FadeDetail } from '@/types';
-import { isDataBuilding, isEmptyFile } from '@/utils/fileKind';
+import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
 import type { PathTimeline } from '@/city/timeline/replay';
 import {
   PathState,
@@ -111,6 +111,7 @@ function createdMsFor(input: BuildingScrubInput, commitMs: readonly number[]): n
 /** Recomputed every frame so a lane change resets it. */
 function kindFor(file: FileNode, emptyFile: FileNode, lane: BuildingLane): number {
   if (lane === BuildingLane.Ruin) return BuildingKind.Ruin;
+  if (isUnmeasuredFile(emptyFile)) return BuildingKind.Unmeasured;
   if (isEmptyFile(emptyFile)) return BuildingKind.Empty;
   if (isDataBuilding(file)) return BuildingKind.Data;
   return BuildingKind.Normal;

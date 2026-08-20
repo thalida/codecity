@@ -74,12 +74,12 @@ describe('shadeColor', () => {
 
 describe('shadeAndShiftHue', () => {
   it('wraps hue forward through 360', () => {
-    const out = shadeAndShiftHue('hsl(350, 50%, 50%)', 0, 30, null);
+    const out = shadeAndShiftHue('hsl(350, 50%, 50%)', 0, 30, undefined);
     expect(hslToComponents(out).h).toBe(20);
   });
 
   it('wraps hue backward through 0', () => {
-    const out = shadeAndShiftHue('hsl(10, 50%, 50%)', 0, -30, null);
+    const out = shadeAndShiftHue('hsl(10, 50%, 50%)', 0, -30, undefined);
     expect(hslToComponents(out).h).toBe(340);
   });
 
@@ -89,7 +89,7 @@ describe('shadeAndShiftHue', () => {
   });
 
   it('treats null minLightness as a floor of 0', () => {
-    const out = shadeAndShiftHue('hsl(200, 50%, 30%)', -100, 0, null);
+    const out = shadeAndShiftHue('hsl(200, 50%, 30%)', -100, 0, undefined);
     expect(hslToComponents(out).l).toBe(0);
   });
 });

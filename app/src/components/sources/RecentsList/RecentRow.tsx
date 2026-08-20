@@ -14,7 +14,7 @@ export interface RecentRowProps {
   active: boolean;
   unavailable: boolean; // a local path while local repos are off
   confirmingRemove: boolean;
-  onOpen: () => void;
+  href: string;
   onAskRemove: () => void;
   onConfirmRemove: () => void;
   onCancelRemove: () => void;
@@ -58,7 +58,7 @@ export function RecentRow(props: RecentRowProps) {
         active={active}
         unavailable={unavailable}
         unavailableReason={UNAVAILABLE_REASON}
-        onOpen={props.onOpen}
+        href={props.href}
       />
 
       {/* No --text here: that modifier is for a button with words in it, and it

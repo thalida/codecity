@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
 import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
 import type { CommitEntry } from '@/types';
@@ -27,7 +27,7 @@ const AUTHOR_HUES: Record<string, number> = { Alice: 10, Bob: 120, Carol: 250 };
 
 describe('CommitPane', () => {
   let container: HTMLDivElement;
-  let state: ReturnType<typeof signal<CommitPaneState>>;
+  let state: Signal<CommitPaneState>;
 
   function mount(
     opts: {

@@ -93,6 +93,102 @@ def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) ->
     assert set(state) == recon_paths
 
 
+def test_a_blob_the_backfill_skipped_reads_as_unknown_not_empty(tmp_path: Path) -> None:
+    """A blob over the hydrate cap is never fetched, so its size and line count
+    are not recoverable locally. Reporting 0 there makes a file with real content
+    indistinguishable from an empty one, and draws it as the smallest building
+    in the city."""
+    from api.scan.timeline import (
+        walk_deltas,
+        build_union_manifest,
+        _collect_blob_tables,
+    )
+    from api.git.meta import collect_git_history
+
+    _init(tmp_path)
+    (tmp_path / "small.txt").write_text("one\ntwo\n")
+    (tmp_path / "huge.bin").write_bytes(b"real content, just too big to backfill\n")
+    _commit(tmp_path, "c1")
+
+    deltas = walk_deltas(tmp_path)
+    lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
+
+    # Stand in for the skip: the tables simply have no entry for that blob,
+    # which is exactly what GIT_NO_LAZY_FETCH leaves behind for one over the cap.
+    huge_sha = next(
+        sha for d in deltas for path, sha in d.changes if path == "huge.bin" and sha
+    )
+    sizes.pop(huge_sha)
+    lines.pop(huge_sha, None)
+    blob_stats.pop(huge_sha, None)
+
+    m = build_union_manifest(
+        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+    )
+    nodes: dict[str, object] = {}
+
+    def walk(n) -> None:
+        if n.type == "file":
+            nodes[n.path] = n
+        else:
+            for c in n.children:
+                walk(c)
+
+    walk(m.tree)
+    # Still in the city: it existed, we just cannot measure it.
+    assert set(nodes) == {"small.txt", "huge.bin"}
+    assert nodes["huge.bin"].size is None
+    assert nodes["huge.bin"].lines is None
+    # The measurable file beside it is unaffected.
+    assert nodes["small.txt"].size == len("one\ntwo\n")
+    assert nodes["small.txt"].lines == 2
+
+
+def test_unmeasurable_file_stays_out_of_totals_and_superlatives(
+    tmp_path: Path,
+) -> None:
+    """It counts as a file, but a byte total that silently included it as 0
+    would read as complete, and a superlative would crown the wrong file."""
+    from api.scan.stats import compute_repo_stats
+    from api.scan.timeline import (
+        walk_deltas,
+        build_union_manifest,
+        _collect_blob_tables,
+    )
+    from api.git.meta import collect_git_history
+
+    _init(tmp_path)
+    (tmp_path / "known.txt").write_text("a\nb\nc\n")
+    (tmp_path / "unknown.bin").write_bytes(b"x" * 500)
+    _commit(tmp_path, "c1")
+
+    deltas = walk_deltas(tmp_path)
+    lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
+    unknown_sha = next(
+        sha for d in deltas for path, sha in d.changes if path == "unknown.bin" and sha
+    )
+    sizes.pop(unknown_sha)
+    lines.pop(unknown_sha, None)
+    blob_stats.pop(unknown_sha, None)
+
+    m = build_union_manifest(
+        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+    )
+    stats = compute_repo_stats(m.tree, commits)
+
+    # Not folded into a byte range that would then read as the whole repo.
+    assert stats.byteSizeRange.max == len("a\nb\nc\n")
+    # And it cannot win "widest", which it would at its real 500 bytes and
+    # would silently have lost at a fabricated 0.
+    assert stats.maxBytesFile is not None
+    assert stats.maxBytesFile.path == "known.txt"
+    # The directory rollup counts the file without claiming its bytes.
+    assert m.tree.descendants_file_count == 2
+    assert m.tree.descendants_size == len("a\nb\nc\n")
+
+
 def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     from api.scan.timeline import (
         walk_deltas,
@@ -392,7 +488,7 @@ def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
-    assert bundle.note is not None  # windowed, surfaced
+    assert bundle.notes  # windowed, surfaced
     assert len(bundle.commits) < 4
 
 
@@ -410,4 +506,4 @@ def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
     assert len(bundle.commits) >= 1  # never an empty timeline
-    assert bundle.note is not None
+    assert bundle.notes

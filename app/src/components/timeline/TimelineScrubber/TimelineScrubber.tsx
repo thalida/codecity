@@ -238,6 +238,13 @@ export function TimelineScrubber() {
           </button>
         )}
       </div>
+      {bundle && bundle.notes.length > 0 && (
+        // Caveats about the data being scrubbed, so they sit under the track
+        // rather than in a pane you might never open.
+        <p class="timeline-scrubber-notes" role="note">
+          {bundle.notes.join(' · ')}
+        </p>
+      )}
     </div>
   );
 }

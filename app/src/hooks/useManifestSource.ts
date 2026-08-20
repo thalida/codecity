@@ -4,7 +4,7 @@
 // The render layer consumes them and owns the apply's rebuild status.
 
 import { useEffect } from 'preact/hooks';
-import { effect } from '@preact/signals';
+import { computed, effect } from '@preact/signals';
 
 import {
   manifestUrlFor,
@@ -39,6 +39,7 @@ import {
   identityBranch,
   sourceKey,
   sameSourceIdentity,
+  sourceIdentity,
 } from '@/utils/sources';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
@@ -158,9 +159,15 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
-  // A cancel that lands after a skeleton rolls back to this, or the canceled
-  // repo's geometry lingers under the unchanged header.
+  // What a cancel rolls back to, captured before the clear below: otherwise the
+  // canceled repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
+  // A DIFFERENT project retires the one on screen: the route changes on the
+  // click now, so the last city would draw under the overlay for the load.
+  const opened = CURRENT_SOURCE.peek();
+  if (!opened || !sameSourceIdentity(opened, { src: payload.src, branch })) {
+    setManifest(null);
+  }
 
   try {
     const url = manifestUrlFor({
@@ -372,28 +379,22 @@ export async function bootLoad(boot: UrlView): Promise<void> {
   await loadSource({ src, branch: boot.branch });
 }
 
+/** The project the URL asks for, as one comparable string: a computed notifies
+ *  only when THAT changes, so writing ?sel= or ?mode= cannot re-ask it. */
+const URL_SOURCE = computed(() => {
+  if (ROUTE_PATH.value !== ROUTES.CITY) return '';
+  const view = readUrlView(ROUTE_PARAMS.value);
+  return view.src ? sourceIdentity(view.src, view.branch) : '';
+});
+
 /** Load whatever project the URL names, whenever that changes: the boot read
  *  and every Back/Forward between cities are the same event. Returns a dispose. */
 export function attachRouteLoad(): () => void {
-  // Claimed, not committed: CURRENT_SOURCE lands only on success, leaving a
-  // mid-load window where a re-run would start the same load again.
-  let claimed: { src: string; branch?: string } | null = null;
-
   return effect(() => {
-    const onCity = ROUTE_PATH.value === ROUTES.CITY;
-    // Tracked: this is the whole point, the URL asking for something new.
-    const params = ROUTE_PARAMS.value;
-    if (!onCity) return;
-    const boot = readUrlView(params);
-    if (!boot.src) return;
-    const want = { src: boot.src, branch: boot.branch };
-    if (claimed && sameSourceIdentity(claimed, want)) return;
-    const current = CURRENT_SOURCE.peek();
-    if (current && sameSourceIdentity(current, want)) {
-      claimed = want;
-      return;
-    }
-    claimed = want;
+    if (!URL_SOURCE.value) return;
+    // Peeked: the identity above is the trigger, and re-reading the params here
+    // must not subscribe this to the view ones alongside it.
+    const boot = readUrlView(ROUTE_PARAMS.peek());
     // Out of the tracking scope: the load writes signals this effect reads.
     queueMicrotask(() => void bootLoad(boot));
   });

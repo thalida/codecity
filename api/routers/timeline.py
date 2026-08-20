@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Any, Union
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from sse_starlette.sse import EventSourceResponse
@@ -20,11 +20,7 @@ from api.cache import cache_load_timeline, cache_save_timeline
 from api.core.constants import TimelineEvent, TimelineStage
 from api.git import CloneProgress, ResolveError, SourceKind, classify, resolve_ref
 from api.git import fetch_lfs_history, hydrate_blobs, resolve_source
-from api.models.events import (
-    ErrorEvent,
-    TimelineCompleteEvent,
-    TimelineProgressEvent,
-)
+from api.models.events import TimelineStreamMessage
 from api.routers import sse
 from api.routers.sse import Put, stream
 from api.scan import (
@@ -42,9 +38,6 @@ router = APIRouter(prefix="/api", tags=["timeline"])
 logger = logging.getLogger("codecity.timeline")
 
 
-TimelineSSEEvent = Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEvent]
-
-
 @router.get(
     "/timeline",
     responses={
@@ -58,7 +51,7 @@ TimelineSSEEvent = Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEven
                 "only `timeline-complete`, no progress. The client closes the "
                 "connection on `timeline-complete`/`error`."
             ),
-            "model": TimelineSSEEvent,
+            "model": TimelineStreamMessage,
         },
     },
 )

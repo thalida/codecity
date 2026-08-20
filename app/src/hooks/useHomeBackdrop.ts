@@ -10,7 +10,7 @@ import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { SCENE_HANDLE, type SceneHandle } from '@/city/sceneHandle';
+import { BACKDROP_HANDLE, type SceneHandle } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
@@ -36,6 +36,16 @@ async function streamFeatured(src: string, signal: AbortSignal): Promise<Manifes
     return null;
   }
   return complete;
+}
+
+// Building a city holds the main thread for seconds on a big repo, and behind
+// the landing that is a frozen page for a city nobody came to look at.
+const BACKDROP_MAX_FILES = 5000;
+
+/** Whether this manifest is small enough to build without freezing the page. */
+function fitsBehindTheLanding(manifest: Manifest): boolean {
+  const files = manifest.tree?.descendants_file_count;
+  return files === undefined || files <= BACKDROP_MAX_FILES;
 }
 
 /** Who gets to be the backdrop, best first. */
@@ -90,8 +100,10 @@ export function useHomeBackdrop(): void {
       try {
         const manifest = await next.fetch(signal);
         if (signal.aborted) return;
-        if (!manifest) {
-          void tryNext(handle, featuredRepo); // nothing there, try the next one
+        // Too big to build without freezing the page, or nothing there at all:
+        // either way this candidate is out and the next one gets its turn.
+        if (!manifest || !fitsBehindTheLanding(manifest)) {
+          void tryNext(handle, featuredRepo);
           return;
         }
         await handle.applyManifest(manifest);
@@ -112,7 +124,7 @@ export function useHomeBackdrop(): void {
     const stop = effect(() => {
       // The landing's own canvas, which mounts with the view: leaving the route
       // takes it (and the scene) with it, so there is nothing to hand back.
-      const handle = SCENE_HANDLE.value;
+      const handle = BACKDROP_HANDLE.value;
       // Re-runs when the server config lands, which gives featured its turn.
       const featured = SERVER_CONFIG.value.featuredRepo;
       if (handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);

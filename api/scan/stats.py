@@ -69,7 +69,9 @@ def busyness_thresholds(day_counts: dict[str, int]) -> BusynessThresholds:
 
 
 def _file_leader(f: Optional[FileNode]) -> FileLeader | None:
-    if f is None:
+    # Leaders are chosen from measured files only, so a None measurement here
+    # would be a bug rather than an unmeasurable blob.
+    if f is None or f.lines is None or f.size is None:
         return None
     return FileLeader(
         path=f.path,
@@ -145,10 +147,20 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     sharpest_media = coarsest_media = None  # media, by pixels (most / fewest)
     sharpest_px = coarsest_px = None
     largest_binary = smallest_binary = None  # binary/data files, by bytes
+    # Each byte leader's own measurement, carried beside it the way the pixel
+    # leaders already are: a FileNode's size is nullable, these never are.
+    largest_media_b = smallest_media_b = None
+    largest_binary_b = smallest_binary_b = None
+    widest_b = narrowest_b = None
+    tallest_l = shortest_l = None
     for f in iter_file_nodes(tree):
         if f.dirty:
             dirty_count += 1
         lines, size = f.lines, f.size
+        # A blob the backfill skipped: still a file and still counted as one,
+        # but no total or superlative can take it without inventing a number.
+        if lines is None or size is None:
+            continue
         if lines > 0:
             line_min = lines if line_min is None or lines < line_min else line_min
             line_max = lines if line_max is None or lines > line_max else line_max
@@ -157,10 +169,10 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             byte_max = size if byte_max is None or size > byte_max else byte_max
         if f.mediaKind is not None:
             media_count += 1
-            if largest_media is None or size > largest_media.size:
-                largest_media = f
-            if smallest_media is None or size < smallest_media.size:
-                smallest_media = f
+            if largest_media_b is None or size > largest_media_b:
+                largest_media_b, largest_media = size, f
+            if smallest_media_b is None or size < smallest_media_b:
+                smallest_media_b, smallest_media = size, f
             px = _media_pixels(f)
             if px is not None:
                 if sharpest_px is None or px > sharpest_px:
@@ -172,10 +184,10 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             # Their own category, like media: out of the code superlatives, so a
             # giant .db never wins "widest building".
             binary_count += 1
-            if largest_binary is None or size > largest_binary.size:
-                largest_binary = f
-            if smallest_binary is None or size < smallest_binary.size:
-                smallest_binary = f
+            if largest_binary_b is None or size > largest_binary_b:
+                largest_binary_b, largest_binary = size, f
+            if smallest_binary_b is None or size < smallest_binary_b:
+                smallest_binary_b, smallest_binary = size, f
             continue
         total_lines += lines
         code_bytes += size
@@ -187,15 +199,15 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             freshest = f
         if stalest is None or f.modified < stalest.modified:
             stalest = f
-        if widest is None or size > widest.size:
-            widest = f
-        if narrowest is None or size < narrowest.size:
-            narrowest = f
+        if widest_b is None or size > widest_b:
+            widest_b, widest = size, f
+        if narrowest_b is None or size < narrowest_b:
+            narrowest_b, narrowest = size, f
         if lines > 0:
-            if tallest is None or lines > tallest.lines:
-                tallest = f
-            if shortest is None or lines < shortest.lines:
-                shortest = f
+            if tallest_l is None or lines > tallest_l:
+                tallest_l, tallest = lines, f
+            if shortest_l is None or lines < shortest_l:
+                shortest_l, shortest = lines, f
 
     # DIRECT children, not descendants — what is literally on that segment.
     # Smallest ties on fewest descendants, favouring genuine leaf streets.

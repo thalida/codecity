@@ -33,7 +33,9 @@ enum LiveClass {
 const DETAIL_TEXT = {
   rebuilding: 'rebuilding…',
   decorating: 'decorating…',
-  error: 'error',
+  // An exception message is for the console, not the chrome: it names our
+  // internals and tells a user nothing they can act on.
+  error: "couldn't render",
   // Guard for unit tests / any path that reads status before LAST_UPDATED_AT
   // is seeded.
   ready: 'ready',
@@ -84,7 +86,7 @@ export function useFreshness(): Freshness {
       break;
     case RebuildStatus.Error:
       buildClass = BuildClass.Error;
-      detailText = errorMessage ? `error: ${errorMessage}` : DETAIL_TEXT.error;
+      detailText = DETAIL_TEXT.error;
       break;
     default: // Idle
       buildClass = BuildClass.Ready;

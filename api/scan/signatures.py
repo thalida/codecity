@@ -26,8 +26,10 @@ def new_signature() -> Any:
 
 
 def hash_file_entry(
-    sig: Any, rel_path: str, size: int, mtime: float, is_dirty: bool
+    sig: Any, rel_path: str, size: int | None, mtime: float, is_dirty: bool
 ) -> None:
+    # `size` None (unmeasurable blob) hashes as "None", distinct from "0": a
+    # file that becomes measurable later must invalidate, not look unchanged.
     sig.update(rel_path.encode("utf-8"))
     sig.update(b"\0")
     sig.update(str(size).encode("ascii"))

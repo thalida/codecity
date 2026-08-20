@@ -40,6 +40,13 @@ const int KIND_NORMAL = 0;
 const int KIND_RUIN = 1;   // crumbled stub (Timeline)
 const int KIND_DATA = 2;   // windowless binary facade
 const int KIND_EMPTY = 3;  // 0-byte file → flat slab
+const int KIND_UNMEASURED = 4; // size never fetched → translucent shell
+
+// Holographic shell: faint horizontal scanlines at low opacity. Kept as plain
+// constants, not uniforms — there is nothing here a user would tune.
+const float UNMEASURED_SCAN_FREQ = 60.0;
+const float UNMEASURED_SCAN_MIX = 0.45;
+const float UNMEASURED_OPACITY = 0.42;
 
 // Face indices (BoxGeometry material-slot order), mirroring building.vert.
 const int FACE_EAST = 0;   // +X
@@ -284,6 +291,15 @@ vec4 renderWallFace() {
   // door, seam, or grime math on a face that's a fraction of a floor tall.
   if (vKind == KIND_EMPTY) {
     return vec4(wallColor, vOpacity);
+  }
+
+  // Unmeasured: the blob was never fetched, so there is nothing to draw inside.
+  // A holographic shell — scanlines over a see-through wall — says "this exists,
+  // its contents are unknown", which a solid building of any size cannot.
+  if (vKind == KIND_UNMEASURED) {
+    float scan = 0.5 + 0.5 * sin(vUv.y * UNMEASURED_SCAN_FREQ);
+    vec3 shell = mix(wallColor, slabColor, UNMEASURED_SCAN_MIX * scan);
+    return vec4(shell, vOpacity * UNMEASURED_OPACITY);
   }
 
   // Data building: sealed, windowless facade with faint warehouse seams (the

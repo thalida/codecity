@@ -40,9 +40,15 @@ interface BuildingDiff {
 
 /** Public contract for the buildings component. */
 export interface Buildings extends SceneComponent {
+  // Required here, optional on SceneComponent: this one always has a tick, and
+  // a caller holding this type shouldn't have to prove it.
+  tick(dt: number, ctx: FrameContext): void;
   /** Colour, assemble, swap in, relookup. Diffs against the prior cells to fire
    *  the tweens; the boot rebuild snaps in rather than animating. */
   rebuild(layout: CityLayout, dateRanges: DateRanges, scannedAt?: string | null): Promise<void>;
+  /** Resolves when the meshes for the layout in effect exist. A later rebuild
+   *  supersedes rather than extends it: the caller re-asks on the next city. */
+  whenSettled(): Promise<void>;
   /** Dispose the current instanced facade panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
   disposeFacadePanels(): void;
@@ -121,11 +127,20 @@ export function createBuildings(ctx: SceneContext): Buildings {
 
   // untracked, or this also subscribes to the material stores: a Refresh Save
   // would recreate pickable meshes and leave the picker raycasting dead ones.
+
+  // The most recent rebuild, for a caller that must wait for the meshes.
+  let _rebuilding: Promise<void> = Promise.resolve();
+
   const stopRebuild = effect(() => {
     const layout = ctx.cityState.layout.value;
     const manifest = ctx.cityState.manifest.value;
     if (layout && manifest)
-      untracked(() => void rebuild(layout, manifest.dateRanges, manifest.scanned_at));
+      untracked(() => {
+        // Held, not just fired: nothing downstream can know the meshes exist
+        // without it (see whenSettled).
+        _rebuilding = rebuild(layout, manifest.dateRanges, manifest.scanned_at);
+        void _rebuilding;
+      });
   });
 
   // All three subscribe to picker.selection/hover, so they arm on the first
@@ -431,6 +446,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   return {
     group,
     rebuild,
+    whenSettled: () => _rebuilding,
     disposeFacadePanels,
     tick,
     onResize,

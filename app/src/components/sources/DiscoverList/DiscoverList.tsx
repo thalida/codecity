@@ -6,13 +6,9 @@ import { DISCOVER } from '@/state/stores/serverData';
 import { ACTIVE_SOURCE } from '@/state/stores/source';
 import { sameSourceIdentity } from '@/utils/sources';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
-import type { SourcePayload } from '@/types/ui';
+import { cityHref } from '@/router/location';
 
-export interface DiscoverListProps {
-  onOpen: (payload: SourcePayload) => void;
-}
-
-export function DiscoverList({ onOpen }: DiscoverListProps) {
+export function DiscoverList() {
   const repos = DISCOVER.value;
   const active = ACTIVE_SOURCE.value;
   // src alone: a Discover row names a repo, not a branch, so it is the one on
@@ -26,7 +22,7 @@ export function DiscoverList({ onOpen }: DiscoverListProps) {
           <SourceRow
             src={repo.url}
             label={repo.label}
-            onOpen={() => onOpen({ src: repo.url })}
+            href={cityHref(repo.url)}
             active={!!active && sameSourceIdentity({ src: repo.url }, { src: active.src })}
           />
         </div>

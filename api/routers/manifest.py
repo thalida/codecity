@@ -13,7 +13,7 @@ import asyncio
 import logging
 import threading
 from pathlib import Path
-from typing import Any, AsyncIterator, Union
+from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from sse_starlette.sse import EventSourceResponse
@@ -22,13 +22,7 @@ from api.core.constants import ErrorCode, ScanEvent
 from api.routers import sse
 from api.routers.sse import Put, stream
 from api.utils.labels import label_from_source
-from api.models.events import (
-    CloneProgressEvent,
-    CompleteManifestEvent,
-    ErrorEvent,
-    PartialManifestEvent,
-    ScanProgressEvent,
-)
+from api.models.events import ScanStreamMessage
 from api.models.manifest import Manifest, SignatureResponse
 from api.core.security import TRUST
 from api.cache import (
@@ -127,17 +121,6 @@ def cached_manifest(
     raise HTTPException(404, "nothing cached for this source")
 
 
-# Naming all five in `responses` registers each as a schema component, and
-# transitively pulls Manifest -> tree types in behind the manifest events.
-SSEEvent = Union[
-    CloneProgressEvent,
-    ScanProgressEvent,
-    PartialManifestEvent,
-    CompleteManifestEvent,
-    ErrorEvent,
-]
-
-
 @router.get(
     "/manifest",
     responses={
@@ -155,7 +138,7 @@ SSEEvent = Union[
                 "reconstruction itself — the city is already drawn, so a skeleton "
                 "would flash placeholders)."
             ),
-            "model": SSEEvent,
+            "model": ScanStreamMessage,
         },
     },
 )
