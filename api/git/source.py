@@ -185,13 +185,13 @@ def resolve_local(src: str) -> Path:
     return target
 
 
-def resolve_root(ref: SourceRef) -> Path:
-    """Where an already-scanned source sits on disk. Raises ResolveError if it
-    isn't there, or if local paths are off.
+def get_repo_root(ref: SourceRef) -> Path:
+    """The directory this source already occupies, or ResolveError: 404 when it
+    is not on disk, 403 when local paths are off.
 
-    Deliberately cheaper than resolve_source: no clone, and no `git rev-parse`.
-    Both are scan preconditions, and this runs per file read — a city asks for
-    hundreds at once. Containment is `within` below; this only finds the root."""
+    Strict on purpose, in the `get()`-raises sense: reads call this, and a read
+    may not clone. resolve_source is the one that creates. It is also cheaper —
+    no `git rev-parse` either, since a city asks for hundreds of files at once."""
     kind = classify(ref.src)
     if kind is SourceKind.INVALID:
         raise ResolveError(400, "unrecognized source: pass a local path or a git URL")

@@ -42,7 +42,7 @@ from api.git import (
     is_lfs_pointer,
     read_blob,
     read_lfs_pointer,
-    resolve_root,
+    get_repo_root,
     within,
 )
 from api.utils.media import is_media
@@ -66,7 +66,7 @@ def _resolve(
     """(repo root, file) for a source-relative read, or the refusal that keeps
     this endpoint inside that one repo."""
     try:
-        root = resolve_root(SourceRef(src, branch))
+        root = get_repo_root(SourceRef(src, branch))
         return root, within(root, path, must_exist=must_exist)
     except ResolveError as e:
         raise HTTPException(e.status, e.message)

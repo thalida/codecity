@@ -51,7 +51,7 @@ yourself parsing a URL for a display string, use `utils.labels`.
 
 `/api/file` and `/api/fingerprint` address a file the way the manifest does: the
 `src` (+ `branch`) it was built for, and a path relative to that repo's root.
-`git.resolve_root` turns the source back into a directory — a clone hashes
+`git.get_repo_root` turns the source back into a directory — a clone hashes
 straight to its cache dir, a local path is allowed only when
 `CODECITY_ALLOW_LOCAL_REPOS` is on — and `git.within` refuses anything that
 resolves outside it. There is no global filesystem read.

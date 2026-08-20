@@ -152,13 +152,13 @@ class ResolveRootTests(unittest.TestCase):
         (self.root / "sub" / "f.txt").write_text("hi")
 
     def test_local_source_resolves_to_its_directory(self) -> None:
-        got = source.resolve_root(source.SourceRef(str(self.root)))
+        got = source.get_repo_root(source.SourceRef(str(self.root)))
         self.assertEqual(got, self.root.resolve())
 
     def test_local_source_refused_when_local_repos_are_off(self) -> None:
         with mock.patch.object(source, "local_repos_allowed", return_value=False):
             with self.assertRaises(source.ResolveError) as caught:
-                source.resolve_root(source.SourceRef(str(self.root)))
+                source.get_repo_root(source.SourceRef(str(self.root)))
         self.assertEqual(caught.exception.status, 403)
 
     def test_remote_source_resolves_to_its_clone_dir(self) -> None:
@@ -166,21 +166,21 @@ class ResolveRootTests(unittest.TestCase):
         with mock.patch.object(clone, "CLONES_ROOT", Path(self.tmp.name) / "clones"):
             on_disk = source.clone_dir_for(url, "main")
             on_disk.mkdir(parents=True)
-            got = source.resolve_root(source.SourceRef(url, "main"))
+            got = source.get_repo_root(source.SourceRef(url, "main"))
             self.assertEqual(got, on_disk.resolve())
             # Keyed on the branch AS PASSED, so the manifest has to echo the one
             # it was built for rather than the branch it resolved to.
             with self.assertRaises(source.ResolveError):
-                source.resolve_root(source.SourceRef(url, None))
+                source.get_repo_root(source.SourceRef(url, None))
 
     def test_source_that_was_never_cloned_is_404(self) -> None:
         with self.assertRaises(source.ResolveError) as caught:
-            source.resolve_root(source.SourceRef("https://github.com/owner/nope"))
+            source.get_repo_root(source.SourceRef("https://github.com/owner/nope"))
         self.assertEqual(caught.exception.status, 404)
 
     def test_unrecognized_source_is_400(self) -> None:
         with self.assertRaises(source.ResolveError) as caught:
-            source.resolve_root(source.SourceRef("not-a-source"))
+            source.get_repo_root(source.SourceRef("not-a-source"))
         self.assertEqual(caught.exception.status, 400)
 
 

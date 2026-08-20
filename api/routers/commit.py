@@ -7,7 +7,7 @@ import re
 from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
-from api.git import ResolveError, SourceRef, build_authors_list, resolve_root, run_git
+from api.git import ResolveError, SourceRef, build_authors_list, get_repo_root, run_git
 
 router = APIRouter(prefix="/api", tags=["commit"])
 
@@ -29,7 +29,7 @@ def get_commit(
     if not _SHA_RE.match(sha.strip()):
         raise HTTPException(400, "invalid or missing sha")
     try:
-        root = resolve_root(SourceRef(src, branch))
+        root = get_repo_root(SourceRef(src, branch))
     except ResolveError as e:
         raise HTTPException(e.status, e.message)
     # Empty stdout covers every failure run_git swallows, and the short split
