@@ -14,6 +14,14 @@ import type { FileNode } from '@/types';
 // rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
+import { makeBundle } from '../../../_helpers/scrub';
+import {
+  SETTLED_COMMIT,
+  TIMELINE_BUNDLE,
+  TIMELINE_MODE,
+  setScrubPos,
+} from '@/state/stores/timeline';
+import type { TimelineBundle } from '@/types';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -341,5 +349,76 @@ describe('FilePreviewPane', () => {
     expect(btn).not.toBeNull();
     btn!.click();
     expect(closed).toBe(true);
+  });
+});
+
+describe('FilePreviewPane in Timeline', () => {
+  let container: HTMLDivElement;
+  let state: Signal<FilePreviewPaneState>;
+
+  // media.png: no blob at commit 0, added at 1.
+  const BUNDLE = makeBundle({
+    commits: [{ sha: 'a' }, { sha: 'b' }],
+    deltas: [
+      { sha: 'a', changes: [] },
+      { sha: 'b', changes: [{ path: 'media.png', sha: 'blob1' }] },
+    ],
+    blobLines: { blob1: 0 },
+  } as unknown as Partial<TimelineBundle>);
+
+  const IMAGE_NODE: FileNode = {
+    name: 'media.png',
+    type: NodeKind.File,
+    path: 'media.png',
+    extension: '.png',
+    mediaKind: 'image',
+    size: 2048,
+    lines: 0,
+    binary: true,
+    dirty: false,
+    created: '2024-01-10T09:00:00Z',
+    modified: '2024-03-20T10:00:00Z',
+  } as unknown as FileNode;
+
+  async function showAt(commit: number): Promise<void> {
+    await act(async () => {
+      setScrubPos(commit);
+      SETTLED_COMMIT.value = commit;
+      state.value = { file: IMAGE_NODE, source: TEST_SOURCE };
+    });
+    await drainAsync();
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    TIMELINE_BUNDLE.value = BUNDLE;
+    TIMELINE_MODE.value = true;
+    state = signal<FilePreviewPaneState>({ file: null });
+    render(<FilePreviewPane state={state} />, container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    TIMELINE_MODE.value = false;
+    TIMELINE_BUNDLE.value = null;
+    setScrubPos(0);
+    SETTLED_COMMIT.value = 0;
+  });
+
+  it('asks for the blob at this commit, not for whatever HEAD has', async () => {
+    await showAt(1);
+    const img = container.querySelector('.preview-image') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    // Reading by path alone answers with HEAD's bytes, or 404s for a file HEAD
+    // no longer carries — which is what the city's own facades never do.
+    expect(new URL(img!.src).searchParams.get('sha')).toBe('blob1');
+  });
+
+  it('says the file is unavailable where it holds no blob, instead of fetching', async () => {
+    await showAt(0);
+    expect(container.querySelector('.preview-image')).toBeNull();
+    expect(container.querySelector('.empty-state--absent')).not.toBeNull();
   });
 });

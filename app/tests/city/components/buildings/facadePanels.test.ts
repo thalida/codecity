@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import {
@@ -11,6 +11,15 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
+import { makeBundle } from '../../../_helpers/scrub';
+import {
+  SETTLED_COMMIT,
+  TIMELINE_BUNDLE,
+  TIMELINE_MODE,
+  scrubbedBlobShaFor,
+  setScrubPos,
+} from '@/state/stores/timeline';
+import type { TimelineBundle } from '@/types';
 
 // Only the fields registerMediaBuilding reads.
 function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {
@@ -566,5 +575,116 @@ describe('sampleLayer page dispatch', () => {
     expect(mat.fragmentShader).toContain('uDataTint');
     expect(mat.fragmentShader).toContain('uDataEmission');
     expect(mat.fragmentShader).toContain('uMediaEmission');
+  });
+});
+
+describe('InstancedFacadePanels version re-arm (Timeline scrub)', () => {
+  const CAM = (() => {
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 30, 40);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    return cam;
+  })();
+
+  // media.png: no blob at commit 0, added at 1, replaced at 2.
+  const BUNDLE = makeBundle({
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+    deltas: [
+      { sha: 'a', changes: [] },
+      { sha: 'b', changes: [{ path: 'media.png', sha: 'blob1' }] },
+      { sha: 'c', changes: [{ path: 'media.png', sha: 'blob2' }] },
+    ],
+    blobLines: { blob1: 0, blob2: 0 },
+  } as unknown as Partial<TimelineBundle>);
+
+  function scrubTo(commit: number): void {
+    setScrubPos(commit);
+    SETTLED_COMMIT.value = commit;
+  }
+
+  function panelsWatching(started: string[]): InstancedFacadePanels {
+    const panels = new InstancedFacadePanels(8, TEST_SOURCE, {
+      onStartLoad: (b) => started.push(scrubbedBlobShaFor(b.file!.path) ?? 'working-tree'),
+    });
+    panels.registerMediaBuilding(
+      fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 8, file: MEDIA_FILE })
+    );
+    return panels;
+  }
+
+  const MEDIA_FILE = {
+    path: 'media.png',
+    name: 'media.png',
+    type: NodeKind.File,
+    extension: '.png',
+    mediaKind: 'image',
+    size: 1024,
+    lines: 0,
+    binary: true,
+    created: '',
+    modified: '2026-01-01T00:00:00Z',
+  } as unknown as Building['file'];
+
+  beforeEach(() => {
+    TIMELINE_BUNDLE.value = BUNDLE;
+    TIMELINE_MODE.value = true;
+    scrubTo(0);
+  });
+
+  afterEach(() => {
+    TIMELINE_MODE.value = false;
+    TIMELINE_BUNDLE.value = null;
+    scrubTo(0);
+  });
+
+  it('asks again for a file that only gains a blob at a later commit', () => {
+    const started: string[] = [];
+    const panels = panelsWatching(started);
+
+    // Parked where the file has no blob: the real loader bails here, and the
+    // panel used to stay marked as loaded for the rest of the session.
+    panels.updateLOD(CAM, 800);
+    expect(started).toEqual(['working-tree']);
+
+    scrubTo(1);
+    panels.updateLOD(CAM, 800);
+    expect(started).toEqual(['working-tree', 'blob1']);
+  });
+
+  it('re-loads when the scrub moves to a commit holding a different blob', () => {
+    const started: string[] = [];
+    const panels = panelsWatching(started);
+
+    scrubTo(1);
+    panels.updateLOD(CAM, 800);
+    scrubTo(2);
+    panels.updateLOD(CAM, 800);
+
+    expect(started).toEqual(['blob1', 'blob2']);
+  });
+
+  it('does not re-load when the commit changed but the blob did not', () => {
+    const started: string[] = [];
+    const panels = panelsWatching(started);
+
+    scrubTo(1);
+    panels.updateLOD(CAM, 800);
+    // Commit 1 -> 1 is the same version; a repaint must not refetch it.
+    panels.updateLOD(CAM, 800);
+
+    expect(started).toEqual(['blob1']);
+  });
+
+  it('stops re-arming once disposed', () => {
+    const started: string[] = [];
+    const panels = panelsWatching(started);
+    scrubTo(1);
+    panels.updateLOD(CAM, 800);
+    panels.dispose();
+
+    scrubTo(2);
+    panels.updateLOD(CAM, 800);
+    expect(started).toEqual(['blob1']);
   });
 });

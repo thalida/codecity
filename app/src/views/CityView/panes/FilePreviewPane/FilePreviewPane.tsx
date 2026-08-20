@@ -21,7 +21,7 @@ export enum PreviewKind {
 import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/api/file';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
-import { scrubbedBlobShaFor } from '@/state/stores/timeline';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { fetchFingerprintBlob } from '@/api/fingerprint';
 import {
   IMAGE_EXTS,
@@ -491,9 +491,9 @@ function _previewBody(file: FileNode | null, source: SourceRef | null) {
   // No manifest means no repo to read the file out of.
   if (!source) return null;
 
-  // Version the URL by mtime so an edited image/video/pdf re-fetches on a live
-  // update instead of the browser serving the cached bytes for the same path.
-  const url = fileUrl(source, file.path, file.modified);
+  // Scrubbed commits pin a version; Live keys on mtime, so an edited
+  // image/video/pdf re-fetches instead of being served from the browser cache.
+  const url = fileUrl(source, file.path, file.modified, scrubbedBlobShaFor(file.path));
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {
@@ -555,7 +555,9 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
     isAbsent,
   } = state.value;
   const path = file?.path ?? '';
-  const absent = Boolean(file && isAbsent);
+  // Absent from the scrub tree, or in it with no blob here: either way a read
+  // by path would answer with HEAD's bytes, or 404 for a file HEAD dropped.
+  const absent = Boolean(file && (isAbsent || hasNoContentAtScrub(path)));
 
   return (
     <Pane

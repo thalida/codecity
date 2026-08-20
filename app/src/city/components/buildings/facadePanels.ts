@@ -4,6 +4,7 @@
 // Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
+import { effect, untracked } from '@preact/signals';
 import { BuildingOrient, type SourceRef } from '@/types/index';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
@@ -14,7 +15,12 @@ import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
+import {
+  SETTLED_COMMIT,
+  TIMELINE_MODE,
+  hasNoContentAtScrub,
+  scrubbedBlobShaFor,
+} from '@/state/stores/timeline';
 import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
 import { fingerprintUrl } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
@@ -79,6 +85,12 @@ export interface FacadePanelRegistration {
   panelSlots: number[];
 }
 
+/** What a load of this building would fetch at the current scrub position: the
+ *  blob sha in Timeline, the working tree keyed by mtime otherwise. */
+function versionKeyFor(b: Building): string {
+  return scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '';
+}
+
 export class InstancedFacadePanels {
   /** The instanced mesh — add this to the scene. */
   readonly mesh: THREE.InstancedMesh;
@@ -124,10 +136,13 @@ export class InstancedFacadePanels {
     // still counts as on-screen.
     radius: number;
     shown: boolean;
-    loaded: boolean;
+    // The version its texture came from (blob sha, else mtime), or null when it
+    // has none yet. Not a boolean: a scrub moves a panel to another version.
+    loadedKey: string | null;
     // Per-building loader (media image vs binary fingerprint), chosen at register.
     startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
   }> = [];
+  private readonly _stopScrubWatch: () => void;
   // Constructor override: when set, replaces every panel's loader so tests can
   // observe LOD scheduling without hitting the network. null in production.
   private readonly _overrideStartLoad:
@@ -141,6 +156,13 @@ export class InstancedFacadePanels {
     opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
+    // Nothing else re-arms a panel, so a file with no content where you were
+    // parked would wear its placeholder for the rest of the session.
+    this._stopScrubWatch = effect(() => {
+      void SETTLED_COMMIT.value;
+      void TIMELINE_MODE.value;
+      untracked(() => this._rearmChangedVersions());
+    });
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
@@ -370,7 +392,7 @@ export class InstancedFacadePanels {
       // face, and stand panelHeight tall. Generous so an edge building isn't missed.
       radius: Math.max(b.w, b.d, panelHeight),
       shown: true,
-      loaded: false,
+      loadedKey: null,
       startLoad,
     });
 
@@ -500,9 +522,11 @@ export class InstancedFacadePanels {
       }
 
       // Load only what we render, at most FACADE_LOAD_BUDGET_PER_FRAME new per frame.
-      if (wantShown && !rec.loaded && started < FACADE_LOAD_BUDGET_PER_FRAME) {
+      if (wantShown && rec.loadedKey === null && started < FACADE_LOAD_BUDGET_PER_FRAME) {
+        // Stamped on the attempt, not on the result: a bail-out (no content at
+        // this commit) must not re-queue itself every frame.
+        rec.loadedKey = versionKeyFor(rec.b);
         (this._overrideStartLoad ?? rec.startLoad)(rec.b, rec.layer, rec.slots);
-        rec.loaded = true;
         started++;
       }
     }
@@ -519,8 +543,19 @@ export class InstancedFacadePanels {
     (u.uDataTint.value as THREE.Color).set(cfg.DATA_COLOR);
   }
 
+  /** Drop the load stamp of every panel whose version moved, so updateLOD
+   *  streams them back in at the budget it already enforces. */
+  private _rearmChangedVersions(): void {
+    for (const rec of this._panels) {
+      if (rec.loadedKey !== null && rec.loadedKey !== versionKeyFor(rec.b)) {
+        rec.loadedKey = null;
+      }
+    }
+  }
+
   dispose(): void {
     this._disposed = true;
+    this._stopScrubWatch();
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.Material).dispose();
     this._texArray.dispose();
