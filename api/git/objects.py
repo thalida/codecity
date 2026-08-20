@@ -172,13 +172,7 @@ def _resolve_lfs(
     """(real bytes, size) for an lfs pointer, matching the working tree Live scans;
     non-pointer unchanged. Reads the local object, and with `download` may smudge
     it in by oid. Unresolvable → (b'', declared size): 0 lines but the true
-    footprint.
-
-    `download` is False on anything a browser request can reach: a smudge is a
-    remote download on the request thread, so a page of unpulled media becomes a
-    burst of them at the lfs endpoint, which answers bursts with a block. Bulk
-    fetching belongs to the scan, which does it once, off the request path.
-    """
+    footprint. `download` is for the scan only, never a browser request."""
     ptr = _parse_lfs_pointer(content)
     if ptr is None:
         return content, blob_size
@@ -191,6 +185,8 @@ def _resolve_lfs(
             return obj.read_bytes(), declared
     except OSError:
         pass
+    # A smudge downloads from the lfs endpoint on the calling thread, so a page
+    # of unpulled media would be a burst of them: the scan does this, not a read.
     resolved = _lfs_smudge(root, content) if download else None
     return (resolved, declared) if resolved is not None else (b"", declared)
 
