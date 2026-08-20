@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { NodeKind } from '@/types';
@@ -47,7 +47,7 @@ function dir(
 
 describe('StreetPane', () => {
   let container: HTMLDivElement;
-  let state: ReturnType<typeof signal<StreetPaneState>>;
+  let state: Signal<StreetPaneState>;
 
   function mount(opts: { onFocus?: (d: DirNode) => void } = {}): void {
     state = signal<StreetPaneState>({ directory: null });

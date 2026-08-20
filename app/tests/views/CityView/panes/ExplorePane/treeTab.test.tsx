@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
 import type { Manifest, DirNode, TreeNode } from '@/types';
 import { flush } from '../../../../_helpers/preact';
@@ -50,10 +50,10 @@ const TEST_TREE = {
 // ---- TreePane ----
 describe('TreePane', () => {
   let container: HTMLDivElement;
-  let manifest: ReturnType<typeof signal<TreeLike | null>>;
-  let selectedPath: ReturnType<typeof signal<string | null>>;
-  let hoveredPath: ReturnType<typeof signal<string | null>>;
-  let expanded: ReturnType<typeof signal<Set<string>>>;
+  let manifest: Signal<TreeLike | null>;
+  let selectedPath: Signal<string | null>;
+  let hoveredPath: Signal<string | null>;
+  let expanded: Signal<Set<string>>;
 
   interface MountOpts {
     onSelect?: (node: TreeNode) => void;

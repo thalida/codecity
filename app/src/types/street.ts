@@ -46,7 +46,9 @@ export interface Street {
   width: number;
   length: number;
   label: string;
-  dir: DirNode;
+  // Nullable: the layout emits streets with no directory behind them (the
+  // root spine), and every consumer already guards for it.
+  dir: DirNode | null;
   orientation: StreetAxis;
   isRoot?: boolean;
 }

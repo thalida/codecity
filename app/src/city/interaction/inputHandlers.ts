@@ -52,8 +52,8 @@ export function createInputHandlers({
   // One raycast per frame, then a short delay before committing, so brushing
   // past a building doesn't engage the cascade fade. Only the commit waits.
   let _hoverRafId = 0;
-  let _hoverLastEvt = null;
-  let _hoverPending = null;
+  let _hoverLastEvt: PointerEvent | null = null;
+  let _hoverPending: PickTarget | null = null;
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
   let _cameraMoving = false;
@@ -271,13 +271,12 @@ export function createInputHandlers({
   _on(window, 'resize', _resize);
 
   // A sidebar resizes the canvas without a window resize, so observe it.
-  let _resizeObs = null;
   if (typeof ResizeObserver !== 'undefined') {
-    _resizeObs = new ResizeObserver(_resize);
-    _resizeObs.observe(canvas);
-    _disposers.push(() => {
-      _resizeObs.disconnect();
-    });
+    // Captured as a const: the disposer closes over the observer itself, so
+    // nothing has to prove a mutable outer binding is still set when it runs.
+    const observer = new ResizeObserver(_resize);
+    observer.observe(canvas);
+    _disposers.push(() => observer.disconnect());
   }
 
   function dispose() {

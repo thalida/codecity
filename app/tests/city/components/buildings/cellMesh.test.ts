@@ -5,6 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
 import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
+import type { CellTile } from '@/city/components/buildings/cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
@@ -252,7 +253,7 @@ describe('cellMesh shared-material stress test (300 cells)', () => {
     const CELL_COUNT = 300;
     const capacity = 64;
 
-    const cells = [];
+    const cells: CellTile[] = [];
     for (let id = 0; id < CELL_COUNT; id++) {
       const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
       attachBuildingMeshToCell(cell);

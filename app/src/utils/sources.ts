@@ -30,7 +30,10 @@ export function srcKind(src: string): SourceKind {
  * with spaces — treat those as "no branch"). A requested branch always wins.
  */
 export function resolveBranch(
-  manifest: { repo: { branch?: string } },
+  // Nullable, not optional: the scanner always emits `branch` and sends null
+  // for a repo with no HEAD. Declaring it `branch?: string` described a wire
+  // that does not exist, and the truthiness check below already handled both.
+  manifest: { repo: { branch?: string | null } },
   requested?: string
 ): string | undefined {
   const mb = manifest.repo.branch;

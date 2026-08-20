@@ -262,7 +262,7 @@ describe('applying a scrub frame', () => {
         [ranges[2].street, scrub({ tint: StreetTint.None })],
       ])
     );
-    expect([...RUINED_STREET_DIRS]).toEqual([ranges[1].street.dir.path]);
+    expect([...RUINED_STREET_DIRS]).toEqual([ranges[1].street.dir?.path]);
   });
 
   it('clears those sets each frame, so a resurrected folder becomes clickable again', () => {

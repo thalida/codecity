@@ -12,6 +12,10 @@ import { createPathLineRenderer } from './renderer';
 
 /** Public contract for the pathLine component. */
 export interface PathLine extends SceneComponent {
+  // Required here, optional on SceneComponent: the frame loop calls tick only
+  // if present, but this one always has it, and a caller holding this type
+  // shouldn't have to prove that.
+  tick(dt: number, ctx: FrameContext): void;
   /** Canvas-resize hook — forwards to the two LineMaterial resolutions. */
   onResize(): void;
 }

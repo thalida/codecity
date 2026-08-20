@@ -46,7 +46,8 @@ export function HomeView() {
   const defaultTab = !hasRecents && hasDiscover ? SOURCE_TAB.discover : SOURCE_TAB.recents;
   // During render, not via an effect: the server's list lands after first paint
   // and can take the Discover tab with it.
-  const activeTab = tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
+  const activeTab =
+    pickedTab !== null && tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
 
   const painted = BACKDROP_CITY.value !== null;
 

@@ -19,9 +19,8 @@ type _DirKind = AssertTrue<NodeKind.Directory extends Schemas['DirNode']['type']
 type _StageToWire = AssertTrue<`${TimelineStage}` extends Schemas['TimelineStage'] ? true : false>;
 type _WireToStage = AssertTrue<Schemas['TimelineStage'] extends `${TimelineStage}` ? true : false>;
 
-// ScanPhase mirrors the SSE event NAMES, which the stream matches verbatim: a
-// renamed event would typecheck and then simply never match, stalling the
-// overlay rather than failing.
+// ScanPhase mirrors the SSE event NAMES: a renamed one would typecheck here
+// and then simply never match, stalling the overlay rather than failing.
 type _PhaseToWire = AssertTrue<`${ScanPhase}` extends Schemas['ScanEvent'] ? true : false>;
 type _WireToPhase = AssertTrue<Schemas['ScanEvent'] extends `${ScanPhase}` ? true : false>;
 

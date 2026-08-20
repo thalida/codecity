@@ -76,7 +76,7 @@ describe('statItems', () => {
   });
 
   it('omits stats the node does not carry', () => {
-    const bare: FileNode = { ...FILE, lines: null, size: null, created: null, modified: null };
+    const bare: FileNode = { ...FILE, lines: null, size: null, created: '', modified: '' };
     const texts = fileStatItems(bare, { now: NOW }).map((i) => i.text);
     expect(texts.some((t) => t.includes('lines'))).toBe(false);
     expect(texts.some((t) => t.startsWith('modified'))).toBe(false);

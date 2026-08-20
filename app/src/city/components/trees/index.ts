@@ -19,6 +19,10 @@ export type { Trees };
 
 /** Public contract for the trees component. */
 export interface TreesComponent extends SceneComponent {
+  // Required here, optional on SceneComponent: the frame loop calls tick only
+  // if present, but this one always has it, and a caller holding this type
+  // shouldn't have to prove that.
+  tick(dt: number, ctx: FrameContext): void;
   /** The inner meshes, rebuilt from the placements the build published. */
   rebuild(
     placements: TreePlacement[],

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import {
   FilePreviewPane,
   PreviewKind,
@@ -30,7 +30,7 @@ const FILE_NODE: FileNode = {
 
 describe('FilePreviewPane', () => {
   let container: HTMLDivElement;
-  let state: ReturnType<typeof signal<FilePreviewPaneState>>;
+  let state: Signal<FilePreviewPaneState>;
 
   function mount(opts: { onClose?: () => void; onFocus?: (f: FileNode) => void } = {}): void {
     state = signal<FilePreviewPaneState>({ file: null });
