@@ -17,18 +17,8 @@ const DEFAULT_FILE: FileNode = {
   modified: '',
 };
 
-/**
- * Build a Building with sensible defaults. Override any field via the param.
- * Use this everywhere instead of inline fakeBuilding / makeBuilding /
- * makeFakeBuilding.
- *
- * Defaults satisfy every required field of Building (no cast needed). The
- * required-field set is small (x, y, w, d, h, color, file, orient); optional
- * fields (createdAge, modifiedAge, floors, cellId, slotId) default
- * to undefined and only appear when overridden — matches the production
- * shape where layout produces buildings without ages/cellId/slotId and
- * later steps fill them in.
- */
+/** A Building with every required field defaulted, so no call site needs a cast.
+ *  Optional fields stay undefined until overridden, as layout leaves them. */
 export function building(overrides: Partial<Building> = {}): Building {
   return {
     x: overrides.x ?? 0,

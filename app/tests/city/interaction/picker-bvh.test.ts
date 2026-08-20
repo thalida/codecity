@@ -1,10 +1,7 @@
 // picker-bvh.test.ts — the picker raycasts through a three-mesh-bvh ObjectBVH
-// (built over the pickables) instead of THREE's brute-force intersectObjects,
-// which at Linux scale tested every one of ~80k building instances per pointer
-// move (~34ms/cast). This guard proves the accelerated path returns the SAME
-// hit (object + instanceId + point) a brute-force core raycast would, against a
-// real cell scene — so hover/selection stay bit-identical while the per-cast
-// cost drops ~480x.
+// rather than THREE's brute force, which tested ~80k instances per pointer move
+// at Linux scale. This proves the accelerated path returns the SAME hit (object
+// + instanceId + point) against a real cell scene, so selection can't drift.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
