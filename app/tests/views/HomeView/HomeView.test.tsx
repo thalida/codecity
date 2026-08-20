@@ -1,6 +1,7 @@
 // Native-harness tests for HomeView (no @testing-library/preact here).
-// Focus: while SCAN_PROGRESS is non-null the view shows progress + Cancel and
-// unmounts the form/recents entirely, rather than disabling them.
+// Focus: the landing takes input and hands off. It renders no progress of its
+// own — committing a source routes to /city, where the one overlay owns the
+// load — so what is covered here is the form, recents, discover and errors.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
@@ -24,8 +25,19 @@ vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
   loadSource: vi.fn(),
   cancelLoad: vi.fn(),
 }));
+// Opening anything from here is a navigation, so this is what the assertions
+// watch: the landing starts no load of its own.
+vi.mock('@/router/location', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/router/location')>()),
+  navigate: vi.fn(),
+}));
 import { HomeView } from '@/views/HomeView/HomeView';
-import { setLoadingStepTail, PENDING_SOURCE_LABEL, SCAN_PROGRESS } from '@/state/stores/progress';
+import {
+  attachOverlayDriver,
+  hideLoadingOverlay,
+  PENDING_SOURCE_LABEL,
+  SCAN_PROGRESS,
+} from '@/state/stores/progress';
 import {
   BACKDROP_CITY,
   BackdropKind,
@@ -33,14 +45,11 @@ import {
   CURRENT_SOURCE,
   SOURCE_ERROR,
 } from '@/state/stores/source';
-import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
+import { loadSource } from '@/hooks/useManifestSource';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { LoadingStep } from '@/constants/progress';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
-import { ScanPhase } from '@/api/manifest';
-import { SourceKind } from '@/utils/sources';
 import { flush } from '../../_helpers/preact';
 
 /** A project already loaded, which the landing names as its backdrop. */
@@ -51,10 +60,16 @@ function loadedCity(): void {
 describe('HomeView', () => {
   let container: HTMLDivElement;
 
+  // The real chain: SCAN_PROGRESS feeds the one driver, the driver decides
+  // when a load is over, and both surfaces render what it says. Setting the
+  // view's visibility by hand here is what let the two disagree.
+  let stopDriver: () => void;
+
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
+    stopDriver = attachOverlayDriver();
   });
 
   afterEach(() => {
@@ -63,7 +78,9 @@ describe('HomeView', () => {
     navigate(ROUTES.HOME, { replace: true });
     SOURCE_ERROR.value = null;
     CURRENT_SOURCE.value = null;
+    stopDriver();
     SCAN_PROGRESS.value = null;
+    hideLoadingOverlay();
     PENDING_SOURCE_LABEL.value = null;
     RECENTS.value = [];
     DISCOVER.value = [];
@@ -78,71 +95,6 @@ describe('HomeView', () => {
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
-  });
-
-  it('shows inline progress and hides the form/recents while a load is in flight', async () => {
-    loadedCity();
-    RECENTS.value = [
-      { src: 'https://github.com/o/r', branch: 'main', label: 'o/r', lastOpenedAt: 1 },
-    ];
-    render(<HomeView />, container);
-    await flush();
-    expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
-
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
-    PENDING_SOURCE_LABEL.value = 'o/r';
-    await flush();
-
-    // The "second load" surface is gone, not just disabled — nothing left to
-    // click into while the current load streams.
-    expect(container.querySelector('.new-project')).toBeNull();
-    expect(container.querySelector('[data-list="recents"]')).toBeNull();
-
-    const progress = container.querySelector('.landing-progress');
-    expect(progress).not.toBeNull();
-    expect(progress?.textContent).toContain('o/r');
-    expect(progress?.textContent).toMatch(/Cloning/i);
-    expect(container.querySelector('.loading-spinner')).not.toBeNull();
-  });
-
-  it('forwards per-step tails (clone %) into the inline switcher progress', async () => {
-    loadedCity();
-    render(<HomeView />, container);
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
-    setLoadingStepTail(LoadingStep.Cloning, '45% (Receiving)');
-    await flush();
-
-    const tail = container.querySelector('.loading-step-tail');
-    expect(tail).not.toBeNull();
-    expect(tail!.textContent).toContain('45%');
-
-    setLoadingStepTail(LoadingStep.Cloning, null); // reset the shared overlay state
-  });
-
-  it('cancels the in-flight load from its Cancel button', async () => {
-    loadedCity();
-    render(<HomeView />, container);
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
-    await flush();
-
-    const cancelBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Cancel'
-    )!;
-    expect(cancelBtn).toBeTruthy();
-    cancelBtn.click();
-    expect(cancelLoad).toHaveBeenCalledOnce();
-  });
-
-  it('drops a stale error banner once a new load starts', async () => {
-    loadedCity();
-    SOURCE_ERROR.value = { error: 'repository not found' };
-    render(<HomeView />, container);
-    await flush();
-    expect(container.textContent).toMatch(/repository not found/i);
-
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
-    await flush();
-    expect(container.textContent).not.toMatch(/repository not found/i);
   });
 
   it('drops a stale error banner as soon as the user edits the source', async () => {
@@ -293,7 +245,9 @@ describe('HomeView', () => {
       render(<HomeView />, container);
       await flush();
       container.querySelector<HTMLButtonElement>('[data-list="discover"] .source-row')!.click();
-      expect(loadSource).toHaveBeenCalledWith({ src: 'https://github.com/preactjs/preact' });
+      // A link, not a load: the URL carrying the src is what starts one.
+      expect(navigate).toHaveBeenCalledWith('/city?src=https://github.com/preactjs/preact');
+      expect(loadSource).not.toHaveBeenCalled();
     });
 
     it('shows no remove control on a Discover row: it is not yours to forget', async () => {

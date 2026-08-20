@@ -9,14 +9,13 @@ import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'luci
 import { City, CityVariant } from '@/city/City';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
-import { LOADING_OVERLAY, SCAN_PROGRESS } from '@/state/stores/progress';
 import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
-import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
+import { hrefFor, navigate } from '@/router/location';
+import { ROUTES } from '@/router/paths';
+import { URL_PARAMS } from '@/constants/urlParams';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
-import { stepForPhase } from '@/constants/progress';
-import { LoadingProgress } from '@/components/loading/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/sources/DiscoverList/DiscoverList';
@@ -27,11 +26,15 @@ const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
   useHomeBackdrop();
-  // The one way this view opens a project, whichever list or form asked.
-  const open = (payload: SourcePayload): void => void loadSource(payload);
+  // Navigate, don't load: the URL carrying a src IS the load trigger, the same
+  // one a deep link uses. Loading here waited for the scan before routing.
+  const open = (payload: SourcePayload): void => {
+    const params = new URLSearchParams();
+    params.set(URL_PARAMS.SRC, payload.src);
+    if (payload.branch) params.set(URL_PARAMS.BRANCH, payload.branch);
+    navigate(hrefFor(ROUTES.CITY, params));
+  };
   const failed = SOURCE_ERROR.value;
-  const scan = SCAN_PROGRESS.value;
-  const loading = scan !== null;
 
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.
@@ -109,60 +112,44 @@ export function HomeView() {
           </ul>
         </section>
 
+        {/* No progress surface here: committing a source routes to /city
+            immediately, and the overlay there owns every load. */}
         <div class="landing-actions">
-          {loading && scan ? (
-            <section class="landing-card surface-glass">
-              <div class="landing-progress">
-                <LoadingProgress
-                  activeStep={stepForPhase(scan.phase, scan.kind)}
-                  kind={scan.kind}
-                  branch={scan.branch}
-                  // The tails (clone %, files scanned) are computed into
-                  // LOADING_OVERLAY even while this surface owns the load.
-                  stepTails={LOADING_OVERLAY.value.stepTails}
-                  onCancel={cancelLoad}
-                />
-              </div>
-            </section>
-          ) : (
-            <>
-              <section class="landing-card surface-glass">
-                <h2 class="landing-card-title">Open a project</h2>
-                <NewProjectForm
-                  // Remount on a new prefill so a failed submit restores what
-                  // was typed instead of clearing it.
-                  key={failed?.prefill?.src ?? ''}
-                  allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
-                  hosted={SERVER_CONFIG.value.hosted}
-                  error={failed?.error}
-                  errorCode={failed?.code}
-                  prefill={failed?.prefill}
-                  onSubmit={open}
-                />
-              </section>
-              <section class="landing-card landing-card--sources surface-glass">
-                <PaneTabs
-                  tabs={tabs}
-                  active={activeTab}
-                  onSelect={setPickedTab}
-                  panelId={SOURCE_PANEL_ID}
-                  class="landing-tabs"
-                />
-                <div
-                  id={SOURCE_PANEL_ID}
-                  role="tabpanel"
-                  aria-labelledby={`${SOURCE_PANEL_ID}-tab-${activeTab}`}
-                  class="landing-tabpanel"
-                >
-                  {activeTab === SOURCE_TAB.recents ? (
-                    <RecentsList onOpen={open} />
-                  ) : (
-                    <DiscoverList onOpen={open} />
-                  )}
-                </div>
-              </section>
-            </>
-          )}
+          <section class="landing-card surface-glass">
+            <h2 class="landing-card-title">Open a project</h2>
+            <NewProjectForm
+              // Remount on a new prefill so a failed submit restores what
+              // was typed instead of clearing it.
+              key={failed?.prefill?.src ?? ''}
+              allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
+              hosted={SERVER_CONFIG.value.hosted}
+              error={failed?.error}
+              errorCode={failed?.code}
+              prefill={failed?.prefill}
+              onSubmit={open}
+            />
+          </section>
+          <section class="landing-card landing-card--sources surface-glass">
+            <PaneTabs
+              tabs={tabs}
+              active={activeTab}
+              onSelect={setPickedTab}
+              panelId={SOURCE_PANEL_ID}
+              class="landing-tabs"
+            />
+            <div
+              id={SOURCE_PANEL_ID}
+              role="tabpanel"
+              aria-labelledby={`${SOURCE_PANEL_ID}-tab-${activeTab}`}
+              class="landing-tabpanel"
+            >
+              {activeTab === SOURCE_TAB.recents ? (
+                <RecentsList onOpen={open} />
+              ) : (
+                <DiscoverList onOpen={open} />
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </main>

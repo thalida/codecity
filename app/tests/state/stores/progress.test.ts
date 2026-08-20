@@ -144,15 +144,20 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
-    // City painted → status leaves Rebuilding → overlay hides.
+    // Decorating lands before the layout is published, so the city does not
+    // exist yet and the overlay stays.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    // Built AND presented is what ends it.
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+    CITY_ON_SCREEN.value = true;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
   it('holds the overlay until a frame of the city has actually been presented', () => {
-    // A finished build is not a drawn city. Between markIdle and the first
-    // presented frame sit shader compiles and buffer uploads, seconds of them
-    // on a big repo, and the overlay used to come down at the start of that.
+    // A finished build is not a drawn city: the GPU work sits between them,
+    // and the overlay used to come down at the start of it.
     CITY_ON_SCREEN.value = false; // markRebuilding does this
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
     REBUILD_STATUS.value = RebuildStatus.Rebuilding;
@@ -191,7 +196,13 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible, 'still building').toBe(true);
     expect(PENDING_SOURCE_LABEL.value, 'header must survive the build phase').toBe('owner/repo');
 
+    // Decorating is still building; the label clears with the overlay, which
+    // now waits for a presented frame.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+    CITY_ON_SCREEN.value = true;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
   });

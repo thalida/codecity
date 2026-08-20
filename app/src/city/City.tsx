@@ -9,7 +9,7 @@ import { effect } from '@preact/signals';
 import { createCity } from '@/city';
 import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -53,7 +53,9 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           return;
         }
         city = handle;
-        SCENE_HANDLE.value = handle;
+        // Published to its own slot: the two variants are independent cities.
+        if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
+        else BACKDROP_HANDLE.value = handle;
         disposeReactions = attachSettingsReactions({
           // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
           rebuildScene: () =>
@@ -93,7 +95,9 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
       // frame loop on the same canvas (old city keeps rendering as a ghost).
       city?.dispose();
       city = null;
-      SCENE_HANDLE.value = null;
+      // Only its own slot: clearing the other would strand the city still up.
+      if (variant === CityVariant.Scene) SCENE_HANDLE.value = null;
+      else BACKDROP_HANDLE.value = null;
     };
   }, []);
 

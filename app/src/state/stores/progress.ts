@@ -86,8 +86,7 @@ export const LAST_UPDATED_AT = signal<number>(0);
 export const BUILD_PROGRESS = signal<BuildProgress | null>(null);
 
 /** Whether a frame carrying the CURRENT city has actually reached the screen.
- *  A finished build is not that: the shaders still have to compile and the
- *  buffers upload, which on a big repo is seconds of blank canvas. */
+ *  Set by the frame loop; see city/render/LOADING.md. */
 export const CITY_ON_SCREEN = signal<boolean>(true);
 
 // ── Status transitions (single owner of each state + its coupled writes) ──
@@ -121,6 +120,9 @@ export function markIdle(): void {
 
 export function markError(err: unknown): void {
   REBUILD_STATUS.value = RebuildStatus.Error;
+  // Logged with the stack, where a developer can use it. The UI shows a generic
+  // line: the message names our internals and a user cannot act on it.
+  console.error('[codecity] city build failed', err);
   LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
   REBUILD_DETAIL.value = null;
   BUILD_PROGRESS.value = null;
@@ -248,13 +250,11 @@ function attachScanReaction(): () => void {
   };
   return effect(() => {
     const p = SCAN_PROGRESS.value;
-    // The stream finishing (p === null) does NOT mean the city is on screen:
-    // hold the overlay through the build, or an empty 3D world flashes.
-    // A finished build is not a drawn city, and dropping the overlay between
-    // them shows an empty world. Idle-gated: an errored build never paints.
+    // The stream finishing is not the city appearing. An active status keeps
+    // the overlay up, then so does waiting for the paint; Error releases it.
     const status = REBUILD_STATUS.value;
-    const awaitingPaint = status === RebuildStatus.Idle && !CITY_ON_SCREEN.value;
-    const building = status === RebuildStatus.Rebuilding || awaitingPaint;
+    const active = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
+    const building = status !== RebuildStatus.Error && (active || !CITY_ON_SCREEN.value);
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;

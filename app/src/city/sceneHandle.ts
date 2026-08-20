@@ -10,7 +10,13 @@ import { IS_PHONE } from '@/state/stores/viewport';
 
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
+/** The city on the /city route. Only the Scene variant publishes here. */
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
+
+/** The landing's wallpaper city. Its own slot, because it is a different city
+ *  on a different canvas: sharing one made whichever mounted last the target of
+ *  the other's applyManifest, and put the backdrop's repo on the city route. */
+export const BACKDROP_HANDLE = signal<SceneHandle | null>(null);
 
 /** Resolves once the city exists. A boot load can outrun createCity, and a load
  *  that finds no handle has nowhere to put its city. */

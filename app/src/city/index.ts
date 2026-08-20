@@ -9,7 +9,7 @@ import { effect, untracked } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { CITY_ON_SCREEN, REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { CITY_ON_SCREEN } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -151,6 +151,22 @@ export async function createCity(
     untracked(() => rig.reset());
   });
 
+  // Waits for the meshes to exist, then for a frame to reach the screen: pixels
+  // land a compositor pass after render() (see render/LOADING.md).
+  const stopOnScreen = effect(() => {
+    void cityState.cityRevision.value;
+    if (cityState.manifest.peek() === null) return;
+    untracked(() => {
+      void buildings.whenSettled().then(() => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            CITY_ON_SCREEN.value = true;
+          })
+        );
+      });
+    });
+  });
+
   const postFx = createPostFx(renderer, scene, rig.camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
@@ -209,21 +225,6 @@ export async function createCity(
   // Last scrub position the removed-selection prune ran at — so it fires only when
   // the scrub actually MOVES, never on a static selection.
   let _lastPrunedScrubPos = -1;
-  // PRESENTED, not rendered: render() only issues the GL commands. Two rAFs
-  // later the frame is on screen (see render/LOADING.md).
-  let _presentPending = false;
-  function _markOnScreenOncePresented(): void {
-    if (CITY_ON_SCREEN.peek() || _presentPending) return;
-    if (REBUILD_STATUS.peek() === RebuildStatus.Rebuilding) return;
-    _presentPending = true;
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        _presentPending = false;
-        CITY_ON_SCREEN.value = true;
-      })
-    );
-  }
-
   const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
@@ -242,7 +243,6 @@ export async function createCity(
       }
     },
     after() {
-      _markOnScreenOncePresented();
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
       if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
@@ -327,6 +327,7 @@ export async function createCity(
     dispose(): void {
       stopFrameLoop();
       stopReframe();
+      stopOnScreen();
       stopTimelineTeardown();
       _scrubController?.dispose();
       handlers.dispose();

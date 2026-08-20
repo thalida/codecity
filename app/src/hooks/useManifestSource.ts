@@ -30,6 +30,7 @@ import {
   markError,
   markRebuilding,
   SCAN_PROGRESS,
+  CITY_ON_SCREEN,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
@@ -157,10 +158,21 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     kind: srcKind(payload.src),
     branch,
   };
+  // Whatever is on the canvas is about to be replaced, and the stream can end
+  // before the build even starts: without this the overlay drops in that gap.
+  CITY_ON_SCREEN.value = false;
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
   // A cancel that lands after a skeleton rolls back to this, or the canceled
-  // repo's geometry lingers under the unchanged header.
+  // repo's geometry lingers under the unchanged header. Captured before the
+  // clear below, which is the other thing a cancel has to undo.
   const prevManifest = MANIFEST.peek();
+  // A DIFFERENT project retires the one on screen. The route changes on the
+  // click now, so leaving it would draw the last project's city under the
+  // overlay for the whole load.
+  const opened = CURRENT_SOURCE.peek();
+  if (!opened || !sameSourceIdentity(opened, { src: payload.src, branch })) {
+    setManifest(null);
+  }
 
   try {
     const url = manifestUrlFor({
