@@ -38,6 +38,17 @@ async function streamFeatured(src: string, signal: AbortSignal): Promise<Manifes
   return complete;
 }
 
+// Building a city holds the main thread for seconds on a big repo (see
+// city/state applyStructure). Behind the landing that is a frozen page for
+// something nobody came to look at, so a big one yields to the next candidate.
+const BACKDROP_MAX_FILES = 5000;
+
+/** Whether this manifest is small enough to build without freezing the page. */
+function fitsBehindTheLanding(manifest: Manifest): boolean {
+  const files = manifest.tree?.descendants_file_count;
+  return files === undefined || files <= BACKDROP_MAX_FILES;
+}
+
 /** Who gets to be the backdrop, best first. */
 function candidates(featuredRepo: string | undefined): Candidate[] {
   const out: Candidate[] = [];
@@ -90,8 +101,10 @@ export function useHomeBackdrop(): void {
       try {
         const manifest = await next.fetch(signal);
         if (signal.aborted) return;
-        if (!manifest) {
-          void tryNext(handle, featuredRepo); // nothing there, try the next one
+        // Too big to build without freezing the page, or nothing there at all:
+        // either way this candidate is out and the next one gets its turn.
+        if (!manifest || !fitsBehindTheLanding(manifest)) {
+          void tryNext(handle, featuredRepo);
           return;
         }
         await handle.applyManifest(manifest);
