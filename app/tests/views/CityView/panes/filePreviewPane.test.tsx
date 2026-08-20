@@ -146,22 +146,46 @@ describe('FilePreviewPane', () => {
     expect(container.querySelector('.binary-fingerprint-frame')).not.toBeNull();
   });
 
-  it('embeds the fetched fingerprint as a data-URL image', async () => {
-    const b64 = 'iVBORw0KGgoAAAANSg==';
-    globalThis.fetch = (async (url: string) =>
-      String(url).includes('/api/fingerprints')
-        ? new Response(JSON.stringify({ '/tmp/project/data.db': { b64 } }), { status: 200 })
-        : new Response('', { status: 200 })) as unknown as typeof fetch;
+  it('shows the fetched fingerprint image', async () => {
+    const requested: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      requested.push(String(url));
+      return new Response(new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
 
     mount();
     await setFile(BINARY_NODE);
-    // The fingerprint fetch coalesces on a 16ms timer; drain past it.
     await act(async () => {
       await drainAsync(40, 1);
     });
     const img = container.querySelector('.binary-fingerprint') as HTMLImageElement | null;
     expect(img).not.toBeNull();
-    expect(img!.getAttribute('src')).toBe(`data:image/png;base64,${b64}`);
+    // The PNG arrives as a PNG: an object URL over the fetched blob, no base64
+    // round trip through JSON.
+    expect(img!.getAttribute('src')).toMatch(/^blob:/);
+    // Versioned by mtime, so an unedited file is served from the browser cache.
+    expect(requested.some((u) => u.includes('/api/fingerprint?') && u.includes('mtime='))).toBe(
+      true
+    );
+  });
+
+  it('says an undownloaded binary is waiting, not that it failed', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+        status: 202,
+      })) as unknown as typeof fetch;
+
+    mount();
+    await setFile(BINARY_NODE);
+    await act(async () => {
+      await drainAsync(40, 1);
+    });
+    // No fingerprint to show, and the frame must not imply a broken file.
+    expect(container.querySelector('.binary-fingerprint')).toBeNull();
+    const fallback = container.querySelector('.binary-fingerprint-fallback');
+    expect(fallback!.getAttribute('aria-label')).toBe('Not downloaded yet');
   });
 
   it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {
@@ -214,9 +238,6 @@ describe('FilePreviewPane', () => {
 
     // A minimal valid TrueType signature (0x00010000) padded to a few bytes.
     const TTF_BYTES = new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-    const LFS_POINTER = new TextEncoder().encode(
-      'version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 4\n'
-    );
 
     // jsdom ships no FontFace, so this stubs one plus a byte-returning fetch;
     // `loads` decides whether FontFace.load() resolves.
@@ -241,6 +262,15 @@ describe('FilePreviewPane', () => {
       (document as unknown as Record<string, unknown>).fonts = { add() {}, delete() {} };
       globalThis.fetch = (async () =>
         new Response(bytes.buffer as ArrayBuffer, { status: 200 })) as unknown as typeof fetch;
+    }
+
+    /** The endpoint's answer for a font whose LFS object was never pulled. */
+    function installPendingFont(): void {
+      installFont(TTF_BYTES);
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+          status: 202,
+        })) as unknown as typeof fetch;
     }
     afterEach(() => {
       (globalThis as Record<string, unknown>).FontFace = origFontFace;
@@ -268,14 +298,17 @@ describe('FilePreviewPane', () => {
       expect(container.querySelectorAll('.font-specimen-glyph').length).toBeGreaterThan(26);
     });
 
-    it('rejects a Git LFS pointer without attempting to decode it', async () => {
-      installFont(LFS_POINTER);
+    it('reads an undownloaded font as waiting, not as a broken font', async () => {
+      installPendingFont();
       mount();
       await setFile(FONT_NODE);
       expect(container.querySelector('.font-specimen')).toBeNull();
-      expect(container.querySelector('.empty-state')).not.toBeNull();
+      expect(container.querySelector('.text-card-title')!.textContent).toContain(
+        'Not downloaded yet'
+      );
       expect(container.querySelector('.text-card-sub')!.textContent).toContain('Git LFS');
-      // The whole point: never hand non-font bytes to the browser's decoder.
+      // The pointer stub never reaches the browser's decoder: the server keeps
+      // it, and 202 carries the reason instead.
       expect(loadCalls).toBe(0);
     });
 

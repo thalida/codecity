@@ -72,51 +72,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/images": {
+    "/api/fingerprint": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Get Images
-         * @description Batch image fetch — {path: {mime, b64}} for many small images in one round
-         *     trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
-         *     and omits anything it can't serve. It exists so the scene's billboard loader
-         *     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
-         *
-         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-         *     root, missing, non-image, or larger than MAX_BATCH_IMAGE_BYTES are silently
-         *     omitted; the client falls back to the streaming GET for those. Videos are
-         *     never batched (they stream their poster frame), so this is images only.
+         * Get Fingerprint
+         * @description A binary file's byte-pattern fingerprint as a PNG. Trust-checked exactly
+         *     like GET /api/file. Raw binary bytes never leave the server: only the head is
+         *     read, and only the image computed from it is returned.
          */
-        post: operations["get_images_api_images_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/fingerprints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["get_fingerprint_api_fingerprint_get"];
         put?: never;
-        /**
-         * Get Fingerprints
-         * @description Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
-         *     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
-         *     unreadable paths are silently omitted. Raw binary bytes never leave the
-         *     server — only the head is read, and only the fingerprint image returned.
-         */
-        post: operations["get_fingerprints_api_fingerprints_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -357,12 +328,27 @@ export interface components {
             allowLocalRepos: boolean;
             /** Hosted */
             hosted: boolean;
-            /** Maxbatchpaths */
-            maxBatchPaths: number;
             /** Version */
             version: string;
             /** Featuredrepo */
             featuredRepo: string;
+        };
+        /**
+         * ContentPendingResponse
+         * @description 202 body for GET /api/file: the content exists, this machine just doesn't
+         *     have it yet. Deliberately not a 404 — a repo mid-fetch would answer a whole
+         *     page of previews with them, and a burst of 404s from one client is what
+         *     edge proxies read as scanning and start blocking.
+         */
+        ContentPendingResponse: {
+            /**
+             * Status
+             * @default pending
+             * @constant
+             */
+            status: "pending";
+            /** Message */
+            message: string;
         };
         /** DateRangeMs */
         DateRangeMs: {
@@ -572,17 +558,6 @@ export interface components {
             /** Binarytype */
             binaryType?: string;
         };
-        /**
-         * FingerprintEntry
-         * @description One binary file's byte-pattern fingerprint in a POST /api/fingerprints
-         *     batch response: a base64-encoded grayscale PNG (image/png implied), keyed
-         *     by request path. Computed server-side from the file's head — raw binary
-         *     bytes never ship to the client.
-         */
-        FingerprintEntry: {
-            /** B64 */
-            b64: string;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -592,17 +567,6 @@ export interface components {
         HealthResponse: {
             /** Ok */
             ok: boolean;
-        };
-        /**
-         * ImageBatchEntry
-         * @description One image in a POST /api/images batch response: its content-type and
-         *     base64-encoded bytes, keyed by request path in the response map.
-         */
-        ImageBatchEntry: {
-            /** Mime */
-            mime: string;
-            /** B64 */
-            b64: string;
         };
         /** Manifest */
         Manifest: {
@@ -650,15 +614,6 @@ export interface components {
          */
         PartialManifestEvent: {
             manifest: components["schemas"]["Manifest"];
-        };
-        /** PathBatchRequest */
-        PathBatchRequest: {
-            /** Paths */
-            paths: string[];
-            /** Shas */
-            shas?: {
-                [key: string]: string;
-            } | null;
         };
         /** RangeStat */
         RangeStat: {
@@ -929,6 +884,8 @@ export interface operations {
                 path: string;
                 /** @description Blob sha to read instead of the working tree */
                 sha?: string | null;
+                /** @description Version marker; never read, only cached against */
+                mtime?: string | null;
             };
             header?: never;
             path?: never;
@@ -945,39 +902,13 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Content not downloaded yet; retry later. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_images_api_images_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PathBatchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["ImageBatchEntry"];
-                    };
+                    "application/json": components["schemas"]["ContentPendingResponse"];
                 };
             };
             /** @description Validation Error */
@@ -991,18 +922,19 @@ export interface operations {
             };
         };
     };
-    get_fingerprints_api_fingerprints_post: {
+    get_fingerprint_api_fingerprint_get: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Absolute path inside a scanned root */
+                path: string;
+                /** @description Version marker; never read, only cached against */
+                mtime?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PathBatchRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1010,9 +942,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["FingerprintEntry"];
-                    };
+                    "application/json": unknown;
+                };
+            };
+            /** @description Content not downloaded yet; retry later. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContentPendingResponse"];
                 };
             };
             /** @description Validation Error */

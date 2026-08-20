@@ -40,11 +40,14 @@ from .meta import (
 )
 from .objects import (
     BlobStats,
+    BlobUnavailable,
     TreeBlob,
     blob_sizes_batch,
     blob_stats_batch,
+    is_lfs_pointer,
     ls_tree_files,
     read_blob,
+    read_lfs_pointer,
     resolve_ref,
 )
 from .source import (
@@ -57,6 +60,7 @@ from .source import (
 
 __all__ = [
     "BlobStats",
+    "BlobUnavailable",
     "BranchNotFoundError",
     "CloneError",
     "CloneProgress",
@@ -80,9 +84,11 @@ __all__ = [
     "git_argv",
     "hydrate_blobs",
     "is_git_repo",
+    "is_lfs_pointer",
     "list_remote_branches",
     "ls_tree_files",
     "read_blob",
+    "read_lfs_pointer",
     "reconstructed_repo_info",
     "resolve_local",
     "resolve_ref",

@@ -1,45 +1,87 @@
 // api/file.ts — endpoint helpers for /api/file (raw file content reads).
 
 import { apiUrl } from '@/api/apiUrl';
+import type { components } from '@/types/manifest.generated';
 
 /** URL for a file's bytes. `sha` pins a git blob (Timeline); without one the
- *  endpoint reads the working tree and `mtime` only busts the browser cache. */
+ *  endpoint reads the working tree and `mtime` versions it. */
 export function fileUrl(path: string, mtime?: string, sha?: string | null): string {
-  // A blob sha IS the cache key, so the mtime buster is redundant alongside it.
+  // A blob sha IS the version, so the mtime is redundant alongside it.
   return apiUrl('file', sha ? { path, sha } : { path, mtime });
 }
 
-/**
- * Fetch the raw text body for a file. Throws on non-2xx. Used by infoPane
- * (README rendering) and filePreviewPane (syntax-highlighted preview). Pass the
- * file's mtime so a live edit re-fetches (see fileUrl).
- */
+// The server knows the file and hasn't got its bytes yet: an unpulled Git LFS
+// object, or history a blobless clone hasn't backfilled. A wait, not a failure.
+const PENDING_STATUS = 202;
+
+const PENDING_FALLBACK = 'This file has not been downloaded yet.';
+
+/** Thrown rather than a plain Error so a wait can be told from a failure, with
+ *  the server's wording for WHICH fetch is outstanding. */
+export class ContentPendingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContentPendingError';
+  }
+}
+
+/** Content, or the reason there is none: ContentPendingError while the bytes
+ *  are still being fetched, a plain Error on any other non-2xx. */
+export async function fetchContent(
+  url: string,
+  // 'high' for a pane the user is looking at, so it jumps the queue of
+  // background manifest and facade fetches in flight.
+  priority: RequestPriority = 'auto'
+): Promise<Response> {
+  const resp = await fetch(url, { priority });
+  if (resp.status === PENDING_STATUS) {
+    const pending = (await resp.json().catch(() => null)) as
+      components['schemas']['ContentPendingResponse'] | null;
+    throw new ContentPendingError(pending?.message || PENDING_FALLBACK);
+  }
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp;
+}
+
+/** Whether the bytes are still being fetched, for the loaders that can't see a
+ *  status: an <img> or <video> reports only that it didn't load. */
+export async function isContentPending(url: string): Promise<boolean> {
+  try {
+    const resp = await fetch(url);
+    // Cancelled at the status line, so probing a 200MB video streams none of it.
+    await resp.body?.cancel();
+    return resp.status === PENDING_STATUS;
+  } catch {
+    return false;
+  }
+}
+
+/** A file's text, for the README render and the code preview. Pass the file's
+ *  mtime so a live edit re-fetches (see fileUrl). */
 export async function fetchFileText(
   path: string,
   mtime?: string,
   sha?: string | null
 ): Promise<string> {
-  // High priority: the file preview is the user's active focus, so it should
-  // jump ahead of any background manifest/blob fetches in flight.
-  const resp = await fetch(fileUrl(path, mtime, sha), { priority: 'high' });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.text();
+  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).text();
 }
 
-/**
- * Fetch the raw bytes for a file. Throws on non-2xx. Used by the font preview,
- * which sniffs the bytes and builds a FontFace from them directly (rather than
- * pointing FontFace at the URL) so it can reject non-fonts before the browser
- * attempts — and noisily fails — to decode them. Pass the file's mtime so a
- * live edit re-fetches (see fileUrl).
- */
+/** A file's raw bytes. The font preview sniffs them and builds a FontFace
+ *  directly, so it can reject a non-font before the browser fails to decode. */
 export async function fetchFileBytes(
   path: string,
   mtime?: string,
   sha?: string | null
 ): Promise<ArrayBuffer> {
-  // High priority: same as fetchFileText, the font preview is the active pane.
-  const resp = await fetch(fileUrl(path, mtime, sha), { priority: 'high' });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.arrayBuffer();
+  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).arrayBuffer();
+}
+
+/** A file's bytes as a Blob, for the facade loaders. Default priority: a city's
+ *  worth of billboards must not outrank the pane in front of them. */
+export async function fetchFileBlob(
+  path: string,
+  mtime?: string,
+  sha?: string | null
+): Promise<Blob> {
+  return (await fetchContent(fileUrl(path, mtime, sha))).blob();
 }

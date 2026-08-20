@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from api.core.constants import ErrorCode
@@ -20,21 +22,15 @@ class FileTooLargeResponse(BaseModel):
     limit: int
 
 
-class ImageBatchEntry(BaseModel):
-    """One image in a POST /api/images batch response: its content-type and
-    base64-encoded bytes, keyed by request path in the response map."""
+class ContentPendingResponse(BaseModel):
+    """202 body for GET /api/file: the content exists, this machine just doesn't
+    have it yet. Deliberately not a 404 — a repo mid-fetch would answer a whole
+    page of previews with them, and a burst of 404s from one client is what
+    edge proxies read as scanning and start blocking."""
 
-    mime: str
-    b64: str
-
-
-class FingerprintEntry(BaseModel):
-    """One binary file's byte-pattern fingerprint in a POST /api/fingerprints
-    batch response: a base64-encoded grayscale PNG (image/png implied), keyed
-    by request path. Computed server-side from the file's head — raw binary
-    bytes never ship to the client."""
-
-    b64: str
+    status: Literal["pending"] = "pending"
+    # Ready to show: the client renders it as-is under its own heading.
+    message: str
 
 
 class HealthResponse(BaseModel):
@@ -46,7 +42,6 @@ class ConfigResponse(BaseModel):
     # `allowLocalRepos` alone can't say this: it is also false on a local
     # instance that simply hasn't mounted anything.
     hosted: bool
-    maxBatchPaths: int
     version: str
     # The repo the landing renders behind itself; empty means no backdrop. Same
     # env var the Discover list flags, so the two can never disagree.

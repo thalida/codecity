@@ -3,8 +3,8 @@
     manifest  /api/manifest (SSE), plus the cheap /signature and /cached
               lookups over the same source
     timeline  /api/timeline (SSE) — the commit-scrub bundle
-    file      /api/file, /api/images, /api/fingerprints — bytes out of a
-              scanned root, trust-checked
+    file      /api/file, /api/fingerprint — bytes out of a scanned root,
+              trust-checked, one request per file
     commit    /api/commit — one commit's detail
     branches  /api/branches — a remote's branch list, no clone
     meta      /api/health, /api/config, /api/discover

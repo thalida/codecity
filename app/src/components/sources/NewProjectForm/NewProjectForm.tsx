@@ -7,7 +7,7 @@
 // fresh-scan variant: skipping the cache is a way of opening, not a setting.
 
 import './NewProjectForm.css';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { DatabaseZap } from 'lucide-preact';
 import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
 import { SplitButton } from '@/components/buttons/SplitButton/SplitButton';
@@ -25,6 +25,10 @@ import {
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
+
+// Resolving a branch list means the server reaching the remote, and a typed URL
+// is valid for most of its last dozen characters. Wait for the typing to stop.
+export const BRANCH_LOOKUP_DEBOUNCE_MS = 400;
 
 // Named hosts and then the general case: "any git host" alone reads as a claim,
 // while three names and an "any" reads as a range.
@@ -92,20 +96,29 @@ export function NewProjectForm({
   const failedToReach =
     (!retired && errorCode === 'repo-not-found') || branchErrorCode === 'repo-not-found';
 
-  // A path change on a URL resets the branch (no stale pick rides along) and
-  // only resolves branches for a URL that passes validation.
+  // A path change on a URL resets the branch, so no stale pick rides along.
   function onSourceInput(v: string) {
     setRetired(true);
     setSource(v);
-    if (v.trim() && srcKind(v) === SourceKind.Remote) {
-      setBranch('');
-      setResolvedUrl(looksResolvable(v) && !validateGitUrl(v) ? v : '');
-    } else {
-      setResolvedUrl('');
-      setBranch('');
-    }
+    setBranch('');
     setBranchErrorCode(undefined);
   }
+
+  // What the field would resolve to right now: only a URL that passes
+  // validation, '' for anything else.
+  const resolvableSrc =
+    activeSrc && isRemote && looksResolvable(source) && !validateGitUrl(source) ? source : '';
+
+  useEffect(() => {
+    // Clearing is immediate: the dropdown must not linger over a URL the field
+    // no longer holds. Only committing to a lookup waits.
+    if (!resolvableSrc) {
+      setResolvedUrl('');
+      return;
+    }
+    const timer = setTimeout(() => setResolvedUrl(resolvableSrc), BRANCH_LOOKUP_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [resolvableSrc]);
 
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
   const fieldError = urlError ?? (isRemote ? branchError : null);

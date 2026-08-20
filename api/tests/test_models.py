@@ -188,14 +188,12 @@ class ResponseModelTests(unittest.TestCase):
             ConfigResponse(
                 allowLocalRepos=False,
                 hosted=True,
-                maxBatchPaths=64,
                 version="1.2.3",
                 featuredRepo="https://github.com/o/r",
             ).model_dump(),
             {
                 "allowLocalRepos": False,
                 "hosted": True,
-                "maxBatchPaths": 64,
                 "version": "1.2.3",
                 "featuredRepo": "https://github.com/o/r",
             },

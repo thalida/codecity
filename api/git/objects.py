@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import os
 import subprocess
+from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, NamedTuple
 
@@ -21,6 +23,26 @@ from api.utils.media import probe_media_dims_from_bytes
 # GIT_NO_LAZY_FETCH=1 so a blob the hydrate skipped reports "missing" and reads
 # as 0 lines, rather than triggering a per-object fetch that hangs. See README.
 _GIT_ENV = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+
+
+class BlobUnavailable(Enum):
+    """Why a read produced no bytes.
+
+    PENDING is "not here YET": a blob a blobless clone hasn't backfilled, or an
+    lfs pointer whose object was never pulled. Both resolve once the fetch that
+    owns them lands, so the answer is provisional, not an absence.
+
+    MISSING is "not here, and no fetch changes that" — nothing in this repo
+    names that content.
+
+    In a partial clone the two are locally indistinguishable: git knows only
+    that the object isn't in its store, and asking the promisor which it is
+    costs the very round trip GIT_NO_LAZY_FETCH exists to avoid. So a partial
+    clone reports PENDING and lets the client retry.
+    """
+
+    PENDING = "pending"
+    MISSING = "missing"
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
@@ -116,6 +138,12 @@ def _parse_lfs_pointer(content: bytes) -> tuple[str, int] | None:
     return (oid, size) if oid and size is not None else None
 
 
+def is_lfs_pointer(content: bytes) -> bool:
+    """Whether these bytes are an unsmudged git-lfs pointer standing in for the
+    file rather than the file itself."""
+    return _parse_lfs_pointer(content) is not None
+
+
 def _lfs_smudge(root: Path, pointer: bytes) -> bytes | None:
     """Resolve an lfs pointer to real bytes via `git lfs smudge`, which downloads
     the object by oid from the remote when it isn't local (no tree scan, unlike
@@ -138,10 +166,13 @@ def _lfs_smudge(root: Path, pointer: bytes) -> bytes | None:
     return out
 
 
-def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int]:
+def _resolve_lfs(
+    root: Path, content: bytes, blob_size: int, *, download: bool
+) -> tuple[bytes, int]:
     """(real bytes, size) for an lfs pointer, matching the working tree Live scans;
-    non-pointer unchanged. Reads the local object, else smudges (downloads) it by
-    oid. Unresolvable → (b'', declared size): 0 lines but the true footprint."""
+    non-pointer unchanged. Reads the local object, and with `download` may smudge
+    it in by oid. Unresolvable → (b'', declared size): 0 lines but the true
+    footprint. `download` is for the scan only, never a browser request."""
     ptr = _parse_lfs_pointer(content)
     if ptr is None:
         return content, blob_size
@@ -154,7 +185,9 @@ def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int
             return obj.read_bytes(), declared
     except OSError:
         pass
-    resolved = _lfs_smudge(root, content)
+    # A smudge downloads from the lfs endpoint on the calling thread, so a page
+    # of unpulled media would be a burst of them: the scan does this, not a read.
+    resolved = _lfs_smudge(root, content) if download else None
     return (resolved, declared) if resolved is not None else (b"", declared)
 
 
@@ -222,8 +255,9 @@ def _stats_into(
         sha, size = hp[0], int(hp[2])
         content = out[i : i + size]
         i += size + 1  # trailing newline after content
-        # git-lfs: pointer → real content so stats match Live.
-        content, real_size = _resolve_lfs(root, content, size)
+        # git-lfs: pointer → real content so stats match Live. This is the
+        # one place a download is in budget: one bulk pass, no request waiting.
+        content, real_size = _resolve_lfs(root, content, size, download=True)
         binary = is_binary_bytes(content)
         lines = 0 if binary else count_lines(content)
         mw, mh = (
@@ -240,15 +274,40 @@ def _stats_into(
         )
 
 
-def read_blob(root: Path, sha: str) -> bytes | None:
-    """Raw bytes of one blob, git-lfs pointers resolved like the live scan.
-    None when the sha is not a blob in this repo."""
+def read_lfs_pointer(root: Path, pointer: bytes) -> bytes | None:
+    """The bytes an lfs pointer stands for, if the object is already on disk,
+    else None. Never downloads (see `_resolve_lfs`), so this is safe to call
+    while a browser waits."""
+    resolved, _size = _resolve_lfs(root, pointer, len(pointer), download=False)
+    return resolved or None
+
+
+@lru_cache(maxsize=64)
+def _is_partial_clone(root: str) -> bool:
+    """Whether `root` was cloned with a filter, so an object it doesn't have may
+    simply be one it never asked for. Cached per root: git writes the key at
+    clone time and hydrate widens the filter rather than dropping it, so the
+    answer can't change under a live server."""
+    return bool(_git(Path(root), "config", "--get", "extensions.partialclone").stdout)
+
+
+def read_blob(root: Path, sha: str) -> bytes | BlobUnavailable:
+    """Raw bytes of one blob, git-lfs pointers resolved from what's on disk, or
+    a BlobUnavailable saying why there are none. Never downloads: this serves
+    browser requests (see `_resolve_lfs`)."""
     proc = _git(root, "cat-file", "blob", sha)
     if proc.returncode != 0:
-        return None
+        return (
+            BlobUnavailable.PENDING
+            if _is_partial_clone(str(root))
+            else BlobUnavailable.MISSING
+        )
     content = proc.stdout
-    resolved, _size = _resolve_lfs(root, content, len(content))
-    return resolved
+    if not is_lfs_pointer(content):
+        return content
+    # An oid with no local object: the history pull stops at a size cap, and a
+    # failed `lfs pull` leaves every pointer standing.
+    return read_lfs_pointer(root, content) or BlobUnavailable.PENDING
 
 
 def blob_sizes_batch(root: Path, shas: list[str]) -> dict[str, int]:

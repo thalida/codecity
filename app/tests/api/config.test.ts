@@ -42,24 +42,6 @@ describe('fetchServerConfig', () => {
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
-  // Regression: a hand-listed parser silently drops any field the server adds,
-  // leaving the client on its stale default.
-  it('carries through a field the hardcoded parser would have dropped', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ allowLocalRepos: false, maxBatchPaths: 64 }), { status: 200 })
-    );
-    const cfg = await fetchServerConfig();
-    expect(cfg.maxBatchPaths).toBe(64);
-  });
-
-  it('keeps the safe default when the server sends a nonsense batch cap', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ allowLocalRepos: false, maxBatchPaths: 0 }), { status: 200 })
-    );
-    const cfg = await fetchServerConfig();
-    expect(cfg.maxBatchPaths).toBe(DEFAULT_SERVER_CONFIG.maxBatchPaths);
-  });
-
   it('carries the version through from the server', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false, version: '1.3.0' }), { status: 200 })

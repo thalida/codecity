@@ -23,12 +23,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 MAX_FILE_BYTES = 100 * 1024 * 1024
 # Bodies under this skip gzip — framing overhead exceeds the savings.
 GZIP_MIN_BYTES = 256
-# Paths accepted per POST /api/images or /api/fingerprints; served over
-# /api/config so the client chunks to the same number instead of guessing.
-MAX_BATCH_PATHS = 64
-# Bound on one batch image response; anything larger is omitted and the client
-# falls back to the streaming GET /api/file.
-MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
 # Matches the renderer's tree cap (treePlacement.ts TREE_MAX_CELLS); beyond it
 # the array is parsed only to be skipped. Aggregates still see every commit.
 MAX_WIRE_COMMITS = 100_000

@@ -14,10 +14,9 @@ import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
-import { fetchMediaBlob } from './mediaBatch';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
-import { fileUrl } from '@/api/file';
-import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
+import { fingerprintUrl } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
 
@@ -552,8 +551,8 @@ function _releaseSlot(): void {
   if (next) next();
 }
 
-/** Load and upload a building's image or video: image bytes are batched across
- *  buildings, videos loaded singly for a frame (FACADE_PANELS.md). */
+/** Load and upload a building's image or video: image bytes are fetched as a
+ *  Blob so the status is readable, videos stream a frame (FACADE_PANELS.md). */
 function asyncLoadMediaForBuilding(
   ads: InstancedFacadePanels,
   b: Building,
@@ -567,13 +566,15 @@ function asyncLoadMediaForBuilding(
   if (hasNoContentAtScrub(b.file.path)) return;
 
   const filePath = b.file.fullPath || b.file.path || '';
-  // Scrubbed commits pin a version; Live reads the working tree.
-  const url = fileUrl(filePath, undefined, scrubbedBlobShaFor(b.file.path));
+  // Scrubbed commits pin a version; Live keys on mtime. Either way the URL names
+  // one immutable body, so a rebuild re-reads it from the browser cache.
+  const sha = scrubbedBlobShaFor(b.file.path);
+  const version = b.file.modified || '';
 
   if (kind === MediaKind.Image) {
-    void _loadImageBuilding(ads, filePath, url, layer, panelSlots, b.file.path);
+    void _loadImageBuilding(ads, filePath, version, sha, layer, panelSlots);
   } else {
-    void _loadVideoBuilding(ads, url, layer, panelSlots);
+    void _loadVideoBuilding(ads, fileUrl(filePath, version, sha), layer, panelSlots);
   }
 }
 
@@ -606,7 +607,7 @@ function asyncLoadDataFacadeForBuilding(
       );
       break;
     default:
-      void _loadFingerprintBuilding(ads, filePath, layer, panelSlots);
+      void _loadFingerprintBuilding(ads, fingerprintUrl(filePath, version), layer, panelSlots);
   }
 }
 
@@ -629,17 +630,15 @@ async function _loadCanvasFacade(
 
 async function _loadFingerprintBuilding(
   ads: InstancedFacadePanels,
-  filePath: string,
+  url: string,
   layer: number,
   panelSlots: number[]
 ): Promise<void> {
-  // Fetch (batched) outside the semaphore so the coalescing window sees every
-  // data building at once; only decode + upload is slot-gated.
-  const b64 = await fetchFingerprintB64(filePath);
-  if (b64 === null) return;
   await _acquireSlot();
   try {
-    const img = await _loadImage(`data:image/png;base64,${b64}`);
+    // The PNG arrives as a PNG: nothing to decode, cached per file. No
+    // fingerprint (missing, or not downloaded) keeps the sealed placeholder.
+    const img = await _loadImage(url);
     if (img !== null) await ads.loadTextureForBuilding(layer, panelSlots, img);
   } catch {
     // Decode/upload failure — leave the sealed placeholder facade.
@@ -651,19 +650,27 @@ async function _loadFingerprintBuilding(
 async function _loadImageBuilding(
   ads: InstancedFacadePanels,
   filePath: string,
-  fallbackUrl: string,
+  version: string,
+  sha: string | null,
   layer: number,
-  panelSlots: number[],
-  relPath?: string
+  panelSlots: number[]
 ): Promise<void> {
-  // Fetch (batched) happens outside the GPU semaphore so the coalescing window
-  // sees every media building at once; only decode + upload is slot-gated.
-  const blob = await fetchMediaBlob(filePath, scrubbedBlobShaFor(relPath));
-  const objUrl = blob ? URL.createObjectURL(blob) : null;
+  // A Blob rather than an <img> src, so the status is readable: waiting must
+  // keep the placeholder, not tint the building broken.
+  let blob: Blob;
+  try {
+    blob = await fetchFileBlob(filePath, version, sha);
+  } catch (err) {
+    // Waiting resolves itself: the next rebuild picks the image up once the
+    // fetch behind it lands. Anything else is a real failure.
+    if (!(err instanceof ContentPendingError)) ads.markBuildingErrored(panelSlots);
+    return;
+  }
+  const objUrl = URL.createObjectURL(blob);
   await _acquireSlot();
   let errored = false;
   try {
-    const img = await _loadImage(objUrl ?? fallbackUrl);
+    const img = await _loadImage(objUrl);
     if (img === null) errored = true;
     else await ads.loadTextureForBuilding(layer, panelSlots, img);
   } catch {
@@ -671,7 +678,7 @@ async function _loadImageBuilding(
     // leaving the loading placeholder visible forever.
     errored = true;
   } finally {
-    if (objUrl) URL.revokeObjectURL(objUrl);
+    URL.revokeObjectURL(objUrl);
     if (errored) ads.markBuildingErrored(panelSlots);
     _releaseSlot();
   }
@@ -692,9 +699,11 @@ async function _loadVideoBuilding(
   } catch {
     errored = true;
   } finally {
-    if (errored) ads.markBuildingErrored(panelSlots);
     _releaseSlot();
   }
+  // A <video> reports only that it didn't load, never a status. Ask, outside the
+  // slot, before wearing the error tint for a file that is merely queued.
+  if (errored && !(await isContentPending(url))) ads.markBuildingErrored(panelSlots);
 }
 
 /** Promise-wrapped image load, resolving null on failure so callers can test
