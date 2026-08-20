@@ -162,13 +162,11 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   // before the build even starts: without this the overlay drops in that gap.
   CITY_ON_SCREEN.value = false;
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
-  // A cancel that lands after a skeleton rolls back to this, or the canceled
-  // repo's geometry lingers under the unchanged header. Captured before the
-  // clear below, which is the other thing a cancel has to undo.
+  // What a cancel rolls back to, captured before the clear below: otherwise the
+  // canceled repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
-  // A DIFFERENT project retires the one on screen. The route changes on the
-  // click now, so leaving it would draw the last project's city under the
-  // overlay for the whole load.
+  // A DIFFERENT project retires the one on screen: the route changes on the
+  // click now, so the last city would draw under the overlay for the load.
   const opened = CURRENT_SOURCE.peek();
   if (!opened || !sameSourceIdentity(opened, { src: payload.src, branch })) {
     setManifest(null);

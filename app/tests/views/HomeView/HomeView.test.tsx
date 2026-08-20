@@ -60,9 +60,8 @@ function loadedCity(): void {
 describe('HomeView', () => {
   let container: HTMLDivElement;
 
-  // The real chain: SCAN_PROGRESS feeds the one driver, the driver decides
-  // when a load is over, and both surfaces render what it says. Setting the
-  // view's visibility by hand here is what let the two disagree.
+  // The real chain: SCAN_PROGRESS feeds the one driver, and the driver decides
+  // when a load is over. Setting it by hand is what let the two disagree.
   let stopDriver: () => void;
 
   beforeEach(() => {

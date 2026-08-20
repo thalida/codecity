@@ -38,9 +38,8 @@ async function streamFeatured(src: string, signal: AbortSignal): Promise<Manifes
   return complete;
 }
 
-// Building a city holds the main thread for seconds on a big repo (see
-// city/state applyStructure). Behind the landing that is a frozen page for
-// something nobody came to look at, so a big one yields to the next candidate.
+// Building a city holds the main thread for seconds on a big repo, and behind
+// the landing that is a frozen page for a city nobody came to look at.
 const BACKDROP_MAX_FILES = 5000;
 
 /** Whether this manifest is small enough to build without freezing the page. */
