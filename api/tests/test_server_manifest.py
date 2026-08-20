@@ -290,3 +290,35 @@ class TestErrorCode:
             events = _parse_sse("".join(r.iter_text()))
         assert events[-1][0] == "error"
         assert events[-1][1]["code"] == "repo-not-found"
+
+
+def test_a_cloned_repo_stays_readable_after_the_scan_process_is_gone(
+    client: TestClient, repo: Path, tmp_path: Path, redirect_cache_root: Path
+) -> None:
+    """The end-to-end shape of #200: scan a remote, then read one of its files
+    from a server instance that never saw the scan. The manifest's own (src,
+    branch) is the whole handle — nothing is remembered between the two."""
+    bare = tmp_path / "remote.git"
+    _git("clone", "-q", "--bare", str(repo), str(bare), cwd=tmp_path)
+    src = f"file://{bare}"
+
+    with client.stream("GET", "/api/manifest", params={"src": src}) as r:
+        body = "".join(r.iter_text())
+    manifest = _parse_sse(body)[-1][1]["manifest"]
+    assert manifest["src"] == src
+
+    # A path off the manifest, sent back with the source it came with.
+    node = next(c for c in manifest["tree"]["children"] if c["name"] == "f.txt")
+    assert "/" not in node["path"]
+
+    restarted = TestClient(create_app())
+    got = restarted.get(
+        "/api/file",
+        params={
+            "src": manifest["src"],
+            "branch": manifest["branch"],
+            "path": node["path"],
+        },
+    )
+    assert got.status_code == 200
+    assert got.text == "hello\nworld\n"
