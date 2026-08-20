@@ -731,8 +731,9 @@ export interface components {
          *     union-of-all-paths manifest (the layout target), per-commit blob deltas,
          *     sha -> line-count and sha -> byte-size tables, and per-commit line ranges
          *     (height normalisation, so a scrub point matches Live-at-that-commit).
-         *     `note` is set when a pathological repo is windowed to its most recent
-         *     commits.
+         *     `notes` are standing caveats about the bundle: a pathological repo windowed
+         *     to its most recent commits, blobs too large to have been backfilled. A list
+         *     because they are independent and a repo can earn both.
          */
         TimelineBundle: {
             /** Commits */
@@ -742,18 +743,18 @@ export interface components {
             deltas: components["schemas"]["TimelineDelta"][];
             /** Bloblines */
             blobLines: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Blobsizes */
             blobSizes: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
             /** Commitdateranges */
             commitDateRanges: components["schemas"]["DateRangeMs"][];
-            /** Note */
-            note: string | null;
+            /** Notes */
+            notes: string[];
         };
         /** TimelineChange */
         TimelineChange: {

@@ -1,38 +1,21 @@
-// utils/sources.ts — Source URL helpers: classification (remote vs local) and
-// canonicalisation (SSH → HTTPS). Repo display names are NOT derived here: the
-// server computes them once (label_from_source → baked into tree.name, and a
-// `label` on progress events), so the client only ever reads a server-provided
-// name — there is no client-side URL→label transform.
-//
-// Public surface:
-//   - srcKind(src)               — SourceKind (Remote | Local) discriminator.
-//   - looksResolvable / looksLikePath / validateGitUrl — field classification.
+// utils/sources.ts — classify a source string and derive its identity.
+// Display names are the server's (see SOURCES.md); nothing here makes one.
 
-/** What kind of thing a source string points at. Every source is a git repo;
- *  the axis is whether it's a remote URL (cloned) or an on-disk local working
- *  tree. String values are stable human-readable discriminators. */
+/** Every source is a git repo; this is whether it's cloned or already on disk. */
 export enum SourceKind {
   Remote = 'remote',
   Local = 'local',
 }
 
-/** Classify a source string as a remote git URL or a local path. Remote URLs
- *  are recognised by either a scheme (https://, ssh://, etc.) or the scp-style
- *  `user@host:path` form. Anything else is local. */
+/** Remote if it has a scheme or the scp-style `user@host:path` form. */
 export function srcKind(src: string): SourceKind {
   return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Remote : SourceKind.Local;
 }
 
-/**
- * The branch label to record/show for a loaded source: the explicitly requested
- * branch when given, else the manifest's resolved HEAD when it looks like a real
- * branch (the server sometimes reports a detached HEAD, "(no branch)", or names
- * with spaces — treat those as "no branch"). A requested branch always wins.
- */
+/** A requested branch wins; else the manifest's HEAD, if it names a real
+ *  branch rather than a detached one (see SOURCES.md). */
 export function resolveBranch(
-  // Nullable, not optional: the scanner always emits `branch` and sends null
-  // for a repo with no HEAD. Declaring it `branch?: string` described a wire
-  // that does not exist, and the truthiness check below already handled both.
+  // Nullable, not optional: null is what the scanner sends for a repo with no HEAD.
   manifest: { repo: { branch?: string | null } },
   requested?: string
 ): string | undefined {
@@ -41,38 +24,21 @@ export function resolveBranch(
   return requested ?? (looksReal ? mb : undefined);
 }
 
-/**
- * The branch to commit for a source. A local source has no branch axis: it
- * scans whatever is checked out on disk, so a stored branch would be a lie and
- * must never namespace its cache, URL, or recents. It therefore commits
- * `undefined`; a remote source keeps its branch. Applied once at the commit
- * boundary (the source load + setCurrentSource) so everything downstream — the
- * URL, the cache key, recents identity — can trust a local source is branch-
- * less without re-checking the source kind on every read.
- */
+/** A local source commits no branch: it scans whatever is checked out, so a
+ *  stored one would be a lie. Normalized here, once (see SOURCES.md). */
 export function identityBranch(src: string, branch?: string): string | undefined {
   return srcKind(src) === SourceKind.Local ? undefined : branch;
 }
 
-// ── Source identity ──────────────────────────────────────────────────
-// A source's identity is (src + its identity branch). These derive a comparable
-// string, a boolean match, and a short hash from it — used for the localStorage
-// namespace, recents dedupe, and the active-row match. All pure: they trust the
-// branch to be normalized at the commit boundary (identityBranch), so a local
-// source is already branch-less by the time it reaches here.
+// ── Source identity: (src + identity branch). See SOURCES.md.
 
-/**
- * The canonical identity string for a source: its src joined with its branch.
- * Two sources with the same identity string are "the same source". NUL-separated
- * (can't appear in a path or URL) so src and branch can't collide across the
- * boundary.
- */
+/** Two sources with the same identity string are the same source. NUL-joined:
+ *  it can't appear in a path or URL, so the halves can't collide. */
 export function sourceIdentity(src: string, branch?: string): string {
   return `${src}\0${branch ?? ''}`;
 }
 
-/** Whether two source refs are the same source (same identity string). Local
- *  refs are committed branch-less, so a checkout change never splits them. */
+/** Local refs are branch-less, so a checkout change never splits them. */
 export function sameSourceIdentity(
   a: { src: string; branch?: string },
   b: { src: string; branch?: string }
@@ -88,41 +54,24 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36); // unsigned, base-36 — ~6-7 chars
 }
 
-/**
- * Compute a short stable hash for a source's identity. Used to namespace
- * per-source state (selection, camera pose) in localStorage.
- */
+/** Namespaces per-source state (selection, camera pose) in localStorage. */
 export function sourceKey(src: string, branch?: string): string {
   return djb2(sourceIdentity(src, branch));
 }
 
-/**
- * A source string worth resolving branches for: a remote URL with a scheme
- * (https://, ssh://, ...) or the scp-style host form (user@host:path). Guards
- * against firing /api/branches on every keystroke of a half-typed URL.
- */
+/** Worth a branch lookup: a complete remote URL, not a half-typed one. */
 export function looksResolvable(v: string): boolean {
   return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
 }
 
-/**
- * Heuristic: the string is *clearly* a filesystem path (absolute, home-relative,
- * dot-relative, or a Windows drive), not a half-typed URL. The unified source
- * field uses this to show a path-specific error only when it's unmistakably a
- * path — so typing a URL never flickers a "local path" error before "://" lands
- * (srcKind classifies everything without "://" as Local).
- */
+/** Unmistakably a path, not a half-typed URL: srcKind calls everything without
+ *  "://" local, and a URL must not flicker a path error before it lands. */
 export function looksLikePath(v: string): boolean {
   return /^(~|\.{1,2}\/|\/|[a-zA-Z]:[\\/])/.test(v.trim());
 }
 
-/**
- * Client-side validation for a git URL: catches the common paste mistakes (a
- * web-page URL with a #anchor or ?query, spaces, or a non-URL) before any
- * network call, so the form shows one clean inline error instead of a raw git
- * failure. Empty is not an error (submit is simply disabled until something is
- * typed). Returns null when ok, else a user-facing message.
- */
+/** The common paste mistakes, caught before a request so the form shows one
+ *  clean error instead of a raw git failure. Empty is not an error. */
 export function validateGitUrl(v: string): string | null {
   const s = v.trim();
   if (!s) return null;

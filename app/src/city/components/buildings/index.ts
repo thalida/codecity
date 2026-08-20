@@ -40,9 +40,8 @@ interface BuildingDiff {
 
 /** Public contract for the buildings component. */
 export interface Buildings extends SceneComponent {
-  // Required here, optional on SceneComponent: the frame loop calls tick only
-  // if present, but this one always has it, and a caller holding this type
-  // shouldn't have to prove that.
+  // Required here, optional on SceneComponent: this one always has a tick, and
+  // a caller holding this type shouldn't have to prove it.
   tick(dt: number, ctx: FrameContext): void;
   /** Colour, assemble, swap in, relookup. Diffs against the prior cells to fire
    *  the tweens; the boot rebuild snaps in rather than animating. */

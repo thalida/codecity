@@ -9,37 +9,23 @@ export enum StreetAxis {
   Y = 'y',
 }
 
-/**
- * Which end(s) of a street's centerline get a rounded cap.
- *   Both — both ends rounded (only the root street)
- *   Low  — round the lower-coordinate end (closed end of a child street)
- *   High — round the higher-coordinate end (closed end of a child street)
- */
+/** Which end(s) of a street's centerline get a rounded cap. Both is the root;
+ *  a child rounds only its closed end. */
 export enum CapStyle {
   Both = 'both',
   Low = 'low',
   High = 'high',
 }
 
-/**
- * Which end of a child street meets its parent T-intersection.
- * Set by layout, read by engine to decide which cap stays open
- * (the open end is where the street merges into the parent's asphalt).
- */
+/** Which end meets the parent T. The open end is where this street merges
+ *  into the parent's asphalt, so that cap stays off. */
 export enum JoinSide {
   Low = 'low',
   High = 'high',
 }
 
-/**
- * One street in the laid-out city.
- *   x, y       — center on the ground plane
- *   width      — perpendicular width (sidewalks + asphalt)
- *   length     — extent along orientation axis
- *   label      — text painted along the road
- *   dir        — manifest directory node this street represents
- *   isRoot     — true for the root-of-repo street (gets the gem)
- */
+/** One street in the laid-out city: x/y center it, width is across (sidewalks
+ *  included), length runs along `orientation`. */
 export interface Street {
   x: number;
   y: number;

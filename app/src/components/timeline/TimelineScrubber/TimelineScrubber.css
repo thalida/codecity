@@ -198,3 +198,14 @@
   color: var(--cc-text-secondary);
   font-style: italic;
 }
+
+/* Caveats about the timeline's own data. Quieter than the commit row above it:
+   it qualifies what you are looking at, it is not the thing you came for. */
+.timeline-scrubber-notes {
+  margin: 0;
+  padding-top: var(--cc-space-1);
+  text-align: center;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-muted);
+}

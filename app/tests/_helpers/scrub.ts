@@ -57,6 +57,7 @@ export function makeBundle(over: Partial<TimelineBundle>): TimelineBundle {
   return {
     unionManifest: { tree: { name: 'r' } },
     blobSizes: {},
+    notes: [],
     note: null,
     ...over,
   } as unknown as TimelineBundle;
@@ -125,6 +126,7 @@ export const PRESENCE_BUNDLE = makeBundle({
   ],
   blobLines: { s1: 2 },
   blobSizes: { s1: 0 },
+  notes: [],
 } as unknown as Partial<TimelineBundle>);
 
 /** The same pairing the scrub pass builds. */

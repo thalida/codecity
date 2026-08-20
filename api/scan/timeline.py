@@ -154,7 +154,7 @@ def _collect_blob_tables(
     *,
     use_cache: bool = True,
     on_progress: OnTimelineProgress | None = None,
-) -> tuple[dict[str, int], dict[str, int], dict[str, BlobEntry]]:
+) -> tuple[dict[str, int | None], dict[str, int | None], dict[str, BlobEntry]]:
     """Resolve every touched blob's stats (lines, binary, binaryType, media dims)
     keyed by sha, plus a byte-size table. Stats share reconstruct_manifest's
     content-addressed resolver; sizes are a separate uncached batch. The done
@@ -171,9 +171,11 @@ def _collect_blob_tables(
     blob_stats = resolve_blob_stats(
         root, wanted, use_cache=use_cache, on_resolved=_resolved
     )
-    lines = {sha: entry["lines"] for sha, entry in blob_stats.items()}
+    lines: dict[str, int | None] = {
+        sha: entry["lines"] for sha, entry in blob_stats.items()
+    }
     # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
-    sizes = blob_sizes_batch(root, shas)
+    sizes: dict[str, int | None] = dict(blob_sizes_batch(root, shas))
     for sha, entry in blob_stats.items():
         if "size" in entry:
             sizes[sha] = entry["size"]
@@ -185,8 +187,8 @@ def _collect_blob_tables(
 def build_union_manifest(
     root: Path,
     deltas: list[CommitDelta],
-    blob_lines: dict[str, int],
-    blob_sizes: dict[str, int],
+    blob_lines: dict[str, int | None],
+    blob_sizes: dict[str, int | None],
     blob_stats: dict[str, BlobEntry],
     commits: list[CommitEntry],
     git_created: dict[str, str],
@@ -261,22 +263,23 @@ def build_union_manifest(
 
 
 def compute_commit_line_ranges(
-    deltas: list[CommitDelta], blob_lines: dict[str, int]
+    deltas: list[CommitDelta], blob_lines: dict[str, int | None]
 ) -> list[RangeStat]:
     """Per-commit line range over the present files (non-zero only) — mirrors
     compute_repo_stats, so range[HEAD] equals the live lineCountRange. The client
     normalizes height against range[pos] to match Live-at-that-commit."""
-    present: dict[str, int] = {}  # path -> current line count
+    present: dict[str, int | None] = {}  # path -> current line count
     ranges: list[RangeStat] = []
     for d in deltas:
         for path, sha in d.changes:
             if sha is None:
                 present.pop(path, None)
             else:
-                present[path] = blob_lines.get(sha, 0)
+                present[path] = blob_lines.get(sha)
         lo = hi = 0
         for n in present.values():
-            if n <= 0:
+            # An unmeasurable blob can't widen a range it has no number for.
+            if n is None or n <= 0:
                 continue
             if lo == 0 or n < lo:
                 lo = n
@@ -398,7 +401,7 @@ def build_timeline_bundle(
         for d in deltas
     ]
 
-    note = None
+    notes: list[str] = []
     union = {p for d in deltas for p, sha in d.changes if sha}
     if len(union) > _UNION_FILE_CAP:
         kept: set[str] = set()
@@ -412,17 +415,23 @@ def build_timeline_bundle(
             cut = min(cut, len(deltas) - 1)  # always keep the most recent commit
         deltas = deltas[cut:]
         commits = commits[cut:]
-        note = f"timeline covers the most recent {len(commits)} commits"
+        notes.append(f"timeline covers the most recent {len(commits)} commits")
 
     blob_lines, blob_sizes, blob_stats = _collect_blob_tables(
         root_path, deltas, use_cache=use_cache, on_progress=on_progress
     )
-    # Contract: every non-null delta sha needs blobLines/blobSizes entries (default 0) so the client can't KeyError.
+    # Every non-null delta sha gets an entry so the client can't miss one. None,
+    # not 0: a zero draws the file as empty at every commit it appears in.
     for d in deltas:
         for _, sha in d.changes:
             if sha is not None:
-                blob_lines.setdefault(sha, 0)
-                blob_sizes.setdefault(sha, 0)
+                blob_lines.setdefault(sha, None)
+                blob_sizes.setdefault(sha, None)
+    unmeasured = sum(1 for v in blob_sizes.values() if v is None)
+    if unmeasured:
+        notes.append(
+            f"{unmeasured} blob(s) too large to fetch: those files show no size"
+        )
     # Everything below is assembly over the whole union: minutes on a big repo,
     # and the only progress the client can show for it is what we count out.
     assemble_tick(on_progress, 1)  # the union manifest
@@ -464,5 +473,5 @@ def build_timeline_bundle(
         blobSizes=blob_sizes,
         commitLineRanges=commit_line_ranges,
         commitDateRanges=commit_date_ranges,
-        note=note,
+        notes=notes,
     )

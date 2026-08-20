@@ -238,6 +238,14 @@ export function TimelineScrubber() {
           </button>
         )}
       </div>
+      {bundle && bundle.notes.length > 0 && (
+        // Standing caveats about the data being scrubbed: a windowed history, or
+        // blobs too big to have been fetched. They qualify the whole track, so
+        // they sit under it rather than in a pane you might never open.
+        <p class="timeline-scrubber-notes" role="note">
+          {bundle.notes.join(' · ')}
+        </p>
+      )}
     </div>
   );
 }

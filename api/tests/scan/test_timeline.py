@@ -488,7 +488,7 @@ def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
-    assert bundle.note is not None  # windowed, surfaced
+    assert bundle.notes  # windowed, surfaced
     assert len(bundle.commits) < 4
 
 
@@ -506,4 +506,4 @@ def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
         _commit(tmp_path, f"c{i}")
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
     assert len(bundle.commits) >= 1  # never an empty timeline
-    assert bundle.note is not None
+    assert bundle.notes

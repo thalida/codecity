@@ -144,11 +144,8 @@ describe('cellMesh factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell);
 
-    // The fake atlas returns a known UV for the "typescript" icon name that
-    // getFileIconName produces for a .ts file (icon name is looked up at
-    // runtime, so we pre-seed all plausible names the resolver might return).
-    // Using a catch-all via a Proxy isn't possible with plain objects, so we
-    // seed the two most likely names instead.
+    // The icon name is resolved at runtime, so seed the plausible ones: a
+    // plain object can't catch-all the way a Proxy would.
     const knownUV: [number, number] = [0.125, 0.25];
     const atlas = fakeAtlas({
       typescript: knownUV,
@@ -239,13 +236,8 @@ describe('cellMesh factory', () => {
   });
 });
 
-// Stress test: shared material across 300 cells (simulates a ~17×17 grid
-// as seen for large repos like firecrawl). Verifies that:
-//   1. Every cell's detailMesh uses the SAME material instance — the one
-//      singleton from material.getBuildingMaterial() (no 300× alloc).
-//   2. 300 InstancedMesh objects are created (per-cell, as required for
-//      per-cell visibility toggling).
-//   3. The full loop completes in under 1 second.
+// 300 cells, the ~17×17 grid a large repo produces: one shared material across
+// all of them, one InstancedMesh each (per-cell visibility needs that).
 
 describe('cellMesh shared-material stress test (300 cells)', () => {
   it('all 300 cells share exactly one ShaderMaterial instance', () => {

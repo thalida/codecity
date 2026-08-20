@@ -153,8 +153,9 @@ function _collect(
 
 /** A file's measures at the scrub position, or at its deletion if already gone. */
 export interface ScrubbedFileStats {
-  lines: number;
-  bytes: number;
+  // Null when the blob was never fetched: unknown at this commit, not zero.
+  lines: number | null;
+  bytes: number | null;
   /** True when these are the values the file had when it was deleted. */
   atDeletion: boolean;
 }

@@ -19,9 +19,8 @@ export type { Fireflies };
 
 /** Public contract for the fireflies component. */
 export interface FirefliesComponent extends SceneComponent {
-  // Required here, optional on SceneComponent: the frame loop calls tick only
-  // if present, but this one always has it, and a caller holding this type
-  // shouldn't have to prove that.
+  // Required here, optional on SceneComponent: this one always has a tick, and
+  // a caller holding this type shouldn't have to prove it.
   tick(dt: number, ctx: FrameContext): void;
   /** Rebuild the inner assembly from placements — driven by the
    *  treePlacements signal, in lockstep with trees. */

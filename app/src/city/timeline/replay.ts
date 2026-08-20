@@ -1,7 +1,9 @@
 import type { TimelineBundle } from '@/types';
 
 export interface PathTimeline {
-  changes: { i: number; lines: number; bytes: number; sha: string | null }[];
+  // lines/bytes null: the blob was never fetched, so it has no measurement
+  // at this commit either (see FileNode.size).
+  changes: { i: number; lines: number | null; bytes: number | null; sha: string | null }[];
   intervals: { start: number; end: number | null }[];
 }
 
@@ -25,8 +27,8 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
         continue;
       }
 
-      const lines = bundle.blobLines[change.sha] ?? 0;
-      const bytes = bundle.blobSizes[change.sha] ?? 0;
+      const lines = bundle.blobLines[change.sha];
+      const bytes = bundle.blobSizes[change.sha];
       const open = pt.intervals[pt.intervals.length - 1];
       if (!open || open.end !== null) pt.intervals.push({ start: i, end: null });
       pt.changes.push({ i, lines, bytes, sha: change.sha });
@@ -42,15 +44,16 @@ function isPresent(pt: PathTimeline, pos: number): boolean {
 
 /** The line count in effect at `pos`. A step, not a curve: interpolating toward
  *  the next change showed files growing on days nothing was committed. */
-export function linesAt(pt: PathTimeline, pos: number): number {
-  return entryAt(pt, pos)?.lines ?? 0;
+export function linesAt(pt: PathTimeline, pos: number): number | null {
+  const entry = entryAt(pt, pos);
+  return entry ? entry.lines : 0;
 }
 
 /** What a path measured when it was deleted, or null if it is not gone at `pos`. */
 export function statsAtDeletion(
   pt: PathTimeline,
   pos: number
-): { lines: number; bytes: number } | null {
+): { lines: number | null; bytes: number | null } | null {
   if (isPresent(pt, pos)) return null;
 
   // Latest close, not the first: a path can be deleted and resurrected.

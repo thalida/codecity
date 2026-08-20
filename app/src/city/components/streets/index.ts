@@ -35,9 +35,8 @@ const LABEL_LOD_SHOW_PX = 6;
 
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
-  // Required here, optional on SceneComponent: the frame loop calls tick only
-  // if present, but this one always has it, and a caller holding this type
-  // shouldn't have to prove that.
+  // Required here, optional on SceneComponent: this one always has a tick, and
+  // a caller holding this type shouldn't have to prove it.
   tick(dt: number, ctx: FrameContext): void;
   /** Every street mesh and label, rebuilt from the layout. No signature gate:
    *  the effect upstream doesn't fire on a reuse apply. */

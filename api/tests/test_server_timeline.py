@@ -92,7 +92,7 @@ def test_timeline_stream_emits_progress_then_bundle(
         "deltas",
         "blobLines",
         "blobSizes",
-        "note",
+        "notes",
     }
     # Every referenced sha resolves in both tables, so the client can't KeyError.
     for delta in bundle["deltas"]:

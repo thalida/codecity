@@ -258,9 +258,8 @@ export function makeDigestHasher() {
     h = Math.imul(h, 16777619) >>> 0;
   };
   return {
-    // Building.floors is stamped during layout, so it is optional on the type.
-    // undefined hashes as "NaN", which is what Math.round already produced for
-    // it: the digest has to stay bit-identical across this annotation.
+    // Building.floors is optional, and undefined must keep hashing as the "NaN"
+    // Math.round already gave it: the digest stays bit-identical.
     num: (v: number | undefined) => mix(v === undefined ? 'NaN' : Math.round(v * 1e4).toString()),
     str: (v: string) => mix(v),
     arr: (a: ArrayLike<number>) => {

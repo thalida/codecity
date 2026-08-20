@@ -63,7 +63,9 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   } else if (lines != null) {
     items.push({ text: `${lines} lines` });
   }
-  if (size != null) items.push({ text: formatBytes(size) });
+  // Said out loud rather than left blank: a missing size means the blob was
+  // never fetched, which is not the same as a file that has nothing in it.
+  items.push(size != null ? { text: formatBytes(size) } : { text: 'size unknown', shrink: 40 });
   if (dates) {
     if (file.modified) items.push({ ...ageItem(file.modified, 'modified', now), shrink: 20 });
     if (file.created) items.push({ ...ageItem(file.created, 'created', now), shrink: 60 });

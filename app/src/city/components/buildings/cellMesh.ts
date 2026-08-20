@@ -10,7 +10,7 @@ import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
-import { isDataBuilding, isEmptyFile } from '@/utils/fileKind';
+import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
@@ -160,7 +160,10 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   // is the precedence getBuildingDimensions uses.
   const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
   let kind: number = BuildingKind.Normal;
-  if (isEmptyFile(b.file)) kind = BuildingKind.Empty;
+  // Before the others: with no size there is nothing to call it empty or data
+  // by, and guessing either would be the zero this replaced.
+  if (isUnmeasuredFile(b.file)) kind = BuildingKind.Unmeasured;
+  else if (isEmptyFile(b.file)) kind = BuildingKind.Empty;
   else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
   iKindAttr.setX(slot, kind);
 
