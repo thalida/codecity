@@ -1,10 +1,7 @@
 // components/sources/SourceRow/SourceRow.tsx — one openable source: kind glyph,
-// label, branch pill, raw src. Shared by Recents and Discover, since a Discover
-// row is a recent you haven't opened yet. Everything around a row (a remove
-// control, an active badge) belongs to its lister.
-//
-// A real <a href>: the destination shows on hover, cmd-click opens a tab, and
-// the row cannot open a repo other than the one it names.
+// label, branch pill, raw src. Shared by Recents and Discover. A real <a href>,
+// so the destination shows on hover and the row cannot open a repo other than
+// the one it names.
 
 import './SourceRow.css';
 import { navigate } from '@/router/location';

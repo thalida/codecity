@@ -403,8 +403,7 @@ describe('the URL drives what is loaded', () => {
   const complete = async (name: string): Promise<void> => {
     const es = StubEventSource.instances[StubEventSource.instances.length - 1]!;
     // repo included: commitSource reads repo.branch, and without it the load
-    // throws — which used to look like success here because a failed load kept
-    // its claim on the URL.
+    // throws — which used to look like success, because a failure kept its claim.
     es.emit(
       'manifest-complete',
       JSON.stringify({ manifest: { tree: { name }, repo: { branch: null } } })
@@ -471,9 +470,8 @@ describe('the URL drives what is loaded', () => {
   });
 
   it('a canceled load leaves its URL loadable', async () => {
-    // The claim exists so a re-run does not restart an in-flight load. Held
-    // past a load that never committed, it makes that URL dead for the rest of
-    // the session: the address bar says one repo and the city stays another.
+    // The claim stops a re-run restarting an in-flight load. Held past one that
+    // never committed, it leaves the URL naming a repo the city never loads.
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
     detach = attachRouteLoad();
     await flush();
