@@ -1,9 +1,7 @@
 // hooks/useDismissable.ts — the three ways a non-modal popover closes on its
-// own: a press outside, focus landing outside, Escape.
-//
-// `parts`, not one root: a popover in a chrome cluster renders no wrapper, so
-// its trigger and panel are siblings that both count as inside. `refocus` is
-// false for pointer dismissals only, which already moved focus deliberately.
+// own: a press outside, focus landing outside, Escape. `parts`, not one root:
+// the panel portals out of the trigger's tree, so both subtrees count as inside.
+// `refocus` is false for pointer dismissals only, which already moved focus.
 
 import { useEffect } from 'preact/hooks';
 import type { RefObject } from 'preact';

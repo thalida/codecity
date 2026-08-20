@@ -1,11 +1,11 @@
 // components/sources/ProjectSwitcher/ProjectSwitcher.tsx — The project chip: gem, repo kind, label,
-// optional @branch pill, switch cue. ChevronsUpDown rather than a down-caret,
-// since it opens a screen and not a menu. The gem doubles as the app logo, so
-// the chip renders before a project loads: gem alone, still opening it.
+// optional @branch pill, switch cue. A right chevron, not the popovers' caret:
+// this opens a screen, not a menu. The gem doubles as the app logo, so the chip
+// renders before a project loads: gem alone, still opening it.
 
 import './ProjectSwitcher.css';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
-import { ChevronsUpDown } from 'lucide-preact';
+import { ChevronRight } from 'lucide-preact';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { HostingIcon } from '@/components/sources/HostingIcon/HostingIcon';
 
@@ -50,7 +50,7 @@ export function ProjectSwitcher({ rootLabel, branch, src, onSwitchSource }: Proj
         </span>
       )}
       {branch && <BranchPill branch={branch} />}
-      <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
+      <ChevronRight class="icon cluster-cue" aria-hidden="true" />
     </button>
   );
 }

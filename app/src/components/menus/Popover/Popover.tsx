@@ -1,11 +1,12 @@
 // components/menus/Popover/Popover.tsx — a chrome-bar item that opens a panel of
-// controls. Anchored it is non-modal (the panel changes the city behind it);
-// as a phone sheet it takes a scrim. Renders no wrapper: the trigger must be a
-// direct child of the cluster, which is therefore the panel's offset parent.
+// controls. Anchored it is non-modal (the panel changes the city behind it); as
+// a phone sheet it takes a scrim. The panel portals to <body> and is placed from
+// the trigger's rect: a cluster styles every child it holds as one of its items.
 
 import './Popover.css';
 import { ChevronsUpDown } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
+import { createPortal } from 'preact/compat';
 import { useSignal, type Signal } from '@preact/signals';
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useDismissable } from '@/hooks/useDismissable';
@@ -18,9 +19,9 @@ export enum PopoverPlacement {
   AboveStart = 'above-start',
 }
 
-/** Inline inset that lines the panel up with its trigger, in offset-parent
- *  coordinates. Null while the panel is a sheet, which spans the viewport. */
-type AnchorOffset = { left: number } | { right: number };
+/** Viewport insets that line the panel up with its trigger; the gap between the
+ *  two is a CSS margin. Null while the panel is a sheet, which spans the window. */
+type AnchorOffset = { top: number; right: number } | { bottom: number; left: number };
 
 /** Gap kept between the panel and the window edge when a trigger sits so far
  *  along the bar that aligning to it would push the panel off-screen. */
@@ -31,23 +32,20 @@ function measureAnchor(
   panel: HTMLElement | null,
   placement: PopoverPlacement
 ): AnchorOffset | null {
-  const parent = trigger?.offsetParent as HTMLElement | null;
-  if (!trigger || !panel || !parent) return null;
+  if (!trigger || !panel) return null;
   // Sheet: pinned to the window's edges, so an inline offset would fight the
   // media query rather than refine it.
   if (IS_PHONE.peek()) return null;
 
-  const parentRect = parent.getBoundingClientRect();
+  const rect = trigger.getBoundingClientRect();
+  // The inset that would leave the panel's far edge on the gutter.
+  const maxInline = window.innerWidth - VIEWPORT_GUTTER - panel.offsetWidth;
   if (placement === PopoverPlacement.BelowEnd) {
     // Trailing edges flush, clamped so the panel's leading edge stays on screen.
-    const fromRight = parent.clientWidth - (trigger.offsetLeft + trigger.offsetWidth);
-    const leftIfApplied = parentRect.right - fromRight - panel.offsetWidth;
-    const overshoot = VIEWPORT_GUTTER - leftIfApplied;
-    return { right: overshoot > 0 ? fromRight - overshoot : fromRight };
+    return { top: rect.bottom, right: Math.min(window.innerWidth - rect.right, maxInline) };
   }
   // Leading edges flush, clamped the same way against the other edge.
-  const maxLeft = window.innerWidth - VIEWPORT_GUTTER - panel.offsetWidth - parentRect.left;
-  return { left: Math.min(trigger.offsetLeft, maxLeft) };
+  return { bottom: window.innerHeight - rect.top, left: Math.min(rect.left, maxInline) };
 }
 
 export interface PopoverProps {
@@ -95,8 +93,8 @@ export function Popover({
   );
   useDismissable(open, [triggerRef, panelRef], close);
 
-  // The offset parent is the whole cluster, so without this every item opens
-  // its panel in the same spot. Measured: siblings decide where a trigger is.
+  // The panel is out of the bar's tree, so nothing about where the trigger sits
+  // reaches it: measure. Siblings decide where a trigger is.
   const [anchor, setAnchor] = useState<AnchorOffset | null>(null);
   useLayoutEffect(() => {
     if (!open) {
@@ -105,8 +103,8 @@ export function Popover({
     }
     const measure = () => setAnchor(measureAnchor(triggerRef.current, panelRef.current, placement));
     measure();
-    // A resize can cross the sheet breakpoint, where the panel spans the
-    // viewport and an inline offset would fight the media query.
+    // A resize moves the trigger, and can cross the sheet breakpoint, where the
+    // panel spans the viewport and an inline offset would fight the media query.
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [open, placement]);
@@ -125,33 +123,37 @@ export function Popover({
       >
         {trigger}
         {/* Not a down-caret: one of these opens upward, and the same cue has to
-            mean "opens" on both bars. Same glyph the project chip uses. */}
+            mean "opens" on both bars. */}
         <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
       </button>
 
-      {/* Sheet-only (CSS). Not a control: useDismissable already closes on a
-          press outside, and the panel's grip is the labelled way out. */}
-      {open && <div class="popover-scrim" aria-hidden="true" />}
+      {open &&
+        createPortal(
+          <>
+            {/* Sheet-only (CSS). Not a control: useDismissable already closes on
+                a press outside, and the panel's grip is the labelled way out. */}
+            <div class="popover-scrim" aria-hidden="true" />
 
-      {open && (
-        <div
-          ref={panelRef}
-          class={`popover-panel popover-panel--${placement} surface-glass${panelClass ? ` ${panelClass}` : ''}`}
-          role="dialog"
-          aria-label={label}
-          style={anchor ?? undefined}
-        >
-          {/* Sheet-only (hidden by CSS when anchored), and a real control: a
-              grip that only decorates promises a drag it doesn't honour. */}
-          <button
-            type="button"
-            class="popover-grip"
-            aria-label="Close"
-            onClick={() => close(true)}
-          />
-          {children(close)}
-        </div>
-      )}
+            <div
+              ref={panelRef}
+              class={`popover-panel popover-panel--${placement} surface-glass${panelClass ? ` ${panelClass}` : ''}`}
+              role="dialog"
+              aria-label={label}
+              style={anchor ?? undefined}
+            >
+              {/* Sheet-only (hidden by CSS when anchored), and a real control: a
+                  grip that only decorates promises a drag it doesn't honour. */}
+              <button
+                type="button"
+                class="popover-grip"
+                aria-label="Close"
+                onClick={() => close(true)}
+              />
+              {children(close)}
+            </div>
+          </>,
+          document.body
+        )}
     </>
   );
 }

@@ -6,6 +6,7 @@ import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import type { Manifest } from '@/types';
 import { flush } from '../../../_helpers/preact';
+import { popoverPanel } from '../../../_helpers/popover';
 
 const LOADED: Manifest = {
   ...EMPTY_MANIFEST,
@@ -90,8 +91,8 @@ describe('CityHeader', () => {
     expect(items).toHaveLength(1);
   });
 
-  // The trigger and its panel are siblings, so the cluster's dividers and
-  // end-rounding still apply to the trigger; a wrapper would break both.
+  // The cluster's dividers and end-rounding key off its direct children, so a
+  // wrapper around the trigger would break both.
   it('makes the readout a direct child of the cluster, not a wrapped one', async () => {
     loadProject();
     render(<CityHeader />, container);
@@ -136,7 +137,7 @@ describe('CityHeader', () => {
     container.querySelector<HTMLButtonElement>('.scan-menu-trigger')!.click();
     await flush();
     const actions = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('.popover-panel .scan-menu-action')
+      popoverPanel()!.querySelectorAll<HTMLButtonElement>('.scan-menu-action')
     );
     expect(actions.map((el) => el.querySelector('.scan-menu-action-label')?.textContent)).toEqual([
       'Reload',
@@ -146,6 +147,26 @@ describe('CityHeader', () => {
     // Cheapest first, and the cache flag is the only thing between them.
     actions[0].click();
     expect(onRefresh).toHaveBeenCalledWith(false);
+  });
+
+  // The cluster styles every child it holds as a bar item, which sized the open
+  // panel to the bar and laid it out inside it. The panel belongs on <body>.
+  it('opens the panel outside the cluster, leaving its one item behind', async () => {
+    loadProject();
+    render(<CityHeader />, container);
+    await flush();
+
+    const freshness = container.querySelector('.city-header-freshness')!;
+    container.querySelector<HTMLButtonElement>('.scan-menu-trigger')!.click();
+    await flush();
+
+    const panel = popoverPanel()!;
+    expect(panel).not.toBeNull();
+    expect(panel.closest('.chrome-cluster')).toBeNull();
+    expect(panel.parentElement).toBe(document.body);
+    expect([...freshness.children].filter((el) => !el.classList.contains('sr-only'))).toHaveLength(
+      1
+    );
   });
 
   it('shows nothing to refresh before a project is loaded', async () => {

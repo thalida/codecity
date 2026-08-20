@@ -9,6 +9,7 @@ import {
   SURFACE_THEME_DEFAULT,
 } from '@/state/settings/fields/theme';
 import { flush } from '../_helpers/preact';
+import { popoverPanel } from '../_helpers/popover';
 
 describe('AppearanceMenu', () => {
   let container: HTMLDivElement;
@@ -20,8 +21,10 @@ describe('AppearanceMenu', () => {
     act(() => container.querySelector<HTMLButtonElement>('.popover-trigger')!.click());
   };
 
+  const panel = popoverPanel;
+
   const radio = (label: string) =>
-    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]')).find(
+    Array.from(panel()!.querySelectorAll<HTMLButtonElement>('[role="radio"]')).find(
       (el) => el.getAttribute('aria-label') === label
     )!;
 
@@ -36,15 +39,14 @@ describe('AppearanceMenu', () => {
   // trigger's lower edge the way the header's is.
   it('opens a panel that rises from the trigger', () => {
     mount();
-    const panel = container.querySelector('[role="dialog"]')!;
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('popover-panel--above-start')).toBe(true);
+    expect(panel()).not.toBeNull();
+    expect(panel()!.classList.contains('popover-panel--above-start')).toBe(true);
   });
 
   it('renders two radiogroups (accent + surface) and the syntax picker', () => {
     mount();
-    expect(container.querySelectorAll('[role="radiogroup"]').length).toBe(2);
-    expect(container.querySelector('select')).not.toBeNull();
+    expect(panel()!.querySelectorAll('[role="radiogroup"]').length).toBe(2);
+    expect(panel()!.querySelector('select')).not.toBeNull();
   });
 
   it('marks the active accent chip aria-checked', () => {
@@ -81,7 +83,7 @@ describe('AppearanceMenu', () => {
     act(() => radio('Warm').click());
     await flush();
     expect(SURFACE_THEME.value).toBe('warm');
-    const surfaceReset = container.querySelectorAll<HTMLButtonElement>('.setting-row-reset')[1];
+    const surfaceReset = panel()!.querySelectorAll<HTMLButtonElement>('.setting-row-reset')[1];
     act(() => surfaceReset.click());
     await flush();
     expect(SURFACE_THEME.value).toBe(SURFACE_THEME_DEFAULT);

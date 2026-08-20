@@ -4,6 +4,7 @@ import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
 import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { drainAsync, flush } from '../_helpers/preact';
+import { popoverPanel } from '../_helpers/popover';
 
 // Preact schedules useEffect on rAF, which jsdom fires around 16ms, so the open
 // effect (registering the dismiss listeners) needs a real timer yield.
@@ -26,7 +27,7 @@ describe('ScanMenu', () => {
   });
 
   const trigger = () => container.querySelector('.scan-menu-trigger') as HTMLButtonElement;
-  const panel = () => container.querySelector('[role="dialog"]');
+  const panel = popoverPanel;
   const open = async () => {
     trigger().click();
     await flush();
@@ -136,8 +137,8 @@ describe('ScanMenu', () => {
     await flush();
     await open();
 
-    expect(container.querySelector('[role="menu"]')).toBeNull();
-    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+    expect(panel()!.querySelector('[role="menu"]')).toBeNull();
+    expect(panel()!.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
   });
 
   // The cache flag is the only difference between them, so the panel is where
@@ -152,7 +153,7 @@ describe('ScanMenu', () => {
     await flush();
     await open();
 
-    const actions = container.querySelectorAll<HTMLButtonElement>('.scan-menu-action');
+    const actions = panel()!.querySelectorAll<HTMLButtonElement>('.scan-menu-action');
     expect(actions).toHaveLength(2);
     expect(actions[index].querySelector('.scan-menu-action-label')!.textContent).toBe(label);
 
@@ -217,7 +218,7 @@ describe('ScanMenu', () => {
     expect(panel()!.textContent).toContain('vendor');
     expect(panel()!.textContent).toContain('a.md');
 
-    container.querySelector<HTMLButtonElement>('button[aria-label="Restore vendor"]')!.click();
+    panel()!.querySelector<HTMLButtonElement>('button[aria-label="Restore vendor"]')!.click();
     await flush(); // signal-driven re-render is microtask-scheduled
     expect(panel()!.textContent).not.toContain('vendor');
   });
@@ -229,7 +230,7 @@ describe('ScanMenu', () => {
     await flush();
     await open();
 
-    container
+    panel()!
       .querySelector<HTMLButtonElement>('button[aria-label="Restore all excluded paths"]')!
       .click();
     await flush();
@@ -243,7 +244,7 @@ describe('ScanMenu', () => {
 
     expect(panel()!.textContent).toMatch(/nothing hidden from the city/i);
     // A permanently disabled control is noise in a panel this small.
-    expect(container.querySelector('button[aria-label="Restore all excluded paths"]')).toBeNull();
+    expect(panel()!.querySelector('button[aria-label="Restore all excluded paths"]')).toBeNull();
     expect(container.querySelector('.scan-menu-count')).toBeNull();
   });
 
@@ -270,7 +271,7 @@ describe('ScanMenu', () => {
     expect(panel()).toBeNull();
   });
 
-  // The panel is a sibling of the trigger, not a child, so a containment check
+  // The panel is portaled out of the trigger's tree, so a containment check
   // against one root would treat a press inside the panel as an outside press.
   it('a press inside the panel leaves it open', async () => {
     addExclude('vendor');

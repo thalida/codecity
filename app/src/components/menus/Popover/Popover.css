@@ -1,12 +1,13 @@
 /* Popover — the panel a chrome-bar item opens, plus the furniture inside it.
    One panel, two geometries: anchored to its trigger, or a bottom sheet at
-   PHONE_MAX_PX. */
+   PHONE_MAX_PX. It renders in a portal on <body>, so its insets are the
+   viewport's and Popover.tsx measures them. */
 
 .popover-panel {
   /* One inset for every child: each ships its own padding, which is what makes
      an assembled panel read as three unrelated lists. */
   --popover-inset: var(--cc-space-4);
-  position: absolute;
+  position: fixed;
   z-index: 300; /* over the sidebars, which sit at 90/100 */
   /* Content-sized between bounds, so two toggles don't reserve the room a
      shortcuts table needs. The floor keeps a label off its control. */
@@ -26,20 +27,24 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
-  /* The footer sets nowrap for its own single line, and this renders inside it,
-     so without resetting it no panel can wrap and every one scrolls. */
+  /* Its own type, not the bar's: the panel hangs off <body> now, and a footer
+     item's 10px is not a reading size for a panel of controls. */
   font-family: var(--cc-font-sans);
-  white-space: normal;
+  font-size: var(--cc-font-sm);
 }
 
+/* Margin, not part of the measured inset: the gap to the trigger stays a token
+   rather than a number JS has to know. */
 .popover-panel--below-end {
-  top: calc(100% + var(--cc-space-2));
+  top: 0;
   right: 0;
+  margin-top: var(--cc-space-2);
 }
 
 .popover-panel--above-start {
-  bottom: calc(100% + var(--cc-space-2));
+  bottom: 0;
   left: 0;
+  margin-bottom: var(--cc-space-2);
 }
 
 /* Ruled, not boxed: a border per group reads as stacked panels. Equal margin
@@ -156,13 +161,13 @@
   }
 
   .popover-panel {
-    position: fixed;
     top: auto;
     left: 0;
     right: 0;
     /* Flush to the window: the scrim already says the bar behind is out of
        play, so holding a gap for it only cost the sheet a row of content. */
     bottom: 0;
+    margin: 0;
     /* Every width bound off, so left/right alone decide it. */
     width: auto;
     min-width: 0;
