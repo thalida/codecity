@@ -2,7 +2,7 @@
 // than the data. Not production state: "nothing loaded" there is a null MANIFEST.
 
 import { NodeKind } from '@/types';
-import type { Manifest, RepoStats } from '@/types';
+import type { Manifest, RepoStats, SourceRef } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
 
 export const EMPTY_REPO_STATS: RepoStats = {
@@ -43,8 +43,12 @@ export const EMPTY_REPO_STATS: RepoStats = {
   authors: [],
 };
 
+/** The source an EMPTY_MANIFEST names, for tests that read a file out of one. */
+export const TEST_SOURCE: SourceRef = { src: '/repo', branch: null };
+
 export const EMPTY_MANIFEST: Manifest = {
-  root: '',
+  src: '',
+  branch: null,
   // Nothing scanned yet, so every stage is still outstanding.
   pending: ['metadata', 'history'],
   readmePath: null,
@@ -57,7 +61,6 @@ export const EMPTY_MANIFEST: Manifest = {
     name: '',
     type: NodeKind.Directory,
     path: ROOT_PATH,
-    fullPath: '',
     children: [],
     children_count: 0,
     children_file_count: 0,

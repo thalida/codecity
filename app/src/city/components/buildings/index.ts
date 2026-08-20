@@ -22,6 +22,7 @@ import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
 import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
+import { sourceOf } from '@/utils/manifest';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
@@ -381,7 +382,12 @@ export function createBuildings(ctx: SceneContext): Buildings {
         })();
 
     // ---- Assemble the cell scene (buildings only). ----
-    const cellOut = buildCellsFromLayout(bounds, buildings);
+    // THIS city's source, not the app's: the landing's backdrop is another repo.
+    const cellOut = buildCellsFromLayout(
+      bounds,
+      buildings,
+      sourceOf(ctx.cityState.manifest.peek())
+    );
 
     // Grabbed before the swap reassigns them: the arrays stay readable through
     // disposal, but these bindings don't.

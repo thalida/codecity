@@ -9,6 +9,7 @@ import type { CommitEntry } from '@/types';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { drainAsync } from '../../../_helpers/preact';
+import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 
 const [COMMIT] = buildCommits({
   date: '2026-03-12',
@@ -49,7 +50,7 @@ describe('CommitPane', () => {
   }
 
   async function setCommit(commit: CommitEntry | null, opts: SetOpts = {}): Promise<void> {
-    state.value = { commit, authorHues: AUTHOR_HUES, ...opts };
+    state.value = { commit, source: TEST_SOURCE, authorHues: AUTHOR_HUES, ...opts };
     await drainAsync();
   }
 

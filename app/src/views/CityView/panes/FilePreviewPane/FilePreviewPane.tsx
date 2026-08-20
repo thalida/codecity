@@ -6,7 +6,7 @@ import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import type { FileNode } from '@/types';
+import type { FileNode, SourceRef } from '@/types';
 
 /** Which preview a file gets, by extension. Text is the catch-all, and falls
  *  back to a binary notice when the bytes don't decode as UTF-8. */
@@ -62,6 +62,8 @@ const GUTTER_MAX_BYTES = 1 * 1024 * 1024;
 
 export interface FilePreviewPaneState {
   file: FileNode | null;
+  /** Which repo the file's path is relative to; every read needs it. */
+  source?: SourceRef | null;
   /** Repo label + root path, for the header path breadcrumb. */
   rootLabel?: string;
   rootPath?: string;
@@ -111,17 +113,18 @@ type TextState =
 
 interface FileTextPreviewProps {
   file: FileNode;
+  source: SourceRef;
 }
 
 /** Fetches the bytes, then renders the editor or an error. Built this way so
  *  the gutter and <pre> never linger empty beside an error message. */
-function FileTextPreview({ file }: FileTextPreviewProps) {
+function FileTextPreview({ file, source }: FileTextPreviewProps) {
   const [textState, setTextState] = useState<TextState>({ kind: TextStateKind.Loading });
 
   useEffect(() => {
     setTextState({ kind: TextStateKind.Loading });
     let cancelled = false;
-    fetchFileText(file.fullPath || '', file.modified, scrubbedBlobShaFor(file.path)).then(
+    fetchFileText(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
       (text) => {
         if (cancelled) return;
         setTextState({ kind: TextStateKind.Text, text });
@@ -139,7 +142,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     };
     // Keyed on mtime too, so an edit picked up by the poll re-fetches instead
     // of waiting for the user to re-select the file.
-  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -297,11 +300,12 @@ function fontRejectReason(buf: ArrayBuffer): string | null {
 
 interface FontPreviewProps {
   file: FileNode;
+  source: SourceRef;
 }
 
 /** Renders a live specimen through the FontFace API. The face is removed on
  *  unmount and on a file change, so switching never orphans one. */
-function FontPreview({ file }: FontPreviewProps) {
+function FontPreview({ file, source }: FontPreviewProps) {
   const [family] = useState(() => `cc-font-specimen-${(fontFamilySeq += 1)}`);
   const [fontState, setFontState] = useState<FontState>({ kind: FontStateKind.Loading });
 
@@ -318,7 +322,7 @@ function FontPreview({ file }: FontPreviewProps) {
     // tries to delete a face that was never added.
     let added: FontFace | null = null;
 
-    fetchFileBytes(file.fullPath || '', file.modified, scrubbedBlobShaFor(file.path)).then(
+    fetchFileBytes(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
       async (buf) => {
         if (cancelled) return;
         const reason = fontRejectReason(buf);
@@ -358,7 +362,7 @@ function FontPreview({ file }: FontPreviewProps) {
     };
     // Also key on modified (mtime) so a live-update poll (same path, edited
     // bytes) re-loads the face without waiting for a re-select.
-  }, [file.fullPath, file.modified, family, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, family, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -414,14 +418,14 @@ type FpState =
 
 /** A data card instead of garbled bytes: type, size, dates, and the same
  *  fingerprint the building wears. Raw bytes never reach the client. */
-function BinaryDataCard({ file }: { file: FileNode }) {
+function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef }) {
   const [fp, setFp] = useState<FpState>({ kind: FpStateKind.Loading });
 
   useEffect(() => {
     let cancelled = false;
     let objUrl: string | null = null;
     setFp({ kind: FpStateKind.Loading });
-    fetchFingerprintBlob(file.fullPath || '', file.modified).then(
+    fetchFingerprintBlob(source, file.path, file.modified).then(
       (blob) => {
         if (cancelled) return;
         objUrl = URL.createObjectURL(blob);
@@ -441,7 +445,7 @@ function BinaryDataCard({ file }: { file: FileNode }) {
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
-  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, scrubbedBlobShaFor(file.path)]);
 
   // Not '—': the blob was never downloaded, so its size is unknown rather
   // than absent, and a dash reads as "nothing here".
@@ -474,7 +478,7 @@ function BinaryDataCard({ file }: { file: FileNode }) {
 
 // ── Body content ─────────────────────────────────────────────────────────────
 
-function _previewBody(file: FileNode | null) {
+function _previewBody(file: FileNode | null, source: SourceRef | null) {
   if (!file) {
     return (
       <PaneEmpty
@@ -484,11 +488,12 @@ function _previewBody(file: FileNode | null) {
       />
     );
   }
-  if (!file.fullPath) return null;
+  // No manifest means no repo to read the file out of.
+  if (!source) return null;
 
   // Version the URL by mtime so an edited image/video/pdf re-fetches on a live
   // update instead of the browser serving the cached bytes for the same path.
-  const url = fileUrl(file.fullPath || '', file.modified);
+  const url = fileUrl(source, file.path, file.modified);
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {
@@ -512,13 +517,13 @@ function _previewBody(file: FileNode | null) {
   }
 
   if (kind === PreviewKind.Font) {
-    // Keyed on fullPath so switching files remounts the FontFace state machine.
-    return <FontPreview key={file.fullPath} file={file} />;
+    // Keyed on path so switching files remounts the FontFace state machine.
+    return <FontPreview key={file.path} file={file} source={source} />;
   }
 
   // Binary with no dedicated viewer above: a data card, not a text dump.
   if (isDataBuilding(file)) {
-    return <BinaryDataCard key={file.fullPath} file={file} />;
+    return <BinaryDataCard key={file.path} file={file} source={source} />;
   }
 
   // Text path: skip the fetch entirely if the file is too big.
@@ -533,14 +538,22 @@ function _previewBody(file: FileNode | null) {
     );
   }
 
-  // Keyed on fullPath so switching files remounts the fetch state machine.
-  return <FileTextPreview key={file.fullPath} file={file} />;
+  // Keyed on path so switching files remounts the fetch state machine.
+  return <FileTextPreview key={file.path} file={file} source={source} />;
 }
 
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isAbsent } = state.value;
+  const {
+    file,
+    source = null,
+    rootLabel = '',
+    rootPath = '',
+    remoteUrl,
+    branch = '',
+    isAbsent,
+  } = state.value;
   const path = file?.path ?? '';
   const absent = Boolean(file && isAbsent);
 
@@ -574,7 +587,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       {absent ? (
         <PaneEmpty icon={FileX} title="File not available" modifier="empty-state--absent" />
       ) : (
-        _previewBody(file)
+        _previewBody(file, source)
       )}
     </Pane>
   );

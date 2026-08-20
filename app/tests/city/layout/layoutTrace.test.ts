@@ -199,12 +199,10 @@ describe('layoutCityWithTrace', () => {
       name: 'root',
       type: NodeKind.Directory,
       path: '.',
-      fullPath: '/tmp/root',
       children: files.map((f) => ({
         name: f.path.split('/').pop()!,
         type: NodeKind.File,
         path: f.path,
-        fullPath: `/tmp/root/${f.path}`,
         extension: '.ts',
         size: f.size,
         lines: f.lines,
@@ -221,7 +219,8 @@ describe('layoutCityWithTrace', () => {
       descendants_size: files.reduce((s, f) => s + f.size, 0),
     } as unknown as DirNode;
     const manifest: Manifest = {
-      root: '/tmp/root',
+      src: '/tmp/root',
+      branch: null,
       scanned_at: '2026-05-11T00:00:00Z',
       content_signature: 'test',
       structure_signature: 'test-fp-1234',
@@ -262,13 +261,11 @@ describe('layoutCityWithTrace', () => {
       name: 'sub',
       type: NodeKind.Directory,
       path: 'sub',
-      fullPath: '/tmp/root/sub',
       children: [
         {
           name: 'x.ts',
           type: NodeKind.File,
           path: 'sub/x.ts',
-          fullPath: '/tmp/root/sub/x.ts',
           extension: '.ts',
           size: 50,
           lines: 5,
@@ -289,7 +286,6 @@ describe('layoutCityWithTrace', () => {
       name: 'root',
       type: NodeKind.Directory,
       path: '.',
-      fullPath: '/tmp/root',
       children: [subDir] as unknown as FileNode[],
       children_count: 1,
       children_file_count: 0,
@@ -300,7 +296,8 @@ describe('layoutCityWithTrace', () => {
       descendants_size: 50,
     } as unknown as DirNode;
     const manifest: Manifest = {
-      root: '/tmp/root',
+      src: '/tmp/root',
+      branch: null,
       scanned_at: '2026-05-11T00:00:00Z',
       content_signature: 'test2',
       structure_signature: 'test-fp-5678',

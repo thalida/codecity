@@ -4,7 +4,7 @@
 // Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
-import { BuildingOrient } from '@/types/index';
+import { BuildingOrient, type SourceRef } from '@/types/index';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
@@ -135,6 +135,9 @@ export class InstancedFacadePanels {
 
   constructor(
     mediaFileCapacity: number,
+    // The city's own source: paths are repo-relative, so a facade read is
+    // meaningless without the repo they are relative to.
+    readonly source: SourceRef | null,
     opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
@@ -565,16 +568,18 @@ function asyncLoadMediaForBuilding(
   // and 404. The building just shows no image.
   if (hasNoContentAtScrub(b.file.path)) return;
 
-  const filePath = b.file.fullPath || b.file.path || '';
+  const source = ads.source;
+  if (!source) return;
+  const filePath = b.file.path || '';
   // Scrubbed commits pin a version; Live keys on mtime. Either way the URL names
   // one immutable body, so a rebuild re-reads it from the browser cache.
   const sha = scrubbedBlobShaFor(b.file.path);
   const version = b.file.modified || '';
 
   if (kind === MediaKind.Image) {
-    void _loadImageBuilding(ads, filePath, version, sha, layer, panelSlots);
+    void _loadImageBuilding(ads, source, filePath, version, sha, layer, panelSlots);
   } else {
-    void _loadVideoBuilding(ads, fileUrl(filePath, version, sha), layer, panelSlots);
+    void _loadVideoBuilding(ads, fileUrl(source, filePath, version, sha), layer, panelSlots);
   }
 }
 
@@ -587,13 +592,15 @@ function asyncLoadDataFacadeForBuilding(
   panelSlots: number[]
 ): void {
   if (hasNoContentAtScrub(b.file.path)) return;
-  const filePath = b.file.fullPath || b.file.path || '';
+  const source = ads.source;
+  if (!source) return;
+  const filePath = b.file.path || '';
   const version = b.file.modified || '';
   switch (dataFacadeKind(b.file.extension || '')) {
     case 'font':
       void _loadCanvasFacade(
         ads,
-        () => renderFontGlyphFacade(filePath, version, b.file.path),
+        () => renderFontGlyphFacade(source, filePath, version),
         layer,
         panelSlots
       );
@@ -601,13 +608,18 @@ function asyncLoadDataFacadeForBuilding(
     case 'audio':
       void _loadCanvasFacade(
         ads,
-        () => renderWaveformFacade(filePath, version, b.file.path),
+        () => renderWaveformFacade(source, filePath, version),
         layer,
         panelSlots
       );
       break;
     default:
-      void _loadFingerprintBuilding(ads, fingerprintUrl(filePath, version), layer, panelSlots);
+      void _loadFingerprintBuilding(
+        ads,
+        fingerprintUrl(source, filePath, version),
+        layer,
+        panelSlots
+      );
   }
 }
 
@@ -649,6 +661,7 @@ async function _loadFingerprintBuilding(
 
 async function _loadImageBuilding(
   ads: InstancedFacadePanels,
+  source: SourceRef,
   filePath: string,
   version: string,
   sha: string | null,
@@ -659,7 +672,7 @@ async function _loadImageBuilding(
   // keep the placeholder, not tint the building broken.
   let blob: Blob;
   try {
-    blob = await fetchFileBlob(filePath, version, sha);
+    blob = await fetchFileBlob(source, filePath, version, sha);
   } catch (err) {
     // Waiting resolves itself: the next rebuild picks the image up once the
     // fetch behind it lands. Anything else is a real failure.

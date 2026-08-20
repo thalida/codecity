@@ -16,7 +16,6 @@ const FILE: FileNode = {
   name: 'index.ts',
   type: NodeKind.File,
   path: 'src/index.ts',
-  fullPath: '/tmp/p/src/index.ts',
   extension: '.ts',
   size: 10,
   lines: 2,

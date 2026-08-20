@@ -23,7 +23,6 @@ function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z
     name: 'a.py',
     type: NodeKind.File,
     path: 'a.py',
-    fullPath: '/r/a.py',
     extension: '.py',
     size,
     lines: 3,

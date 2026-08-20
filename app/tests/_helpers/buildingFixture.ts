@@ -8,7 +8,6 @@ const DEFAULT_FILE: FileNode = {
   name: 'file.ts',
   type: NodeKind.File,
   path: 'src/file.ts',
-  fullPath: '/abs/src/file.ts',
   extension: '.ts',
   size: 100,
   lines: 10,

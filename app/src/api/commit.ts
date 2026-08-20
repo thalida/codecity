@@ -4,6 +4,7 @@
 // body comes from /api/commit on demand to keep the manifest small.
 
 import { apiUrl } from '@/api/apiUrl';
+import type { SourceRef } from '@/types';
 
 export interface CommitDetail {
   sha: string;
@@ -13,8 +14,10 @@ export interface CommitDetail {
   body: string;
 }
 
-export async function fetchCommitDetail(sha: string): Promise<CommitDetail> {
-  const resp = await fetch(apiUrl('commit', { sha }));
+export async function fetchCommitDetail(source: SourceRef, sha: string): Promise<CommitDetail> {
+  const resp = await fetch(
+    apiUrl('commit', { src: source.src, branch: source.branch ?? undefined, sha })
+  );
   if (!resp.ok) {
     throw new Error(`commit fetch failed: ${resp.status}`);
   }

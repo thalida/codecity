@@ -33,13 +33,11 @@ const tree = {
   name: 'repo',
   type: NodeKind.Directory,
   path: '.',
-  fullPath: '/repo',
   children: [
     {
       name: 'a.ts',
       type: NodeKind.File,
       path: 'a.ts',
-      fullPath: '/repo/a.ts',
       extension: '.ts',
       size: 10,
       lines: 3,
@@ -62,7 +60,8 @@ const tree = {
 const singleFileStats = uniformFileStats('a.ts', 3, 10);
 
 const manifest: Manifest = {
-  root: '/repo',
+  src: '/repo',
+  branch: null,
   scanned_at: '2024-01-01T00:00:00Z',
   content_signature: 's',
   structure_signature: 't',

@@ -9,7 +9,6 @@ import { fileLeader, uniformFileStats } from '../../../../_helpers/statsFixtures
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {
     type: NodeKind.File,
-    fullPath: `/repo/${partial.path}`,
     extension: '.ts',
     size: 100,
     lines: 10,
@@ -28,7 +27,6 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
     name,
     type: NodeKind.Directory,
     path,
-    fullPath: `/repo/${path}`,
     children,
     children_count: children.length,
     children_file_count: files,
@@ -45,7 +43,8 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
 
 function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
   return {
-    root: '/repo',
+    src: '/repo',
+    branch: null,
     pending: [],
     readmePath: null,
     readmeModified: null,

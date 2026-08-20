@@ -13,12 +13,12 @@ import type { FileNode } from '@/types';
 // A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
 // rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../../../_helpers/preact';
+import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
   type: NodeKind.File,
   path: 'src/index.ts',
-  fullPath: '/tmp/project/src/index.ts',
   extension: '.ts',
   size: 1536,
   lines: 50,
@@ -44,7 +44,7 @@ describe('FilePreviewPane', () => {
   // letting the body useEffect + fetch + rAF settle.
   async function setFile(file: FileNode | null): Promise<void> {
     await act(async () => {
-      state.value = { file };
+      state.value = { file, source: TEST_SOURCE };
     });
     await drainAsync();
   }
@@ -123,7 +123,6 @@ describe('FilePreviewPane', () => {
     name: 'data.db',
     type: NodeKind.File,
     path: 'data/data.db',
-    fullPath: '/tmp/project/data.db',
     extension: '.db',
     size: 50000,
     lines: 0,
@@ -231,7 +230,6 @@ describe('FilePreviewPane', () => {
       ...FILE_NODE,
       name: 'Inter.woff2',
       path: 'fonts/Inter.woff2',
-      fullPath: '/tmp/project/fonts/Inter.woff2',
       extension: '.woff2',
       binary: true,
     };

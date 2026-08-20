@@ -14,6 +14,7 @@ import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
+import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 
 function mkBuilding(path: string, x: number, y: number): Building {
   return {
@@ -31,7 +32,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings);
+  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {
