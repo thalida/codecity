@@ -11,7 +11,29 @@ export interface BranchList {
   default: string | null;
 }
 
-export async function fetchBranches(src: string): Promise<BranchList> {
+// Editing a URL re-resolves it, and backspacing a character asks the same
+// question again. Each miss is the server reaching the remote, so keep answers.
+const _byUrl = new Map<string, Promise<BranchList>>();
+
+/** The remote's branch list, resolved once per URL for this page. */
+export function fetchBranches(src: string): Promise<BranchList> {
+  const hit = _byUrl.get(src);
+  if (hit) return hit;
+  // Only successes stick: a cached refusal would outlive the outage behind it.
+  const pending = _fetchBranches(src).catch((e: unknown) => {
+    _byUrl.delete(src);
+    throw e;
+  });
+  _byUrl.set(src, pending);
+  return pending;
+}
+
+/** Test-only: drop the per-URL memo so successive tests can answer differently. */
+export function _resetBranchCacheForTests(): void {
+  _byUrl.clear();
+}
+
+async function _fetchBranches(src: string): Promise<BranchList> {
   const resp = await fetch(apiUrl('branches', { [URL_PARAMS.SRC]: src }));
   if (!resp.ok) {
     let message = `branch lookup failed (${resp.status})`;

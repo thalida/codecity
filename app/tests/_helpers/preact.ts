@@ -32,3 +32,13 @@ export const drainAsync = async (rounds = 25, delayMs = 0): Promise<void> => {
     await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
   }
 };
+
+/**
+ * Settle a render gated behind a debounce timer. Pass the component's own
+ * interval, never a literal: a test that hardcodes the number keeps passing
+ * when the component's changes.
+ */
+export const drainDebounced = async (debounceMs: number): Promise<void> => {
+  await new Promise<void>((resolve) => setTimeout(resolve, debounceMs + 20));
+  await drainAsync();
+};

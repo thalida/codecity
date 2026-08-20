@@ -948,13 +948,46 @@ def _parse_ls_remote(stdout: str) -> tuple[list[str], str | None]:
     return branches, default
 
 
+# The picker re-resolves as the field is edited, and a reload asks again. Short
+# enough that a branch pushed a minute ago shows up, long enough to absorb that.
+_LS_REMOTE_TTL_S = 60.0
+_LS_REMOTE_CACHE_MAX = 256
+_ls_remote_cache: dict[str, tuple[float, tuple[list[str], str | None]]] = {}
+
+
 def list_remote_branches(url: str) -> tuple[list[str], str | None]:
     """Return ``(branch_names, default_branch)`` for a remote git URL via
     ``git ls-remote --symref``, no clone required.
 
     ``default_branch`` is what HEAD points at, or a fallback when the remote
     omits a symbolic HEAD. Raises the same CloneError subclasses ``ensure_clone``
-    does, so routers see one error taxonomy."""
+    does, so routers see one error taxonomy.
+
+    Answers inside ``_LS_REMOTE_TTL_S`` come from memory. Only successes are
+    kept: a cached refusal would outlive the outage that caused it."""
+    cached = _ls_remote_cache.get(url)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _LS_REMOTE_TTL_S:
+        return cached[1]
+    result = _ls_remote(url)
+    _prune_ls_remote_cache(now)
+    _ls_remote_cache[url] = (now, result)
+    return result
+
+
+def _prune_ls_remote_cache(now: float) -> None:
+    """Drop what has expired, then the oldest if it's still over the cap."""
+    for key in [
+        k for k, (at, _) in _ls_remote_cache.items() if now - at >= _LS_REMOTE_TTL_S
+    ]:
+        del _ls_remote_cache[key]
+    while len(_ls_remote_cache) >= _LS_REMOTE_CACHE_MAX:
+        del _ls_remote_cache[
+            min(_ls_remote_cache, key=lambda k: _ls_remote_cache[k][0])
+        ]
+
+
+def _ls_remote(url: str) -> tuple[list[str], str | None]:
     try:
         proc = subprocess.run(
             ["git", "ls-remote", "--symref", "--", url],

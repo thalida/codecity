@@ -7,7 +7,8 @@ import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectFo
 import * as branchesApi from '@/api/branches';
 import { ScanError } from '@/api/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
-import { flush, drainAsync } from '../_helpers/preact';
+import { flush, drainAsync, drainDebounced } from '../_helpers/preact';
+import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
 
 // Label-independent: the source field's label switches on allowLocalRepos.
 const FIELD = 'input.form-input';
@@ -47,12 +48,37 @@ describe('NewProjectForm', () => {
     expect(container.querySelectorAll('.pane-tab').length).toBe(0);
 
     setInput(field(container), 'https://github.com/o/r');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
     expect(container.querySelector('select')).not.toBeNull(); // URL → branch dropdown
 
     setInput(field(container), '/Users/thalida/repo');
     await flush();
     expect(container.querySelector('select')).toBeNull(); // local path → no branch dropdown
+  });
+
+  it('resolves branches once for a typed URL, not once per keystroke', async () => {
+    // "https://github.com/o" already validates, so every character after it is
+    // another resolvable URL: undebounced, the tail of a repo name is one git
+    // ls-remote at the remote per keystroke. Typed at a cadence that lets
+    // Preact run its effects between characters, as a real one would.
+    const resolve = vi
+      .spyOn(branchesApi, 'fetchBranches')
+      .mockResolvedValue({ branches: ['main'], default: 'main' });
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+
+    const url = 'https://github.com/o/repo';
+    const typedFrom = url.length - 6;
+    setInput(field(container), url.slice(0, typedFrom));
+    await flush();
+    for (let i = typedFrom + 1; i <= url.length; i++) {
+      setInput(field(container), url.slice(0, i));
+      await drainAsync(1, 20);
+    }
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
+
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(resolve).toHaveBeenCalledWith(url);
   });
 
   it('resets the branch when the URL changes to a different repo (bug #2)', async () => {
@@ -64,7 +90,7 @@ describe('NewProjectForm', () => {
     await flush();
 
     setInput(field(container), 'https://github.com/o/first');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     // User picks the non-default branch on the first repo.
     const select = container.querySelector<HTMLSelectElement>('select')!;
@@ -77,7 +103,7 @@ describe('NewProjectForm', () => {
     // uncleared 'feat' would ride along unnoticed.
     resolve.mockResolvedValueOnce({ branches: ['main'], default: null });
     setInput(field(container), 'https://github.com/o/second');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     submitBtn.click();
@@ -99,7 +125,7 @@ describe('NewProjectForm', () => {
     await flush();
 
     setInput(field(container), 'https://github.com/o/nope');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(
       /repository not found/i
@@ -120,7 +146,7 @@ describe('NewProjectForm', () => {
     await flush();
 
     setInput(field(container), 'https://github.com/thalida/codecity#local-directories');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(/# or \?/);
     const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
@@ -185,7 +211,7 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     expect(container.querySelectorAll('.unreachable')).toHaveLength(1);
     // The remedy replaces the raw message rather than joining it.
@@ -205,7 +231,7 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
 
     const notice = container.querySelector('.unreachable--error');
     expect(notice).not.toBeNull();
@@ -225,11 +251,11 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
     expect(container.querySelector('.unreachable--error')).not.toBeNull();
 
     setInput(field(container), 'https://github.com/o/other');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
     expect(container.querySelector('.unreachable--error')).toBeNull();
 
     arriveAtOther();
@@ -246,7 +272,7 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
     expect(container.querySelector('.unreachable--error')).not.toBeNull();
 
     setInput(field(container), '/Users/me/code/proj');
@@ -393,7 +419,7 @@ describe('NewProjectForm', () => {
     expect(container.querySelector('.unreachable--standing')).not.toBeNull(); // standing while empty
 
     setInput(field(container), 'https://github.com/o/r');
-    await drainAsync();
+    await drainDebounced(BRANCH_LOOKUP_DEBOUNCE_MS);
     expect(container.querySelector('.unreachable--standing')).toBeNull(); // gone for a URL
   });
 
