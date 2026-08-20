@@ -21,7 +21,6 @@
   appearance: none;
   flex: 0 1 auto;
   min-width: 0;
-  position: relative; /* anchors the touch target below */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,12 +66,6 @@
 .chrome-cluster > *:not(.sr-only):not(:has(~ *:not(.sr-only))) {
   border-start-end-radius: var(--cc-radius-pill);
   border-end-end-radius: var(--cc-radius-pill);
-}
-
-/* Screen-reader-only announcers (CopyButton's) sit between items in the DOM.
-   They must not take part in the layout or the divider run. */
-.chrome-cluster > .sr-only {
-  position: absolute;
 }
 
 .chrome-cluster > *:not(.sr-only) > svg {
