@@ -4,7 +4,7 @@
 // the one it names.
 
 import './SourceRow.css';
-import { navigate } from '@/router/location';
+import { Link } from 'wouter-preact';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 import { HostingIcon } from '@/components/sources/HostingIcon/HostingIcon';
 
@@ -33,22 +33,12 @@ export function SourceRow({
   unavailableReason,
   href,
 }: SourceRowProps) {
-  return (
-    <a
-      href={unavailable ? undefined : href}
-      class={`row source-row${active ? ' source-row--active' : ''}${
-        unavailable ? ' source-row--unavailable' : ''
-      }`}
-      title={unavailable ? unavailableReason : undefined}
-      aria-disabled={unavailable ? 'true' : undefined}
-      onClick={(e: MouseEvent) => {
-        if (unavailable) return;
-        // Modified clicks belong to the browser: a new tab is a new tab.
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-        e.preventDefault();
-        navigate(href);
-      }}
-    >
+  const className = `row source-row${active ? ' source-row--active' : ''}${
+    unavailable ? ' source-row--unavailable' : ''
+  }`;
+
+  const body = (
+    <>
       <span class="source-row-icon">
         <HostingIcon src={src} />
       </span>
@@ -68,6 +58,21 @@ export function SourceRow({
         </div>
       </div>
       {active && <span class="source-row-note">Active</span>}
-    </a>
+    </>
+  );
+
+  // Nowhere to go, so not a link: a disabled anchor is still an anchor, and
+  // this one would offer a destination that refuses to load.
+  if (unavailable) {
+    return (
+      <div class={className} title={unavailableReason} aria-disabled="true">
+        {body}
+      </div>
+    );
+  }
+  return (
+    <Link href={href} class={className}>
+      {body}
+    </Link>
   );
 }

@@ -238,14 +238,17 @@ describe('HomeView', () => {
       expect(container.querySelector('[data-list="discover"]')).toBeNull();
     });
 
-    it('opens the source a Discover row names', async () => {
+    it('links a Discover row straight at the project it names', async () => {
       DISCOVER.value = CURATED;
       loadedCity();
       render(<HomeView />, container);
       await flush();
-      container.querySelector<HTMLButtonElement>('[data-list="discover"] .source-row')!.click();
-      // A link, not a load: the URL carrying the src is what starts one.
-      expect(navigate).toHaveBeenCalledWith('/city?src=https://github.com/preactjs/preact');
+      // A link, not a handler: the destination is visible on hover, and the row
+      // cannot open a repo other than the one it is labelled with.
+      const row = container.querySelector<HTMLAnchorElement>(
+        '[data-list="discover"] a.source-row'
+      )!;
+      expect(row.getAttribute('href')).toBe('/city?src=https://github.com/preactjs/preact');
       expect(loadSource).not.toHaveBeenCalled();
     });
 

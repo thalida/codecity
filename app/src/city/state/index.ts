@@ -10,7 +10,6 @@ import {
   beginBuild,
   enterBuildStage,
   markDecorating,
-  markIdle,
   setBuildStagePercent,
 } from '@/state/stores/progress';
 import { BuildStage } from '@/constants/progress';
@@ -330,12 +329,9 @@ export function createCityState(
       treePlacements.value = newPlacements;
       if (!shouldReuse) structureRevision.value++;
     });
-    // AFTER the flush: everything downstream of cityRevision reads the meshes the
-    // components just built (the picker collects its pickables from them).
+    // AFTER the flush, so downstream reads the meshes the components just built.
+    // Idle is the composer's to set: the rebuilds are async and unheld here.
     cityRevision.value++;
-    // The build ends here, with every component's meshes in the scene: the one
-    // place that can say so, rather than whichever component finished last.
-    markIdle();
   }
 
   // A config-only Save calls this so the next apply of the same manifest takes

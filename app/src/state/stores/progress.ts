@@ -85,19 +85,12 @@ export const LAST_UPDATED_AT = signal<number>(0);
  *  behind both of its readouts (see state/loadingReactions.ts). */
 export const BUILD_PROGRESS = signal<BuildProgress | null>(null);
 
-/** Whether a frame carrying the CURRENT city has actually reached the screen.
- *  Set by the frame loop; see city/render/LOADING.md. */
-export const CITY_ON_SCREEN = signal<boolean>(true);
-
 // ── Status transitions (single owner of each state + its coupled writes) ──
 
 // Every rebuild path goes through these, so the status/error/timestamp set
 // can't drift across the four call sites. markIdle ends every applyManifest.
 export function markRebuilding(): void {
   REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-  // Whatever is on the canvas is about to be replaced, so it no longer counts
-  // as this city being on screen.
-  CITY_ON_SCREEN.value = false;
   REBUILD_DETAIL.value = null;
   BUILD_PROGRESS.value = null;
 }
@@ -109,6 +102,8 @@ export function markDecorating(): void {
   enterBuildStage(BuildStage.Decorate);
 }
 
+/** The city is on screen. Set by the composer once the meshes exist and a frame
+ *  carrying them has been presented — NOT when applyStructure returns. */
 export function markIdle(): void {
   REBUILD_STATUS.value = RebuildStatus.Idle;
   BUILT_MANIFEST.value = MANIFEST.peek();
@@ -250,11 +245,10 @@ function attachScanReaction(): () => void {
   };
   return effect(() => {
     const p = SCAN_PROGRESS.value;
-    // The stream finishing is not the city appearing. An active status keeps
-    // the overlay up, then so does waiting for the paint; Error releases it.
+    // The stream finishing is not the city appearing: Idle now means a frame of
+    // it has been presented, so every earlier status keeps the overlay up.
     const status = REBUILD_STATUS.value;
-    const active = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
-    const building = status !== RebuildStatus.Error && (active || !CITY_ON_SCREEN.value);
+    const building = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;

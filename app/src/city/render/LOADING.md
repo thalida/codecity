@@ -6,9 +6,11 @@ the buffers are filled, not that anything has been drawn with them. Between the
 two sit shader compilation for each material and the upload of every instanced
 buffer and texture array — all of it on the first frame that touches them.
 
-`CITY_ON_SCREEN` is the signal the overlay waits on instead. `markRebuilding`
-clears it, and the frame loop sets it once a frame carrying the new city has
-been **presented**.
+`Idle` is what says so. `applyStructure` used to set it the moment it returned,
+but the rebuilds it starts are async and it holds none of them — so the composer
+sets it instead, once `buildings.whenSettled()` resolves and a frame carrying
+those meshes has been **presented**. Nothing else is needed: every status before
+Idle already means "still coming".
 
 ## Why two rAFs
 
@@ -21,11 +23,15 @@ is invisible; a frame early is the bug.
 
 `renderer.info.render.frame` does not answer this. It counts frames issued.
 
-## Why it is gated on Idle
+## Error still releases it
 
-A build that errored will never present anything, so holding the overlay for a
-frame that cannot come would strand it. The wait applies only when the build
-reached `Idle`; `Error` lets the overlay go and show the failure.
+A build that errored will never present anything, so the overlay cannot wait for
+a frame that is not coming. `Error` ends the wait and shows the failure.
+
+## Everything downstream gets this for free
+
+`captureHarness` waits for `Idle` before taking a screenshot, and used to be
+able to shoot a city that had not been drawn.
 
 ## What this does not do
 

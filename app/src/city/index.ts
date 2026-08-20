@@ -9,7 +9,7 @@ import { effect, untracked } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { CITY_ON_SCREEN } from '@/state/stores/progress';
+import { markIdle } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -151,18 +151,16 @@ export async function createCity(
     untracked(() => rig.reset());
   });
 
-  // Waits for the meshes to exist, then for a frame to reach the screen: pixels
-  // land a compositor pass after render() (see render/LOADING.md).
+  // The build is over when the city is ON SCREEN, not when applyStructure
+  // returns: it starts the rebuilds without holding them (see render/LOADING.md).
   const stopOnScreen = effect(() => {
     void cityState.cityRevision.value;
     if (cityState.manifest.peek() === null) return;
     untracked(() => {
       void buildings.whenSettled().then(() => {
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            CITY_ON_SCREEN.value = true;
-          })
-        );
+        // Two frames: render() only issues the GL commands, and the pixels land
+        // a compositor pass later.
+        requestAnimationFrame(() => requestAnimationFrame(() => markIdle()));
       });
     });
   });
