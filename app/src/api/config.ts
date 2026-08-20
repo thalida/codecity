@@ -8,42 +8,29 @@ import type { components } from '@/types/manifest.generated';
 // the backend's ConfigResponse cannot drift from what this layer exposes.
 export type ServerConfig = components['schemas']['ConfigResponse'];
 
-// Pre-boot defaults. maxBatchPaths guesses low: too high silently truncates a
-// batch's tail, too low only costs an extra request. `version` matches the
-// backend's own metadata-lookup fallback.
+// Pre-boot defaults. `version` matches the backend's own metadata-lookup
+// fallback.
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   allowLocalRepos: false,
   hosted: false,
   featuredRepo: '',
-  maxBatchPaths: 16,
   version: '0.0.0+unknown',
 };
 
 let _cached: Promise<ServerConfig> | null = null;
-// For synchronous mid-request readers (the batch coalescers); written only by
-// the memoized fetch below, so never a second source of truth.
-let _resolved: ServerConfig = DEFAULT_SERVER_CONFIG;
-
-/** The server config as last resolved, or the defaults before boot completes. */
-export function serverConfigNow(): ServerConfig {
-  return _resolved;
-}
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   try {
     const resp = await fetch(apiUrl('config'));
     if (!resp.ok) return DEFAULT_SERVER_CONFIG;
     const body = (await resp.json()) as Partial<ServerConfig>;
-    // Spread over the defaults (a hand-listed shape drops server-added fields);
-    // override only what the body carries so a truncated response can't zero it.
+    // Over the defaults, overriding only what the body actually carries, so a
+    // truncated or half-written response can't zero a field to its falsy value.
     return {
       ...DEFAULT_SERVER_CONFIG,
       allowLocalRepos: !!body.allowLocalRepos,
       hosted: !!body.hosted,
       ...(typeof body.featuredRepo === 'string' ? { featuredRepo: body.featuredRepo } : {}),
-      ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
-        ? { maxBatchPaths: body.maxBatchPaths }
-        : {}),
       ...(typeof body.version === 'string' && body.version ? { version: body.version } : {}),
     };
   } catch (_) {
@@ -58,12 +45,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
  * tests that want a fresh roundtrip.
  */
 export function getServerConfig(): Promise<ServerConfig> {
-  if (_cached === null) {
-    _cached = fetchServerConfig().then((cfg) => {
-      _resolved = cfg;
-      return cfg;
-    });
-  }
+  if (_cached === null) _cached = fetchServerConfig();
   return _cached;
 }
 
@@ -71,5 +53,4 @@ export function getServerConfig(): Promise<ServerConfig> {
  *  return different responses without leaking state. */
 export function _resetServerConfigForTests(): void {
   _cached = null;
-  _resolved = DEFAULT_SERVER_CONFIG;
 }

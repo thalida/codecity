@@ -8,7 +8,7 @@ catch-all that owns every non-`/api` path and must come last.
 | ------------- | ------------------------------------------------------------------ |
 | `manifest.py` | `/api/manifest`, `/api/manifest/signature`, `/api/manifest/cached` |
 | `timeline.py` | `/api/timeline`                                                    |
-| `file.py`     | `/api/file`, `/api/images`, `/api/fingerprints`                    |
+| `file.py`     | `/api/file`, `/api/fingerprint`                                    |
 | `commit.py`   | `/api/commit`                                                      |
 | `branches.py` | `/api/branches`                                                    |
 | `meta.py`     | `/api/health`, `/api/config`, `/api/discover`                      |
@@ -49,22 +49,35 @@ yourself parsing a URL for a display string, use `utils.labels`.
 
 ## Serving bytes
 
-`/api/file` and the two batch routes serve only from registered scan roots.
-There is no global filesystem read: a path must resolve under a root that a
-successful manifest scan registered.
+`/api/file` and `/api/fingerprint` serve only from registered scan roots. There
+is no global filesystem read: a path must resolve under a root that a successful
+manifest scan registered.
 
 Media is returned with an explicit `Content-Encoding: identity` so the app-wide
 GZipMiddleware skips it. Re-deflating already-compressed bytes costs CPU for
 about nothing. Everything else is coerced to `text/plain` so the preview pane
 renders it as code.
 
-The batch routes are not plurals of `/api/file`. They inline base64, serve
-images only, and silently omit anything they can't serve — the client falls back
-to the streaming GET for those. They exist so a media-heavy repo doesn't exhaust
-the browser's HTTP/1.1 connection pool.
+One request per file, including the hundreds a media-heavy city asks for at
+once. These were once batched into JSON POSTs, because HTTP/1.1 allows six
+connections per origin; browsers reach this over HTTP/2, which multiplexes them
+on one connection. Batching binary through JSON cost base64 inflation, a
+whole-response buffer at both ends, a size cap with a fallback path around it,
+and one opaque cache entry for the lot — so every city rebuild refetched every
+image rather than revalidating each on its own.
 
-Raw binary bytes never leave the server: `/api/fingerprints` reads only a file's
-head and returns a generated image of its byte pattern.
+A URL carrying a version (`mtime` or `sha`) names one immutable body and is
+served `immutable`; a bare one means "whatever is there now" and must
+revalidate. That is what makes per-file requests cheaper than the batch was, not
+more expensive.
+
+`/api/fingerprint` is a sibling, not a plural: raw binary bytes never leave the
+server, only a generated image of the byte pattern in a file's head.
+
+Content that isn't downloaded yet (a git-lfs pointer, a blob a partial clone
+hasn't backfilled) answers `202` with the reason, never `404`. A repo mid-fetch
+would otherwise answer a whole page of previews with 404s, and a burst of those
+from one client is what gets that client blocked.
 
 ## Time travel
 

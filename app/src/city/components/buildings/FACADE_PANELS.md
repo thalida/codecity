@@ -82,11 +82,15 @@ placeholder — and starves other tabs of GPU time during the `texSubImage3D`
 burst after decode. Four concurrent slots sits under the pool size, paces the
 uploads, and keeps the main thread responsive.
 
-Image bytes come from the batched `POST /api/images` endpoint, so the network
-fetch is coalesced across buildings and only decode plus upload is gated. A path
-the batch omits (too large, or not an image) falls back to the streaming
-`GET /api/file`. Videos are never batched: only the first frame is needed, and
-`<video>` streams just enough to grab it.
+Image bytes come from `GET /api/file`, one request per building, fetched as a
+Blob outside the slot so only decode plus upload is gated. Reading the status
+rather than pointing an `<img>` at the URL is what lets a `202` (not downloaded
+yet) keep the placeholder instead of tinting the building as broken. Videos take
+the URL directly: only the first frame is needed, and `<video>` streams just
+enough to grab it.
+
+Both URLs carry the file's mtime (or its blob sha under a scrub), so a rebuild
+re-reads them from the browser cache instead of the network.
 
 ## Failure states
 
@@ -95,7 +99,9 @@ the fade, because sampling an unwritten texture layer at `iTextureFade = 1`
 produces fully transparent fragments — a missing billboard rather than a broken
 one. The distinction from the loading placeholder is what says "this one is not
 coming back" instead of "still waiting". A data facade that fails just keeps its
-sealed placeholder, which is a valid look, so it gets no error tint.
+sealed placeholder, which is a valid look, so it gets no error tint. A file the
+server hasn't downloaded yet keeps the placeholder too: it is waiting, not
+broken, and the next rebuild picks it up once the fetch lands.
 
 ## The video play-button overlay
 

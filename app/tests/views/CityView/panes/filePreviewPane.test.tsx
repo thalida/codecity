@@ -146,22 +146,46 @@ describe('FilePreviewPane', () => {
     expect(container.querySelector('.binary-fingerprint-frame')).not.toBeNull();
   });
 
-  it('embeds the fetched fingerprint as a data-URL image', async () => {
-    const b64 = 'iVBORw0KGgoAAAANSg==';
-    globalThis.fetch = (async (url: string) =>
-      String(url).includes('/api/fingerprints')
-        ? new Response(JSON.stringify({ '/tmp/project/data.db': { b64 } }), { status: 200 })
-        : new Response('', { status: 200 })) as unknown as typeof fetch;
+  it('shows the fetched fingerprint image', async () => {
+    const requested: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      requested.push(String(url));
+      return new Response(new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
 
     mount();
     await setFile(BINARY_NODE);
-    // The fingerprint fetch coalesces on a 16ms timer; drain past it.
     await act(async () => {
       await drainAsync(40, 1);
     });
     const img = container.querySelector('.binary-fingerprint') as HTMLImageElement | null;
     expect(img).not.toBeNull();
-    expect(img!.getAttribute('src')).toBe(`data:image/png;base64,${b64}`);
+    // The PNG arrives as a PNG: an object URL over the fetched blob, no base64
+    // round trip through JSON.
+    expect(img!.getAttribute('src')).toMatch(/^blob:/);
+    // Versioned by mtime, so an unedited file is served from the browser cache.
+    expect(requested.some((u) => u.includes('/api/fingerprint?') && u.includes('mtime='))).toBe(
+      true
+    );
+  });
+
+  it('says an undownloaded binary is waiting, not that it failed', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+        status: 202,
+      })) as unknown as typeof fetch;
+
+    mount();
+    await setFile(BINARY_NODE);
+    await act(async () => {
+      await drainAsync(40, 1);
+    });
+    // No fingerprint to show, and the frame must not imply a broken file.
+    expect(container.querySelector('.binary-fingerprint')).toBeNull();
+    const fallback = container.querySelector('.binary-fingerprint-fallback');
+    expect(fallback!.getAttribute('aria-label')).toBe('Not downloaded yet');
   });
 
   it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {

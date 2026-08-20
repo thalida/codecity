@@ -33,32 +33,6 @@ class ContentPendingResponse(BaseModel):
     message: str
 
 
-class PendingBatchEntry(BaseModel):
-    """A batched path whose bytes aren't downloaded yet. Named rather than
-    omitted so the caller can leave its placeholder as-is: an omission means
-    "fall back to the single-file GET", which for this path is a wasted request
-    per building, and a building painted as failed when nothing failed."""
-
-    status: Literal["pending"] = "pending"
-
-
-class ImageBatchEntry(BaseModel):
-    """One image in a POST /api/images batch response: its content-type and
-    base64-encoded bytes, keyed by request path in the response map."""
-
-    mime: str
-    b64: str
-
-
-class FingerprintEntry(BaseModel):
-    """One binary file's byte-pattern fingerprint in a POST /api/fingerprints
-    batch response: a base64-encoded grayscale PNG (image/png implied), keyed
-    by request path. Computed server-side from the file's head — raw binary
-    bytes never ship to the client."""
-
-    b64: str
-
-
 class HealthResponse(BaseModel):
     ok: bool
 
@@ -68,7 +42,6 @@ class ConfigResponse(BaseModel):
     # `allowLocalRepos` alone can't say this: it is also false on a local
     # instance that simply hasn't mounted anything.
     hosted: bool
-    maxBatchPaths: int
     version: str
     # The repo the landing renders behind itself; empty means no backdrop. Same
     # env var the Discover list flags, so the two can never disagree.

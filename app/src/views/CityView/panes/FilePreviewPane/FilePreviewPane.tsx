@@ -22,8 +22,7 @@ import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/a
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
-import { fetchFingerprintB64 } from '@/api/fingerprint';
-import { PENDING } from '@/api/pathBatcher';
+import { fetchFingerprintBlob } from '@/api/fingerprint';
 import {
   IMAGE_EXTS,
   VIDEO_EXTS,
@@ -410,7 +409,7 @@ enum FpStateKind {
 
 type FpState =
   | { kind: FpStateKind.Loading }
-  | { kind: FpStateKind.Ready; b64: string }
+  | { kind: FpStateKind.Ready; url: string }
   | { kind: FpStateKind.Pending }
   | { kind: FpStateKind.Error };
 
@@ -421,19 +420,26 @@ function BinaryDataCard({ file }: { file: FileNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let objUrl: string | null = null;
     setFp({ kind: FpStateKind.Loading });
-    fetchFingerprintB64(file.fullPath || '').then(
-      (b64) => {
+    fetchFingerprintBlob(file.fullPath || '', file.modified).then(
+      (blob) => {
+        if (cancelled) return;
+        objUrl = URL.createObjectURL(blob);
+        setFp({ kind: FpStateKind.Ready, url: objUrl });
+      },
+      (err) => {
         if (cancelled) return;
         // An undownloaded file has no byte pattern of its own to draw yet, so
         // the frame says so rather than showing the generic failure glyph.
-        if (b64 === PENDING) setFp({ kind: FpStateKind.Pending });
-        else setFp(b64 ? { kind: FpStateKind.Ready, b64 } : { kind: FpStateKind.Error });
-      },
-      () => !cancelled && setFp({ kind: FpStateKind.Error })
+        setFp({
+          kind: err instanceof ContentPendingError ? FpStateKind.Pending : FpStateKind.Error,
+        });
+      }
     );
     return () => {
       cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
     };
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
   }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
@@ -444,11 +450,7 @@ function BinaryDataCard({ file }: { file: FileNode }) {
     <div class="pane preview-shell binary-card">
       <div class="binary-fingerprint-frame">
         {fp.kind === FpStateKind.Ready ? (
-          <img
-            class="binary-fingerprint"
-            src={`data:image/png;base64,${fp.b64}`}
-            alt="Byte-pattern fingerprint"
-          />
+          <img class="binary-fingerprint" src={fp.url} alt="Byte-pattern fingerprint" />
         ) : fp.kind === FpStateKind.Pending ? (
           <CloudDownload class="binary-fingerprint-fallback" aria-label="Not downloaded yet" />
         ) : (

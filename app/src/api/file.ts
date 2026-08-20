@@ -45,6 +45,28 @@ async function _fetchFile(path: string, mtime?: string, sha?: string | null): Pr
 }
 
 /**
+ * Fetch content and hand back the response, so every caller answers a wait the
+ * same way: {@link ContentPendingError} while the bytes are still being
+ * fetched, a plain Error on any other non-2xx.
+ *
+ * `priority` is 'high' for a pane the user is looking at, so it jumps ahead of
+ * the background manifest and facade fetches in flight.
+ */
+export async function fetchContent(
+  url: string,
+  priority: RequestPriority = 'auto'
+): Promise<Response> {
+  const resp = await fetch(url, { priority });
+  if (resp.status === PENDING_STATUS) {
+    const pending = (await resp.json().catch(() => null)) as
+      components['schemas']['ContentPendingResponse'] | null;
+    throw new ContentPendingError(pending?.message || PENDING_FALLBACK);
+  }
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp;
+}
+
+/**
  * Whether the endpoint is still fetching this file's bytes, for the loaders
  * that can't see a status: an <img> or <video> reports only that it didn't
  * load, and "not downloaded yet" must not be painted as a failure. The body is
@@ -71,7 +93,7 @@ export async function fetchFileText(
   mtime?: string,
   sha?: string | null
 ): Promise<string> {
-  return (await _fetchFile(path, mtime, sha)).text();
+  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).text();
 }
 
 /**
@@ -86,5 +108,19 @@ export async function fetchFileBytes(
   mtime?: string,
   sha?: string | null
 ): Promise<ArrayBuffer> {
-  return (await _fetchFile(path, mtime, sha)).arrayBuffer();
+  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).arrayBuffer();
+}
+
+/**
+ * Fetch a file's bytes as a Blob, for the facade loaders: the caller wraps it
+ * in an object URL and feeds the existing <img> decode path, so SVGs, color
+ * profiles and the rest render exactly as a direct GET would. Default priority
+ * — a city's worth of billboards must not outrank the pane in front of them.
+ */
+export async function fetchFileBlob(
+  path: string,
+  mtime?: string,
+  sha?: string | null
+): Promise<Blob> {
+  return (await fetchContent(fileUrl(path, mtime, sha))).blob();
 }

@@ -11,7 +11,6 @@ from fastapi import APIRouter
 
 from api import __version__
 from api.core.config import (
-    MAX_BATCH_PATHS,
     discover_enabled,
     discover_file,
     featured_repo,
@@ -41,7 +40,6 @@ def config() -> ConfigResponse:
     return ConfigResponse(
         allowLocalRepos=local_repos_allowed(),
         hosted=hosted(),
-        maxBatchPaths=MAX_BATCH_PATHS,
         version=__version__,
         featuredRepo=featured_repo(),
     )

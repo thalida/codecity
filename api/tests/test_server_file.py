@@ -58,37 +58,38 @@ def test_file_missing_param_400(client: TestClient) -> None:
     assert r.status_code in (400, 422)
 
 
-def test_files_batch_returns_images_only(
-    client: TestClient, project: Path, tmp_path: Path
-) -> None:
-    import base64
-
+def test_image_served_as_its_own_mime(client: TestClient, project: Path) -> None:
+    """The city's billboards read the bytes straight off this route: one request
+    per image, its own content type, no base64 in the middle."""
     TRUST.register(project)
-    outside = tmp_path / "secret.png"
-    outside.write_bytes(b"nope")
-    pic = str(project / "src" / "pic.png")
-    r = client.post(
-        "/api/images",
-        json={
-            "paths": [
-                pic,
-                str(project / "src" / "a.txt"),  # non-image → omitted
-                str(outside),  # out of root → omitted
-                str(project / "src" / "missing.png"),  # missing → omitted
-            ]
-        },
-    )
+    r = client.get("/api/file", params={"path": str(project / "src" / "pic.png")})
     assert r.status_code == 200
-    body = r.json()
-    assert set(body.keys()) == {pic}  # only the in-root image survives
-    assert body[pic]["mime"] == "image/png"
-    assert base64.b64decode(body[pic]["b64"]) == b"\x89PNG\r\n\x1a\nDATA"
+    assert r.headers["content-type"] == "image/png"
+    assert r.content == b"\x89PNG\r\n\x1a\nDATA"
 
 
-def test_fingerprints_batch_returns_png_for_in_root_files(
-    client: TestClient, project: Path, tmp_path: Path
+def test_versioned_url_is_cacheable_and_bare_one_is_not(
+    client: TestClient, project: Path
 ) -> None:
-    import base64
+    """The whole reason one-request-per-file beats a batch: an mtime or sha in
+    the URL names one immutable body, so a rebuild re-reads it from the browser
+    instead of the network. Without one, the same URL means "whatever is there
+    now" and must never stick."""
+    TRUST.register(project)
+    pic = str(project / "src" / "pic.png")
+    versioned = client.get("/api/file", params={"path": pic, "mtime": "2026-01-01"})
+    assert "immutable" in versioned.headers["cache-control"]
+
+    bare = client.get("/api/file", params={"path": pic})
+    assert "immutable" not in bare.headers["cache-control"]
+
+
+# ── GET /api/fingerprint (the byte pattern a binary file wears) ──────────────
+
+
+def test_fingerprint_returns_a_png_for_an_in_root_file(
+    client: TestClient, project: Path
+) -> None:
     import io
 
     from PIL import Image
@@ -96,42 +97,38 @@ def test_fingerprints_batch_returns_png_for_in_root_files(
     TRUST.register(project)
     db = project / "src" / "data.db"
     db.write_bytes(b"SQLite format 3\x00" + bytes(range(256)) * 40)
-    outside = tmp_path / "secret.db"
-    outside.write_bytes(b"nope")
-    db_path = str(db)
-    r = client.post(
-        "/api/fingerprints",
-        json={
-            "paths": [
-                db_path,
-                str(outside),  # out of root → omitted
-                str(project / "src" / "missing.db"),  # missing → omitted
-            ]
-        },
-    )
+
+    r = client.get("/api/fingerprint", params={"path": str(db)})
     assert r.status_code == 200
-    body = r.json()
-    assert set(body.keys()) == {db_path}  # only the in-root file survives
-    # The b64 decodes to a valid fingerprint PNG (raw bytes never shipped).
-    img = Image.open(io.BytesIO(base64.b64decode(body[db_path]["b64"])))
+    assert r.headers["content-type"] == "image/png"
+    # The PNG ships, the file's own bytes never do.
+    img = Image.open(io.BytesIO(r.content))
     assert img.format == "PNG"
     assert img.size == (128, 128)
 
 
-def test_fingerprints_no_root_omits_all(client: TestClient, project: Path) -> None:
-    r = client.post(
-        "/api/fingerprints", json={"paths": [str(project / "src" / "pic.png")]}
+def test_fingerprint_refuses_paths_outside_the_root(
+    client: TestClient, project: Path, tmp_path: Path
+) -> None:
+    TRUST.register(project)
+    outside = tmp_path / "secret.db"
+    outside.write_bytes(b"nope")
+    assert (
+        client.get("/api/fingerprint", params={"path": str(outside)}).status_code == 403
     )
-    assert r.status_code == 200
-    assert r.json() == {}
+    missing = project / "src" / "missing.db"
+    assert (
+        client.get("/api/fingerprint", params={"path": str(missing)}).status_code == 404
+    )
 
 
-def test_files_batch_no_root_omits_all(client: TestClient, project: Path) -> None:
-    # No TRUST.register → every path is out-of-root → empty map (still 200, so a
-    # cold client can batch-request without first racing the manifest).
-    r = client.post("/api/images", json={"paths": [str(project / "src" / "pic.png")]})
-    assert r.status_code == 200
-    assert r.json() == {}
+def test_fingerprint_requires_a_registered_root(
+    client: TestClient, project: Path
+) -> None:
+    r = client.get(
+        "/api/fingerprint", params={"path": str(project / "src" / "pic.png")}
+    )
+    assert r.status_code == 403
 
 
 # ── GET /api/file?sha= (Timeline: file bytes at a past commit) ──────────────
@@ -327,22 +324,7 @@ def test_unpulled_lfs_blob_is_202(client: TestClient, tmp_path: Path) -> None:
     assert r.json()["status"] == "pending"
 
 
-def test_images_batch_names_an_unpulled_lfs_image_pending(
-    client: TestClient, project: Path
-) -> None:
-    """Pointer text is not an image, but omitting it sends the client to the
-    single-file GET: one wasted request per building, ending in a 202."""
-    TRUST.reset()
-    TRUST.register(project)
-    stub = project / "src" / "stub.png"
-    stub.write_bytes(_lfs_pointer("e" * 64, 4096))
-
-    r = client.post("/api/images", json={"paths": [str(stub)]})
-    assert r.status_code == 200
-    assert r.json() == {str(stub): {"status": "pending"}}
-
-
-def test_fingerprints_batch_refuses_to_fingerprint_a_pointer_stub(
+def test_fingerprint_refuses_to_fingerprint_a_pointer_stub(
     client: TestClient, project: Path
 ) -> None:
     """The stub's head is ASCII metadata: fingerprinting it draws a byte pattern
@@ -352,6 +334,6 @@ def test_fingerprints_batch_refuses_to_fingerprint_a_pointer_stub(
     stub = project / "src" / "big.bin"
     stub.write_bytes(_lfs_pointer("f" * 64, 90000))
 
-    r = client.post("/api/fingerprints", json={"paths": [str(stub)]})
-    assert r.status_code == 200
-    assert r.json() == {str(stub): {"status": "pending"}}
+    r = client.get("/api/fingerprint", params={"path": str(stub)})
+    assert r.status_code == 202
+    assert r.json()["status"] == "pending"

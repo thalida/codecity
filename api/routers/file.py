@@ -1,29 +1,33 @@
 """GET /api/file — serve a file's bytes, restricted to scanned roots.
 
 Optional `sha` selects a version: absent reads the working tree, present reads
-that git blob, so a scrubbed Timeline commit shows its own content. POST
-/api/images and /api/fingerprints are batch loaders for the scene, named for
-what they return rather than as plurals of this.
+that git blob, so a scrubbed Timeline commit shows its own content.
+
+One request per file, including the hundreds a media-heavy city asks for at
+once. That used to be batched into a JSON POST because HTTP/1.1 allows six
+connections per origin; browsers reach this over HTTP/2, which multiplexes them
+on one. Batching binary through JSON cost base64 inflation, a whole-response
+buffer on both ends, a size cap with a fallback path around it, and — worst —
+one opaque cache entry, so every rebuild refetched every image instead of
+revalidating each on its own.
+
+GET /api/fingerprint is a sibling, not a plural: it returns a byte-pattern image
+computed here, so raw binary never leaves the machine.
 """
 
 from __future__ import annotations
 
-import base64
 import mimetypes
 from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
-from api.core.config import MAX_BATCH_IMAGE_BYTES, MAX_BATCH_PATHS, MAX_FILE_BYTES
+from api.core.config import MAX_FILE_BYTES
 from api.models.responses import (
     ContentPendingResponse,
-    ImageBatchEntry,
     FileTooLargeResponse,
-    FingerprintEntry,
-    PendingBatchEntry,
 )
 from api.core.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
@@ -33,12 +37,42 @@ from api.utils.shas import is_object_sha
 
 router = APIRouter(prefix="/api", tags=["file"])
 
+# A versioned URL (mtime or blob sha) names one immutable body, so it can be
+# cached outright; bare, it means "whatever is there now" and must not stick.
+_CACHE_IMMUTABLE = "public, max-age=31536000, immutable"
+_CACHE_REVALIDATE = "no-cache"
 
-class PathBatchRequest(BaseModel):
-    paths: list[str]
-    # Timeline: path -> blob sha, so a scrubbed commit batches its own bytes
-    # instead of HEAD's. Absent/unlisted paths read the working tree.
-    shas: dict[str, str] | None = None
+
+def _cache_control(versioned: bool) -> str:
+    return _CACHE_IMMUTABLE if versioned else _CACHE_REVALIDATE
+
+
+def _resolve_target(path: str, *, must_exist: bool = True) -> Path:
+    """The trust-checked path, or the refusal that keeps this endpoint from
+    reading outside a scanned root."""
+    try:
+        return TRUST.assert_inside(Path(path), must_exist=must_exist)
+    except NoRootsRegisteredError:
+        raise HTTPException(
+            403, "no scan root registered yet: fetch /api/manifest first"
+        )
+    except OutsideRootError:
+        raise HTTPException(403, "outside scan root")
+    except (OSError, RuntimeError):
+        raise HTTPException(404, "not found")
+
+
+def _pending(message: str) -> JSONResponse:
+    """202, not 404: the content exists, this machine doesn't have it yet. A
+    repo mid-fetch would answer a whole page of previews 404, and a burst of
+    those from one client is what gets that client blocked."""
+    return JSONResponse(
+        status_code=202,
+        content=ContentPendingResponse(message=message).model_dump(),
+        # The fetch it waits on lands without changing the URL, so a cached
+        # "pending" would outlive the state it describes.
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 def _read_versioned(target: Path, sha: str | None) -> bytes | BlobUnavailable:
@@ -90,33 +124,19 @@ def get_file(
     sha: str | None = Query(
         None, description="Blob sha to read instead of the working tree"
     ),
+    mtime: str | None = Query(
+        None, description="Version marker; never read, only cached against"
+    ),
 ) -> Response:
     if sha is not None and not is_object_sha(sha):
         raise HTTPException(400, "sha must be 40 hex characters")
-    try:
-        # With a sha the path need not exist (it names a past commit's file);
-        # `..` is still normalized, so containment holds either way.
-        target = TRUST.assert_inside(Path(path), must_exist=sha is None)
-    except NoRootsRegisteredError:
-        raise HTTPException(
-            403, "no scan root registered yet: fetch /api/manifest first"
-        )
-    except OutsideRootError:
-        raise HTTPException(403, "outside scan root")
-    except (OSError, RuntimeError):
-        raise HTTPException(404, "not found")
+    # With a sha the path need not exist (it names a past commit's file); `..`
+    # is still normalized, so containment holds either way.
+    target = _resolve_target(path, must_exist=sha is None)
 
     body = _read_versioned(target, sha)
     if body is BlobUnavailable.PENDING:
-        return JSONResponse(
-            status_code=202,
-            content=ContentPendingResponse(
-                message=_PENDING_BLOB if sha else _PENDING_WORKING_TREE
-            ).model_dump(),
-            # The fetch it's waiting on lands without changing the URL, so a
-            # cached "pending" would outlive the state it describes.
-            headers={"Cache-Control": "no-store"},
-        )
+        return _pending(_PENDING_BLOB if sha else _PENDING_WORKING_TREE)
     if body is BlobUnavailable.MISSING:
         raise HTTPException(404, "no such blob" if sha else "not a file")
 
@@ -129,6 +149,7 @@ def get_file(
             ).model_dump(),
         )
 
+    cache = _cache_control(bool(sha or mtime))
     # Mime comes off the path's extension either way — a blob carries no name.
     guessed, _ = mimetypes.guess_type(str(target))
     if is_media(guessed) and guessed:
@@ -137,52 +158,63 @@ def get_file(
         return Response(
             content=body,
             media_type=guessed,
-            headers={"Content-Encoding": "identity"},
+            headers={"Content-Encoding": "identity", "Cache-Control": cache},
         )
     # Non-media (code, configs, extensionless) → text/plain so the preview
     # renders the bytes as code; GZipMiddleware compresses it (text gzips well).
-    return Response(content=body, media_type="text/plain; charset=utf-8")
+    return Response(
+        content=body,
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": cache},
+    )
 
 
-@router.post("/images")
-def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry | PendingBatchEntry]:
-    """Batch image fetch — {path: {mime, b64}} for many small images in one round
-    trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
-    and omits anything it can't serve. It exists so the scene's billboard loader
-    doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
+@router.get(
+    "/fingerprint",
+    responses={
+        202: {
+            "model": ContentPendingResponse,
+            "description": "Content not downloaded yet; retry later.",
+        }
+    },
+)
+def get_fingerprint(
+    path: str = Query(..., description="Absolute path inside a scanned root"),
+    mtime: str | None = Query(
+        None, description="Version marker; never read, only cached against"
+    ),
+) -> Response:
+    """A binary file's byte-pattern fingerprint as a PNG. Trust-checked exactly
+    like GET /api/file. Raw binary bytes never leave the server: only the head is
+    read, and only the image computed from it is returned."""
+    target = _resolve_target(path)
+    if not target.is_file():
+        raise HTTPException(404, "not a file")
 
-    Each path is trust-checked exactly like GET /api/file. Paths that are out of
-    root, missing, non-image, or larger than MAX_BATCH_IMAGE_BYTES are silently
-    omitted; the client falls back to the streaming GET for those. One that
-    isn't downloaded yet gets a PendingBatchEntry instead, because for it that
-    fallback is a wasted request. Videos are never batched (they stream their
-    poster frame), so this is images only.
-    """
-    out: dict[str, ImageBatchEntry | PendingBatchEntry] = {}
-    for path in req.paths[:MAX_BATCH_PATHS]:
-        sha = (req.shas or {}).get(path)
-        try:
-            target = TRUST.assert_inside(Path(path), must_exist=sha is None)
-        except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):
-            continue
-        guessed, _ = mimetypes.guess_type(str(target))
-        if not guessed or not guessed.startswith("image/"):
-            continue
-        body = _read_versioned(target, sha)
-        if body is BlobUnavailable.PENDING:
-            out[path] = PendingBatchEntry()
-            continue
-        if not isinstance(body, bytes) or len(body) > MAX_BATCH_IMAGE_BYTES:
-            continue
-        out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
-    return out
+    try:
+        st = target.stat()
+        png = _fingerprint_png(str(target), st.st_mtime, st.st_size)
+    except OSError:
+        raise HTTPException(404, "not readable")
+    if png is None:
+        return _pending(_PENDING_WORKING_TREE)
+
+    # Content-Encoding set so GZipMiddleware skips it: a PNG is already deflated.
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={
+            "Content-Encoding": "identity",
+            "Cache-Control": _cache_control(bool(mtime)),
+        },
+    )
 
 
 @lru_cache(maxsize=512)
-def _fingerprint_b64(path: str, mtime: float, size: int) -> str | None:
-    """Base64 byte-pattern fingerprint PNG, memoized on (path, mtime, size) so an
-    edit re-fingerprints and the facade + preview requests collapse to one. Reads
-    only the head, so a multi-MB binary costs one small read.
+def _fingerprint_png(path: str, mtime: float, size: int) -> bytes | None:
+    """Byte-pattern fingerprint PNG, memoized on (path, mtime, size) so an edit
+    re-fingerprints and the facade + preview requests collapse to one. Reads only
+    the head, so a multi-MB binary costs one small read.
 
     None for an undownloaded lfs pointer: its head is ASCII metadata, and a
     fingerprint of that is a picture of the stub worn as the file's own."""
@@ -190,30 +222,4 @@ def _fingerprint_b64(path: str, mtime: float, size: int) -> str | None:
         head = fh.read(FINGERPRINT_SAMPLE_BYTES)
     if is_lfs_pointer(head):
         return None
-    return base64.b64encode(fingerprint_png(head)).decode()
-
-
-@router.post("/fingerprints")
-def get_fingerprints(
-    req: PathBatchRequest,
-) -> dict[str, FingerprintEntry | PendingBatchEntry]:
-    """Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
-    many buildings. Trust-checked like GET /api/file; out-of-root / missing /
-    unreadable paths are silently omitted, and one whose bytes aren't downloaded
-    yet is named pending (see get_images). Raw binary bytes never leave the
-    server — only the head is read, and only the fingerprint image returned."""
-    out: dict[str, FingerprintEntry | PendingBatchEntry] = {}
-    for path in req.paths[:MAX_BATCH_PATHS]:
-        try:
-            target = TRUST.assert_inside(Path(path))
-        except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):
-            continue
-        if not target.is_file():
-            continue
-        try:
-            st = target.stat()
-            b64 = _fingerprint_b64(str(target), st.st_mtime, st.st_size)
-        except OSError:
-            continue
-        out[path] = PendingBatchEntry() if b64 is None else FingerprintEntry(b64=b64)
-    return out
+    return fingerprint_png(head)

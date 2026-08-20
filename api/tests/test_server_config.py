@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.core.config import MAX_BATCH_PATHS, Settings
+from api.core.config import Settings
 
 FEATURED = Settings.model_fields["featured_repo"].default
 
@@ -30,7 +30,6 @@ def test_config_enabled(client: TestClient, monkeypatch) -> None:
     assert client.get("/api/config").json() == {
         "allowLocalRepos": True,
         "hosted": False,
-        "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
         "featuredRepo": FEATURED,
     }
@@ -44,7 +43,6 @@ def test_config_disabled(client: TestClient, monkeypatch) -> None:
     assert client.get("/api/config").json() == {
         "allowLocalRepos": False,
         "hosted": False,
-        "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
         "featuredRepo": FEATURED,
     }
@@ -60,14 +58,6 @@ def test_config_hosted_fails_closed(client: TestClient, monkeypatch) -> None:
     telling a local user to go run codecity locally, so `hosted` defaults off."""
     monkeypatch.delenv("CODECITY_HOSTED", raising=False)
     assert client.get("/api/config").json()["hosted"] is False
-
-
-def test_config_publishes_the_cap_the_batch_routes_enforce() -> None:
-    """The batch routes truncate at MAX_BATCH_PATHS; /api/config is how the
-    client learns that number instead of hardcoding its own."""
-    from api.routers import file as file_router
-
-    assert file_router.MAX_BATCH_PATHS == MAX_BATCH_PATHS
 
 
 def test_config_reports_the_running_package_version(client: TestClient) -> None:
