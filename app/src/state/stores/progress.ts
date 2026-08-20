@@ -85,12 +85,20 @@ export const LAST_UPDATED_AT = signal<number>(0);
  *  behind both of its readouts (see state/loadingReactions.ts). */
 export const BUILD_PROGRESS = signal<BuildProgress | null>(null);
 
+/** Whether a frame carrying the CURRENT city has actually reached the screen.
+ *  A finished build is not that: the shaders still have to compile and the
+ *  buffers upload, which on a big repo is seconds of blank canvas. */
+export const CITY_ON_SCREEN = signal<boolean>(true);
+
 // ── Status transitions (single owner of each state + its coupled writes) ──
 
 // Every rebuild path goes through these, so the status/error/timestamp set
 // can't drift across the four call sites. markIdle ends every applyManifest.
 export function markRebuilding(): void {
   REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+  // Whatever is on the canvas is about to be replaced, so it no longer counts
+  // as this city being on screen.
+  CITY_ON_SCREEN.value = false;
   REBUILD_DETAIL.value = null;
   BUILD_PROGRESS.value = null;
 }
@@ -242,7 +250,11 @@ function attachScanReaction(): () => void {
     const p = SCAN_PROGRESS.value;
     // The stream finishing (p === null) does NOT mean the city is on screen:
     // hold the overlay through the build, or an empty 3D world flashes.
-    const building = REBUILD_STATUS.value === RebuildStatus.Rebuilding;
+    // A finished build is not a drawn city, and dropping the overlay between
+    // them shows an empty world. Idle-gated: an errored build never paints.
+    const status = REBUILD_STATUS.value;
+    const awaitingPaint = status === RebuildStatus.Idle && !CITY_ON_SCREEN.value;
+    const building = status === RebuildStatus.Rebuilding || awaitingPaint;
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;

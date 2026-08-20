@@ -13,6 +13,7 @@ import {
   markIdle,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
+  CITY_ON_SCREEN,
 } from '@/state/stores/progress';
 
 import { SourceKind } from '@/utils/sources';
@@ -22,6 +23,7 @@ import { LoadingStep, BuildStage } from '@/constants/progress';
 describe('loadingReactions', () => {
   let dispose: () => void;
   beforeEach(() => {
+    CITY_ON_SCREEN.value = true;
     REBUILD_STATUS.value = RebuildStatus.Idle;
     dispose = attachOverlayDriver();
   });
@@ -144,6 +146,37 @@ describe('loadingReactions', () => {
 
     // City painted → status leaves Rebuilding → overlay hides.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('holds the overlay until a frame of the city has actually been presented', () => {
+    // A finished build is not a drawn city. Between markIdle and the first
+    // presented frame sit shader compiles and buffer uploads, seconds of them
+    // on a big repo, and the overlay used to come down at the start of that.
+    CITY_ON_SCREEN.value = false; // markRebuilding does this
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = null;
+
+    // Build done, nothing on screen yet.
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+
+    // The render loop reports a presented frame.
+    CITY_ON_SCREEN.value = true;
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('lets the overlay go when the build errored, presented or not', () => {
+    // Nothing will ever paint, so holding for a frame would strand it.
+    CITY_ON_SCREEN.value = false;
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = null;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    REBUILD_STATUS.value = RebuildStatus.Error;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 

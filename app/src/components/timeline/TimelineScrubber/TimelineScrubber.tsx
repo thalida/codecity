@@ -239,9 +239,8 @@ export function TimelineScrubber() {
         )}
       </div>
       {bundle && bundle.notes.length > 0 && (
-        // Standing caveats about the data being scrubbed: a windowed history, or
-        // blobs too big to have been fetched. They qualify the whole track, so
-        // they sit under it rather than in a pane you might never open.
+        // Caveats about the data being scrubbed, so they sit under the track
+        // rather than in a pane you might never open.
         <p class="timeline-scrubber-notes" role="note">
           {bundle.notes.join(' · ')}
         </p>

@@ -82,8 +82,7 @@ describe('building.frag.glsl', () => {
   });
 
   it('draws an unmeasured building as a see-through shell', () => {
-    // Its blob was never fetched, so there is nothing to draw inside it. The
-    // branch must return before any window or door math, and below full
+    // Nothing to draw inside it, so the branch returns early and below full
     // opacity: a solid building of any size would be claiming a size.
     expect(src).toMatch(/vKind == KIND_UNMEASURED/);
     expect(src).toContain('const int KIND_UNMEASURED');
