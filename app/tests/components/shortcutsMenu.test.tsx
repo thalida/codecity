@@ -4,13 +4,14 @@ import { act } from 'preact/test-utils';
 import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
 import { SHORTCUTS_OPEN, openShortcuts } from '@/state/stores/chrome';
 import { flush, drainAsync } from '../_helpers/preact';
+import { popoverPanel } from '../_helpers/popover';
 
 // The footer mounts one <ShortcutsMenu />; its open state is SHORTCUTS_OPEN, so
 // the "?" key still reaches it now that it is a popover rather than a modal.
 
 let container: HTMLDivElement;
 
-const panel = () => container.querySelector('[role="dialog"]');
+const panel = popoverPanel;
 
 beforeEach(() => {
   SHORTCUTS_OPEN.value = false;
@@ -38,9 +39,9 @@ describe('ShortcutsMenu', () => {
     // Non-modal: the city stays interactive behind it.
     expect(panel()!.getAttribute('aria-modal')).toBeNull();
     // Keyboard + Mouse. jsdom reports a fine pointer, so Touch is absent here.
-    expect(container.querySelectorAll('.shortcuts-list')).toHaveLength(2);
-    expect(container.querySelector('kbd')).not.toBeNull();
-    expect(container.querySelector('.shortcuts-gesture')).not.toBeNull();
+    expect(panel()!.querySelectorAll('.shortcuts-list')).toHaveLength(2);
+    expect(panel()!.querySelector('kbd')).not.toBeNull();
+    expect(panel()!.querySelector('.shortcuts-gesture')).not.toBeNull();
   });
 
   it('opens from its own trigger too', async () => {

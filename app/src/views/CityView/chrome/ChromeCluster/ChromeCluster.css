@@ -8,15 +8,11 @@
   align-items: center;
   min-width: 0;
   flex: none;
-  /* The positioning ancestor for any panel an item opens: ScanMenu renders no
-     wrapper of its own, so its panel anchors here. */
-  position: relative;
   /* border-input, not border-subtle: subtle is ~0.02 lightness off the chrome
      bar and reads as no edge at all. */
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-bg-sidebar);
-  /* No overflow: hidden — it would clip the scan panel at the bar. */
 }
 
 /* The project chip's box. The inline padding clears the pill's curve at the
@@ -25,7 +21,6 @@
   appearance: none;
   flex: 0 1 auto;
   min-width: 0;
-  position: relative; /* anchors the touch target below */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -73,12 +68,6 @@
   border-end-end-radius: var(--cc-radius-pill);
 }
 
-/* Screen-reader-only announcers (CopyButton's) sit between items in the DOM.
-   They must not take part in the layout or the divider run. */
-.chrome-cluster > .sr-only {
-  position: absolute;
-}
-
 .chrome-cluster > *:not(.sr-only) > svg {
   display: block;
   flex: 0 0 auto;
@@ -91,8 +80,8 @@
   color: var(--cc-text-strong);
 }
 
-/* The "this opens something" glyph. ChevronsUpDown draws in the middle 10/24 of
-   its box, so its trailing bearing reads as padding; pull the box back by it. */
+/* The "this opens something" glyph. A lucide caret draws in the middle of its
+   box, so its trailing bearing reads as padding; pull the box back by it. */
 .chrome-cluster .cluster-cue {
   margin-inline-end: -0.29em;
   /* A rung, not the action glyph dimmed: an opacity on top of a colour lands

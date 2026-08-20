@@ -4,6 +4,7 @@ import { act } from 'preact/test-utils';
 import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
 import { DEBUG_OPEN, openDebug } from '@/state/stores/chrome';
 import { flush, drainAsync } from '../_helpers/preact';
+import { popoverPanel } from '../_helpers/popover';
 
 // Open state lives in DEBUG_OPEN rather than the popover, so external opens and
 // OVERLAY_OPEN both still work.
@@ -12,9 +13,9 @@ let container: HTMLDivElement;
 let onRunCollisionCheck: () => void;
 let onRunStemDiagnostic: () => void;
 
-const panel = () => container.querySelector('[role="dialog"]');
+const panel = popoverPanel;
 const button = (label: string) =>
-  Array.from(container.querySelectorAll('button')).find(
+  Array.from(panel()!.querySelectorAll('button')).find(
     (b) => b.textContent?.trim() === label
   ) as HTMLButtonElement;
 
@@ -52,7 +53,7 @@ describe('DebugMenu', () => {
     // Non-modal: the city keeps working underneath, unlike the modal this
     // replaced.
     expect(panel()!.getAttribute('aria-modal')).toBeNull();
-    const labels = Array.from(container.querySelectorAll('button')).map((b) =>
+    const labels = Array.from(panel()!.querySelectorAll('button')).map((b) =>
       b.textContent?.trim()
     );
     expect(labels).toContain('Run collision check');
@@ -86,7 +87,7 @@ describe('DebugMenu', () => {
     render(<DebugMenu onRunCollisionCheck={onRunCollisionCheck} />, container);
     openDebug();
     await flush();
-    const labels = Array.from(container.querySelectorAll('button')).map((b) =>
+    const labels = Array.from(panel()!.querySelectorAll('button')).map((b) =>
       b.textContent?.trim()
     );
     expect(labels).toContain('Run collision check');

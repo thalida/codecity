@@ -57,8 +57,8 @@ export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
       </ChromeCluster>
 
       {hasProject && (
-        // Still a cluster around the one item: ScanMenu renders no wrapper, so
-        // this is what its panel anchors to.
+        // Still a cluster around the one item: the outline is what makes it
+        // read as a control rather than a line of status text.
         <ChromeCluster class="city-header-freshness">
           <ScanMenu onRefresh={onRefresh} />
         </ChromeCluster>
