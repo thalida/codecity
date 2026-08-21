@@ -22,7 +22,7 @@ import {
 } from '@/state/stores/source';
 import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
 
-const PANEL_LABEL = 'Scan and freshness';
+const PANEL_LABEL = 'Scan Settings';
 
 /** Truncated from the middle: the tail of a rel-path (the filename) identifies
  *  it, and an end-ellipsis cuts exactly that off. */

@@ -62,7 +62,9 @@ describe('CityFooter', () => {
     render(<CityFooter />, container);
     await flush();
 
-    const shortcuts = container.querySelector('[aria-label="Shortcuts and gestures"]')!;
+    // Prefix match: jsdom's selector engine will not match an `&` inside a
+    // quoted attribute value, and the label carries one.
+    const shortcuts = container.querySelector('[aria-label^="Shortcuts"]')!;
     expect(shortcuts).not.toBeNull();
     // In the left cluster, grouped with the debug tools rather than loose.
     expect(shortcuts.closest('.chrome-cluster')).not.toBeNull();

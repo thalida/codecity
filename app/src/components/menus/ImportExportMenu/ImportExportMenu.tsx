@@ -1,12 +1,12 @@
-// components/menus/SettingsFileMenu — settings as a file you can keep, move to
+// components/menus/ImportExportMenu — settings as a file you can keep, move to
 // another browser, or hand to someone else. Both directions are a checklist, so
-// neither an export nor an import is all-or-nothing. Groups come in as a prop:
-// what is transferable, and under what name, is the app's call, not this panel's.
+// neither is all-or-nothing. Groups come in as a prop: what is transferable, and
+// under what name, is the app's call rather than this panel's.
 
-import './SettingsFileMenu.css';
+import './ImportExportMenu.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
-import { FileCog, FolderInput, Download } from 'lucide-preact';
+import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
 import { NAMED_EXCLUDES } from '@/state/stores/source';
 import type { SettingStore } from '@/state/settings/schema';
@@ -22,7 +22,7 @@ import {
   type TransferSelection,
 } from '@/state/settings/transfer';
 
-const PANEL_LABEL = 'Settings file';
+const PANEL_LABEL = 'Import & Export';
 
 const FAMILY_LABEL: Record<TransferFamily, string> = {
   [TransferFamily.World]: 'World',
@@ -117,11 +117,11 @@ function exportFilename(): string {
 
 type Mode = 'export' | 'import' | 'error' | 'done';
 
-export interface SettingsFileMenuProps {
+export interface ImportExportMenuProps {
   groups: readonly TransferGroup[];
 }
 
-export function SettingsFileMenu({ groups }: SettingsFileMenuProps) {
+export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   const open = useSignal(false);
   const [mode, setMode] = useState<Mode>('export');
   const [parsed, setParsed] = useState<ParsedSettingsFile | null>(null);
@@ -228,105 +228,125 @@ export function SettingsFileMenu({ groups }: SettingsFileMenuProps) {
       );
     });
 
+  const body = () => {
+    if (mode === 'error') {
+      return (
+        <p class="transfer-message" role="alert">
+          {error}
+        </p>
+      );
+    }
+    if (mode === 'done') {
+      return (
+        <p class="transfer-message" role="status">
+          Settings imported.
+          {report && report.skipped.length > 0 && (
+            <>
+              {` ${report.skipped.length} value${report.skipped.length === 1 ? '' : 's'} in the file did not fit this build and stayed at their defaults.`}
+            </>
+          )}
+        </p>
+      );
+    }
+    return (
+      <>
+        {/* Above the list in import, not under it: it changes what you tick. */}
+        {mode === 'import' && (
+          <p class="transfer-lede">
+            Each ticked section is replaced by the file&rsquo;s version of it. Sections the file
+            does not carry are left alone.
+          </p>
+        )}
+        {checklist()}
+        {mode === 'export' && (
+          <p class="popover-hint">
+            Settings live in this browser only, so a file is how they travel.
+          </p>
+        )}
+      </>
+    );
+  };
+
+  const actions = (close: (refocus: boolean) => void) => {
+    if (mode === 'error') {
+      return (
+        <button
+          type="button"
+          class="btn-secondary popover-action"
+          onClick={() => setMode('export')}
+        >
+          Back
+        </button>
+      );
+    }
+    if (mode === 'done') {
+      return (
+        <button type="button" class="btn-primary popover-action" onClick={() => close(true)}>
+          Done
+        </button>
+      );
+    }
+    if (mode === 'import') {
+      return (
+        <>
+          <button
+            type="button"
+            class="btn-primary popover-action"
+            disabled={chosen.length === 0}
+            onClick={onApply}
+          >
+            Apply selected
+          </button>
+          <button
+            type="button"
+            class="btn-secondary popover-action"
+            onClick={() => setMode('export')}
+          >
+            Cancel
+          </button>
+        </>
+      );
+    }
+    return (
+      <>
+        <button
+          type="button"
+          class="btn-primary popover-action"
+          disabled={chosen.length === 0}
+          onClick={() =>
+            downloadJson(
+              exportFilename(),
+              JSON.stringify(buildSettingsFile(selectionFrom(rows, off)), null, 2)
+            )
+          }
+        >
+          <Download class="icon" aria-hidden="true" />
+          Export selected
+        </button>
+        <button
+          type="button"
+          class="btn-secondary popover-action"
+          onClick={() => fileRef.current?.click()}
+        >
+          <FolderInput class="icon" aria-hidden="true" />
+          Import from a file
+        </button>
+      </>
+    );
+  };
+
   return (
     <Popover
       label={PANEL_LABEL}
       placement={PopoverPlacement.AboveStart}
       triggerTitle={PANEL_LABEL}
       openSignal={open}
-      trigger={<FileCog class="icon" aria-hidden="true" />}
+      trigger={<ArrowDownUp class="icon" aria-hidden="true" />}
+      footer={actions}
     >
-      {(close) => (
+      {() => (
         <>
-          {mode === 'export' && (
-            <>
-              {checklist()}
-              <section class="popover-group">
-                <button
-                  type="button"
-                  class="btn-primary popover-action"
-                  disabled={chosen.length === 0}
-                  onClick={() =>
-                    downloadJson(
-                      exportFilename(),
-                      JSON.stringify(buildSettingsFile(selectionFrom(rows, off)), null, 2)
-                    )
-                  }
-                >
-                  <Download class="icon" aria-hidden="true" />
-                  Export selected
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary popover-action"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <FolderInput class="icon" aria-hidden="true" />
-                  Import from a file
-                </button>
-                <p class="popover-hint">
-                  Settings live in this browser only, so a file is how they travel.
-                </p>
-              </section>
-            </>
-          )}
-
-          {mode === 'import' && (
-            <>
-              {checklist()}
-              <section class="popover-group">
-                <p class="popover-hint">
-                  Each ticked section is replaced by the file&rsquo;s version of it. Sections the
-                  file does not carry are left alone.
-                </p>
-                <button
-                  type="button"
-                  class="btn-primary popover-action"
-                  disabled={chosen.length === 0}
-                  onClick={onApply}
-                >
-                  Apply selected
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary popover-action"
-                  onClick={() => setMode('export')}
-                >
-                  Cancel
-                </button>
-              </section>
-            </>
-          )}
-
-          {mode === 'error' && (
-            <section class="popover-group">
-              <p class="transfer-message" role="alert">
-                {error}
-              </p>
-              <button
-                type="button"
-                class="btn-secondary popover-action"
-                onClick={() => setMode('export')}
-              >
-                Back
-              </button>
-            </section>
-          )}
-
-          {mode === 'done' && (
-            <section class="popover-group">
-              <p class="transfer-message" role="status">
-                Settings imported.
-                {report &&
-                  report.skipped.length > 0 &&
-                  ` ${report.skipped.length} value${report.skipped.length === 1 ? '' : 's'} in the file did not fit this build and were left at their defaults.`}
-              </p>
-              <button type="button" class="btn-primary popover-action" onClick={() => close(true)}>
-                Done
-              </button>
-            </section>
-          )}
-
+          {body()}
           {/* Outside the mode branches: unmounting the input mid-pick would drop
               the change event that carries the chosen file. */}
           <input

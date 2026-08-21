@@ -1,5 +1,5 @@
-/* SettingsFileMenu — the two checklists inside the settings-file panel. Rows are
-   a tick plus a name, not settings rows: nothing here has a value to show. */
+/* ImportExportMenu — the two checklists inside the transfer panel. A row is a
+   tick plus a name, not a setting row: nothing here has a value to show. */
 
 .transfer-list {
   list-style: none;
@@ -10,7 +10,9 @@
 .transfer-row {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3);
+  /* The same gap the group head above puts between its tick and its title, so
+     the two levels read as one column rather than two indents. */
+  gap: var(--cc-space-2);
   min-height: var(--cc-row-min-h);
   padding-inline: var(--popover-inset);
 }
@@ -28,6 +30,15 @@
 .transfer-row-hint {
   flex: 0 0 auto;
   font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
+}
+
+/* Above the list it governs, so it is read before you tick rather than after. */
+.transfer-lede {
+  margin: 0 0 var(--cc-space-4);
+  padding-inline: var(--popover-inset);
+  font-size: var(--cc-font-xs);
+  line-height: var(--cc-lh-base);
   color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
 }
 

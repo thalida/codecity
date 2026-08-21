@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { SettingsFileMenu } from '@/components/menus/SettingsFileMenu/SettingsFileMenu';
+import { ImportExportMenu } from '@/components/menus/ImportExportMenu/ImportExportMenu';
 import {
   settingSignal,
   _unregisterForTests,
@@ -36,14 +36,14 @@ const GROUPS: TransferGroup[] = [
   { key: 'scan', label: 'Scan rules', family: TransferFamily.Scan, stores: [SCAN] },
 ];
 
-describe('SettingsFileMenu', () => {
+describe('ImportExportMenu', () => {
   let container: HTMLDivElement;
   let downloaded: string;
 
   const mount = () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    act(() => render(<SettingsFileMenu groups={GROUPS} />, container));
+    act(() => render(<ImportExportMenu groups={GROUPS} />, container));
     act(() => container.querySelector<HTMLButtonElement>('.popover-trigger')!.click());
   };
 

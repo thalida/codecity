@@ -89,11 +89,11 @@ export function ShortcutsMenu() {
   const touch = IS_TOUCH.value;
   return (
     <Popover
-      label="Shortcuts and gestures"
+      label="Shortcuts & Gestures"
       placement={PopoverPlacement.AboveStart}
       openSignal={SHORTCUTS_OPEN}
-      triggerTitle={touch ? 'Shortcuts and gestures' : 'Keyboard shortcuts (?)'}
-      triggerLabel="Shortcuts and gestures"
+      triggerTitle={touch ? 'Shortcuts & Gestures' : 'Keyboard shortcuts (?)'}
+      triggerLabel="Shortcuts & Gestures"
       trigger={<Keyboard class="icon" aria-hidden="true" />}
     >
       {() => (
