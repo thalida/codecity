@@ -5,6 +5,8 @@
 import './CityFooter.css';
 import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeCluster';
 import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
+import { SettingsFileMenu } from '@/components/menus/SettingsFileMenu/SettingsFileMenu';
+import { TRANSFER_GROUPS } from '@/views/CityView/chrome/CityFooter/transferGroups';
 import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
 import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
 import { isDebugMode } from '@/utils/debugMode';
@@ -26,6 +28,7 @@ export function CityFooter({
       <div class="app-footer-section app-footer-left">
         <ChromeCluster>
           <AppearanceMenu />
+          <SettingsFileMenu groups={TRANSFER_GROUPS} />
           <ShortcutsMenu />
           {isDebugMode() && (
             <DebugMenu

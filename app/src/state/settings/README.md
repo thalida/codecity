@@ -1,6 +1,6 @@
 # Settings
 
-Four machinery files and the fields they operate on. Each file is one stage of a
+Five machinery files and the fields they operate on. Each file is one stage of a
 setting's life:
 
 ```
@@ -8,6 +8,7 @@ schema.ts      declare it   what a field IS: kind, default, label, tip, bounds
 drafts.ts      edit it      staged changes, behind the Save button
 reactions.ts   apply it     a committed change → rebuild or refresh the scene
 indicators.ts  report it    how many differ from default → the dirty dot
+transfer.ts    move it      settings out to a file, and a file back in
 fields/        the settings themselves, one file per group
 ```
 
@@ -112,3 +113,36 @@ never call `scheduleRebuild`, so they keep using the cache.
 Each effect must track **only** its signature computed, so the imperative work —
 which writes build status — runs inside `untracked()`. Otherwise the effect
 subscribes to whatever that work reads and re-fires on its own writes.
+
+## Transfer
+
+`transfer.ts` writes settings to a JSON file and reads one back. Both directions
+take the same `TransferSelection`, so neither is all-or-nothing: you pick what
+goes into the file, and pick again what comes out of it.
+
+The file has two families, `world` and `scan`, because they answer different
+questions: what the city looks like, and what gets scanned. Under each, a key is
+a store's **persisted name** — the same stable string `persist.ts` keys
+localStorage by — and its value is that store's diff against its defaults, built
+by the same serializer persistence uses.
+
+A selected store always gets an entry, `{}` when nothing in it was overridden.
+That empty object is what makes the file mean "I sent you this section", not
+merely "here are my overrides": an import **replaces** each ticked store, so it
+reproduces the exporter's look rather than crossing it with the importer's. A
+store the file never names is left alone.
+
+Excludes are the exception to name-keyed entries. `EXCLUDES` is keyed by a
+one-way hash of the repo src, so the file carries `{ src, paths }` and the hash
+is re-derived on the far side. That also means a repo the app can no longer name
+(gone from `RECENTS`, and not the open one) cannot be exported at all.
+
+A file states `kind` and `version` up front and is refused outright if either is
+wrong, rather than half-applied. Within a file that does load, each value is
+still checked against its field: out-of-bounds numbers clamp, anything the
+schema cannot use at all is skipped and reported.
+
+Which stores are grouped under which name is **not** here, for the same reason
+arrangement isn't: the controls layer owns that
+(`views/CityView/chrome/CityFooter/transferGroups.ts`, read off the pane's own
+sections so the two cannot drift).

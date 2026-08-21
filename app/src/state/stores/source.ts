@@ -220,15 +220,21 @@ export function activeExcludePathsFor(src: string): string[] {
   return EXCLUDES.peek()[repoKeyFor(src)] ?? [];
 }
 
-function setForCurrentRepo(next: string[]): void {
-  const cur = CURRENT_SOURCE.peek();
-  if (!cur) return; // no source loaded: nothing to key against
-  const key = repoKeyFor(cur.src);
+/** Replace one repo's exclude list. Sorted and de-duped, and an empty list
+ *  drops the slot so the store holds only repos that hide something. */
+export function setExcludesFor(src: string, next: readonly string[]): void {
+  const key = repoKeyFor(src);
   const sorted = [...new Set(next)].sort();
   const map = { ...EXCLUDES.peek() };
   if (sorted.length === 0) delete map[key];
   else map[key] = sorted;
   EXCLUDES.value = map;
+}
+
+function setForCurrentRepo(next: string[]): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return; // no source loaded: nothing to key against
+  setExcludesFor(cur.src, next);
 }
 
 /** Hide `path` from the current repo's city. Sorted + de-duped. No-op if none. */
@@ -245,3 +251,26 @@ export function removeExclude(path: string): void {
 export function clearExcludes(): void {
   setForCurrentRepo([]);
 }
+
+/** Every exclude list that can still be named, newest first. The key is a
+ *  one-way hash, so a repo gone from RECENTS can no longer be identified. */
+export const NAMED_EXCLUDES: ReadonlySignal<
+  Array<{ src: string; label: string; paths: string[] }>
+> = computed(() => {
+  const map = EXCLUDES.value;
+  const cur = CURRENT_SOURCE.value;
+  const named: Array<{ src: string; label: string }> = [];
+  if (cur) named.push({ src: cur.src, label: SOURCE_INFO.value.label || cur.src });
+  for (const r of RECENTS.value) named.push({ src: r.src, label: r.label });
+
+  const seen = new Set<string>();
+  const rows: Array<{ src: string; label: string; paths: string[] }> = [];
+  for (const { src, label } of named) {
+    const key = repoKeyFor(src);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const paths = map[key];
+    if (paths?.length) rows.push({ src, label, paths });
+  }
+  return rows;
+});

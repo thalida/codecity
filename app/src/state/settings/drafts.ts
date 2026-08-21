@@ -3,17 +3,12 @@
 
 import { signal } from '@preact/signals';
 import { getDefault } from '@/state/persist';
-import { forEachSettingStore, isAutosave } from './schema';
+import { forEachSettingStore, isAutosave, type SettingStore } from './schema';
 import { deepEqual, deepClone } from '@/utils/deep';
-
-interface SignalLike {
-  get value(): any;
-  set value(v: any);
-}
 
 type DraftKey = string | null;
 
-const _drafts: Map<SignalLike, Map<DraftKey, unknown>> = new Map();
+const _drafts: Map<SettingStore, Map<DraftKey, unknown>> = new Map();
 
 /** Bumped on every draft mutation, so a component pairing this with a
  *  `store.value` read re-renders on either. See README.md. */
@@ -24,13 +19,13 @@ function _emit(): void {
   DRAFTS_REV.value++;
 }
 
-function _committedValue(store: SignalLike, key: DraftKey): unknown {
+function _committedValue(store: SettingStore, key: DraftKey): unknown {
   const state = store.value;
   if (key === null) return state;
   return state ? state[key] : undefined;
 }
 
-export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
+export function setDraft(store: SettingStore, key: DraftKey, value: unknown): void {
   if (isAutosave(store as object)) {
     // Write-through: apply immediately, never stage (Updates / Appearance tabs).
     store.value = key === null ? value : { ...store.value, [key]: value };
@@ -56,13 +51,13 @@ export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void
   _emit();
 }
 
-export function getEffective(store: SignalLike, key: DraftKey): unknown {
+export function getEffective(store: SettingStore, key: DraftKey): unknown {
   const perStore = _drafts.get(store);
   if (perStore && perStore.has(key)) return perStore.get(key);
   return _committedValue(store, key);
 }
 
-export function stageReset(store: SignalLike, key: DraftKey): void {
+export function stageReset(store: SettingStore, key: DraftKey): void {
   // For scalar signals: getDefault(store) returns the whole default value.
   // For object-valued signals: getDefault(store, key) returns the keyed default.
   const def = key === null ? getDefault(store) : getDefault(store, key);
@@ -79,14 +74,14 @@ export function stageResetAll(): void {
       // Object-valued signal: stage each sub-key whose effective value differs from default.
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
-        if (deepEqual(getEffective(store as SignalLike, k), defaults[k])) continue;
-        _stageWithoutEmit(store as SignalLike, k, defaults[k]);
+        if (deepEqual(getEffective(store, k), defaults[k])) continue;
+        _stageWithoutEmit(store, k, defaults[k]);
         touched = true;
       }
     } else {
       // Scalar / array signal: stage whole default if effective differs.
-      if (!deepEqual(getEffective(store as SignalLike, null), defaults)) {
-        _stageWithoutEmit(store as SignalLike, null, defaults);
+      if (!deepEqual(getEffective(store, null), defaults)) {
+        _stageWithoutEmit(store, null, defaults);
         touched = true;
       }
     }
@@ -105,14 +100,12 @@ export function anyResettable(): boolean {
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
-        if (
-          !deepEqual(getEffective(store as SignalLike, k), (defaults as Record<string, unknown>)[k])
-        ) {
+        if (!deepEqual(getEffective(store, k), (defaults as Record<string, unknown>)[k])) {
           any = true;
           return;
         }
       }
-    } else if (!deepEqual(getEffective(store as SignalLike, null), defaults)) {
+    } else if (!deepEqual(getEffective(store, null), defaults)) {
       any = true;
     }
   });
@@ -121,7 +114,7 @@ export function anyResettable(): boolean {
 
 // Same write logic as setDraft but defers the _emit() call. Used by
 // stageResetAll so a single fan-out happens after the whole sweep.
-function _stageWithoutEmit(store: SignalLike, key: DraftKey, value: unknown): void {
+function _stageWithoutEmit(store: SettingStore, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (deepEqual(value, committed)) {
@@ -145,7 +138,7 @@ export function commit(): void {
   }
   // Snapshot first: clearing before the writes makes a synchronous effect that
   // re-reads getEffective see the committed value, not the draft.
-  const entries: Array<[SignalLike, DraftKey, unknown]> = [];
+  const entries: Array<[SettingStore, DraftKey, unknown]> = [];
   for (const [store, perStore] of _drafts) {
     for (const [key, value] of perStore) {
       entries.push([store, key, value]);
@@ -174,6 +167,16 @@ export function discard(): void {
 
 export function isDirty(): boolean {
   return _drafts.size > 0;
+}
+
+/** Forget staged edits for these stores. After a write straight to the signals
+ *  (a settings import), a surviving draft would put the old value back. */
+export function dropDrafts(stores: readonly SettingStore[]): void {
+  let touched = false;
+  for (const store of stores) {
+    if (_drafts.delete(store)) touched = true;
+  }
+  if (touched) _emit();
 }
 
 // Test-only hook so each test starts with an empty draft map.

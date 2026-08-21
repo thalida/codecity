@@ -1,12 +1,7 @@
-// state/persist.ts — Signals-native persistence layer.
-//
-// Storage layout: one localStorage key per signal, prefixed with `cc.`:
-//   cc.SKY = '{"COLOR":"#ff0080"}'   ← object diff (only changed keys)
-//   cc.LIVE_UPDATES = '{"ENABLED":true}'
-//
-// Object-valued signals persist only keys that differ from their default
-// (diff-vs-default), so a fresh install starts with no entries and resetting
-// a value back to its default removes the entry.
+// state/persist.ts — signals-native persistence: one localStorage key per
+// signal, under `cc.`. An object-valued signal stores only the keys that differ
+// from its default, so a fresh install holds no entries at all and a value put
+// back to its default takes its own entry with it.
 
 import { signal, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
@@ -14,18 +9,15 @@ import { STORAGE_PREFIX } from '@/constants/storage';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 // ── Registry ───────────────────────────────────────────────────────────────
-// One map keyed by the store signal itself; each entry holds the persisted
-// key name (localStorage suffix) and the pre-hydration default. Keying by the
-// signal (not the name) makes getDefault a direct lookup — no reverse
-// name↔signal scan. This is EVERY persisted store (e.g. EXCLUDES, recents,
-// sidebar width). The narrower "which of these are panel-owned settings"
-// registry (_SETTING_STORES, with its own HAS_ANY_NON_DEFAULT/
-// forEachSettingStore) lives in settingsSchema.ts — "Reset all settings"
-// iterates that one, so a store only in _STORES (like EXCLUDES) is untouched
-// by it.
+
+// Keyed by the signal, not its name, so a lookup needs no reverse scan. EVERY
+// persisted store; the panel-owned subset lives in settings/schema.ts.
 interface StoreEntry {
   name: string;
   default: any;
+  /** Stored entire rather than diffed. Required for a Record whose keys are
+   *  runtime values, which diff mode (default-keys only) would drop. */
+  whole: boolean;
 }
 const _STORES: Map<Signal<any>, StoreEntry> = new Map();
 
@@ -55,9 +47,8 @@ function _safeRemove(key: string): void {
   }
 }
 
-// Hydrate a plain value from localStorage onto `defaultValue`.
-// Object-valued: merge saved diff keys (skip unknown keys — schema evolution).
-// Scalar/array: replace whole value.
+// Hydrate onto `defaultValue`: an object merges the saved diff keys and skips
+// ones the default no longer has, anything else replaces whole.
 function _hydrate<T>(saved: unknown, defaultValue: T): T {
   if (
     defaultValue !== null &&
@@ -109,22 +100,17 @@ function _serialize<T>(value: T, defaultValue: T): unknown {
   return deepEqual(value, defaultValue) ? null : value;
 }
 
+// One store's persisted form: whole-object stores skip the diff entirely, since
+// their keys are runtime values the default never holds.
+function _serializeEntry(value: unknown, entry: StoreEntry): unknown {
+  if (entry.whole) return deepEqual(value, entry.default) ? null : value;
+  return _serialize(value, entry.default);
+}
+
 // ── Public: per-signal persistence ────────────────────────────────────────
 
-/**
- * Create a signal whose value is persisted in localStorage. Hydrates from
- * storage immediately at module load. Writes back on every change (diff-vs-
- * default for object-valued signals; whole value for scalar/array).
- *
- * `opts.whole` opts an object-valued signal out of diff-vs-default and stores
- * the whole object instead. Required for dynamic-key `Record` stores whose keys
- * are runtime values (not present in the default), which diff mode would drop:
- * diff mode only emits/reads keys that exist in the default. An empty object
- * still deep-equals the default and removes the slot, same as diff mode.
- *
- * The `key` string is the localStorage suffix after `cc.` — keep it stable
- * across deploys so existing users don't lose their settings.
- */
+/** A signal persisted under `cc.<key>`, hydrated at module load. `key` is that
+ *  suffix: keep it stable across deploys or existing users lose the setting. */
 export function persistedSignal<T>(
   key: string,
   defaultValue: T,
@@ -133,22 +119,17 @@ export function persistedSignal<T>(
   if (typeof localStorage === 'undefined') {
     // SSR / test environment without localStorage — return a plain signal.
     const s = signal<T>(defaultValue);
-    _STORES.set(s, { name: key, default: deepClone(defaultValue) });
+    _STORES.set(s, { name: key, default: deepClone(defaultValue), whole: opts?.whole === true });
     return s;
   }
   const saved = _safeGet(key);
   const initial =
     saved !== null ? (opts?.whole ? (saved as T) : _hydrate(saved, defaultValue)) : defaultValue;
   const s = signal<T>(initial);
-  _STORES.set(s, { name: key, default: deepClone(defaultValue) });
+  _STORES.set(s, { name: key, default: deepClone(defaultValue), whole: opts?.whole === true });
 
   effect(() => {
-    const v = s.value;
-    const serialized = opts?.whole
-      ? deepEqual(v, defaultValue)
-        ? null
-        : v
-      : _serialize(v, defaultValue);
+    const serialized = _serializeEntry(s.value, _STORES.get(s)!);
     if (serialized === null) _safeRemove(key);
     else _safeSet(key, serialized);
   });
@@ -156,17 +137,29 @@ export function persistedSignal<T>(
   return s;
 }
 
-// ── Public: getDefault ───────────────────────────────────────────────────────
-// Loose signal-like type used at the boundary with settingsDrafts.ts / the controls
-// layer, which have their own local SignalLike interface. These are always
-// real @preact/signals Signal instances at runtime.
+// ── Public: reading a store back ─────────────────────────────────────────────
+
+// The narrow surface the settings layer meets these through. Always a real
+// @preact/signals Signal at runtime.
 type AnySignalLike = { value: any };
 
-/** Return the pre-hydration default for a signal, or a keyed sub-default. Works
- *  for any persisted store (this is the one cross-cutting concern persist owns;
- *  "which stores are settings" lives in state/schema). */
+/** The pre-hydration default for a signal, or one of its keyed sub-defaults.
+ *  Works for any persisted store, settings or not. */
 export function getDefault(store: AnySignalLike, key?: string): any {
   const entry = _STORES.get(store as Signal<any>);
   if (!entry) return undefined;
   return key === undefined ? entry.default : entry.default ? entry.default[key] : undefined;
+}
+
+/** The store's localStorage suffix — its stable identity across builds, and so
+ *  the name a settings file refers to it by. Undefined if unregistered. */
+export function getStoreName(store: AnySignalLike): string | undefined {
+  return _STORES.get(store as Signal<any>)?.name;
+}
+
+/** Exactly what persistence would write for this store right now: object stores
+ *  as a diff against their defaults, scalars whole. Null when nothing differs. */
+export function nonDefaultValue(store: AnySignalLike): unknown {
+  const entry = _STORES.get(store as Signal<any>);
+  return entry ? _serializeEntry(store.value, entry) : null;
 }

@@ -1,0 +1,47 @@
+/* SettingsFileMenu — the two checklists inside the settings-file panel. Rows are
+   a tick plus a name, not settings rows: nothing here has a value to show. */
+
+.transfer-list {
+  list-style: none;
+  margin: var(--cc-space-1) 0 0;
+  padding: 0;
+}
+
+.transfer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  min-height: var(--cc-row-min-h);
+  padding-inline: var(--popover-inset);
+}
+
+/* The label is the hit target, so it takes the room the tick and hint leave. */
+.transfer-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-strong);
+}
+
+.transfer-row-hint {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
+}
+
+/* Not .popover-hint: this is the panel's whole content in the error and result
+   states, so it reads as a paragraph rather than a footnote under one. */
+.transfer-message {
+  margin: 0 0 var(--cc-space-4);
+  padding-inline: var(--popover-inset);
+  font-size: var(--cc-font-sm);
+  line-height: var(--cc-lh-base);
+  color: var(--cc-text-strong);
+}
+
+.transfer-row .setting-toggle,
+.popover-group-head .setting-toggle {
+  flex: 0 0 auto;
+}
