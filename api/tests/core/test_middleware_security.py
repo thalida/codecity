@@ -65,6 +65,25 @@ def test_the_pdf_preview_can_still_embed(client: TestClient) -> None:
     assert _directives(client.get("/"))["object-src"] == "'self'"
 
 
+def test_a_repos_bytes_can_be_framed_by_the_app_itself(client: TestClient) -> None:
+    """Chrome's PDF viewer will not paint an <embed> whose response says
+    frame-ancestors 'none', even same-origin, so the preview needs 'self'."""
+    r = client.get("/api/file", params={"src": "/nope", "path": "x.pdf"})
+    assert _directives(r)["frame-ancestors"] == "'self'"
+    assert r.headers["x-frame-options"] == "SAMEORIGIN"
+
+
+def test_relaxing_that_costs_nothing_cross_site(client: TestClient) -> None:
+    """The framing 'self' gives back is only reachable from here: a browser
+    labels anyone else's frame cross-site, and that never reaches the route."""
+    r = client.get(
+        "/api/file",
+        params={"src": "/nope", "path": "x.pdf"},
+        headers={"sec-fetch-site": "cross-site"},
+    )
+    assert r.status_code == 403
+
+
 def test_the_api_reference_keeps_only_the_framing_half(client: TestClient) -> None:
     """Scalar is a third-party bundle from a CDN: the app's policy would block
     it outright, so that page carries frame-ancestors alone."""

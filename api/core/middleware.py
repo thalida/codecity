@@ -82,34 +82,51 @@ _CROSS_SITE = b"cross-site"
 
 # Measured against a production build, not the dev server: Vite's HMR needs
 # inline script and eval, so a policy tuned there would allow both forever.
-_CSP = "; ".join(
-    (
-        "default-src 'self'",
-        "base-uri 'none'",
-        "form-action 'none'",
-        "frame-ancestors 'none'",
-        # A README points its images and video wherever it likes; data: is the
-        # bundled icon set, blob: the facade and fingerprint textures.
-        "img-src 'self' data: blob: https:",
-        "media-src 'self' https:",
-        # The file preview shows a PDF through <embed>, which 'none' would kill.
-        "object-src 'self'",
-    )
+_DIRECTIVES: tuple[str, ...] = (
+    "default-src 'self'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    # A README points its images and video wherever it likes; data: is the
+    # bundled icon set, blob: the facade and fingerprint textures.
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' https:",
+    # The file preview shows a PDF through <embed>, which 'none' would kill.
+    "object-src 'self'",
 )
 
-# The API reference is a third-party bundle from a CDN, which the app's own
-# policy blocks outright; framing is the half of it that still applies.
-_DOCS_PATH = "/api/docs"
-_DOCS_CSP = "frame-ancestors 'none'"
-
-# X-Frame-Options alongside frame-ancestors: the header is the one browsers
-# still read, the directive is the one that supersedes it where both apply.
-_SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
-    ("x-frame-options", "DENY"),
+_SHARED: tuple[tuple[str, str], ...] = (
     ("x-content-type-options", "nosniff"),
     ("referrer-policy", "strict-origin-when-cross-origin"),
     ("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()"),
 )
+
+
+def _headers(csp: str, frame_options: str) -> tuple[tuple[str, str], ...]:
+    """One response's full header set. X-Frame-Options rides along with
+    frame-ancestors: the header is the one browsers still read, the directive
+    is the one that supersedes it where both apply."""
+    return (
+        ("content-security-policy", csp),
+        ("x-frame-options", frame_options),
+    ) + _SHARED
+
+
+_APP_HEADERS = _headers("; ".join(_DIRECTIVES + ("frame-ancestors 'none'",)), "DENY")
+
+# Chrome's PDF viewer refuses to paint an <embed> under 'none', even same-origin;
+# framing /api/file from anywhere else is SameSiteApiMiddleware's 403 already.
+_FILE_HEADERS = _headers(
+    "; ".join(_DIRECTIVES + ("frame-ancestors 'self'",)), "SAMEORIGIN"
+)
+
+# The API reference is a third-party bundle from a CDN, which the app's own
+# policy blocks outright; framing is the half of it that still applies.
+_DOCS_HEADERS = _headers("frame-ancestors 'none'", "DENY")
+
+_HEADERS_BY_PATH: dict[str, tuple[tuple[str, str], ...]] = {
+    "/api/file": _FILE_HEADERS,
+    "/api/docs": _DOCS_HEADERS,
+}
 
 
 class SecurityHeadersMiddleware:
@@ -135,13 +152,12 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
-        csp = _DOCS_CSP if scope["path"] == _DOCS_PATH else _CSP
+        response_headers = _HEADERS_BY_PATH.get(scope["path"], _APP_HEADERS)
 
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
-                headers["content-security-policy"] = csp
-                for name, value in _SECURITY_HEADERS:
+                for name, value in response_headers:
                     headers[name] = value
             await send(message)
 
