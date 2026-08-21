@@ -264,12 +264,6 @@ just worktree-teardown fix/my-branch   # once its PR is merged
 - `.env.local` and `.claude/settings.json` are gitignored, so `worktree-setup` copies yours across
 - `worktree-teardown` takes the docker stack and its volumes with it
 
-### Backend
-
-- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn
-- scan progress streams over Server-Sent Events (`GET /api/manifest`)
-- API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
-
 ## Release
 
 ```sh
