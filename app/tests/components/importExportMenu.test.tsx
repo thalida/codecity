@@ -147,7 +147,7 @@ describe('ImportExportMenu', () => {
     await flush();
 
     await pickFile(downloaded);
-    const note = panel().querySelector('.popover-hint')!;
+    const note = panel().querySelector('.transfer-row-note')!;
     expect(note.textContent).toBe(`Saved for ${REPO}@main`);
   });
 

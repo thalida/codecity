@@ -27,7 +27,7 @@ const PANEL_LABEL = 'Import & Export';
 
 // Under the family it qualifies, the way ScanMenu footnotes its own excludes.
 // Excludes are the one thing here whose scope is not the whole app.
-const EXPORT_SCAN_NOTE = 'Only for the repo you have open.';
+const EXPORT_SCAN_NOTE = 'Only for the repo you have open';
 
 // One per menu these settings actually live in, so the picker names them the
 // way you already know them.
@@ -44,7 +44,11 @@ interface TransferRow {
   label: string;
   family: TransferFamily;
   parts: TransferPart[];
+  /** Said under the label, for a row whose scope is not what you would assume. */
+  note?: string;
 }
+
+const EXCLUDES_ROW = 'excludes';
 
 function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
   return { id: `group:${group.key}`, label: group.label, family: group.family, parts };
@@ -52,7 +56,7 @@ function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
 
 function excludesRow(): TransferRow {
   return {
-    id: 'excludes',
+    id: EXCLUDES_ROW,
     label: 'Excluded from city',
     family: EXCLUDES_PART.family,
     parts: [EXCLUDES_PART],
@@ -128,7 +132,6 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     setReport(null);
   }, [isOpen]);
 
-  const rows = mode === 'import' && parsed ? importRows(groups, parsed) : exportRows(groups);
   // Naming the repo beats warning about it: the city on screen may well be it.
   const origin = mode === 'import' && parsed ? excludesOrigin(parsed) : null;
   const scanNote =
@@ -136,7 +139,10 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
       ? EXPORT_SCAN_NOTE
       : origin
         ? `Saved for ${origin.src}${origin.branch ? `@${origin.branch}` : ''}`
-        : 'Saved per repo.';
+        : 'Saved per repo';
+  const rows = (mode === 'import' && parsed ? importRows(groups, parsed) : exportRows(groups)).map(
+    (row) => (row.id === EXCLUDES_ROW ? { ...row, note: scanNote } : row)
+  );
   const chosen = rows.filter((r) => !off.has(r.id));
 
   const toggleRow = (id: string, on: boolean) => {
@@ -204,25 +210,30 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
               {FAMILY_LABEL[family]}
             </label>
           </div>
-          <div class="transfer-body">
-            <ul class="transfer-list">
-              {inFamily.map((row) => (
-                <li key={row.id} class="transfer-row">
-                  <input
-                    type="checkbox"
-                    class="setting-toggle"
-                    id={`transfer-${row.id}`}
-                    checked={!off.has(row.id)}
-                    onChange={(e) => toggleRow(row.id, e.currentTarget.checked)}
-                  />
+          <ul class="transfer-list">
+            {inFamily.map((row) => (
+              <li key={row.id} class="transfer-row">
+                <input
+                  type="checkbox"
+                  class="setting-toggle"
+                  id={`transfer-${row.id}`}
+                  checked={!off.has(row.id)}
+                  aria-describedby={row.note ? `transfer-note-${row.id}` : undefined}
+                  onChange={(e) => toggleRow(row.id, e.currentTarget.checked)}
+                />
+                <span class="transfer-row-text">
                   <label class="transfer-row-label" for={`transfer-${row.id}`}>
                     {row.label}
                   </label>
-                </li>
-              ))}
-            </ul>
-            {family === TransferFamily.Scan && <p class="popover-hint popover-prose">{scanNote}</p>}
-          </div>
+                  {row.note && (
+                    <span class="transfer-row-note popover-prose" id={`transfer-note-${row.id}`}>
+                      {row.note}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       );
     });

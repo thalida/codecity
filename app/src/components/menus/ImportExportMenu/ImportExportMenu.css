@@ -1,14 +1,6 @@
 /* ImportExportMenu — the two checklists inside the transfer panel. A row is a
    tick plus a name, not a setting row: nothing here has a value to show. */
 
-/* A list and its footnote are one unit, closer together than the group's gap
-   between controls would put them. */
-.transfer-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-1);
-}
-
 /* Indented by the head's tick, so a section reads as sitting under its family
    rather than beside it: same column of ticks, one level in. */
 .transfer-list {
@@ -20,22 +12,42 @@
 
 .transfer-row {
   display: flex;
-  align-items: center;
+  /* Not centre: a row with a subtitle would float its tick down the middle. */
+  align-items: flex-start;
   /* The same gap the group head above puts between its tick and its title, so
      the two levels read as one column rather than two indents. */
   gap: var(--cc-space-2);
-  min-height: var(--cc-row-min-h);
+  /* Padding, not min-height: a plain row still clears the tap target, and one
+     with a subtitle grows downward instead of padding out around it. */
+  padding-block: calc((var(--cc-row-min-h) - var(--cc-toggle-size)) / 2);
   padding-inline: var(--popover-inset);
 }
 
-/* The label is the hit target, so it takes the room the tick leaves. */
-.transfer-row-label {
+/* The label and anything under it are one block beside the tick. */
+.transfer-row-text {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* A first line exactly as tall as the tick, so top-aligning the two reads as
+   centred however many lines the note below runs to. */
+.transfer-row-label {
+  display: block;
+  line-height: var(--cc-toggle-size);
   cursor: pointer;
   overflow-wrap: anywhere;
   font-size: var(--cc-font-sm);
   color: var(--cc-text-strong);
+}
+
+/* A repo can be a long URL, so it breaks inside the address: the panel is
+   max-content sized and deliberately will not widen for one. */
+.transfer-row-note {
+  display: block;
+  font-size: var(--cc-font-xs);
+  line-height: var(--cc-lh-base);
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
+  overflow-wrap: anywhere;
 }
 
 /* Not .popover-hint: this is the panel's whole content in the error and result
@@ -57,14 +69,4 @@
    Its own class, so ScanMenu's grid-with-a-note keeps its tighter row gap. */
 .popover-panel .transfer-action {
   gap: var(--cc-space-3);
-}
-
-/* Starts where the row labels do: past the family indent AND past the row's own
-   tick. Breaks inside a long URL, since the panel will not widen for one. */
-.transfer-body > .popover-hint {
-  text-align: left;
-  padding-inline-start: calc(
-    var(--popover-inset) + 2 * (var(--cc-toggle-size) + var(--cc-space-2))
-  );
-  overflow-wrap: anywhere;
 }
