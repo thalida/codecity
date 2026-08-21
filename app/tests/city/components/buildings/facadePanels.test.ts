@@ -676,15 +676,15 @@ describe('InstancedFacadePanels version re-arm (Timeline scrub)', () => {
     expect(started).toEqual(['blob1']);
   });
 
-  it('stops re-arming once disposed', () => {
+  it('goes back to the working tree when Timeline is switched off', () => {
     const started: string[] = [];
     const panels = panelsWatching(started);
-    scrubTo(1);
-    panels.updateLOD(CAM, 800);
-    panels.dispose();
 
     scrubTo(2);
     panels.updateLOD(CAM, 800);
-    expect(started).toEqual(['blob1']);
+    TIMELINE_MODE.value = false;
+    panels.updateLOD(CAM, 800);
+
+    expect(started).toEqual(['blob2', 'working-tree']);
   });
 });
