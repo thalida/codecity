@@ -98,15 +98,17 @@ function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): 
   return { world, scan, excludeSrcs };
 }
 
-// Blob + revoke rather than a data: URL, which the CSP would have to allow for
-// navigation and which caps out well below a settings file's comfort.
+// In the document, and revoked a tick late: some browsers cancel the download if
+// the anchor is detached, or if its blob goes away in the same task as the click.
 function downloadJson(filename: string, body: string): void {
   const url = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function exportFilename(): string {
