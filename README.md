@@ -268,6 +268,7 @@ just worktree-teardown fix/my-branch   # once its PR is merged
 
 - [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (clone-or-update is serialized on an in-process lock, so a second worker would fetch the same working tree underneath the first)
 - scan progress streams over Server-Sent Events (`GET /api/manifest`)
+- the app stamps its own framing/sniffing headers (`frame-ancestors 'none'`) and refuses `/api` requests a browser reports as cross-site, so a deploy without a hardening proxy still carries both
 - API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
 
 ## Release
