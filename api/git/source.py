@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
+from typing import NamedTuple
 from enum import StrEnum
 from pathlib import Path
 
@@ -53,6 +54,7 @@ _LOCAL_DISABLED_ERROR = "local repositories are disabled"
 # A read names a source the client saw a manifest for, so "not on disk" means
 # the clone was swept or never happened here, not that the URL is wrong.
 _UNSCANNED_ERROR = "source is not on disk: scan it first"
+_NOT_A_REPO_ERROR = "path is not inside a git working tree"
 
 
 @dataclass(frozen=True)
@@ -207,7 +209,35 @@ def get_repo_root(ref: SourceRef) -> Path:
         raise ResolveError(404, _UNSCANNED_ERROR)
     if not resolved.is_dir():
         raise ResolveError(404, _UNSCANNED_ERROR)
+    # A clone dir is a repo by construction; a local path is whatever was typed,
+    # and reads must reach no further than a scan of the same path could.
+    if kind is SourceKind.LOCAL and not _inside_a_working_tree(resolved):
+        raise ResolveError(404, _NOT_A_REPO_ERROR)
     return resolved
+
+
+def _inside_a_working_tree(root: Path) -> bool:
+    """Whether `root` sits in a git working tree, by the marker alone.
+
+    Stats rather than `git rev-parse`: this runs per file read. Ancestors too,
+    because resolve_local admits a subdirectory of a repo, and `.git` is a file
+    in a linked worktree, so `exists` covers both."""
+    return any((d / ".git").exists() for d in (root, *root.parents))
+
+
+class RepoFile(NamedTuple):
+    """One file, and the repo it was found in. Both, because reading a past
+    version of it takes the repo as well as the path."""
+
+    root: Path
+    path: Path
+
+
+def repo_file(ref: SourceRef, rel_path: str, *, must_exist: bool = True) -> RepoFile:
+    """THE read path, whole: which repo, is it allowed, is it there, and does
+    `rel_path` stay inside it. Every /api read goes through this or nothing."""
+    root = get_repo_root(ref)
+    return RepoFile(root, within(root, rel_path, must_exist=must_exist))
 
 
 def within(root: Path, rel_path: str, *, must_exist: bool = True) -> Path:

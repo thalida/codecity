@@ -51,10 +51,35 @@ yourself parsing a URL for a display string, use `utils.labels`.
 
 `/api/file` and `/api/fingerprint` address a file the way the manifest does: the
 `src` (+ `branch`) it was built for, and a path relative to that repo's root.
-`git.get_repo_root` turns the source back into a directory — a clone hashes
-straight to its cache dir, a local path is allowed only when
-`CODECITY_ALLOW_LOCAL_REPOS` is on — and `git.within` refuses anything that
-resolves outside it. There is no global filesystem read.
+One call decides the whole thing, `git.repo_file`, and it answers four questions
+in order:
+
+1. **Which directory?** A remote hashes to `CLONES_ROOT/sha256(url\0branch)[:16]`
+   — string math, no I/O, so a read can never start a clone. A local path is
+   itself, and only when `CODECITY_ALLOW_LOCAL_REPOS` is on.
+2. **Is it there?** `resolve(strict=True)`, so an unscanned source is a 404
+   rather than an invitation to fetch one.
+3. **Is it repo territory?** A clone dir is by construction; a local path has to
+   sit in a git working tree, tested by the `.git` marker on it or an ancestor.
+   Stats, not `git rev-parse`: this runs per file, and a city asks for hundreds
+   at once. It exists so a read can reach no further than a scan of the same
+   path could.
+4. **Does the path stay inside?** `git.within` resolves it and refuses anything
+   landing outside the root, `..` and absolute paths included.
+
+What a client sees, covered by `test_server_file.py` (the routes) and
+`git/test_source.py` (the resolution rules behind them):
+
+| request                                        | answer                                             |
+| ---------------------------------------------- | -------------------------------------------------- |
+| a file in a cloned repo                        | `200`                                              |
+| a path that repo doesn't have                  | `404 not found`                                    |
+| `../../../etc/passwd`, or an absolute path     | `403 path is outside the repo`                     |
+| a source never cloned here                     | `404 source is not on disk: scan it first`         |
+| the right URL with the wrong branch            | `404` — the clone dir keys on the branch as passed |
+| a local path, hosted (`ALLOW_LOCAL_REPOS` off) | `403 local repositories are disabled`              |
+| a local path that isn't in a git working tree  | `404 path is not inside a git working tree`        |
+| a `src` that is neither a path nor a URL       | `400`                                              |
 
 Resolving per request rather than remembering which roots were scanned is what
 makes a read survive a restart: the browser holds a manifest for as long as its

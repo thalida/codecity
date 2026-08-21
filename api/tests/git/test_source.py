@@ -149,11 +149,32 @@ class ResolveRootTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "repo"
         (self.root / "sub").mkdir(parents=True)
+        (self.root / ".git").mkdir()
         (self.root / "sub" / "f.txt").write_text("hi")
 
     def test_local_source_resolves_to_its_directory(self) -> None:
         got = source.get_repo_root(source.SourceRef(str(self.root)))
         self.assertEqual(got, self.root.resolve())
+
+    def test_local_subdirectory_of_a_repo_resolves(self) -> None:
+        """The marker is up the tree from a subdirectory, and scanning one is
+        allowed, so reading from one has to be."""
+        got = source.get_repo_root(source.SourceRef(str(self.root / "sub")))
+        self.assertEqual(got, (self.root / "sub").resolve())
+
+    def test_local_source_outside_any_working_tree_is_404(self) -> None:
+        plain = Path(self.tmp.name) / "plain"
+        plain.mkdir()
+        with self.assertRaises(source.ResolveError) as caught:
+            source.get_repo_root(source.SourceRef(str(plain)))
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_a_linked_worktree_resolves(self) -> None:
+        """Its `.git` is a file holding `gitdir: …`, not a directory."""
+        wt = Path(self.tmp.name) / "linked"
+        wt.mkdir()
+        (wt / ".git").write_text(f"gitdir: {self.root}/.git/worktrees/linked\n")
+        self.assertEqual(source.get_repo_root(source.SourceRef(str(wt))), wt.resolve())
 
     def test_local_source_refused_when_local_repos_are_off(self) -> None:
         with mock.patch.object(source, "local_repos_allowed", return_value=False):
@@ -231,3 +252,34 @@ class WithinTests(unittest.TestCase):
         )
         with self.assertRaises(source.ResolveError):
             source.within(self.root, "../gone.txt", must_exist=False)
+
+
+class RepoFileTests(unittest.TestCase):
+    """The whole read path in one call: which repo, allowed, present, inside."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = (Path(self.tmp.name) / "repo").resolve()
+        (self.root / "sub").mkdir(parents=True)
+        (self.root / ".git").mkdir()
+        (self.root / "sub" / "f.txt").write_text("hi")
+
+    def test_returns_the_repo_and_the_file_in_it(self) -> None:
+        found = source.repo_file(source.SourceRef(str(self.root)), "sub/f.txt")
+        self.assertEqual(found.root, self.root)
+        self.assertEqual(found.path, self.root / "sub" / "f.txt")
+
+    def test_refuses_a_path_out_of_the_repo(self) -> None:
+        # A real file outside it: a path that merely does not exist is refused
+        # for being absent, which proves nothing about containment.
+        (Path(self.tmp.name) / "escape.txt").write_text("nope")
+        with self.assertRaises(source.ResolveError) as caught:
+            source.repo_file(source.SourceRef(str(self.root)), "../escape.txt")
+        self.assertEqual(caught.exception.status, 403)
+
+    def test_a_source_that_is_not_on_disk_never_reaches_containment(self) -> None:
+        missing = Path(self.tmp.name) / "gone"
+        with self.assertRaises(source.ResolveError) as caught:
+            source.repo_file(source.SourceRef(str(missing)), "f.txt")
+        self.assertEqual(caught.exception.status, 404)

@@ -37,13 +37,13 @@ from api.models.responses import (
 from api.utils.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
 from api.git import (
     BlobUnavailable,
+    RepoFile,
     ResolveError,
     SourceRef,
     is_lfs_pointer,
     read_blob,
     read_lfs_pointer,
-    get_repo_root,
-    within,
+    repo_file,
 )
 from api.utils.media import is_media
 from api.utils.shas import is_object_sha
@@ -62,12 +62,10 @@ def _cache_control(versioned: bool) -> str:
 
 def _resolve(
     src: str, branch: str | None, path: str, *, must_exist: bool = True
-) -> tuple[Path, Path]:
-    """(repo root, file) for a source-relative read, or the refusal that keeps
-    this endpoint inside that one repo."""
+) -> RepoFile:
+    """git.repo_file, with its refusal as the HTTP status it already carries."""
     try:
-        root = get_repo_root(SourceRef(src, branch))
-        return root, within(root, path, must_exist=must_exist)
+        return repo_file(SourceRef(src, branch), path, must_exist=must_exist)
     except ResolveError as e:
         raise HTTPException(e.status, e.message)
 
@@ -145,9 +143,9 @@ def get_file(
         raise HTTPException(400, "sha must be 40 hex characters")
     # With a sha the path need not exist (it names a past commit's file); `..`
     # is still normalized, so containment holds either way.
-    root, target = _resolve(src, branch, path, must_exist=sha is None)
+    found = _resolve(src, branch, path, must_exist=sha is None)
 
-    body = _read_versioned(root, target, sha)
+    body = _read_versioned(found.root, found.path, sha)
     if body is BlobUnavailable.PENDING:
         return _pending(_PENDING_BLOB if sha else _PENDING_WORKING_TREE)
     if body is BlobUnavailable.MISSING:
@@ -164,7 +162,7 @@ def get_file(
 
     cache = _cache_control(bool(sha or mtime))
     # Mime comes off the path's extension either way — a blob carries no name.
-    guessed, _ = mimetypes.guess_type(str(target))
+    guessed, _ = mimetypes.guess_type(str(found.path))
     if is_media(guessed) and guessed:
         # A set Content-Encoding makes the app-wide GZipMiddleware skip this, so
         # already-compressed bytes aren't re-deflated for nothing.
@@ -204,7 +202,7 @@ def get_fingerprint(
     """A binary file's byte-pattern fingerprint as a PNG. Resolved exactly
     like GET /api/file. Raw binary bytes never leave the server: only the head is
     read, and only the image computed from it is returned."""
-    _root, target = _resolve(src, branch, path)
+    target = _resolve(src, branch, path).path
     if not target.is_file():
         raise HTTPException(404, "not a file")
 

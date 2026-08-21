@@ -13,8 +13,11 @@ from api.app import create_app
 
 @pytest.fixture()
 def project(tmp_path: Path) -> Path:
+    """A local source as reads see one: a git working tree, since that is the
+    only kind of local path a scan would have accepted."""
     p = tmp_path / "repo"
     (p / "src").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(p)], check=True)
     (p / "src" / "a.txt").write_text("hello")
     (p / "src" / "pic.png").write_bytes(b"\x89PNG\r\n\x1a\nDATA")
     return p
@@ -60,6 +63,23 @@ def test_file_from_a_source_that_is_not_on_disk_404s(
     r = _get(client, "/api/file", tmp_path / "never-scanned", "a.txt")
     assert r.status_code == 404
     assert "error" in r.json()
+
+
+def test_file_refuses_a_local_source_that_is_not_a_repo(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A read may reach no further than a scan of the same path could, and a
+    scan refuses anything outside a git working tree."""
+    plain = tmp_path / "not-a-repo"
+    plain.mkdir()
+    (plain / "secrets.txt").write_text("nope")
+    assert _get(client, "/api/file", plain, "secrets.txt").status_code == 404
+
+
+def test_file_reads_a_subdirectory_of_a_repo(client: TestClient, project: Path) -> None:
+    """resolve_local admits a subdirectory of a working tree, so a read of one
+    has to work too — the marker is up the tree, not in it."""
+    assert _get(client, "/api/file", project / "src", "a.txt").status_code == 200
 
 
 def test_file_refuses_a_local_source_when_local_repos_are_off(
