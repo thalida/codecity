@@ -120,7 +120,7 @@ describe('ImportExportMenu', () => {
       box('Theme').checked = false;
       box('Theme').dispatchEvent(new Event('change', { bubbles: true }));
     });
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
     const file = JSON.parse(downloaded);
     expect(file.render).toEqual({ TEST_MENU_LOOK: { A: 9 } });
@@ -143,7 +143,7 @@ describe('ImportExportMenu', () => {
     CURRENT_SOURCE.value = { src: REPO, branch: 'main' };
     setExcludesFor(REPO, ['vendor']);
     mount();
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
 
     await pickFile(downloaded);
@@ -166,7 +166,7 @@ describe('ImportExportMenu', () => {
         box(label).dispatchEvent(new Event('change', { bubbles: true }));
       });
     }
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
     const body = downloaded;
 
@@ -178,14 +178,14 @@ describe('ImportExportMenu', () => {
   it("sends the open project's hidden paths, and nothing about the project", async () => {
     setExcludesFor(REPO, ['vendor']);
     mount();
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
     expect(JSON.parse(downloaded).scan.EXCLUDES).toEqual({ src: REPO, paths: ['vendor'] });
   });
 
   it('sends an empty list when the repo hides nothing', async () => {
     mount();
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
     expect(JSON.parse(downloaded).scan.EXCLUDES).toEqual({ src: REPO, paths: [] });
   });
@@ -193,13 +193,13 @@ describe('ImportExportMenu', () => {
   it('applies the ticked sections and reports it', async () => {
     mount();
     LOOK.value = { A: 9 };
-    act(() => button('Export selected').click());
+    act(() => button('Export').click());
     await flush();
     const body = downloaded;
 
     LOOK.value = { A: 1 };
     await pickFile(body);
-    act(() => button('Apply selected').click());
+    act(() => button('Apply').click());
 
     expect(LOOK.value.A).toBe(9);
     expect(panel().querySelector('.transfer-message')?.textContent).toMatch(/imported/i);

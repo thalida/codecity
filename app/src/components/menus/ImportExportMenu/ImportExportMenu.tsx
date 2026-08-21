@@ -293,7 +293,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
             disabled={chosen.length === 0}
             onClick={onApply}
           >
-            Apply selected
+            Apply
           </button>
           <button
             type="button"
@@ -319,7 +319,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
           }
         >
           <Download class="icon" aria-hidden="true" />
-          Export selected
+          Export
         </button>
         <button
           type="button"
@@ -327,7 +327,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
           onClick={() => fileRef.current?.click()}
         >
           <FolderInput class="icon" aria-hidden="true" />
-          Import from a file
+          Import
         </button>
       </>
     );
