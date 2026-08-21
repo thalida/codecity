@@ -80,10 +80,31 @@ class SSEGZipMiddleware:
 _SEC_FETCH_SITE = b"sec-fetch-site"
 _CROSS_SITE = b"cross-site"
 
-# frame-ancestors, not just X-Frame-Options: the header is the one browsers
+# Measured against a production build, not the dev server: Vite's HMR needs
+# inline script and eval, so a policy tuned there would allow both forever.
+_CSP = "; ".join(
+    (
+        "default-src 'self'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-ancestors 'none'",
+        # A README points its images and video wherever it likes; data: is the
+        # bundled icon set, blob: the facade and fingerprint textures.
+        "img-src 'self' data: blob: https:",
+        "media-src 'self' https:",
+        # The file preview shows a PDF through <embed>, which 'none' would kill.
+        "object-src 'self'",
+    )
+)
+
+# The API reference is a third-party bundle from a CDN, which the app's own
+# policy blocks outright; framing is the half of it that still applies.
+_DOCS_PATH = "/api/docs"
+_DOCS_CSP = "frame-ancestors 'none'"
+
+# X-Frame-Options alongside frame-ancestors: the header is the one browsers
 # still read, the directive is the one that supersedes it where both apply.
 _SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
-    ("content-security-policy", "frame-ancestors 'none'"),
     ("x-frame-options", "DENY"),
     ("x-content-type-options", "nosniff"),
     ("referrer-policy", "strict-origin-when-cross-origin"),
@@ -92,10 +113,19 @@ _SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
 
 
 class SecurityHeadersMiddleware:
-    """Stamp the framing and sniffing headers on every response.
+    """Stamp the framing, sniffing and content-source headers on every response.
 
     Here rather than only on the deploy's proxy, so they hold wherever the
-    container runs — a local `just run`, a tunnel, someone else's host."""
+    container runs — a local `just run`, a tunnel, someone else's host.
+
+    The policy is what `vite build`'s output actually asks for. In that build
+    the two workers are their own chunks rather than blob: URLs, no bundled
+    path reaches eval or `new Function`, stylesheets are external files and
+    every style the app writes goes through the CSSOM (which CSP does not
+    police), and both SSE streams plus every fetch are same-origin. What needs
+    more than 'self' is therefore small and listed above: a README's own
+    assets, the icon set's data: URIs, the blob: textures the facades build,
+    and the <embed> the PDF preview renders into."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -105,9 +135,12 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        csp = _DOCS_CSP if scope["path"] == _DOCS_PATH else _CSP
+
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
+                headers["content-security-policy"] = csp
                 for name, value in _SECURITY_HEADERS:
                     headers[name] = value
             await send(message)

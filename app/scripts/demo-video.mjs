@@ -48,17 +48,13 @@ try {
     recordVideo: { dir: videoDir, size: VIEWPORT },
   });
   // Pin the canvas full-viewport from the first paint so the recording is
-  // chrome-free (no header/sidebars/footer).
+  // chrome-free. Via the CSSOM: the page's CSP drops an inline <style>.
   await context.addInitScript(() => {
-    const css =
-      '#city{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483647!important;}';
-    const add = () => {
-      const style = document.createElement('style');
-      style.textContent = css;
-      (document.head || document.documentElement).appendChild(style);
-    };
-    if (document.head) add();
-    else document.addEventListener('DOMContentLoaded', add);
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(
+      '#city{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483647!important;}'
+    );
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   });
 
   const page = await context.newPage();
