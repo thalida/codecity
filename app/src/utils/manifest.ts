@@ -1,6 +1,6 @@
 // utils/manifest.ts — Pure predicates over, and lookups into, the Manifest shape.
 
-import { NodeKind, type Manifest, type DirNode, type TreeNode } from '@/types';
+import { NodeKind, type Manifest, type DirNode, type SourceRef, type TreeNode } from '@/types';
 
 // Locate the tree node at `path` (file or directory) in a manifest/DirNode.
 // Iterative DFS — called on selection change (rare), so O(nodes) is fine.
@@ -17,10 +17,8 @@ export function findNodeByPath(manifest: Manifest | DirNode | null, path: string
   return null;
 }
 
-/** Manifest-relative path for an absolute one, which is how the replay keys
- *  timelines. Returns '' when the path isn't under the manifest root. */
-export function relPathIn(manifest: Manifest | null, fullPath: string): string {
-  const root = manifest?.root;
-  if (!root || !fullPath.startsWith(root)) return '';
-  return fullPath.slice(root.length).replace(/^\/+/, '');
+/** The source a manifest was built for: what a read sends back so the server
+ *  can resolve its paths. Null manifest, null source, nothing to read. */
+export function sourceOf(manifest: Manifest | null): SourceRef | null {
+  return manifest ? { src: manifest.src, branch: manifest.branch } : null;
 }

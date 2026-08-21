@@ -73,3 +73,81 @@ class SSEGZipMiddleware:
                 await send(message)
 
         await self.app(scope, receive, send_compressed)
+
+
+# What the browser tells us about who made the request. Page JavaScript cannot
+# set it (it is a forbidden header), so cross-site here is trustworthy.
+_SEC_FETCH_SITE = b"sec-fetch-site"
+_CROSS_SITE = b"cross-site"
+
+# frame-ancestors, not just X-Frame-Options: the header is the one browsers
+# still read, the directive is the one that supersedes it where both apply.
+_SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
+    ("content-security-policy", "frame-ancestors 'none'"),
+    ("x-frame-options", "DENY"),
+    ("x-content-type-options", "nosniff"),
+    ("referrer-policy", "strict-origin-when-cross-origin"),
+    ("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()"),
+)
+
+
+class SecurityHeadersMiddleware:
+    """Stamp the framing and sniffing headers on every response.
+
+    Here rather than only on the deploy's proxy, so they hold wherever the
+    container runs — a local `just run`, a tunnel, someone else's host."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                for name, value in _SECURITY_HEADERS:
+                    headers[name] = value
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+class SameSiteApiMiddleware:
+    """Refuse /api requests a browser reports as coming from another site.
+
+    No CORS headers already stop another origin from READING a response, but
+    nothing stopped it causing one: an <img src> pointed at /api/file made the
+    server do the work and hand a repo's bytes to whatever tag asked. A request
+    with no Sec-Fetch-Site is not a browser's, so it passes: curl and the test
+    client are not the thing this defends against."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["path"].startswith("/api/"):
+            site = Headers(scope=scope).get("sec-fetch-site")
+            if site == _CROSS_SITE.decode():
+                await _forbidden(send)
+                return
+        await self.app(scope, receive, send)
+
+
+async def _forbidden(send: Send) -> None:
+    """The app's own error shape, hand-rolled: middleware sits outside the
+    exception handler that would otherwise render it."""
+    body = b'{"error":"cross-site requests are not served"}'
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 403,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})

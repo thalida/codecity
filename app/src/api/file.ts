@@ -2,12 +2,19 @@
 
 import { apiUrl } from '@/api/apiUrl';
 import type { components } from '@/types/manifest.generated';
+import type { SourceRef } from '@/types';
 
-/** URL for a file's bytes. `sha` pins a git blob (Timeline); without one the
- *  endpoint reads the working tree and `mtime` versions it. */
-export function fileUrl(path: string, mtime?: string, sha?: string | null): string {
+/** URL for a file's bytes: a repo-relative path plus the source it is relative
+ *  to. `sha` pins a git blob (Timeline), else `mtime` versions the working tree. */
+export function fileUrl(
+  source: SourceRef,
+  path: string,
+  mtime?: string,
+  sha?: string | null
+): string {
+  const repo = { src: source.src, branch: source.branch ?? undefined };
   // A blob sha IS the version, so the mtime is redundant alongside it.
-  return apiUrl('file', sha ? { path, sha } : { path, mtime });
+  return apiUrl('file', sha ? { ...repo, path, sha } : { ...repo, path, mtime });
 }
 
 // The server knows the file and hasn't got its bytes yet: an unpulled Git LFS
@@ -59,29 +66,32 @@ export async function isContentPending(url: string): Promise<boolean> {
 /** A file's text, for the README render and the code preview. Pass the file's
  *  mtime so a live edit re-fetches (see fileUrl). */
 export async function fetchFileText(
+  source: SourceRef,
   path: string,
   mtime?: string,
   sha?: string | null
 ): Promise<string> {
-  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).text();
+  return (await fetchContent(fileUrl(source, path, mtime, sha), 'high')).text();
 }
 
 /** A file's raw bytes. The font preview sniffs them and builds a FontFace
  *  directly, so it can reject a non-font before the browser fails to decode. */
 export async function fetchFileBytes(
+  source: SourceRef,
   path: string,
   mtime?: string,
   sha?: string | null
 ): Promise<ArrayBuffer> {
-  return (await fetchContent(fileUrl(path, mtime, sha), 'high')).arrayBuffer();
+  return (await fetchContent(fileUrl(source, path, mtime, sha), 'high')).arrayBuffer();
 }
 
 /** A file's bytes as a Blob, for the facade loaders. Default priority: a city's
  *  worth of billboards must not outrank the pane in front of them. */
 export async function fetchFileBlob(
+  source: SourceRef,
   path: string,
   mtime?: string,
   sha?: string | null
 ): Promise<Blob> {
-  return (await fetchContent(fileUrl(path, mtime, sha))).blob();
+  return (await fetchContent(fileUrl(source, path, mtime, sha))).blob();
 }

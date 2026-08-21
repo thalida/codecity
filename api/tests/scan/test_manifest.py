@@ -56,7 +56,7 @@ class ManifestEnvelopeTests(CacheRedirectMixin, unittest.TestCase):
 
     def test_manifest_top_level_shape(self):
         m = _final_manifest(str(FIXTURE))
-        for field in ("root", "scanned_at", "tree"):
+        for field in ("src", "branch", "scanned_at", "tree"):
             self.assertTrue(hasattr(m, field), field)
         self.assertEqual(m.tree.type, "directory")
         self.assertEqual(m.tree.path, ".")

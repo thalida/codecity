@@ -1,10 +1,7 @@
 // picker-bvh.test.ts — the picker raycasts through a three-mesh-bvh ObjectBVH
-// (built over the pickables) instead of THREE's brute-force intersectObjects,
-// which at Linux scale tested every one of ~80k building instances per pointer
-// move (~34ms/cast). This guard proves the accelerated path returns the SAME
-// hit (object + instanceId + point) a brute-force core raycast would, against a
-// real cell scene — so hover/selection stay bit-identical while the per-cast
-// cost drops ~480x.
+// rather than THREE's brute force, which tested ~80k instances per pointer move
+// at Linux scale. This proves the accelerated path returns the SAME hit (object
+// + instanceId + point) against a real cell scene, so selection can't drift.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -14,6 +11,7 @@ import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
+import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 
 function mkBuilding(path: string, x: number, y: number): Building {
   return {
@@ -31,7 +29,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings);
+  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {

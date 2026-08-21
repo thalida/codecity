@@ -35,8 +35,8 @@ from api.cache.storage.store import load_gz_envelope, save_gz_envelope
 from api.models.manifest import Manifest, TimelineBundle
 
 # Bump when a cached shape changes, so stale blobs miss and re-scan.
-MANIFEST_SCHEMA_VERSION = 26
-TIMELINE_VERSION = 7
+MANIFEST_SCHEMA_VERSION = 27
+TIMELINE_VERSION = 8
 # Composite: a manifest embeds history-derived dates, so it has to invalidate
 # when EITHER the manifest schema or the git-history shape moves.
 MANIFEST_VERSION: str = f"m{MANIFEST_SCHEMA_VERSION}-g{HISTORY_VERSION}"

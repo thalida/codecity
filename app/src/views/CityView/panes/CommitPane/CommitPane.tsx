@@ -6,7 +6,7 @@ import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, SourceRef } from '@/types';
 import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
@@ -47,6 +47,8 @@ function _busynessLabel(
 
 export interface CommitPaneState {
   commit: CommitEntry | null;
+  /** Whose history to read the full message out of. */
+  source?: SourceRef | null;
   remoteUrl?: string | null;
   sameDayTotal?: number;
   /** See SetCommitOpts.busynessThresholds. */
@@ -73,6 +75,7 @@ export interface CommitPaneProps {
 export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: CommitPaneProps) {
   const {
     commit,
+    source = null,
     remoteUrl,
     sameDayTotal = 0,
     busynessThresholds = { avg: 1, busy: 1 },
@@ -86,7 +89,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
   const bodyCache = useRef(new Map<string, string>());
 
   useEffect(() => {
-    if (!commit) return;
+    if (!commit || !source) return;
     const sha = commit.sha;
     const cached = bodyCache.current.get(sha);
     if (cached !== undefined) {
@@ -99,7 +102,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
     }
     setBodyState({ kind: CommitBodyKind.Loading });
     let cancelled = false;
-    fetchCommitDetail(sha).then(
+    fetchCommitDetail(source, sha).then(
       (detail) => {
         if (cancelled) return;
         const bodyText = detail.body ?? '';
@@ -118,7 +121,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
     return () => {
       cancelled = true;
     };
-  }, [commit?.sha]);
+  }, [commit?.sha, source?.src]);
 
   if (!commit) {
     return (

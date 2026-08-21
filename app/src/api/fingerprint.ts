@@ -4,15 +4,25 @@
 
 import { apiUrl } from '@/api/apiUrl';
 import { fetchContent } from '@/api/file';
+import type { SourceRef } from '@/types';
 
-/** URL for a binary file's fingerprint PNG. `mtime` versions it, so an edit
- *  re-fingerprints and an unchanged file is served from the browser cache. */
-export function fingerprintUrl(path: string, mtime?: string): string {
-  return apiUrl('fingerprint', { path, mtime });
+/** URL for a binary file's fingerprint PNG, addressed like /api/file. `mtime`
+ *  versions it, so an edit re-fingerprints and an unchanged file stays cached. */
+export function fingerprintUrl(source: SourceRef, path: string, mtime?: string): string {
+  return apiUrl('fingerprint', {
+    src: source.src,
+    branch: source.branch ?? undefined,
+    path,
+    mtime,
+  });
 }
 
 /** A binary file's fingerprint PNG. Throws ContentPendingError for a file not
  *  downloaded yet: the server won't fingerprint the pointer stub standing in. */
-export async function fetchFingerprintBlob(path: string, mtime?: string): Promise<Blob> {
-  return (await fetchContent(fingerprintUrl(path, mtime))).blob();
+export async function fetchFingerprintBlob(
+  source: SourceRef,
+  path: string,
+  mtime?: string
+): Promise<Blob> {
+  return (await fetchContent(fingerprintUrl(source, path, mtime))).blob();
 }

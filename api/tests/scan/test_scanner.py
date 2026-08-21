@@ -14,6 +14,7 @@ import pytest
 
 from api.models.manifest import Manifest
 from api.scan.scanner import reconstruct_manifest, scan_tree
+from api.git import SourceRef
 from api.tests.conftest import (
     CacheRedirectMixin,
     FIXTURE,
@@ -40,7 +41,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            events = list(scan_tree(td))
+            events = list(scan_tree(td, SourceRef(td)))
         self.assertEqual(len(events), 3)
         self.assertEqual(events[0].phase, "manifest-partial")
         self.assertEqual(events[1].phase, "manifest-partial")
@@ -55,7 +56,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            skeleton, _metadata, _final = list(scan_tree(td))
+            skeleton, _metadata, _final = list(scan_tree(td, SourceRef(td)))
 
         # Walk the tree and assert every file has placeholder lines/binary.
         def files(node):
@@ -78,7 +79,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
             self._make_tiny_repo(td)
             ev = threading.Event()
             ev.set()
-            gen = scan_tree(td, cancel_event=ev)
+            gen = scan_tree(td, SourceRef(td), cancel_event=ev)
             with self.assertRaises(ScanCancelledError):
                 list(gen)
 
@@ -96,7 +97,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
                 (root / f"f{i}.py").write_text("x = 1\n" * 50)
             commit_all(root)
             ev = threading.Event()
-            gen = scan_tree(td, cancel_event=ev)
+            gen = scan_tree(td, SourceRef(td), cancel_event=ev)
             skeleton = next(gen)
             self.assertEqual(skeleton.phase, "manifest-partial")
             ev.set()
@@ -145,7 +146,9 @@ def test_reconstruct_at_old_ref_shrinks_city(tmp_path):
     (tmp_path / "b.txt").write_text("2\n")
     commit_all(tmp_path, "c2")
 
-    m_old = reconstruct_manifest(str(tmp_path), old, use_cache=False)
+    m_old = reconstruct_manifest(
+        str(tmp_path), SourceRef(str(tmp_path)), old, use_cache=False
+    )
     assert _tree_file_paths(m_old) == {"a.txt"}  # b.txt didn't exist yet
     assert m_old.repo.dirty is False
     assert len(m_old.commits) == 1
@@ -157,7 +160,9 @@ def test_reconstruct_bad_ref_raises(tmp_path):
     (tmp_path / "a.txt").write_text("1\n")
     commit_all(tmp_path, "c1")
     with pytest.raises(ValueError):
-        reconstruct_manifest(str(tmp_path), "--upload-pack=x", use_cache=False)
+        reconstruct_manifest(
+            str(tmp_path), SourceRef(str(tmp_path)), "--upload-pack=x", use_cache=False
+        )
 
 
 def test_reconstruct_head_matches_live_scan(tmp_path):
@@ -184,7 +189,9 @@ def test_reconstruct_head_matches_live_scan(tmp_path):
     commit_all(tmp_path, "c1")
 
     live = _final_manifest(str(tmp_path), use_cache=False)
-    recon = reconstruct_manifest(str(tmp_path), "HEAD", use_cache=False)
+    recon = reconstruct_manifest(
+        str(tmp_path), SourceRef(str(tmp_path)), "HEAD", use_cache=False
+    )
 
     live_paths = {n.path for n in walk_files(live.tree)}
     recon_paths = {n.path for n in walk_files(recon.tree)}
@@ -204,7 +211,7 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
     def test_date_ranges_present_on_every_emit(self):
         # Both phases wrap, so both carry dateRanges — the skeleton's from the
         # filesystem, since it precedes the history walk; the final's from it.
-        events = list(scan_tree(str(FIXTURE), use_cache=False))
+        events = list(scan_tree(str(FIXTURE), SourceRef(str(FIXTURE)), use_cache=False))
         phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)
         self.assertIn("manifest-complete", phases)
@@ -235,7 +242,7 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
             return real_history(*args, **kwargs)
 
         with mock.patch.object(scanmod, "collect_git_history", _spy):
-            events = scan_tree(str(FIXTURE), use_cache=False)
+            events = scan_tree(str(FIXTURE), SourceRef(str(FIXTURE)), use_cache=False)
             skeleton = next(events)
             self.assertEqual(skeleton.phase, "manifest-partial")
             self.assertEqual(walked, [], "history walked before the skeleton")
@@ -273,7 +280,7 @@ class ScanStreamContentTests(CacheRedirectMixin, unittest.TestCase):
     def test_same_day_total_present_on_every_emit(self):
         # same_day_total is baked at wrap time, so this guards against a
         # future emit path that skips wrap and ships it uncounted.
-        events = list(scan_tree(str(FIXTURE), use_cache=False))
+        events = list(scan_tree(str(FIXTURE), SourceRef(str(FIXTURE)), use_cache=False))
         phases = [e.phase for e in events]
         self.assertIn("manifest-partial", phases)
         self.assertIn("manifest-complete", phases)

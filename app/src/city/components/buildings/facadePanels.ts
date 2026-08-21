@@ -4,7 +4,8 @@
 // Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
-import { BuildingOrient } from '@/types/index';
+import { untracked } from '@preact/signals';
+import { BuildingOrient, type SourceRef } from '@/types/index';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
@@ -14,7 +15,12 @@ import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
+import {
+  SETTLED_COMMIT,
+  TIMELINE_MODE,
+  hasNoContentAtScrub,
+  scrubbedBlobShaFor,
+} from '@/state/stores/timeline';
 import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
 import { fingerprintUrl } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
@@ -79,6 +85,15 @@ export interface FacadePanelRegistration {
   panelSlots: number[];
 }
 
+// Outside Timeline there is no commit to key on, and no position is negative.
+const LIVE_STAMP = -1;
+
+/** What a load of this building would fetch right now. Untracked: a rebuild
+ *  computes it, and must not come back to life on every scrub. */
+function versionKeyFor(b: Building): string {
+  return untracked(() => scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '');
+}
+
 export class InstancedFacadePanels {
   /** The instanced mesh — add this to the scene. */
   readonly mesh: THREE.InstancedMesh;
@@ -124,10 +139,15 @@ export class InstancedFacadePanels {
     // still counts as on-screen.
     radius: number;
     shown: boolean;
-    loaded: boolean;
+    // The version showing on it, and the one it should be showing: a blob sha
+    // in Timeline, the working tree keyed by mtime otherwise. Differ, it loads.
+    loadedKey: string | null;
+    wantKey: string;
     // Per-building loader (media image vs binary fingerprint), chosen at register.
     startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
   }> = [];
+  // Which scrub position the panels' wantKey was computed at.
+  private _versionStamp = LIVE_STAMP;
   // Constructor override: when set, replaces every panel's loader so tests can
   // observe LOD scheduling without hitting the network. null in production.
   private readonly _overrideStartLoad:
@@ -135,9 +155,13 @@ export class InstancedFacadePanels {
 
   constructor(
     mediaFileCapacity: number,
+    // The city's own source: paths are repo-relative, so a facade read is
+    // meaningless without the repo they are relative to.
+    readonly source: SourceRef | null,
     opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
+    this._versionStamp = TIMELINE_MODE.peek() ? SETTLED_COMMIT.peek() : LIVE_STAMP;
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
@@ -367,7 +391,8 @@ export class InstancedFacadePanels {
       // face, and stand panelHeight tall. Generous so an edge building isn't missed.
       radius: Math.max(b.w, b.d, panelHeight),
       shown: true,
-      loaded: false,
+      loadedKey: null,
+      wantKey: versionKeyFor(b),
       startLoad,
     });
 
@@ -470,6 +495,8 @@ export class InstancedFacadePanels {
     }
     if (!this.mesh.visible) return;
 
+    this._refreshWantedVersions();
+
     // Per-instance pass: cull panels that project too small or leave the
     // frustum, and stream loads for the ones we actually render (budgeted).
     _lodProjScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -497,9 +524,11 @@ export class InstancedFacadePanels {
       }
 
       // Load only what we render, at most FACADE_LOAD_BUDGET_PER_FRAME new per frame.
-      if (wantShown && !rec.loaded && started < FACADE_LOAD_BUDGET_PER_FRAME) {
+      if (wantShown && rec.loadedKey !== rec.wantKey && started < FACADE_LOAD_BUDGET_PER_FRAME) {
+        // Stamped on the attempt, not on the result: a bail-out (no content at
+        // this commit) must not re-queue itself every frame.
+        rec.loadedKey = rec.wantKey;
         (this._overrideStartLoad ?? rec.startLoad)(rec.b, rec.layer, rec.slots);
-        rec.loaded = true;
         started++;
       }
     }
@@ -514,6 +543,15 @@ export class InstancedFacadePanels {
     u.uMediaEmission.value = enabled ? cfg.MEDIA_EMISSION : 1.0;
     u.uDataEmission.value = enabled ? cfg.DATA_EMISSION : 1.0;
     (u.uDataTint.value as THREE.Color).set(cfg.DATA_COLOR);
+  }
+
+  /** Re-ask every panel which version it wants, only when the scrub moved:
+   *  versionKeyFor walks a path's history, so it stays off the per-frame path. */
+  private _refreshWantedVersions(): void {
+    const stamp = TIMELINE_MODE.peek() ? SETTLED_COMMIT.peek() : LIVE_STAMP;
+    if (stamp === this._versionStamp) return;
+    this._versionStamp = stamp;
+    for (const rec of this._panels) rec.wantKey = versionKeyFor(rec.b);
   }
 
   dispose(): void {
@@ -565,16 +603,18 @@ function asyncLoadMediaForBuilding(
   // and 404. The building just shows no image.
   if (hasNoContentAtScrub(b.file.path)) return;
 
-  const filePath = b.file.fullPath || b.file.path || '';
+  const source = ads.source;
+  if (!source) return;
+  const filePath = b.file.path || '';
   // Scrubbed commits pin a version; Live keys on mtime. Either way the URL names
   // one immutable body, so a rebuild re-reads it from the browser cache.
   const sha = scrubbedBlobShaFor(b.file.path);
   const version = b.file.modified || '';
 
   if (kind === MediaKind.Image) {
-    void _loadImageBuilding(ads, filePath, version, sha, layer, panelSlots);
+    void _loadImageBuilding(ads, source, filePath, version, sha, layer, panelSlots);
   } else {
-    void _loadVideoBuilding(ads, fileUrl(filePath, version, sha), layer, panelSlots);
+    void _loadVideoBuilding(ads, fileUrl(source, filePath, version, sha), layer, panelSlots);
   }
 }
 
@@ -587,13 +627,15 @@ function asyncLoadDataFacadeForBuilding(
   panelSlots: number[]
 ): void {
   if (hasNoContentAtScrub(b.file.path)) return;
-  const filePath = b.file.fullPath || b.file.path || '';
+  const source = ads.source;
+  if (!source) return;
+  const filePath = b.file.path || '';
   const version = b.file.modified || '';
   switch (dataFacadeKind(b.file.extension || '')) {
     case 'font':
       void _loadCanvasFacade(
         ads,
-        () => renderFontGlyphFacade(filePath, version, b.file.path),
+        () => renderFontGlyphFacade(source, filePath, version),
         layer,
         panelSlots
       );
@@ -601,13 +643,18 @@ function asyncLoadDataFacadeForBuilding(
     case 'audio':
       void _loadCanvasFacade(
         ads,
-        () => renderWaveformFacade(filePath, version, b.file.path),
+        () => renderWaveformFacade(source, filePath, version),
         layer,
         panelSlots
       );
       break;
     default:
-      void _loadFingerprintBuilding(ads, fingerprintUrl(filePath, version), layer, panelSlots);
+      void _loadFingerprintBuilding(
+        ads,
+        fingerprintUrl(source, filePath, version),
+        layer,
+        panelSlots
+      );
   }
 }
 
@@ -649,6 +696,7 @@ async function _loadFingerprintBuilding(
 
 async function _loadImageBuilding(
   ads: InstancedFacadePanels,
+  source: SourceRef,
   filePath: string,
   version: string,
   sha: string | null,
@@ -659,7 +707,7 @@ async function _loadImageBuilding(
   // keep the placeholder, not tint the building broken.
   let blob: Blob;
   try {
-    blob = await fetchFileBlob(filePath, version, sha);
+    blob = await fetchFileBlob(source, filePath, version, sha);
   } catch (err) {
     // Waiting resolves itself: the next rebuild picks the image up once the
     // fetch behind it lands. Anything else is a real failure.

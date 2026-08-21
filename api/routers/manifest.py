@@ -24,7 +24,6 @@ from api.routers.sse import Put, stream
 from api.utils.labels import label_from_source
 from api.models.events import ScanStreamMessage
 from api.models.manifest import Manifest, SignatureResponse
-from api.core.security import TRUST
 from api.cache import (
     cache_clear_timeline,
     cache_load_manifest,
@@ -41,6 +40,7 @@ from api.git import (
     RepoNotFoundError,
     ResolveError,
     SourceKind,
+    SourceRef,
     classify,
     clone_dir_for,
     ensure_clone,
@@ -166,6 +166,9 @@ async def manifest(
         # The PENDING label, and the only name derivation in this route: the
         # scanner bakes the canonical tree.name later. See the README.
         pending_label = label_from_source(src)
+        # Stamped onto every manifest this stream emits: a read sends it back to
+        # name the same root, so it has to be the branch AS PASSED.
+        source = SourceRef(src, branch)
         local_path: Path | None = None
         if kind is SourceKind.LOCAL:
             try:
@@ -237,7 +240,6 @@ async def manifest(
                     path = local_path
 
                 built["path"] = path
-                TRUST.register(path)
 
                 # no_cache means rebuild EVERYTHING for this source, so the
                 # per-HEAD timeline bundle has to go too.
@@ -261,7 +263,9 @@ async def manifest(
                                 )
                             )
                             return
-                    m = reconstruct_manifest(str(path), sha, use_cache=use_cache)
+                    m = reconstruct_manifest(
+                        str(path), source, sha, use_cache=use_cache
+                    )
                     cache_save_ref_manifest(path.resolve(), sha, m)
                     _put(sse.event(ScanEvent.MANIFEST_COMPLETE, {"manifest": m}))
                     return
@@ -285,6 +289,7 @@ async def manifest(
                 # Cold scan: partial + complete manifests, with heartbeat progress.
                 for ev in scan_tree(
                     str(path),
+                    source,
                     use_cache=use_cache,
                     cancel_event=cancel,
                     on_scan_progress=_on_scan,

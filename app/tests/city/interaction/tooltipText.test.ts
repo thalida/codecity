@@ -15,7 +15,6 @@ function file(partial: Partial<FileNode>): FileNode {
     name: 'x',
     type: NodeKind.File,
     path: 'x',
-    fullPath: '/x',
     extension: '',
     size: 0,
     lines: 0,

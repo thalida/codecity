@@ -220,7 +220,6 @@ describe('cellMesh factory', () => {
       name: '__init__.py',
       type: NodeKind.File,
       path: 'pkg/__init__.py',
-      fullPath: '/abs/pkg/__init__.py',
       extension: '.py',
       size: 0,
       lines: 0,

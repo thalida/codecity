@@ -8,6 +8,7 @@ carries the safe.directory bypass.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from enum import Enum
 from functools import lru_cache
@@ -117,6 +118,9 @@ class BlobStats(NamedTuple):
 # A git-lfs blob is a pointer, not content; resolve it so the timeline reads the
 # same bytes Live's smudged working tree does.
 _LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
+# The oid names a path under .git/lfs/objects, and the file it is read out of
+# belongs to whoever wrote the repo: anything but hex would be theirs to aim.
+_LFS_OID = re.compile(r"[0-9a-f]{64}")
 _LFS_MAX_RESOLVE_BYTES = 128 * 1024 * 1024
 _LFS_SMUDGE_TIMEOUT_S = 60  # per-object download budget before giving up (0 lines)
 
@@ -129,7 +133,8 @@ def _parse_lfs_pointer(content: bytes) -> tuple[str, int] | None:
     size: int | None = None
     for line in content[:512].split(b"\n"):
         if line.startswith(b"oid sha256:"):
-            oid = line[len(b"oid sha256:") :].strip().decode("ascii", "ignore") or None
+            raw = line[len(b"oid sha256:") :].strip().decode("ascii", "ignore")
+            oid = raw if _LFS_OID.fullmatch(raw) else None
         elif line.startswith(b"size "):
             try:
                 size = int(line[len(b"size ") :])

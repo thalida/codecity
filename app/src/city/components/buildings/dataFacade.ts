@@ -4,6 +4,7 @@
 // backend needs no decoder for either.
 
 import { fetchFileBytes } from '@/api/file';
+import type { SourceRef } from '@/types';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
@@ -33,16 +34,16 @@ let _fontSeq = 0;
 /** A lowercase 'a' in the file's own font. The face is removed after drawing,
  *  so none leaks globally. null on any failure. */
 export async function renderFontGlyphFacade(
-  fullPath: string,
-  version: string,
-  relPath?: string
+  source: SourceRef,
+  path: string,
+  version: string
 ): Promise<HTMLCanvasElement | null> {
   if (typeof FontFace === 'undefined' || typeof document.fonts === 'undefined') return null;
   const surface = _canvas();
   if (!surface) return null;
   let face: FontFace | null = null;
   try {
-    const buf = await fetchFileBytes(fullPath, version, scrubbedBlobShaFor(relPath));
+    const buf = await fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
     const family = `cc-facade-font-${(_fontSeq += 1)}`;
     face = await new FontFace(family, buf).load();
     document.fonts.add(face);
@@ -76,15 +77,15 @@ function _getAudioCtx(): AudioContext | null {
 /** A centered waveform, one peak bar per column, decoded with Web Audio.
  *  null on any failure. */
 export async function renderWaveformFacade(
-  fullPath: string,
-  version: string,
-  relPath?: string
+  source: SourceRef,
+  path: string,
+  version: string
 ): Promise<HTMLCanvasElement | null> {
   const audioCtx = _getAudioCtx();
   const surface = _canvas();
   if (!audioCtx || !surface) return null;
   try {
-    const buf = await fetchFileBytes(fullPath, version, scrubbedBlobShaFor(relPath));
+    const buf = await fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
     // decodeAudioData detaches its input, so hand it a copy.
     const audio = await audioCtx.decodeAudioData(buf.slice(0));
     const data = audio.getChannelData(0);

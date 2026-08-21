@@ -23,7 +23,7 @@ import {
 import { SOURCE_INFO, addExclude } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { findNodeByPath } from '@/utils/manifest';
+import { findNodeByPath, sourceOf } from '@/utils/manifest';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
@@ -83,6 +83,8 @@ export function CitySidebarRight() {
     const present = fresh?.type === NodeKind.File;
     return {
       file: present ? fresh : sel.file,
+      // The scrub manifest's own source: its paths are what the pane reads by.
+      source: sourceOf(m as Manifest | null),
       rootLabel: SOURCE_INFO.value.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
@@ -96,7 +98,11 @@ export function CitySidebarRight() {
     const handle = SCENE_HANDLE.value;
     const sel = handle?.picker.selection.value ?? null;
     return handle && sel?.kind === NodeKind.Commit
-      ? { ...commitStateFor(handle, sel.commit), inTimeline }
+      ? {
+          ...commitStateFor(handle, sel.commit),
+          source: sourceOf(MANIFEST.value as Manifest | null),
+          inTimeline,
+        }
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {

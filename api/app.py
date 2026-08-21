@@ -17,7 +17,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from api.core.config import GZIP_MIN_BYTES
 from api.models.responses import ErrorResponse
 from api.routers import branches, commit, file, manifest, meta, timeline
-from api.core.middleware import SSEGZipMiddleware
+from api.core.middleware import (
+    SameSiteApiMiddleware,
+    SSEGZipMiddleware,
+    SecurityHeadersMiddleware,
+)
 from api.routers.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -63,8 +67,6 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:
-    # TRUST is deliberately NOT reset here: the factory must be side-effect-free
-    # on session auth state. Tests isolate it via an autouse fixture.
     app = FastAPI(
         title="CodeCity API",
         docs_url=None,  # disable Swagger UI
@@ -75,6 +77,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # middleware stream-gzips the manifest event stream with per-event flush.
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
     app.add_middleware(SSEGZipMiddleware)
+    # Added last, so they wrap outermost: the guard answers before any work is
+    # done, and the headers land on whatever the stack below produced.
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(SameSiteApiMiddleware)
 
     # Registered by reference (not as decorated nested functions) so they are
     # plain module-level handlers — no pyright reportUnusedFunction ignore.

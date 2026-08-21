@@ -10,8 +10,8 @@ const TREE = {
   type: 'directory',
   path: '.',
   children: [
-    { name: 'index.ts', type: 'file', path: 'index.ts', fullPath: '/index.ts' },
-    { name: 'README.md', type: 'file', path: 'README.md', fullPath: '/README.md' },
+    { name: 'index.ts', type: 'file', path: 'index.ts' },
+    { name: 'README.md', type: 'file', path: 'README.md' },
   ],
 };
 

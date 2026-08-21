@@ -33,7 +33,6 @@ class FileNode(BaseModel):
     name: str
     type: Literal["file"]
     path: str
-    fullPath: str
     extension: str
     # Required-nullable (see README): null is NOT KNOWN, never zero, which an
     # empty file already means. Only Timeline's union manifest emits it.
@@ -94,7 +93,6 @@ class DirNode(BaseModel):
     name: str
     type: Literal["directory"]
     path: str
-    fullPath: str
     children: list["TreeNode"]
     children_count: int
     children_file_count: int
@@ -136,7 +134,7 @@ class BusynessThresholds(BaseModel):
 
 
 # Required-nullable: always emitted, null for a tree with zero files. camelCase
-# matches the frontend's DateRanges and the fullPath precedent.
+# matches the frontend's DateRanges.
 class DateRanges(BaseModel):
     minCreated: Optional[str] = Field(
         description="Earliest resolved create date (ISO), or null for an empty tree"
@@ -263,7 +261,16 @@ class RepoStats(BaseModel):
 # Three signatures, each a superset of the one before; what computes them and
 # why they must agree across build paths is in api/scan/README.md.
 class Manifest(BaseModel):
-    root: str
+    src: str = Field(
+        description=(
+            "The source this describes, as passed to /api/manifest. Every path "
+            "in the manifest is relative to it, and reads send it back so the "
+            "server can resolve the root again (api/routers/README.md)."
+        )
+    )
+    branch: Optional[str] = Field(
+        description="Branch as passed alongside `src`, or null if none was"
+    )
     scanned_at: str
     content_signature: str
     structure_signature: str
@@ -287,7 +294,7 @@ class Manifest(BaseModel):
         )
     )
     readmePath: Optional[str] = Field(
-        description="Absolute path of the root README, or null if there isn't one"
+        description="Repo-relative path of the root README, or null if there isn't one"
     )
     readmeModified: Optional[str] = Field(
         description="That README's mtime, for cache-busting the fetch"
@@ -295,7 +302,6 @@ class Manifest(BaseModel):
 
 
 class SignatureResponse(BaseModel):
-    root: str
     scanned_at: str
     content_signature: str
 

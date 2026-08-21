@@ -17,7 +17,6 @@ const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,
   type: NodeKind.File,
   path,
-  fullPath: `/tmp/p/${path}`,
   extension: '.ts',
   size: 10,
   lines: 2,

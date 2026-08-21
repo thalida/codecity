@@ -9,9 +9,10 @@ import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
-import type { DirNode, Manifest } from '@/types';
+import DOMPurify from 'dompurify';
+import type { DirNode, Manifest, SourceRef } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { relPathIn } from '@/utils/manifest';
+import { sourceOf } from '@/utils/manifest';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import {
   resolveReadmeAssetUrl,
@@ -20,20 +21,22 @@ import {
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */
-function _renderReadme(text: string, readmeFullPath: string): string {
+export function renderReadme(text: string, source: SourceRef, readmePath: string): string {
   const md = new Marked();
   md.use({
     walkTokens(token) {
       if (token.type === 'image') {
-        token.href = resolveReadmeAssetUrl(token.href, readmeFullPath);
+        token.href = resolveReadmeAssetUrl(source, token.href, readmePath);
       } else if (token.type === 'html') {
         // READMEs often use raw <img src="…"> (for width/align) rather than
         // markdown ![](…); those arrive as html tokens, not image tokens.
-        token.text = rewriteHtmlImageUrls(token.text, readmeFullPath);
+        token.text = rewriteHtmlImageUrls(source, token.text, readmePath);
       }
     },
   });
-  return md.parse(text) as string;
+  // A README is somebody else's file, and this lands in innerHTML: marked
+  // stopped sanitizing at v5 and says to bring your own.
+  return DOMPurify.sanitize(md.parse(text) as string);
 }
 
 // ── State shape ───────────────────────────────────────────────────────────────
@@ -73,27 +76,30 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
         return;
       }
       const readmePath = (m as Manifest).readmePath;
-      if (!readmePath) {
+      const source = sourceOf(m as Manifest);
+      if (!readmePath || !source) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
-      // Relative path keys the replay; readmePath is absolute for the fetch.
-      const rel = relPathIn(m as Manifest, readmePath);
       // No README yet at this commit: say so rather than fetching HEAD's.
-      if (hasNoContentAtScrub(rel)) {
+      if (hasNoContentAtScrub(readmePath)) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
       setBody({ kind: InfoBodyKind.Loading });
       // mtime busts the browser cache after a live edit (doFetch re-runs per manifest).
       fetchFileText(
+        source,
         readmePath,
         (m as Manifest).readmeModified ?? undefined,
-        scrubbedBlobShaFor(rel)
+        scrubbedBlobShaFor(readmePath)
       )
         .then((text) => {
           if (!cancelled)
-            setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });
+            setBody({
+              kind: InfoBodyKind.Markdown,
+              html: renderReadme(text, source, readmePath),
+            });
         })
         .catch((err) => {
           if (!cancelled)

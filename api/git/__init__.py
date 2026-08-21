@@ -53,9 +53,14 @@ from .objects import (
 from .source import (
     ResolveError,
     SourceKind,
+    SourceRef,
     classify,
+    RepoFile,
+    get_repo_root,
+    repo_file,
     resolve_local,
     resolve_source,
+    within,
 )
 
 __all__ = [
@@ -67,9 +72,11 @@ __all__ = [
     "GitHistory",
     "GitState",
     "HostUnreachableError",
+    "RepoFile",
     "RepoNotFoundError",
     "ResolveError",
     "SourceKind",
+    "SourceRef",
     "TreeBlob",
     "blob_sizes_batch",
     "blob_stats_batch",
@@ -81,6 +88,7 @@ __all__ = [
     "empty_repo_info",
     "ensure_clone",
     "fetch_lfs_history",
+    "get_repo_root",
     "git_argv",
     "hydrate_blobs",
     "is_git_repo",
@@ -90,8 +98,10 @@ __all__ = [
     "read_blob",
     "read_lfs_pointer",
     "reconstructed_repo_info",
+    "repo_file",
     "resolve_local",
     "resolve_ref",
     "resolve_source",
     "run_git",
+    "within",
 ]

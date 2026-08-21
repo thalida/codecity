@@ -6,7 +6,8 @@ import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 
 function makeMinimalManifest(): Manifest {
   return {
-    root: '/tmp/x',
+    src: '/tmp/x',
+    branch: null,
     scanned_at: '2026-05-13T00:00:00Z',
     content_signature: 'sig',
     structure_signature: 'test-fp-1234',
@@ -23,13 +24,11 @@ function makeMinimalManifest(): Manifest {
       name: 'x',
       type: NodeKind.Directory,
       path: '.',
-      fullPath: '/tmp/x',
       children: [
         {
           name: 'a.js',
           type: NodeKind.File,
           path: 'a.js',
-          fullPath: '/tmp/x/a.js',
           extension: '.js',
           size: 10,
           lines: 1,
@@ -93,7 +92,8 @@ describe('layoutClient', () => {
       byteSizeRange: { min: 10, max: 10000 },
     };
     const m1: Manifest = {
-      root: '/tmp/x',
+      src: '/tmp/x',
+      branch: null,
       scanned_at: '2026-05-13T00:00:00Z',
       content_signature: 'sig',
       structure_signature: 'test-fp-reuse',
@@ -110,13 +110,11 @@ describe('layoutClient', () => {
         name: 'x',
         type: NodeKind.Directory,
         path: '.',
-        fullPath: '/tmp/x',
         children: [
           {
             name: 'small.js',
             type: NodeKind.File,
             path: 'small.js',
-            fullPath: '/tmp/x/small.js',
             extension: '.js',
             size: 10,
             lines: 1,
@@ -129,7 +127,6 @@ describe('layoutClient', () => {
             name: 'large.js',
             type: NodeKind.File,
             path: 'large.js',
-            fullPath: '/tmp/x/large.js',
             extension: '.js',
             size: 10000,
             lines: 1000,

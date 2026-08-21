@@ -81,7 +81,7 @@ export interface paths {
         };
         /**
          * Get Fingerprint
-         * @description A binary file's byte-pattern fingerprint as a PNG. Trust-checked exactly
+         * @description A binary file's byte-pattern fingerprint as a PNG. Resolved exactly
          *     like GET /api/file. Raw binary bytes never leave the server: only the head is
          *     read, and only the image computed from it is returned.
          */
@@ -420,8 +420,6 @@ export interface components {
             type: "directory";
             /** Path */
             path: string;
-            /** Fullpath */
-            fullPath: string;
             /** Children */
             children: (components["schemas"]["FileNode"] | components["schemas"]["DirNode"])[];
             /** Children Count */
@@ -524,8 +522,6 @@ export interface components {
             type: "file";
             /** Path */
             path: string;
-            /** Fullpath */
-            fullPath: string;
             /** Extension */
             extension: string;
             /** Size */
@@ -573,8 +569,16 @@ export interface components {
         };
         /** Manifest */
         Manifest: {
-            /** Root */
-            root: string;
+            /**
+             * Src
+             * @description The source this describes, as passed to /api/manifest. Every path in the manifest is relative to it, and reads send it back so the server can resolve the root again (api/routers/README.md).
+             */
+            src: string;
+            /**
+             * Branch
+             * @description Branch as passed alongside `src`, or null if none was
+             */
+            branch: string | null;
             /** Scanned At */
             scanned_at: string;
             /** Content Signature */
@@ -600,7 +604,7 @@ export interface components {
             pending: ("metadata" | "history")[];
             /**
              * Readmepath
-             * @description Absolute path of the root README, or null if there isn't one
+             * @description Repo-relative path of the root README, or null if there isn't one
              */
             readmePath: string | null;
             /**
@@ -718,8 +722,6 @@ export interface components {
         };
         /** SignatureResponse */
         SignatureResponse: {
-            /** Root */
-            root: string;
             /** Scanned At */
             scanned_at: string;
             /** Content Signature */
@@ -918,7 +920,11 @@ export interface operations {
     get_file_api_file_get: {
         parameters: {
             query: {
-                /** @description Absolute path inside a scanned root */
+                /** @description The manifest's `src`: which repo to read from */
+                src: string;
+                /** @description The manifest's `branch`, as it was passed to /api/manifest */
+                branch?: string | null;
+                /** @description Path relative to that repo's root */
                 path: string;
                 /** @description Blob sha to read instead of the working tree */
                 sha?: string | null;
@@ -963,7 +969,11 @@ export interface operations {
     get_fingerprint_api_fingerprint_get: {
         parameters: {
             query: {
-                /** @description Absolute path inside a scanned root */
+                /** @description The manifest's `src`: which repo to read from */
+                src: string;
+                /** @description The manifest's `branch`, as it was passed to /api/manifest */
+                branch?: string | null;
+                /** @description Path relative to that repo's root */
                 path: string;
                 /** @description Version marker; never read, only cached against */
                 mtime?: string | null;
@@ -1006,6 +1016,10 @@ export interface operations {
     get_commit_api_commit_get: {
         parameters: {
             query: {
+                /** @description The manifest's `src`: whose history to read */
+                src: string;
+                /** @description The manifest's `branch`, as it was passed to /api/manifest */
+                branch?: string | null;
                 sha: string;
             };
             header?: never;

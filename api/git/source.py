@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
+from typing import NamedTuple
 from enum import StrEnum
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from api.git.cmd import git_argv
 from api.core.constants import ErrorCode
 from api.git.clone import (
     BranchNotFoundError,
+    clone_dir_for,
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
@@ -48,6 +50,22 @@ _WORKTREE_GITDIR_ERROR_BARE = (
 # Terse on purpose: the UI pairs this with a "how to enable" notice + link, so
 # the restart instructions here would just duplicate it.
 _LOCAL_DISABLED_ERROR = "local repositories are disabled"
+
+# A read names a source the client saw a manifest for, so "not on disk" means
+# the clone was swept or never happened here, not that the URL is wrong.
+_UNSCANNED_ERROR = "source is not on disk: scan it first"
+_NOT_A_REPO_ERROR = "path is not inside a git working tree"
+
+
+@dataclass(frozen=True)
+class SourceRef:
+    """The (src, branch) a scan was asked for, carried on the manifest it built.
+
+    Reads send it back instead of an absolute path: `branch` has to be the value
+    AS PASSED, since that is what the clone directory keys on."""
+
+    src: str
+    branch: str | None = None
 
 
 @dataclass
@@ -166,6 +184,78 @@ def resolve_local(src: str) -> Path:
         raise ResolveError(400, "path is not a directory")
     if not _is_git_working_tree(target):
         raise ResolveError(400, _local_git_error(target))
+    return target
+
+
+def get_repo_root(ref: SourceRef) -> Path:
+    """The directory this source already occupies, or ResolveError: 404 when it
+    is not on disk, 403 when local paths are off.
+
+    Strict on purpose, in the `get()`-raises sense: reads call this, and a read
+    may not clone. resolve_source is the one that creates. It is also cheaper —
+    no `git rev-parse` either, since a city asks for hundreds of files at once."""
+    kind = classify(ref.src)
+    if kind is SourceKind.INVALID:
+        raise ResolveError(400, "unrecognized source: pass a local path or a git URL")
+    if kind is SourceKind.LOCAL:
+        if not local_repos_allowed():
+            raise ResolveError(403, _LOCAL_DISABLED_ERROR)
+        root = Path(ref.src).expanduser()
+    else:
+        root = clone_dir_for(ref.src, ref.branch)
+    try:
+        resolved = root.resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise ResolveError(404, _UNSCANNED_ERROR)
+    if not resolved.is_dir():
+        raise ResolveError(404, _UNSCANNED_ERROR)
+    # A clone dir is a repo by construction; a local path is whatever was typed,
+    # and reads must reach no further than a scan of the same path could.
+    if kind is SourceKind.LOCAL and not _inside_a_working_tree(resolved):
+        raise ResolveError(404, _NOT_A_REPO_ERROR)
+    return resolved
+
+
+def _inside_a_working_tree(root: Path) -> bool:
+    """Whether `root` sits in a git working tree, by the marker alone.
+
+    Stats rather than `git rev-parse`: this runs per file read. Ancestors too,
+    because resolve_local admits a subdirectory of a repo, and `.git` is a file
+    in a linked worktree, so `exists` covers both."""
+    return any((d / ".git").exists() for d in (root, *root.parents))
+
+
+class RepoFile(NamedTuple):
+    """One file, and the repo it was found in. Both, because reading a past
+    version of it takes the repo as well as the path."""
+
+    root: Path
+    path: Path
+
+
+def repo_file(ref: SourceRef, rel_path: str, *, must_exist: bool = True) -> RepoFile:
+    """THE read path, whole: which repo, is it allowed, is it there, and does
+    `rel_path` stay inside it. Every /api read goes through this or nothing."""
+    root = get_repo_root(ref)
+    return RepoFile(root, within(root, rel_path, must_exist=must_exist))
+
+
+def within(root: Path, rel_path: str, *, must_exist: bool = True) -> Path:
+    """`rel_path` resolved under `root`, or ResolveError if it lands outside.
+
+    An absolute or `..`-laden path is not a special case: resolve() normalizes
+    it, and the containment check below is what refuses it. `must_exist=False`
+    for a path that is legitimately absent from the working tree — a Timeline
+    blob names a path as it stood at some past commit — which is safe because a
+    path that does not exist has no symlink of its own to redirect through."""
+    try:
+        target = (root / rel_path).resolve(strict=must_exist)
+    # ValueError too: a NUL byte in the path raises it rather than OSError, and
+    # that is a malformed request, not a server fault.
+    except (OSError, RuntimeError, ValueError):
+        raise ResolveError(404, "not found")
+    if target != root and root not in target.parents:
+        raise ResolveError(403, "path is outside the repo")
     return target
 
 

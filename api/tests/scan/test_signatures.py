@@ -16,6 +16,7 @@ from api.models.manifest import DateRanges, DirNode, FileNode
 from api.models.manifest import SignatureResponse
 from api.scan.scanner import signature_tree
 from api.scan.signatures import derive_tree_signals
+from api.git import SourceRef
 from api.tests.conftest import (
     CacheRedirectMixin,
     FIXTURE,
@@ -110,7 +111,7 @@ class SignatureTreeTests(CacheRedirectMixin, unittest.TestCase):
     def test_signature_response_shape(self):
         fields = set(SignatureResponse.model_fields)
         # Exactly these three — no tree / repo, which is the whole point.
-        self.assertEqual(fields, {"root", "scanned_at", "content_signature"})
+        self.assertEqual(fields, {"scanned_at", "content_signature"})
 
     def test_signature_changes_when_tracked_file_changes(self):
         # Add a tracked file, signature must shift; remove it, restored.
@@ -270,7 +271,7 @@ class TreeSignatureTests(unittest.TestCase):
             (root / "hello.py").write_text("x = 1\n")
             (root / "world.py").write_text("y = 2\n")
             commit_all(root)
-            events = list(scan_tree(td))
+            events = list(scan_tree(td, SourceRef(td)))
         self.assertEqual(len(events), 3)
         skeleton_sig = events[0].manifest.structure_signature
         final_sig = events[-1].manifest.structure_signature
@@ -290,7 +291,7 @@ class TreeSignatureTests(unittest.TestCase):
             init_repo(root)
             (root / "a.py").write_text("x = 1\n" * 100)
             commit_all(root)
-            events = list(scan_tree(td))
+            events = list(scan_tree(td, SourceRef(td)))
         skeleton = events[0].manifest
         final = events[1].manifest
         # Metadata-sensitive signature changes between skeleton and final.
