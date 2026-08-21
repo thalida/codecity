@@ -33,8 +33,7 @@ const FAMILY_LABEL: Record<TransferFamily, string> = {
   [TransferFamily.Source]: 'Source Settings',
 };
 
-// The source family's two rows are not stores, so they carry their own ids.
-const PROJECT_ROW = 'project';
+// Not a store, so it carries its own id.
 const EXCLUDES_ROW = 'excludes';
 
 /** One tickable line: a settings group, or the open project's hidden paths. */
@@ -49,15 +48,17 @@ function groupRow(group: TransferGroup, stores: readonly SettingStore[]): Transf
   return { id: `group:${group.key}`, label: group.label, family: group.family, stores };
 }
 
-const SOURCE_ROWS: TransferRow[] = [
-  { id: PROJECT_ROW, label: 'Project and branch', family: TransferFamily.Source, stores: [] },
-  { id: EXCLUDES_ROW, label: 'Excluded from city', family: TransferFamily.Source, stores: [] },
-];
+const EXCLUDES_ROW_DEF: TransferRow = {
+  id: EXCLUDES_ROW,
+  label: 'Excluded from city',
+  family: TransferFamily.Source,
+  stores: [],
+};
 
 /** Everything this browser could send: every group, plus what the open project
  *  hides. Always offered, since "I hide nothing" is a thing worth sending. */
 function exportRows(groups: readonly TransferGroup[]): TransferRow[] {
-  return [...groups.map((g) => groupRow(g, g.stores)), ...SOURCE_ROWS];
+  return [...groups.map((g) => groupRow(g, g.stores)), EXCLUDES_ROW_DEF];
 }
 
 /** Only what the file actually carries, so an import never offers to reset a
@@ -69,8 +70,7 @@ function importRows(groups: readonly TransferGroup[], parsed: ParsedSettingsFile
     const stores = group.stores.filter((s) => covered.has(s));
     if (stores.length > 0) rows.push(groupRow(group, stores));
   }
-  if (parsed.project) rows.push(SOURCE_ROWS[0]);
-  if (parsed.excludes) rows.push(SOURCE_ROWS[1]);
+  if (parsed.excludes) rows.push(EXCLUDES_ROW_DEF);
   return rows;
 }
 
@@ -84,7 +84,6 @@ function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): 
   for (const row of rows) {
     if (off.has(row.id)) continue;
     if (row.id === EXCLUDES_ROW) selection.excludes = true;
-    else if (row.id === PROJECT_ROW) selection.project = true;
     else byFamily[row.family].push(...row.stores);
   }
   for (const family of TRANSFER_FAMILIES) selection[family] = byFamily[family];
@@ -243,7 +242,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         {mode === 'import' && (
           <p class="transfer-lede">
             Each ticked section is replaced by the file&rsquo;s version of it. Sections the file
-            does not carry are left alone. Hidden paths apply to whichever project you end up in.
+            does not carry are left alone. Hidden paths apply to the city you have open.
           </p>
         )}
         {checklist()}

@@ -43,6 +43,7 @@ markSettingStore(SCALAR);
 const DEFAULTS = { A: 5, B: true };
 const SRC = 'https://github.com/thalida/codecity';
 const OTHER_SRC = '/Users/someone/else/codecity';
+const THIRD_SRC = 'https://github.com/thalida/other';
 
 beforeEach(() => {
   localStorage.clear();
@@ -65,7 +66,6 @@ const select = (over: Partial<TransferSelection>): TransferSelection => ({
 
 const renderOnly = select({ render: [STORE] });
 const excludesOnly = select({ excludes: true });
-const projectOnly = select({ project: true });
 
 describe('buildSettingsFile', () => {
   it('stamps the kind and version every reader checks first', () => {
@@ -97,33 +97,20 @@ describe('buildSettingsFile', () => {
     expect(file.source).toBeUndefined();
   });
 
-  it("sends the open project's hidden paths, and nothing about the project", () => {
+  it("sends the open repo's hidden paths, and the repo they were tuned against", () => {
+    CURRENT_SOURCE.value = { src: SRC, branch: 'main' };
     setExcludesFor(SRC, ['vendor', 'dist']);
-    expect(buildSettingsFile(excludesOnly).source).toEqual({ EXCLUDES: ['dist', 'vendor'] });
+    expect(buildSettingsFile(excludesOnly).source).toEqual({
+      EXCLUDES: { src: SRC, branch: 'main', paths: ['dist', 'vendor'] },
+    });
   });
 
   // Not a missing answer: "I hide nothing here" is worth sending, and under
   // replace semantics it is what clears the importer's list.
-  it('sends an empty list when the project hides nothing', () => {
-    expect(buildSettingsFile(excludesOnly).source).toEqual({ EXCLUDES: [] });
-  });
-});
-
-describe('buildSettingsFile — the project itself', () => {
-  it('sends the open project and its branch', () => {
-    CURRENT_SOURCE.value = { src: SRC, branch: 'main' };
-    expect(buildSettingsFile(projectOnly).source).toEqual({
-      PROJECT: { src: SRC, branch: 'main' },
+  it('sends an empty list when the repo hides nothing', () => {
+    expect(buildSettingsFile(excludesOnly).source).toEqual({
+      EXCLUDES: { src: SRC, paths: [] },
     });
-  });
-
-  it('leaves the branch off when the source carries none', () => {
-    expect(buildSettingsFile(projectOnly).source).toEqual({ PROJECT: { src: SRC } });
-  });
-
-  it('sends no project when none is open', () => {
-    CURRENT_SOURCE.value = null;
-    expect(buildSettingsFile(projectOnly).source).toBeUndefined();
   });
 });
 
@@ -164,9 +151,12 @@ describe('parseSettingsFile', () => {
     expect(parsed.unknownStores).toEqual(['GONE']);
   });
 
-  it('reads the exclude list back out of the scan family', () => {
+  it('reads the exclude list back out of the source family', () => {
     setExcludesFor(SRC, ['vendor']);
-    expect(parseSettingsFile(text(buildSettingsFile(excludesOnly))).excludes).toEqual(['vendor']);
+    expect(parseSettingsFile(text(buildSettingsFile(excludesOnly))).excludes).toEqual({
+      src: SRC,
+      paths: ['vendor'],
+    });
   });
 });
 
@@ -205,9 +195,9 @@ describe('applySettingsFile', () => {
     expect(report.skipped).toEqual(['TEST_TRANSFER.A']);
   });
 
-  // The point of carrying paths and nothing else: another machine's clone of
-  // the same repo sits at a different path, so it is a different key.
-  it('applies the hidden paths to the project open now, not the one in the file', () => {
+  // The repo in the file is provenance, not a destination: another machine's
+  // clone of it sits at a different path, so it is a different key entirely.
+  it('applies the hidden paths to the repo open now, not the one in the file', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
@@ -216,33 +206,35 @@ describe('applySettingsFile', () => {
     expect(EXCLUDES.value).toEqual({ [sourceKey(OTHER_SRC)]: ['vendor'] });
   });
 
-  it('applies no hidden paths when no project is open to apply them to', () => {
+  // The key is computed from the repo you are in, so the write can only land in
+  // that repo's slot: every other repo's list is copied across untouched.
+  it("leaves every other repo's hidden paths alone", () => {
+    setExcludesFor(SRC, ['vendor']);
+    const parsed = parse(excludesOnly);
+    EXCLUDES.value = { [sourceKey(THIRD_SRC)]: ['keep-me'] };
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(EXCLUDES.value).toEqual({
+      [sourceKey(THIRD_SRC)]: ['keep-me'],
+      [sourceKey(OTHER_SRC)]: ['vendor'],
+    });
+  });
+
+  it('never moves you to the repo the file names', () => {
+    setExcludesFor(SRC, ['vendor']);
+    const parsed = parse(excludesOnly);
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(CURRENT_SOURCE.value).toEqual({ src: OTHER_SRC });
+  });
+
+  it('applies no hidden paths when no repo is open to apply them to', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
     CURRENT_SOURCE.value = null;
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({});
-  });
-
-  // Ticked together, the hidden paths belong to the project being opened, not
-  // to the one being left behind.
-  it('lands the hidden paths on the project the same import opens', () => {
-    CURRENT_SOURCE.value = { src: SRC };
-    setExcludesFor(SRC, ['vendor']);
-    const parsed = parse(select({ excludes: true, project: true }));
-    EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
-    applySettingsFile(parsed, select({ excludes: true, project: true }));
-    expect(EXCLUDES.value).toEqual({ [sourceKey(SRC)]: ['vendor'] });
-  });
-
-  it('leaves the project alone when only the hidden paths were ticked', () => {
-    CURRENT_SOURCE.value = { src: SRC };
-    const parsed = parse(select({ excludes: true, project: true }));
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
-    applySettingsFile(parsed, excludesOnly);
-    expect(CURRENT_SOURCE.value).toEqual({ src: OTHER_SRC });
   });
 
   // The panel's Save is nowhere near this menu, so a staged edit left behind

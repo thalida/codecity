@@ -134,12 +134,14 @@ An import **replaces** each ticked store: defaults first, then the file over the
 top. A store the file never names is left alone. Everything is offered every
 time, whether or not it differs from stock.
 
-`source` carries two reserved keys. `EXCLUDES` holds the open project's hidden
-paths as plain strings, naming no project: an import applies them to whichever
-project it lands you in, so someone else's list works on your own copy of a repo
-checked out at a different path. `PROJECT` holds `{ src, branch? }`, and
-importing it navigates there — ticked alongside `EXCLUDES`, the paths land on the
-project being opened rather than the one being left.
+`source` carries one reserved key, `EXCLUDES`, holding the open repo's hidden
+paths plus the `src` and `branch` they were tuned against. Those two are
+**provenance only**. The stored key is a one-way hash of the src, so another
+machine's clone of the same repo — checked out at another path — hashes
+differently and would never match; the file therefore carries plain path strings
+and an import writes them under the key of the repo _you_ have open. It never
+moves you to the repo the file names, and it touches no other repo's list. An
+empty list is a real value there too, and clears what you were hiding.
 
 A file states `kind` and `version` up front and is refused outright if either is
 wrong, rather than half-applied. Within a file that does load, each value is

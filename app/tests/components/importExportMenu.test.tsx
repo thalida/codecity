@@ -98,7 +98,7 @@ describe('ImportExportMenu', () => {
   // offered: whether anything is hidden is the export's answer, not its gate.
   it('lists a row per group, under a head per family', () => {
     mount();
-    expect(rowLabels()).toEqual(['Look', 'Theme', 'Project and branch', 'Excluded from city']);
+    expect(rowLabels()).toEqual(['Look', 'Theme', 'Excluded from city']);
     const heads = Array.from(panel().querySelectorAll('.popover-group-title')).map(
       (el) => el.textContent
     );
@@ -147,7 +147,7 @@ describe('ImportExportMenu', () => {
   it('offers only the sections the file carries', async () => {
     mount();
     LOOK.value = { A: 9 };
-    for (const label of ['Theme', 'Project and branch', 'Excluded from city']) {
+    for (const label of ['Theme', 'Excluded from city']) {
       act(() => {
         box(label).checked = false;
         box(label).dispatchEvent(new Event('change', { bubbles: true }));
@@ -167,21 +167,14 @@ describe('ImportExportMenu', () => {
     mount();
     act(() => button('Export selected').click());
     await flush();
-    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual(['vendor']);
+    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual({ src: REPO, paths: ['vendor'] });
   });
 
-  it('sends an empty list when the project hides nothing', async () => {
+  it('sends an empty list when the repo hides nothing', async () => {
     mount();
     act(() => button('Export selected').click());
     await flush();
-    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual([]);
-  });
-
-  it('sends the project so importing the file opens it', async () => {
-    mount();
-    act(() => button('Export selected').click());
-    await flush();
-    expect(JSON.parse(downloaded).source.PROJECT).toEqual({ src: REPO });
+    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual({ src: REPO, paths: [] });
   });
 
   it('applies the ticked sections and reports it', async () => {
