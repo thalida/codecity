@@ -12,6 +12,7 @@ import {
   buildSettingsFile,
   parseSettingsFile,
   applySettingsFile,
+  excludesOrigin,
   storePart,
   EXCLUDES_PART,
   SettingsFileError,
@@ -23,6 +24,10 @@ import {
 } from '@/state/settings/transfer';
 
 const PANEL_LABEL = 'Import & Export';
+
+// Under the family it qualifies, the way ScanMenu footnotes its own excludes.
+// Excludes are the one thing here whose scope is not the whole app.
+const EXPORT_SCAN_NOTE = 'Only for the repo you have open.';
 
 // One per menu these settings actually live in, so the picker names them the
 // way you already know them.
@@ -124,6 +129,14 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   }, [isOpen]);
 
   const rows = mode === 'import' && parsed ? importRows(groups, parsed) : exportRows(groups);
+  // Naming the repo beats warning about it: the city on screen may well be it.
+  const origin = mode === 'import' && parsed ? excludesOrigin(parsed) : null;
+  const scanNote =
+    mode !== 'import'
+      ? EXPORT_SCAN_NOTE
+      : origin
+        ? `Saved for ${origin.src}${origin.branch ? `@${origin.branch}` : ''}`
+        : 'Saved per repo.';
   const chosen = rows.filter((r) => !off.has(r.id));
 
   const toggleRow = (id: string, on: boolean) => {
@@ -191,22 +204,25 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
               {FAMILY_LABEL[family]}
             </label>
           </div>
-          <ul class="transfer-list">
-            {inFamily.map((row) => (
-              <li key={row.id} class="transfer-row">
-                <input
-                  type="checkbox"
-                  class="setting-toggle"
-                  id={`transfer-${row.id}`}
-                  checked={!off.has(row.id)}
-                  onChange={(e) => toggleRow(row.id, e.currentTarget.checked)}
-                />
-                <label class="transfer-row-label" for={`transfer-${row.id}`}>
-                  {row.label}
-                </label>
-              </li>
-            ))}
-          </ul>
+          <div class="transfer-body">
+            <ul class="transfer-list">
+              {inFamily.map((row) => (
+                <li key={row.id} class="transfer-row">
+                  <input
+                    type="checkbox"
+                    class="setting-toggle"
+                    id={`transfer-${row.id}`}
+                    checked={!off.has(row.id)}
+                    onChange={(e) => toggleRow(row.id, e.currentTarget.checked)}
+                  />
+                  <label class="transfer-row-label" for={`transfer-${row.id}`}>
+                    {row.label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {family === TransferFamily.Scan && <p class="popover-hint popover-prose">{scanNote}</p>}
+          </div>
         </section>
       );
     });
@@ -214,14 +230,14 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   const body = () => {
     if (mode === 'error') {
       return (
-        <p class="transfer-message" role="alert">
+        <p class="transfer-message popover-prose" role="alert">
           {error}
         </p>
       );
     }
     if (mode === 'done') {
       return (
-        <p class="transfer-message" role="status">
+        <p class="transfer-message popover-prose" role="status">
           Settings imported.
           {report && report.skipped.length > 0 && (
             <>
@@ -231,18 +247,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         </p>
       );
     }
-    return (
-      <>
-        {/* Above the list in import, not under it: it changes what you tick. */}
-        {mode === 'import' && (
-          <p class="transfer-lede">
-            Each ticked section is replaced by the file&rsquo;s version of it. Sections the file
-            does not carry are left alone. Hidden paths apply to the city you have open.
-          </p>
-        )}
-        {checklist()}
-      </>
-    );
+    return <>{checklist()}</>;
   };
 
   const actions = (close: (refocus: boolean) => void) => {

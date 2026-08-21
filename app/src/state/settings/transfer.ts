@@ -210,6 +210,14 @@ export function parseSettingsFile(
   return { file, parts, unknownKeys };
 }
 
+/** Which repo a file's hidden paths will be filed under, for the UI to name.
+ *  Null when it carries none, or carries a list that names no repo. */
+export function excludesOrigin(parsed: ParsedSettingsFile): TransferExcludes | null {
+  const raw = parsed.file[TransferFamily.Scan]?.[EXCLUDES_PART.key];
+  const excludes = readExcludes(raw);
+  return excludes?.src ? excludes : null;
+}
+
 /** What an import could not use: a field the file set to something the schema
  *  does not allow, or one this build has dropped. */
 export interface ImportReport {

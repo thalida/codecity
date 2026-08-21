@@ -138,6 +138,19 @@ describe('ImportExportMenu', () => {
     expect(box('Theme').checked).toBe(true);
   });
 
+  // Naming the repo beats warning about it, since the city on screen may be it.
+  it('names the repo an imported exclude list will be filed under', async () => {
+    CURRENT_SOURCE.value = { src: REPO, branch: 'main' };
+    setExcludesFor(REPO, ['vendor']);
+    mount();
+    act(() => button('Export selected').click());
+    await flush();
+
+    await pickFile(downloaded);
+    const note = panel().querySelector('.popover-hint')!;
+    expect(note.textContent).toBe(`Saved for ${REPO}@main`);
+  });
+
   it('refuses a file that is not ours, and says why', async () => {
     mount();
     await pickFile('{"hello":true}');

@@ -159,6 +159,13 @@
   padding-block: var(--cc-space-3);
 }
 
+/* Prose measures unwrapped, so in a max-content panel one sentence would set the
+   width. Zero preferred width opts out; the percentage min restores it after. */
+.popover-prose {
+  width: 0;
+  min-width: 100%;
+}
+
 /* Trailing, not leading: prose above a control makes you read before you can
    act. Centred so it reads as a footnote rather than another row. */
 .popover-hint {
