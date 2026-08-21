@@ -19,7 +19,7 @@ export const TIMELINE_SECTION: SectionNode = {
     },
     {
       key: 'timeline-deleted',
-      label: 'Deleted files',
+      label: 'Deleted Files',
       description:
         'A file deleted before the scrubbed commit leaves a faint gray stub instead of vanishing; its folder’s roads and plots fade in too.',
       children: [

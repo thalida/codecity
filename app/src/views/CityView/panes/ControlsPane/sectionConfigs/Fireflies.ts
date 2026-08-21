@@ -35,7 +35,7 @@ export const FIREFLIES_SECTION: SectionNode = {
     },
     {
       key: 'orbit-ring',
-      label: 'Orbit ring',
+      label: 'Orbit Ring',
       children: [field(FIREFLIES, 'ORBIT_RING_ENABLED'), field(FIREFLIES, 'ORBIT_RING_THICKNESS')],
     },
   ],

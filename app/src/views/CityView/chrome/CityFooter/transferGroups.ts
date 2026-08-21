@@ -41,19 +41,19 @@ export const TRANSFER_GROUPS: TransferGroup[] = [
   ...CONTROLS_SECTIONS.map(fromSection),
   {
     key: 'accent',
-    label: 'Accent color',
+    label: 'Accent Color',
     family: TransferFamily.Appearance,
     stores: [ACCENT_THEME],
   },
   {
     key: 'surface',
-    label: 'Surface palette',
+    label: 'Surface Palette',
     family: TransferFamily.Appearance,
     stores: [SURFACE_THEME],
   },
   {
     key: 'syntax',
-    label: 'Syntax theme',
+    label: 'Syntax Theme',
     family: TransferFamily.Appearance,
     stores: [SYNTAX_THEME],
   },

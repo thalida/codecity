@@ -13,14 +13,14 @@ export const VIEW_SECTION: SectionNode = {
   children: [
     {
       key: 'project-view',
-      label: 'Project view',
+      label: 'Project View',
       description:
         'How a project opens, and where Reset view returns to. Always looking at the root gem.',
       children: [field(CAMERA, 'ELEVATION'), field(CAMERA, 'AZIMUTH')],
     },
     {
       key: 'home-backdrop',
-      label: 'Home backdrop',
+      label: 'Home Backdrop',
       description: 'The turntable circling the gem behind the home page, where you pick a project.',
       children: [
         field(HOME_BACKDROP, 'ELEVATION'),

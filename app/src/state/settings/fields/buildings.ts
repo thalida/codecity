@@ -223,7 +223,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Selected opacity',
-    tip: 'The selected outline always uses an animated rainbow color, tunable under Post-processing.',
+    tip: 'The selected outline always uses an animated rainbow color, tunable under Post-Processing.',
   },
 
   // ── Transition timing — live ──

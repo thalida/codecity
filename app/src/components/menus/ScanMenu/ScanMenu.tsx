@@ -60,7 +60,7 @@ function ExcludesGroup() {
         {/* On the title, not each row: it says what the whole group is, and
             repeating it down the list adds a column without adding meaning. */}
         <EyeOff class="icon popover-group-icon" aria-hidden="true" />
-        <h3 class="popover-group-title">Excluded from city</h3>
+        <h3 class="popover-group-title">Excluded from City</h3>
         {paths.length > 0 && (
           <button
             type="button"

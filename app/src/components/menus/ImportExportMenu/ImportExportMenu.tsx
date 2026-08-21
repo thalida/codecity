@@ -57,7 +57,7 @@ function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
 function excludesRow(): TransferRow {
   return {
     id: EXCLUDES_ROW,
-    label: 'Excluded from city',
+    label: 'Excluded from City',
     family: EXCLUDES_PART.family,
     parts: [EXCLUDES_PART],
   };

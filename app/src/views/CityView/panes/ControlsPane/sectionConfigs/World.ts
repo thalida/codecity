@@ -73,7 +73,7 @@ export const WORLD_SECTION: SectionNode = {
     {
       // Sun lighting is fixed in code, so the haze is all there is to tune.
       key: 'ground-haze',
-      label: 'Ground haze',
+      label: 'Ground Haze',
       children: [
         field(SCENE, 'FOG_ENABLED'),
         field(SCENE, 'FOG_COLOR'),

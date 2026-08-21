@@ -6,12 +6,12 @@ import { RAINBOW, BLOOM } from '@/state/settings/fields/effects';
 
 export const POST_PROCESSING_SECTION: SectionNode = {
   key: 'post-processing',
-  label: 'Post-processing',
+  label: 'Post-Processing',
   description: 'Effects applied to the whole frame.',
   children: [
     {
       key: 'bloom',
-      label: 'Bloom (HDR neon glow)',
+      label: 'Bloom (HDR Neon Glow)',
       children: [
         field(BLOOM, 'ENABLED'),
         field(BLOOM, 'STRENGTH'),
@@ -21,7 +21,7 @@ export const POST_PROCESSING_SECTION: SectionNode = {
     },
     {
       key: 'highlight',
-      label: 'Highlight color',
+      label: 'Highlight Color',
       description: 'The animated rainbow shared by selected outlines and the path line.',
       children: [
         field(RAINBOW, 'SPEED'),

@@ -98,7 +98,7 @@ describe('ImportExportMenu', () => {
   // offered: whether anything is hidden is the export's answer, not its gate.
   it('lists a row per group, under a head per family', () => {
     mount();
-    expect(rowLabels()).toEqual(['Look', 'Theme', 'Excluded from city']);
+    expect(rowLabels()).toEqual(['Look', 'Theme', 'Excluded from City']);
     const heads = Array.from(panel().querySelectorAll('.popover-group-title')).map(
       (el) => el.textContent
     );
@@ -109,7 +109,7 @@ describe('ImportExportMenu', () => {
     mount();
     expect(box('Look').checked).toBe(true);
     expect(box('Theme').checked).toBe(true);
-    expect(box('Excluded from city').checked).toBe(true);
+    expect(box('Excluded from City').checked).toBe(true);
   });
 
   it('writes only the ticked groups into the file', async () => {
@@ -160,7 +160,7 @@ describe('ImportExportMenu', () => {
   it('offers only the sections the file carries', async () => {
     mount();
     LOOK.value = { A: 9 };
-    for (const label of ['Theme', 'Excluded from city']) {
+    for (const label of ['Theme', 'Excluded from City']) {
       act(() => {
         box(label).checked = false;
         box(label).dispatchEvent(new Event('change', { bubbles: true }));
