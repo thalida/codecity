@@ -227,6 +227,10 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 `just --list` has the rest: per-suite tests, formatting, image builds, README
 assets, release and deploy.
 
+The API documents itself at `/api/docs` on any running instance, live at
+[codecity.io/api/docs](https://codecity.io/api/docs). `/api/openapi.json` is the
+schema behind it, and what `just gen-types` reads.
+
 ### Your settings
 
 Two env files, split by whether everyone shares the values:
