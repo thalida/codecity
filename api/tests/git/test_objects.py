@@ -4,8 +4,11 @@ blob_stats_batch)."""
 
 import os
 import subprocess
+import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from api.git import objects
 from api.git.objects import (
     resolve_ref,
     ls_tree_files,
@@ -258,3 +261,40 @@ def test_read_blob_separates_undownloaded_from_unknown(tmp_path):
     )
     _is_partial_clone.cache_clear()
     assert read_blob(tmp_path, absent) is BlobUnavailable.PENDING
+
+
+class LfsPointerOidTests(unittest.TestCase):
+    """The oid is read out of repo content, so it decides a path only if it
+    looks like one thing: 64 hex characters."""
+
+    @staticmethod
+    def _pointer(oid: str) -> bytes:
+        return (
+            b"version https://git-lfs.github.com/spec/v1\n"
+            b"oid sha256:" + oid.encode() + b"\nsize 24\n"
+        )
+
+    def test_a_real_oid_is_a_pointer(self) -> None:
+        self.assertTrue(objects.is_lfs_pointer(self._pointer("c" * 64)))
+
+    def test_a_traversing_oid_is_not(self) -> None:
+        self.assertFalse(
+            objects.is_lfs_pointer(self._pointer("../" * 8 + "etc/passwd"))
+        )
+
+    def test_near_misses_are_not(self) -> None:
+        for oid in ["c" * 63, "c" * 65, "C" * 64, "", "g" * 64, "c" * 62 + "/.."]:
+            self.assertFalse(objects.is_lfs_pointer(self._pointer(oid)), oid)
+
+    def test_a_traversing_oid_reads_nothing_outside_the_repo(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            repo = tmp / "repo"
+            (repo / ".git").mkdir(parents=True)
+            (tmp / "OUTSIDE.txt").write_text("TOP-SECRET-OUTSIDE-REPO\n")
+            oid = "../" * 8 + str(tmp / "OUTSIDE.txt").lstrip("/")
+            body, _size = objects._resolve_lfs(
+                repo, self._pointer(oid), 24, download=False
+            )
+            # Not a pointer, so it is returned as the bytes it is.
+            self.assertNotIn(b"TOP-SECRET", body)

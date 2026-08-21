@@ -340,6 +340,36 @@ def test_unpulled_lfs_blob_is_202(client: TestClient, tmp_path: Path) -> None:
     assert r.json()["status"] == "pending"
 
 
+def test_a_pointer_aimed_out_of_the_repo_is_not_followed(
+    client: TestClient, project: Path, tmp_path: Path
+) -> None:
+    """An lfs oid names a path under .git/lfs/objects, and it comes out of a file
+    the repo's author wrote. A non-hex one used to be joined in whole: two
+    segments of `../` reset the join to the filesystem root and the read landed
+    wherever it was pointed. It is not an oid, so it is not a pointer."""
+    outside = tmp_path / "OUTSIDE.txt"
+    outside.write_text("TOP-SECRET-OUTSIDE-REPO\n")
+    oid = "../" * 10 + str(outside).lstrip("/")
+    (project / "src" / "poison.bin").write_bytes(
+        b"version https://git-lfs.github.com/spec/v1\n"
+        b"oid sha256:" + oid.encode() + b"\nsize 24\n"
+    )
+
+    r = _get(client, "/api/file", project, "src/poison.bin")
+    assert r.status_code == 200
+    assert "TOP-SECRET" not in r.text
+    # Served as its own bytes: unreadable as a pointer means it is just a file.
+    assert r.text.startswith("version https://git-lfs.github.com/spec/v1")
+
+
+def test_a_nul_byte_in_the_path_is_refused_not_a_500(
+    client: TestClient, project: Path
+) -> None:
+    """Path.resolve raises ValueError rather than OSError for one, and a
+    malformed request is the client's fault, not the server's."""
+    assert _get(client, "/api/file", project, "src/a\x00.txt").status_code == 404
+
+
 def test_fingerprint_refuses_to_fingerprint_a_pointer_stub(
     client: TestClient, project: Path
 ) -> None:

@@ -250,7 +250,9 @@ def within(root: Path, rel_path: str, *, must_exist: bool = True) -> Path:
     path that does not exist has no symlink of its own to redirect through."""
     try:
         target = (root / rel_path).resolve(strict=must_exist)
-    except (OSError, RuntimeError):
+    # ValueError too: a NUL byte in the path raises it rather than OSError, and
+    # that is a malformed request, not a server fault.
+    except (OSError, RuntimeError, ValueError):
         raise ResolveError(404, "not found")
     if target != root and root not in target.parents:
         raise ResolveError(403, "path is outside the repo")
