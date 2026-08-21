@@ -9,6 +9,7 @@ import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
+import DOMPurify from 'dompurify';
 import type { DirNode, Manifest, SourceRef } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { sourceOf } from '@/utils/manifest';
@@ -20,7 +21,7 @@ import {
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */
-function _renderReadme(text: string, source: SourceRef, readmePath: string): string {
+export function renderReadme(text: string, source: SourceRef, readmePath: string): string {
   const md = new Marked();
   md.use({
     walkTokens(token) {
@@ -33,7 +34,9 @@ function _renderReadme(text: string, source: SourceRef, readmePath: string): str
       }
     },
   });
-  return md.parse(text) as string;
+  // A README is somebody else's file, and this lands in innerHTML: marked
+  // stopped sanitizing at v5 and says to bring your own.
+  return DOMPurify.sanitize(md.parse(text) as string);
 }
 
 // ── State shape ───────────────────────────────────────────────────────────────
@@ -95,7 +98,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
           if (!cancelled)
             setBody({
               kind: InfoBodyKind.Markdown,
-              html: _renderReadme(text, source, readmePath),
+              html: renderReadme(text, source, readmePath),
             });
         })
         .catch((err) => {
