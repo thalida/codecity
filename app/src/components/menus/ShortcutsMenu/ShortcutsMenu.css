@@ -31,7 +31,7 @@
   min-width: 0;
   gap: var(--cc-space-3) var(--cc-space-6);
   align-items: center;
-  margin: var(--cc-space-3) 0 0;
+  margin: 0;
   padding-inline: var(--popover-inset);
   font-size: var(--cc-font-xs);
 }

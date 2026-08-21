@@ -1,10 +1,13 @@
 /* ImportExportMenu — the two checklists inside the transfer panel. A row is a
    tick plus a name, not a setting row: nothing here has a value to show. */
 
+/* Indented by the head's tick, so a section reads as sitting under its family
+   rather than beside it: same column of ticks, one level in. */
 .transfer-list {
   list-style: none;
-  margin: var(--cc-space-1) 0 0;
+  margin: 0;
   padding: 0;
+  padding-inline-start: calc(var(--cc-toggle-size) + var(--cc-space-2));
 }
 
 .transfer-row {
@@ -27,15 +30,9 @@
   color: var(--cc-text-strong);
 }
 
-.transfer-row-hint {
-  flex: 0 0 auto;
-  font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
-}
-
 /* Above the list it governs, so it is read before you tick rather than after. */
 .transfer-lede {
-  margin: 0 0 var(--cc-space-4);
+  margin: 0;
   padding-inline: var(--popover-inset);
   font-size: var(--cc-font-xs);
   line-height: var(--cc-lh-base);
@@ -45,7 +42,7 @@
 /* Not .popover-hint: this is the panel's whole content in the error and result
    states, so it reads as a paragraph rather than a footnote under one. */
 .transfer-message {
-  margin: 0 0 var(--cc-space-4);
+  margin: 0;
   padding-inline: var(--popover-inset);
   font-size: var(--cc-font-sm);
   line-height: var(--cc-lh-base);
@@ -55,4 +52,10 @@
 .transfer-row .setting-toggle,
 .popover-group-head .setting-toggle {
   flex: 0 0 auto;
+}
+
+/* A gap the shared button box does not carry, since most actions are label-only.
+   Its own class, so ScanMenu's grid-with-a-note keeps its tighter row gap. */
+.popover-panel .transfer-action {
+  gap: var(--cc-space-3);
 }

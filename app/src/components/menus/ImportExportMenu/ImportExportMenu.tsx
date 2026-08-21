@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { NAMED_EXCLUDES } from '@/state/stores/source';
 import type { SettingStore } from '@/state/settings/schema';
 import {
   buildSettingsFile,
@@ -16,6 +15,8 @@ import {
   applySettingsFile,
   SettingsFileError,
   TransferFamily,
+  TRANSFER_FAMILIES,
+  noSelection,
   type ImportReport,
   type ParsedSettingsFile,
   type TransferGroup,
@@ -24,78 +25,70 @@ import {
 
 const PANEL_LABEL = 'Import & Export';
 
+// One per menu these settings actually live in, so the picker names them the
+// way you already know them.
 const FAMILY_LABEL: Record<TransferFamily, string> = {
-  [TransferFamily.World]: 'World',
-  [TransferFamily.Scan]: 'Scan',
+  [TransferFamily.Render]: 'Render Settings',
+  [TransferFamily.Appearance]: 'Appearance',
+  [TransferFamily.Source]: 'Source Settings',
 };
 
-/** One tickable line: a settings group, or one repo's exclude list. */
+// The source family's two rows are not stores, so they carry their own ids.
+const PROJECT_ROW = 'project';
+const EXCLUDES_ROW = 'excludes';
+
+/** One tickable line: a settings group, or the open project's hidden paths. */
 interface TransferRow {
   id: string;
   label: string;
-  hint?: string;
   family: TransferFamily;
   stores: readonly SettingStore[];
-  excludeSrc?: string;
-}
-
-function pathsHint(count: number): string {
-  return `${count} ${count === 1 ? 'path' : 'paths'}`;
 }
 
 function groupRow(group: TransferGroup, stores: readonly SettingStore[]): TransferRow {
   return { id: `group:${group.key}`, label: group.label, family: group.family, stores };
 }
 
-function excludeRow(src: string, label: string, count: number): TransferRow {
-  return {
-    id: `exclude:${src}`,
-    label,
-    hint: pathsHint(count),
-    family: TransferFamily.Scan,
-    stores: [],
-    excludeSrc: src,
-  };
-}
+const SOURCE_ROWS: TransferRow[] = [
+  { id: PROJECT_ROW, label: 'Project and branch', family: TransferFamily.Source, stores: [] },
+  { id: EXCLUDES_ROW, label: 'Excluded from city', family: TransferFamily.Source, stores: [] },
+];
 
-/** Everything this browser could send: every group, plus each exclude list that
- *  can still be named. */
-function exportRows(
-  groups: readonly TransferGroup[],
-  excludes: readonly { src: string; label: string; paths: string[] }[]
-): TransferRow[] {
-  return [
-    ...groups.map((g) => groupRow(g, g.stores)),
-    ...excludes.map((e) => excludeRow(e.src, e.label, e.paths.length)),
-  ];
+/** Everything this browser could send: every group, plus what the open project
+ *  hides. Always offered, since "I hide nothing" is a thing worth sending. */
+function exportRows(groups: readonly TransferGroup[]): TransferRow[] {
+  return [...groups.map((g) => groupRow(g, g.stores)), ...SOURCE_ROWS];
 }
 
 /** Only what the file actually carries, so an import never offers to reset a
  *  section its author chose not to send. */
 function importRows(groups: readonly TransferGroup[], parsed: ParsedSettingsFile): TransferRow[] {
-  const covered = new Set<SettingStore>([...parsed.world, ...parsed.scan]);
+  const covered = new Set<SettingStore>(Object.values(parsed.stores).flat());
   const rows: TransferRow[] = [];
   for (const group of groups) {
     const stores = group.stores.filter((s) => covered.has(s));
     if (stores.length > 0) rows.push(groupRow(group, stores));
   }
-  for (const entry of parsed.excludes) {
-    rows.push(excludeRow(entry.src, entry.src, entry.paths.length));
-  }
+  if (parsed.project) rows.push(SOURCE_ROWS[0]);
+  if (parsed.excludes) rows.push(SOURCE_ROWS[1]);
   return rows;
 }
 
 function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): TransferSelection {
-  const world: SettingStore[] = [];
-  const scan: SettingStore[] = [];
-  const excludeSrcs: string[] = [];
+  const selection = noSelection();
+  const byFamily: Record<TransferFamily, SettingStore[]> = {
+    [TransferFamily.Render]: [],
+    [TransferFamily.Appearance]: [],
+    [TransferFamily.Source]: [],
+  };
   for (const row of rows) {
     if (off.has(row.id)) continue;
-    if (row.excludeSrc) excludeSrcs.push(row.excludeSrc);
-    else if (row.family === TransferFamily.World) world.push(...row.stores);
-    else scan.push(...row.stores);
+    if (row.id === EXCLUDES_ROW) selection.excludes = true;
+    else if (row.id === PROJECT_ROW) selection.project = true;
+    else byFamily[row.family].push(...row.stores);
   }
-  return { world, scan, excludeSrcs };
+  for (const family of TRANSFER_FAMILIES) selection[family] = byFamily[family];
+  return selection;
 }
 
 // In the document, and revoked a tick late: some browsers cancel the download if
@@ -143,10 +136,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     setReport(null);
   }, [isOpen]);
 
-  const rows =
-    mode === 'import' && parsed
-      ? importRows(groups, parsed)
-      : exportRows(groups, NAMED_EXCLUDES.value);
+  const rows = mode === 'import' && parsed ? importRows(groups, parsed) : exportRows(groups);
   const chosen = rows.filter((r) => !off.has(r.id));
 
   const toggleRow = (id: string, on: boolean) => {
@@ -186,7 +176,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     setMode('done');
   };
 
-  const families = Object.values(TransferFamily).filter((f) => rows.some((r) => r.family === f));
+  const families = TRANSFER_FAMILIES.filter((f) => rows.some((r) => r.family === f));
 
   const checklist = () =>
     families.map((family) => {
@@ -220,7 +210,6 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
                 <label class="transfer-row-label" for={`transfer-${row.id}`}>
                   {row.label}
                 </label>
-                {row.hint && <span class="transfer-row-hint">{row.hint}</span>}
               </li>
             ))}
           </ul>
@@ -254,15 +243,10 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         {mode === 'import' && (
           <p class="transfer-lede">
             Each ticked section is replaced by the file&rsquo;s version of it. Sections the file
-            does not carry are left alone.
+            does not carry are left alone. Hidden paths apply to whichever project you end up in.
           </p>
         )}
         {checklist()}
-        {mode === 'export' && (
-          <p class="popover-hint">
-            Settings live in this browser only, so a file is how they travel.
-          </p>
-        )}
       </>
     );
   };
@@ -272,7 +256,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
       return (
         <button
           type="button"
-          class="btn-secondary popover-action"
+          class="btn-secondary popover-action transfer-action"
           onClick={() => setMode('export')}
         >
           Back
@@ -281,7 +265,11 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     }
     if (mode === 'done') {
       return (
-        <button type="button" class="btn-primary popover-action" onClick={() => close(true)}>
+        <button
+          type="button"
+          class="btn-primary popover-action transfer-action"
+          onClick={() => close(true)}
+        >
           Done
         </button>
       );
@@ -291,7 +279,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         <>
           <button
             type="button"
-            class="btn-primary popover-action"
+            class="btn-primary popover-action transfer-action"
             disabled={chosen.length === 0}
             onClick={onApply}
           >
@@ -299,7 +287,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
           </button>
           <button
             type="button"
-            class="btn-secondary popover-action"
+            class="btn-secondary popover-action transfer-action"
             onClick={() => setMode('export')}
           >
             Cancel
@@ -311,7 +299,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
       <>
         <button
           type="button"
-          class="btn-primary popover-action"
+          class="btn-primary popover-action transfer-action"
           disabled={chosen.length === 0}
           onClick={() =>
             downloadJson(
@@ -325,7 +313,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         </button>
         <button
           type="button"
-          class="btn-secondary popover-action"
+          class="btn-secondary popover-action transfer-action"
           onClick={() => fileRef.current?.click()}
         >
           <FolderInput class="icon" aria-hidden="true" />

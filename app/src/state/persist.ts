@@ -156,10 +156,3 @@ export function getDefault(store: AnySignalLike, key?: string): any {
 export function getStoreName(store: AnySignalLike): string | undefined {
   return _STORES.get(store as Signal<any>)?.name;
 }
-
-/** Exactly what persistence would write for this store right now: object stores
- *  as a diff against their defaults, scalars whole. Null when nothing differs. */
-export function nonDefaultValue(store: AnySignalLike): unknown {
-  const entry = _STORES.get(store as Signal<any>);
-  return entry ? _serializeEntry(store.value, entry) : null;
-}

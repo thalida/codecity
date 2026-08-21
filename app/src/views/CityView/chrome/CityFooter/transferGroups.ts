@@ -1,6 +1,6 @@
 // chrome/CityFooter/transferGroups.ts — how a settings file is sliced up for
-// the picker. The world groups are read off the controls pane's own sections,
-// so a field that moves section moves group with it and neither can drift.
+// the picker: one family per menu these settings live in. Render is read off
+// the controls pane's own sections, so the two cannot drift apart.
 
 import type { SectionChild, SectionNode } from '@/types/controls';
 import type { SettingStore } from '@/state/settings/schema';
@@ -9,6 +9,10 @@ import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsP
 import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/fields/theme';
 import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+
+/** Settings that deliberately do not travel. Auto-refresh is a fact about this
+ *  machine and this server, not a look: an imported 1s poll hammers a stranger's. */
+export const NON_TRANSFERABLE: SettingStore[] = [LIVE_UPDATES];
 
 function collectStores(children: SectionChild[], into: SettingStore[]): void {
   for (const child of children) {
@@ -26,25 +30,31 @@ function fromSection(section: SectionNode): TransferGroup {
   return {
     key: section.key,
     label: section.label ?? section.key,
-    family: TransferFamily.World,
+    family: TransferFamily.Render,
     stores,
   };
 }
 
-/** Every group a settings file can carry, in picker order. Appearance and
- *  auto-refresh have no section of their own, so they are named here. */
+/** Every group a settings file can carry, in picker order. Render mirrors the
+ *  controls pane's sections; Appearance mirrors the fields in its own menu. */
 export const TRANSFER_GROUPS: TransferGroup[] = [
   ...CONTROLS_SECTIONS.map(fromSection),
   {
-    key: 'appearance',
-    label: 'Appearance',
-    family: TransferFamily.World,
-    stores: [ACCENT_THEME, SURFACE_THEME, SYNTAX_THEME],
+    key: 'accent',
+    label: 'Accent color',
+    family: TransferFamily.Appearance,
+    stores: [ACCENT_THEME],
   },
   {
-    key: 'updates',
-    label: 'Auto-refresh',
-    family: TransferFamily.Scan,
-    stores: [LIVE_UPDATES],
+    key: 'surface',
+    label: 'Surface palette',
+    family: TransferFamily.Appearance,
+    stores: [SURFACE_THEME],
+  },
+  {
+    key: 'syntax',
+    label: 'Syntax theme',
+    family: TransferFamily.Appearance,
+    stores: [SYNTAX_THEME],
   },
 ];

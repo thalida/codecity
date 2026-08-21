@@ -7,6 +7,7 @@ import { TREES } from '@/state/settings/fields/trees';
 import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { TransferFamily } from '@/state/settings/transfer';
+import { NON_TRANSFERABLE } from '@/views/CityView/chrome/CityFooter/transferGroups';
 
 const registered = (): SettingStore[] => {
   const out: SettingStore[] = [];
@@ -17,15 +18,27 @@ const registered = (): SettingStore[] => {
 describe('TRANSFER_GROUPS', () => {
   // The whole point of the picker is that everything the app persists as a
   // setting can travel. A new store lands here or it silently cannot be shared.
-  it('places every registered settings store in exactly one group', () => {
+  it('places every registered settings store in exactly one group, or declares why not', () => {
     const counts = new Map<SettingStore, number>();
     for (const group of TRANSFER_GROUPS) {
       for (const store of group.stores) counts.set(store, (counts.get(store) ?? 0) + 1);
     }
     const misplaced = registered()
+      .filter((store) => !NON_TRANSFERABLE.includes(store))
       .filter((store) => counts.get(store) !== 1)
       .map((store) => `${getStoreName(store) ?? '?'}: ${counts.get(store) ?? 0} groups`);
     expect(misplaced).toEqual([]);
+  });
+
+  // The opt-out is a declaration, not a hiding place: a store cannot both
+  // refuse to travel and sit in a group that would send it.
+  it('never groups a store it also declares non-transferable', () => {
+    const grouped = TRANSFER_GROUPS.flatMap((g) => g.stores);
+    expect(NON_TRANSFERABLE.filter((s) => grouped.includes(s))).toEqual([]);
+  });
+
+  it('keeps auto-refresh out: a poll interval is about this machine, not a look', () => {
+    expect(NON_TRANSFERABLE.includes(LIVE_UPDATES)).toBe(true);
   });
 
   it('offers no empty group, which would tick and export nothing', () => {
@@ -41,7 +54,7 @@ describe('TRANSFER_GROUPS', () => {
     for (const section of CONTROLS_SECTIONS) {
       const group = TRANSFER_GROUPS.find((g) => g.key === section.key);
       expect(group?.label).toBe(section.label);
-      expect(group?.family).toBe(TransferFamily.World);
+      expect(group?.family).toBe(TransferFamily.Render);
     }
   });
 
@@ -54,9 +67,10 @@ describe('TRANSFER_GROUPS', () => {
     expect(holds('trees', TREES)).toBe(true);
   });
 
-  it('carries the panel-less settings the controls pane never shows', () => {
-    expect(holds('appearance', SYNTAX_THEME)).toBe(true);
-    expect(holds('updates', LIVE_UPDATES)).toBe(true);
-    expect(TRANSFER_GROUPS.find((g) => g.key === 'updates')?.family).toBe(TransferFamily.Scan);
+  // Its own family, and a row per field, so you can send just the syntax theme.
+  it('mirrors the appearance menu one group per field', () => {
+    expect(holds('syntax', SYNTAX_THEME)).toBe(true);
+    const appearance = TRANSFER_GROUPS.filter((g) => g.family === TransferFamily.Appearance);
+    expect(appearance.map((g) => g.key)).toEqual(['accent', 'surface', 'syntax']);
   });
 });

@@ -2,9 +2,9 @@
 // what an import is allowed to put back. Which settings are offered, and under
 // what names, is the controls layer's call; this only moves them. See README.md.
 
-import { getStoreName, getDefault, nonDefaultValue } from '@/state/persist';
-import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
-import { sourceKey } from '@/utils/sources';
+import { getStoreName, getDefault } from '@/state/persist';
+import { CURRENT_SOURCE, activeExcludePathsFor, setExcludesFor } from '@/state/stores/source';
+import { cityHref, navigate } from '@/router/location';
 import { coerceFieldValue, forEachSettingStore, type SettingStore } from './schema';
 import { dropDrafts } from './drafts';
 
@@ -15,32 +15,33 @@ export const SETTINGS_FILE_KIND = 'codecity-settings';
  *  file from another version is refused rather than half-applied. */
 export const SETTINGS_FILE_VERSION = 1;
 
-/** One repo's hidden paths. The store keys these by a one-way hash of the src,
- *  so the src itself travels and the hash is re-derived on the far side. */
-export interface RepoExcludes {
-  src: string;
-  paths: string[];
-}
-
-/** The reserved key under `scan` that carries exclude lists. Every other key in
- *  either family is a store's persisted name. */
+/** Reserved keys under `source`: the project itself, and what it hides. Every
+ *  other key in a family is a store's persisted name. */
 const EXCLUDES_KEY = 'EXCLUDES';
+const PROJECT_KEY = 'PROJECT';
+
+/** The project a file was exported from, and that importing it opens. */
+export interface TransferProject {
+  src: string;
+  branch?: string;
+}
 
 /** The file. A store appears under its family iff it was selected, `{}` meaning
  *  "sent, and stock": that is what lets an import reproduce a whole look. */
-export interface SettingsFile {
+export interface SettingsFile extends Partial<Record<TransferFamily, Record<string, unknown>>> {
   kind: typeof SETTINGS_FILE_KIND;
   version: number;
-  world?: Record<string, unknown>;
-  scan?: Record<string, unknown>;
 }
 
-/** The file's two halves, kept apart everywhere because they answer different
- *  questions: what the city looks like, and what gets scanned. */
+/** The file's top-level parts, one per menu the settings actually live in.
+ *  Each is a key in the file; adding one is this line. */
 export enum TransferFamily {
-  World = 'world',
-  Scan = 'scan',
+  Render = 'render',
+  Appearance = 'appearance',
+  Source = 'source',
 }
+
+export const TRANSFER_FAMILIES: readonly TransferFamily[] = Object.values(TransferFamily);
 
 /** A named bundle of stores that travels as a unit. The bundles themselves are
  *  the controls layer's to name; this is only their shape. */
@@ -53,11 +54,18 @@ export interface TransferGroup {
 
 /** Which settings one export or import covers. The two directions take the same
  *  shape: an import applies the subset of the file the user ticked. */
-export interface TransferSelection {
-  world: readonly SettingStore[];
-  scan: readonly SettingStore[];
-  /** Repo srcs whose exclude lists travel. */
-  excludeSrcs: readonly string[];
+export type TransferSelection = Record<TransferFamily, readonly SettingStore[]> & {
+  /** Whether the open project's exclude list travels. */
+  excludes: boolean;
+  /** Whether the project itself travels, so importing opens it. */
+  project: boolean;
+};
+
+/** An empty selection, to spread a partial one over. */
+export function noSelection(): TransferSelection {
+  const sel = { excludes: false, project: false } as unknown as TransferSelection;
+  for (const family of TRANSFER_FAMILIES) sel[family] = [];
+  return sel;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -79,34 +87,39 @@ function storesByName(): Map<string, SettingStore> {
 
 // ── Export ─────────────────────────────────────────────────────────────────
 
+// Every value, defaults included: the file is a snapshot of how things look
+// right now, not a list of what was changed away from stock.
 function familyPayload(stores: readonly SettingStore[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const store of stores) {
     const name = getStoreName(store);
-    if (!name) continue;
-    // A diff reads as a list of choices and survives a later change to a default
-    // it never mentions. A scalar has nothing to diff: its value IS the choice.
-    out[name] = isPlainObject(getDefault(store)) ? (nonDefaultValue(store) ?? {}) : store.value;
+    if (name) out[name] = store.value;
   }
   return out;
 }
 
 /** Build the file for a selection. Families the selection does not touch are
- *  left off entirely, so a world-only export is a file with no `scan` key. */
+ *  left off entirely, so a render-only export is a file with no `scan` key. */
 export function buildSettingsFile(selection: TransferSelection): SettingsFile {
   const file: SettingsFile = { kind: SETTINGS_FILE_KIND, version: SETTINGS_FILE_VERSION };
 
-  if (selection.world.length > 0) file.world = familyPayload(selection.world);
-
-  const scan = familyPayload(selection.scan);
-  if (selection.excludeSrcs.length > 0) {
-    const map = EXCLUDES.peek();
-    scan[EXCLUDES_KEY] = selection.excludeSrcs.map<RepoExcludes>((src) => ({
-      src,
-      paths: [...(map[sourceKey(src)] ?? [])],
-    }));
+  const current = CURRENT_SOURCE.peek();
+  for (const family of TRANSFER_FAMILIES) {
+    const payload = familyPayload(selection[family]);
+    if (family === TransferFamily.Source) {
+      // An empty list is a real answer, not a missing one: "I hide nothing here".
+      if (selection.excludes) {
+        payload[EXCLUDES_KEY] = current ? activeExcludePathsFor(current.src) : [];
+      }
+      if (selection.project && current) {
+        payload[PROJECT_KEY] = {
+          src: current.src,
+          ...(current.branch ? { branch: current.branch } : {}),
+        } satisfies TransferProject;
+      }
+    }
+    if (Object.keys(payload).length > 0) file[family] = payload;
   }
-  if (Object.keys(scan).length > 0) file.scan = scan;
 
   return file;
 }
@@ -121,25 +134,26 @@ export interface ParsedSettingsFile {
   file: SettingsFile;
   /** Stores the file covers, by family. A store the file names but this build
    *  no longer has is dropped here and counted in `unknownStores`. */
-  world: SettingStore[];
-  scan: SettingStore[];
-  excludes: RepoExcludes[];
+  stores: Record<TransferFamily, SettingStore[]>;
+  /** Hidden paths the file carries, or null if it carries none at all. */
+  excludes: string[] | null;
+  /** The project the file was exported from, or null if it carries none. */
+  project: TransferProject | null;
   /** Names the file carried that resolve to nothing. Reported rather than
    *  ignored: a file that only half-applies should say so. */
   unknownStores: string[];
 }
 
-function parseExcludes(raw: unknown): RepoExcludes[] {
-  if (!Array.isArray(raw)) return [];
-  const out: RepoExcludes[] = [];
-  for (const entry of raw) {
-    if (!isPlainObject(entry)) continue;
-    const { src, paths } = entry;
-    if (typeof src !== 'string' || !src) continue;
-    if (!Array.isArray(paths) || !paths.every((p) => typeof p === 'string')) continue;
-    out.push({ src, paths: paths as string[] });
-  }
-  return out;
+function parseExcludes(raw: unknown): string[] | null {
+  if (!Array.isArray(raw) || !raw.every((p) => typeof p === 'string')) return null;
+  return raw as string[];
+}
+
+function parseProject(raw: unknown): TransferProject | null {
+  if (!isPlainObject(raw)) return null;
+  const { src, branch } = raw;
+  if (typeof src !== 'string' || !src) return null;
+  return typeof branch === 'string' && branch ? { src, branch } : { src };
 }
 
 function resolveFamily(
@@ -150,7 +164,7 @@ function resolveFamily(
   if (!isPlainObject(raw)) return [];
   const stores: SettingStore[] = [];
   for (const name of Object.keys(raw)) {
-    if (name === EXCLUDES_KEY) continue;
+    if (name === EXCLUDES_KEY || name === PROJECT_KEY) continue;
     const store = byName.get(name);
     if (store) stores.push(store);
     else unknown.push(name);
@@ -179,17 +193,19 @@ export function parseSettingsFile(text: string): ParsedSettingsFile {
   const file = raw as unknown as SettingsFile;
   const byName = storesByName();
   const unknownStores: string[] = [];
-  const parsed: ParsedSettingsFile = {
-    file,
-    world: resolveFamily(file.world, byName, unknownStores),
-    scan: resolveFamily(file.scan, byName, unknownStores),
-    excludes: parseExcludes(isPlainObject(file.scan) ? file.scan[EXCLUDES_KEY] : undefined),
-    unknownStores,
-  };
-  if (parsed.world.length + parsed.scan.length + parsed.excludes.length === 0) {
+  const stores = {} as Record<TransferFamily, SettingStore[]>;
+  let found = 0;
+  for (const family of TRANSFER_FAMILIES) {
+    stores[family] = resolveFamily(file[family], byName, unknownStores);
+    found += stores[family].length;
+  }
+  const source = file[TransferFamily.Source];
+  const excludes = parseExcludes(isPlainObject(source) ? source[EXCLUDES_KEY] : undefined);
+  const project = parseProject(isPlainObject(source) ? source[PROJECT_KEY] : undefined);
+  if (found === 0 && excludes === null && project === null) {
     throw new SettingsFileError('That file holds no settings this build recognises.');
   }
-  return parsed;
+  return { file, stores, excludes, project, unknownStores };
 }
 
 /** How many of a store's values an import could not use — a field the file set
@@ -235,20 +251,19 @@ export function applySettingsFile(
   const skipped: string[] = [];
   const touched: SettingStore[] = [];
 
-  for (const store of selection.world) {
-    if (!parsed.world.includes(store)) continue;
-    applyStore(store, payloadFor(parsed.file.world, getStoreName(store) ?? ''), skipped);
-    touched.push(store);
+  for (const family of TRANSFER_FAMILIES) {
+    for (const store of selection[family]) {
+      if (!parsed.stores[family].includes(store)) continue;
+      applyStore(store, payloadFor(parsed.file[family], getStoreName(store) ?? ''), skipped);
+      touched.push(store);
+    }
   }
-  for (const store of selection.scan) {
-    if (!parsed.scan.includes(store)) continue;
-    applyStore(store, payloadFor(parsed.file.scan, getStoreName(store) ?? ''), skipped);
-    touched.push(store);
-  }
-  for (const src of selection.excludeSrcs) {
-    const entry = parsed.excludes.find((e) => e.src === src);
-    if (entry) setExcludesFor(entry.src, entry.paths);
-  }
+  // Onto the project this import lands you in: the one it opens if the project
+  // travelled, else the one already open. The list itself names no project.
+  const opening = selection.project ? parsed.project : null;
+  const src = opening?.src ?? CURRENT_SOURCE.peek()?.src;
+  if (selection.excludes && parsed.excludes && src) setExcludesFor(src, parsed.excludes);
+  if (opening) navigate(cityHref(opening.src, opening.branch));
 
   dropDrafts(touched);
   return { skipped };

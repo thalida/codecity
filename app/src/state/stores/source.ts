@@ -251,26 +251,3 @@ export function removeExclude(path: string): void {
 export function clearExcludes(): void {
   setForCurrentRepo([]);
 }
-
-/** Every exclude list that can still be named, newest first. The key is a
- *  one-way hash, so a repo gone from RECENTS can no longer be identified. */
-export const NAMED_EXCLUDES: ReadonlySignal<
-  Array<{ src: string; label: string; paths: string[] }>
-> = computed(() => {
-  const map = EXCLUDES.value;
-  const cur = CURRENT_SOURCE.value;
-  const named: Array<{ src: string; label: string }> = [];
-  if (cur) named.push({ src: cur.src, label: SOURCE_INFO.value.label || cur.src });
-  for (const r of RECENTS.value) named.push({ src: r.src, label: r.label });
-
-  const seen = new Set<string>();
-  const rows: Array<{ src: string; label: string; paths: string[] }> = [];
-  for (const { src, label } of named) {
-    const key = repoKeyFor(src);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const paths = map[key];
-    if (paths?.length) rows.push({ src, label, paths });
-  }
-  return rows;
-});

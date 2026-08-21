@@ -115,6 +115,8 @@
   /* Pane edge to its content. Body padding, row insets and full-bleed margins
      all key off it, so they reflow together. */
   --cc-pane-inset: var(--cc-space-6);
+  /* A checkbox's box, so a list can indent under one by exactly its width. */
+  --cc-toggle-size: 20px;
   /* Both chrome bars. Sized so a cluster clears the edges on either side; two
      different heights read as a mistake once both held the same controls. */
   --cc-chrome-h: 44px;

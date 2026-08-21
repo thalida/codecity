@@ -120,22 +120,26 @@ subscribes to whatever that work reads and re-fires on its own writes.
 take the same `TransferSelection`, so neither is all-or-nothing: you pick what
 goes into the file, and pick again what comes out of it.
 
-The file has two families, `world` and `scan`, because they answer different
-questions: what the city looks like, and what gets scanned. Under each, a key is
-a store's **persisted name** — the same stable string `persist.ts` keys
-localStorage by — and its value is that store's diff against its defaults, built
-by the same serializer persistence uses.
+The file has one key per **family**: `render` (the controls pane), `appearance`
+(the appearance menu) and `source` (the project and what it hides). Adding one is
+a line in `TransferFamily`; everything else loops over `TRANSFER_FAMILIES`.
 
-A selected store always gets an entry, `{}` when nothing in it was overridden.
-That empty object is what makes the file mean "I sent you this section", not
-merely "here are my overrides": an import **replaces** each ticked store, so it
-reproduces the exporter's look rather than crossing it with the importer's. A
-store the file never names is left alone.
+Under a family, a key is a store's **persisted name** — the same stable string
+`persist.ts` keys localStorage by — and its value is that store's **whole
+value**, defaults included. The file is a snapshot of how things look right now,
+not a list of what was changed away from stock, so an import reproduces a look
+exactly without depending on what the defaults happened to be that day.
 
-Excludes are the exception to name-keyed entries. `EXCLUDES` is keyed by a
-one-way hash of the repo src, so the file carries `{ src, paths }` and the hash
-is re-derived on the far side. That also means a repo the app can no longer name
-(gone from `RECENTS`, and not the open one) cannot be exported at all.
+An import **replaces** each ticked store: defaults first, then the file over the
+top. A store the file never names is left alone. Everything is offered every
+time, whether or not it differs from stock.
+
+`source` carries two reserved keys. `EXCLUDES` holds the open project's hidden
+paths as plain strings, naming no project: an import applies them to whichever
+project it lands you in, so someone else's list works on your own copy of a repo
+checked out at a different path. `PROJECT` holds `{ src, branch? }`, and
+importing it navigates there — ticked alongside `EXCLUDES`, the paths land on the
+project being opened rather than the one being left.
 
 A file states `kind` and `version` up front and is refused outright if either is
 wrong, rather than half-applied. Within a file that does load, each value is
@@ -144,5 +148,7 @@ schema cannot use at all is skipped and reported.
 
 Which stores are grouped under which name is **not** here, for the same reason
 arrangement isn't: the controls layer owns that
-(`views/CityView/chrome/CityFooter/transferGroups.ts`, read off the pane's own
-sections so the two cannot drift).
+(`views/CityView/chrome/CityFooter/transferGroups.ts`). Render's groups are read
+off the pane's own sections so the two cannot drift, and that file also declares
+`NON_TRANSFERABLE` — settings that deliberately never travel, such as the
+auto-refresh interval, which describes your machine rather than a look.

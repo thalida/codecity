@@ -10,7 +10,7 @@ import {
   type FieldMap,
 } from '@/state/settings/schema';
 import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
-import { EXCLUDES, RECENTS, setExcludesFor } from '@/state/stores/source';
+import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 
@@ -32,8 +32,8 @@ const SCAN = settingSignal('TEST_MENU_SCAN', FIELDS);
 const REPO = 'https://github.com/thalida/codecity';
 
 const GROUPS: TransferGroup[] = [
-  { key: 'look', label: 'Look', family: TransferFamily.World, stores: [LOOK] },
-  { key: 'scan', label: 'Scan rules', family: TransferFamily.Scan, stores: [SCAN] },
+  { key: 'look', label: 'Look', family: TransferFamily.Render, stores: [LOOK] },
+  { key: 'theme', label: 'Theme', family: TransferFamily.Appearance, stores: [SCAN] },
 ];
 
 describe('ImportExportMenu', () => {
@@ -74,7 +74,7 @@ describe('ImportExportMenu', () => {
     LOOK.value = { A: 5 };
     SCAN.value = { A: 5 };
     EXCLUDES.value = {};
-    RECENTS.value = [];
+    CURRENT_SOURCE.value = { src: REPO };
     downloaded = '';
     vi.stubGlobal('URL', {
       ...URL,
@@ -94,19 +94,22 @@ describe('ImportExportMenu', () => {
     container.remove();
   });
 
-  it('lists a row per group, split by family', () => {
+  // Named for the menus these settings live in, and the excludes row is always
+  // offered: whether anything is hidden is the export's answer, not its gate.
+  it('lists a row per group, under a head per family', () => {
     mount();
-    expect(rowLabels()).toEqual(['Look', 'Scan rules']);
+    expect(rowLabels()).toEqual(['Look', 'Theme', 'Project and branch', 'Excluded from city']);
     const heads = Array.from(panel().querySelectorAll('.popover-group-title')).map(
       (el) => el.textContent
     );
-    expect(heads).toEqual(['World', 'Scan']);
+    expect(heads).toEqual(['Render Settings', 'Appearance', 'Source Settings']);
   });
 
   it('starts with everything ticked, so an export covers what you can see', () => {
     mount();
     expect(box('Look').checked).toBe(true);
-    expect(box('Scan rules').checked).toBe(true);
+    expect(box('Theme').checked).toBe(true);
+    expect(box('Excluded from city').checked).toBe(true);
   });
 
   it('writes only the ticked groups into the file', async () => {
@@ -114,25 +117,25 @@ describe('ImportExportMenu', () => {
     LOOK.value = { A: 9 };
     SCAN.value = { A: 3 };
     act(() => {
-      box('Scan rules').checked = false;
-      box('Scan rules').dispatchEvent(new Event('change', { bubbles: true }));
+      box('Theme').checked = false;
+      box('Theme').dispatchEvent(new Event('change', { bubbles: true }));
     });
     act(() => button('Export selected').click());
     await flush();
     const file = JSON.parse(downloaded);
-    expect(file.world).toEqual({ TEST_MENU_LOOK: { A: 9 } });
-    expect(file.scan).toBeUndefined();
+    expect(file.render).toEqual({ TEST_MENU_LOOK: { A: 9 } });
+    expect(file.appearance).toBeUndefined();
   });
 
   it('turns a whole family off from its head checkbox', () => {
     mount();
-    const head = panel().querySelector<HTMLInputElement>('#transfer-family-world')!;
+    const head = panel().querySelector<HTMLInputElement>('#transfer-family-render')!;
     act(() => {
       head.checked = false;
       head.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect(box('Look').checked).toBe(false);
-    expect(box('Scan rules').checked).toBe(true);
+    expect(box('Theme').checked).toBe(true);
   });
 
   it('refuses a file that is not ours, and says why', async () => {
@@ -144,10 +147,12 @@ describe('ImportExportMenu', () => {
   it('offers only the sections the file carries', async () => {
     mount();
     LOOK.value = { A: 9 };
-    act(() => {
-      box('Scan rules').checked = false;
-      box('Scan rules').dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    for (const label of ['Theme', 'Project and branch', 'Excluded from city']) {
+      act(() => {
+        box(label).checked = false;
+        box(label).dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
     act(() => button('Export selected').click());
     await flush();
     const body = downloaded;
@@ -157,23 +162,26 @@ describe('ImportExportMenu', () => {
     expect(rowLabels()).toEqual(['Look']);
   });
 
-  // The store keys these by a hash, so a repo it cannot name cannot be offered:
-  // being listed at all depends on the recents entry that names it.
-  it('offers each exclude list it can still name as its own row', () => {
-    RECENTS.value = [{ src: REPO, label: 'thalida/codecity', lastOpenedAt: 1 }];
-    setExcludesFor(REPO, ['vendor', 'dist']);
-    mount();
-    expect(rowLabels()).toContain('thalida/codecity');
-    expect(panel().querySelector('.transfer-row-hint')?.textContent).toBe('2 paths');
-  });
-
-  it('sends an exclude list under its src, not the hash it is stored by', async () => {
-    RECENTS.value = [{ src: REPO, label: 'thalida/codecity', lastOpenedAt: 1 }];
+  it("sends the open project's hidden paths, and nothing about the project", async () => {
     setExcludesFor(REPO, ['vendor']);
     mount();
     act(() => button('Export selected').click());
     await flush();
-    expect(JSON.parse(downloaded).scan.EXCLUDES).toEqual([{ src: REPO, paths: ['vendor'] }]);
+    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual(['vendor']);
+  });
+
+  it('sends an empty list when the project hides nothing', async () => {
+    mount();
+    act(() => button('Export selected').click());
+    await flush();
+    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual([]);
+  });
+
+  it('sends the project so importing the file opens it', async () => {
+    mount();
+    act(() => button('Export selected').click());
+    await flush();
+    expect(JSON.parse(downloaded).source.PROJECT).toEqual({ src: REPO });
   });
 
   it('applies the ticked sections and reports it', async () => {

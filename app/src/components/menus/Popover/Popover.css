@@ -62,8 +62,8 @@
   color: var(--cc-text-strong);
 }
 
-/* Block padding only: the inset is the children's, so the group rules run
-   full-bleed and every child's gap to the panel edge is the same one value. */
+/* Block padding only, so the group rules run full-bleed. Siblings are spaced by
+   the gap, never their own edge padding, which would stack against this inset. */
 .popover-body {
   flex: 1 1 auto;
   /* A flex item floors at its content height without this, so a long list grows
@@ -71,6 +71,9 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-inset);
   padding: var(--popover-inset) 0;
 }
 
@@ -78,6 +81,9 @@
    have to go looking for. */
 .popover-footer {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--popover-inset);
   padding: var(--popover-inset) 0;
   border-top: 1px solid var(--cc-border-subtle);
 }
@@ -89,6 +95,7 @@
      is shrink-to-fit at width:auto even as a block-level box. */
   display: flex;
   flex-direction: column;
+  gap: var(--popover-inset);
   /* A flex item floors at min-content unless told otherwise, which is how one
      wide table pushes the whole panel into horizontal scroll. */
   min-width: 0;
@@ -96,8 +103,8 @@
 .popover-group > * {
   min-width: 0;
 }
+/* The rule centres in the gap: the body's gap sits above it, this padding below. */
 .popover-group + .popover-group {
-  margin-top: var(--popover-inset);
   padding-top: var(--popover-inset);
   border-top: 1px solid var(--cc-border-subtle);
 }
@@ -133,7 +140,7 @@
 /* The rows borrowed from the settings pane, pulled onto the inset and off the
    sidebar's dense scale: a panel holds a few rows, not two hundred. */
 .popover-panel .setting-row {
-  padding-inline: var(--popover-inset);
+  padding: 0 var(--popover-inset);
   font-size: var(--cc-font-sm);
 }
 
@@ -151,14 +158,11 @@
   margin-inline: var(--popover-inset);
   padding-block: var(--cc-space-3);
 }
-.popover-panel .popover-action + .popover-action {
-  margin-top: var(--cc-space-2);
-}
 
 /* Trailing, not leading: prose above a control makes you read before you can
    act. Centred so it reads as a footnote rather than another row. */
 .popover-hint {
-  margin: var(--cc-space-3) 0 0;
+  margin: 0;
   padding-inline: var(--popover-inset);
   font-size: var(--cc-font-xs);
   line-height: var(--cc-lh-base);
@@ -169,7 +173,7 @@
 /* A state, not a caption: boxed so it can't be mistaken for subtitle copy. */
 .popover-empty {
   text-align: center;
-  margin: var(--cc-space-2) var(--popover-inset) 0;
+  margin-inline: var(--popover-inset);
   padding: var(--cc-space-5);
   border: 1px dashed var(--cc-border-input);
   border-radius: var(--cc-radius-sm);

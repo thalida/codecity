@@ -15,10 +15,12 @@ import {
   SettingsFileError,
   SETTINGS_FILE_KIND,
   SETTINGS_FILE_VERSION,
+  TransferFamily,
+  noSelection,
   type TransferSelection,
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
-import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
+import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
 
 const FIELDS = {
@@ -40,6 +42,7 @@ markSettingStore(SCALAR);
 
 const DEFAULTS = { A: 5, B: true };
 const SRC = 'https://github.com/thalida/codecity';
+const OTHER_SRC = '/Users/someone/else/codecity';
 
 beforeEach(() => {
   localStorage.clear();
@@ -47,6 +50,7 @@ beforeEach(() => {
   STORE.value = { ...DEFAULTS };
   SCALAR.value = 'stock';
   EXCLUDES.value = {};
+  CURRENT_SOURCE.value = { src: SRC };
 });
 
 afterAll(() => {
@@ -54,42 +58,72 @@ afterAll(() => {
   _unregisterForTests(SCALAR);
 });
 
-const worldOnly: TransferSelection = { world: [STORE], scan: [], excludeSrcs: [] };
+const select = (over: Partial<TransferSelection>): TransferSelection => ({
+  ...noSelection(),
+  ...over,
+});
+
+const renderOnly = select({ render: [STORE] });
+const excludesOnly = select({ excludes: true });
+const projectOnly = select({ project: true });
 
 describe('buildSettingsFile', () => {
   it('stamps the kind and version every reader checks first', () => {
-    const file = buildSettingsFile(worldOnly);
+    const file = buildSettingsFile(renderOnly);
     expect(file.kind).toBe(SETTINGS_FILE_KIND);
     expect(file.version).toBe(SETTINGS_FILE_VERSION);
   });
 
-  it('carries only the fields that differ from their defaults', () => {
+  // A snapshot, not a changelist: the file says what everything IS, so it
+  // reproduces a look without depending on what the defaults were that day.
+  it('carries every value, defaults included', () => {
     STORE.value = { A: 9, B: true };
-    expect(buildSettingsFile(worldOnly).world).toEqual({ TEST_TRANSFER: { A: 9 } });
+    expect(buildSettingsFile(renderOnly).render).toEqual({ TEST_TRANSFER: { A: 9, B: true } });
   });
 
-  // An empty object is not noise: it is how the file says "this section
-  // travelled, and it is stock", which is what lets an import reproduce a look.
-  it('carries a selected store with no overrides as an empty object', () => {
-    expect(buildSettingsFile(worldOnly).world).toEqual({ TEST_TRANSFER: {} });
+  it('carries a wholly untouched store at its full default values', () => {
+    expect(buildSettingsFile(renderOnly).render).toEqual({ TEST_TRANSFER: DEFAULTS });
   });
 
   it('carries a scalar store whole, since it has no diff to take', () => {
     SCALAR.value = 'nord';
-    const file = buildSettingsFile({ world: [SCALAR], scan: [], excludeSrcs: [] });
-    expect(file.world).toEqual({ TEST_TRANSFER_SCALAR: 'nord' });
+    const file = buildSettingsFile(select({ render: [SCALAR] }));
+    expect(file.render).toEqual({ TEST_TRANSFER_SCALAR: 'nord' });
   });
 
   it('leaves a family off entirely when nothing in it was selected', () => {
-    const file = buildSettingsFile(worldOnly);
-    expect(file.world).toBeDefined();
-    expect(file.scan).toBeUndefined();
+    const file = buildSettingsFile(renderOnly);
+    expect(file.render).toBeDefined();
+    expect(file.source).toBeUndefined();
   });
 
-  it('sends exclude lists under their src, not the hash they are stored by', () => {
+  it("sends the open project's hidden paths, and nothing about the project", () => {
     setExcludesFor(SRC, ['vendor', 'dist']);
-    const file = buildSettingsFile({ world: [], scan: [], excludeSrcs: [SRC] });
-    expect(file.scan).toEqual({ EXCLUDES: [{ src: SRC, paths: ['dist', 'vendor'] }] });
+    expect(buildSettingsFile(excludesOnly).source).toEqual({ EXCLUDES: ['dist', 'vendor'] });
+  });
+
+  // Not a missing answer: "I hide nothing here" is worth sending, and under
+  // replace semantics it is what clears the importer's list.
+  it('sends an empty list when the project hides nothing', () => {
+    expect(buildSettingsFile(excludesOnly).source).toEqual({ EXCLUDES: [] });
+  });
+});
+
+describe('buildSettingsFile — the project itself', () => {
+  it('sends the open project and its branch', () => {
+    CURRENT_SOURCE.value = { src: SRC, branch: 'main' };
+    expect(buildSettingsFile(projectOnly).source).toEqual({
+      PROJECT: { src: SRC, branch: 'main' },
+    });
+  });
+
+  it('leaves the branch off when the source carries none', () => {
+    expect(buildSettingsFile(projectOnly).source).toEqual({ PROJECT: { src: SRC } });
+  });
+
+  it('sends no project when none is open', () => {
+    CURRENT_SOURCE.value = null;
+    expect(buildSettingsFile(projectOnly).source).toBeUndefined();
   });
 });
 
@@ -101,50 +135,49 @@ describe('parseSettingsFile', () => {
   });
 
   it('refuses a JSON file that is not ours', () => {
-    expect(() => parseSettingsFile(text({ version: 1, world: {} }))).toThrow(SettingsFileError);
+    expect(() => parseSettingsFile(text({ version: 1, render: {} }))).toThrow(SettingsFileError);
   });
 
   // A file that outlives a shape change must refuse rather than half-apply.
   it('refuses a file written by a different version', () => {
-    const file = { ...buildSettingsFile(worldOnly), version: SETTINGS_FILE_VERSION + 1 };
+    const file = { ...buildSettingsFile(renderOnly), version: SETTINGS_FILE_VERSION + 1 };
     expect(() => parseSettingsFile(text(file))).toThrow(/version/);
   });
 
   it('refuses a file whose stores this build no longer has', () => {
-    const file = { kind: SETTINGS_FILE_KIND, version: SETTINGS_FILE_VERSION, world: { GONE: {} } };
+    const file = { kind: SETTINGS_FILE_KIND, version: SETTINGS_FILE_VERSION, render: { GONE: {} } };
     expect(() => parseSettingsFile(text(file))).toThrow(SettingsFileError);
   });
 
   it('resolves store names to the live stores', () => {
     STORE.value = { A: 9, B: true };
-    const parsed = parseSettingsFile(text(buildSettingsFile(worldOnly)));
-    expect(parsed.world).toEqual([STORE]);
-    expect(parsed.scan).toEqual([]);
+    const parsed = parseSettingsFile(text(buildSettingsFile(renderOnly)));
+    expect(parsed.stores[TransferFamily.Render]).toEqual([STORE]);
+    expect(parsed.stores[TransferFamily.Source]).toEqual([]);
   });
 
   it('reports a name it could not resolve beside the ones it could', () => {
-    const file = buildSettingsFile(worldOnly);
-    (file.world as Record<string, unknown>).GONE = {};
+    const file = buildSettingsFile(renderOnly);
+    (file.render as Record<string, unknown>).GONE = {};
     const parsed = parseSettingsFile(text(file));
-    expect(parsed.world).toEqual([STORE]);
+    expect(parsed.stores[TransferFamily.Render]).toEqual([STORE]);
     expect(parsed.unknownStores).toEqual(['GONE']);
   });
 
-  it('reads exclude lists back out of the scan family', () => {
+  it('reads the exclude list back out of the scan family', () => {
     setExcludesFor(SRC, ['vendor']);
-    const file = buildSettingsFile({ world: [], scan: [], excludeSrcs: [SRC] });
-    expect(parseSettingsFile(text(file)).excludes).toEqual([{ src: SRC, paths: ['vendor'] }]);
+    expect(parseSettingsFile(text(buildSettingsFile(excludesOnly))).excludes).toEqual(['vendor']);
   });
 });
 
 describe('applySettingsFile', () => {
-  const parse = (sel = worldOnly) => parseSettingsFile(JSON.stringify(buildSettingsFile(sel)));
+  const parse = (sel = renderOnly) => parseSettingsFile(JSON.stringify(buildSettingsFile(sel)));
 
-  it('replaces the section: a field the file does not mention goes back to default', () => {
+  it('replaces the section, so the importer keeps none of their own tuning', () => {
     STORE.value = { A: 9, B: true };
-    const parsed = parse(); // carries A only
-    STORE.value = { A: 1, B: false }; // ...and the importer has tuned B too
-    applySettingsFile(parsed, worldOnly);
+    const parsed = parse();
+    STORE.value = { A: 1, B: false };
+    applySettingsFile(parsed, renderOnly);
     expect(STORE.value).toEqual({ A: 9, B: true });
   });
 
@@ -152,32 +185,64 @@ describe('applySettingsFile', () => {
     STORE.value = { A: 9, B: true };
     const parsed = parse();
     STORE.value = { A: 1, B: false };
-    applySettingsFile(parsed, { world: [], scan: [], excludeSrcs: [] });
+    applySettingsFile(parsed, noSelection());
     expect(STORE.value).toEqual({ A: 1, B: false });
   });
 
   it('clamps a value the field still accepts rather than dropping it', () => {
     const parsed = parse();
-    (parsed.file.world as Record<string, Record<string, unknown>>).TEST_TRANSFER.A = 99;
-    const report = applySettingsFile(parsed, worldOnly);
+    (parsed.file.render as Record<string, Record<string, unknown>>).TEST_TRANSFER.A = 99;
+    const report = applySettingsFile(parsed, renderOnly);
     expect(STORE.value.A).toBe(10);
     expect(report.skipped).toEqual([]);
   });
 
   it('names a value the schema cannot accept and leaves that field at default', () => {
     const parsed = parse();
-    (parsed.file.world as Record<string, Record<string, unknown>>).TEST_TRANSFER.A = 'wide';
-    const report = applySettingsFile(parsed, worldOnly);
+    (parsed.file.render as Record<string, Record<string, unknown>>).TEST_TRANSFER.A = 'wide';
+    const report = applySettingsFile(parsed, renderOnly);
     expect(STORE.value.A).toBe(5);
     expect(report.skipped).toEqual(['TEST_TRANSFER.A']);
   });
 
-  it('re-keys an exclude list onto this browser hash of the same src', () => {
+  // The point of carrying paths and nothing else: another machine's clone of
+  // the same repo sits at a different path, so it is a different key.
+  it('applies the hidden paths to the project open now, not the one in the file', () => {
     setExcludesFor(SRC, ['vendor']);
-    const parsed = parse({ world: [], scan: [], excludeSrcs: [SRC] });
+    const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
-    applySettingsFile(parsed, { world: [], scan: [], excludeSrcs: [SRC] });
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(EXCLUDES.value).toEqual({ [sourceKey(OTHER_SRC)]: ['vendor'] });
+  });
+
+  it('applies no hidden paths when no project is open to apply them to', () => {
+    setExcludesFor(SRC, ['vendor']);
+    const parsed = parse(excludesOnly);
+    EXCLUDES.value = {};
+    CURRENT_SOURCE.value = null;
+    applySettingsFile(parsed, excludesOnly);
+    expect(EXCLUDES.value).toEqual({});
+  });
+
+  // Ticked together, the hidden paths belong to the project being opened, not
+  // to the one being left behind.
+  it('lands the hidden paths on the project the same import opens', () => {
+    CURRENT_SOURCE.value = { src: SRC };
+    setExcludesFor(SRC, ['vendor']);
+    const parsed = parse(select({ excludes: true, project: true }));
+    EXCLUDES.value = {};
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, select({ excludes: true, project: true }));
     expect(EXCLUDES.value).toEqual({ [sourceKey(SRC)]: ['vendor'] });
+  });
+
+  it('leaves the project alone when only the hidden paths were ticked', () => {
+    CURRENT_SOURCE.value = { src: SRC };
+    const parsed = parse(select({ excludes: true, project: true }));
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(CURRENT_SOURCE.value).toEqual({ src: OTHER_SRC });
   });
 
   // The panel's Save is nowhere near this menu, so a staged edit left behind
@@ -187,14 +252,14 @@ describe('applySettingsFile', () => {
     const parsed = parse();
     STORE.value = { ...DEFAULTS };
     setDraft(STORE, 'A', 2);
-    applySettingsFile(parsed, worldOnly);
+    applySettingsFile(parsed, renderOnly);
     expect(getEffective(STORE, 'A')).toBe(9);
   });
 
   it('round-trips a tuned store through a file back to the same values', () => {
     STORE.value = { A: 7, B: false };
     SCALAR.value = 'nord';
-    const sel = { world: [STORE, SCALAR], scan: [], excludeSrcs: [] };
+    const sel = select({ render: [STORE, SCALAR] });
     const parsed = parseSettingsFile(JSON.stringify(buildSettingsFile(sel)));
     STORE.value = { ...DEFAULTS };
     SCALAR.value = 'stock';
