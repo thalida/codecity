@@ -1,8 +1,6 @@
 /* ImportExportMenu — the two checklists inside the transfer panel. A row is a
    tick plus a name, not a setting row: nothing here has a value to show. */
 
-/* Indented by the head's tick, so a section reads as sitting under its family
-   rather than beside it: same column of ticks, one level in. */
 /* A list and its footnote are one unit, closer together than the group's gap
    between controls would put them. */
 .transfer-body {
@@ -11,6 +9,8 @@
   gap: var(--cc-space-1);
 }
 
+/* Indented by the head's tick, so a section reads as sitting under its family
+   rather than beside it: same column of ticks, one level in. */
 .transfer-list {
   list-style: none;
   margin: 0;
@@ -59,9 +59,12 @@
   gap: var(--cc-space-3);
 }
 
-/* Reads as a note on the rows above it, so it starts where their labels do
-   rather than centred under the whole panel. */
+/* Starts where the row labels do: past the family indent AND past the row's own
+   tick. Breaks inside a long URL, since the panel will not widen for one. */
 .transfer-body > .popover-hint {
   text-align: left;
-  padding-inline-start: calc(var(--popover-inset) + var(--cc-toggle-size) + var(--cc-space-2));
+  padding-inline-start: calc(
+    var(--popover-inset) + 2 * (var(--cc-toggle-size) + var(--cc-space-2))
+  );
+  overflow-wrap: anywhere;
 }
