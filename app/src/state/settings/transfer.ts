@@ -18,8 +18,8 @@ export const SETTINGS_FILE_VERSION = 1;
  *  persisted name. */
 const EXCLUDES_KEY = 'EXCLUDES';
 
-/** A hidden-path list and the repo it was tuned against. src/branch are
- *  provenance only: an import applies `paths` to the repo you already have. */
+/** A hidden-path list and the repo it belongs to. An import files it under that
+ *  repo, so it is waiting there the next time you open it. */
 export interface TransferExcludes {
   src?: string;
   branch?: string;
@@ -248,10 +248,10 @@ export function applySettingsFile(
       touched.push(store);
     }
   }
-  // Onto the repo you already have open, never the one the file names: an
-  // import changes how a city looks, it does not send you to another one.
-  const src = CURRENT_SOURCE.peek()?.src;
-  if (selection.excludes && parsed.excludes && src) setExcludesFor(src, parsed.excludes.paths);
+  // Onto the repo the list is FOR, which is the exporter's, not whichever city
+  // is on screen. Nothing here opens it: it is there when you next go.
+  const excludes = selection.excludes ? parsed.excludes : null;
+  if (excludes?.src) setExcludesFor(excludes.src, excludes.paths);
 
   dropDrafts(touched);
   return { skipped };

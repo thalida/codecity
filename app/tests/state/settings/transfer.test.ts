@@ -20,7 +20,7 @@ import {
   type TransferSelection,
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
-import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
+import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
 
 const FIELDS = {
@@ -195,19 +195,42 @@ describe('applySettingsFile', () => {
     expect(report.skipped).toEqual(['TEST_TRANSFER.A']);
   });
 
-  // The repo in the file is provenance, not a destination: another machine's
-  // clone of it sits at a different path, so it is a different key entirely.
-  it('applies the hidden paths to the repo open now, not the one in the file', () => {
+  // The list is about the exporter's repo, so that is where it is filed. The
+  // city on screen at import time has nothing to do with it.
+  it('files the hidden paths under the repo the file names', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
     CURRENT_SOURCE.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
-    expect(EXCLUDES.value).toEqual({ [sourceKey(OTHER_SRC)]: ['vendor'] });
+    expect(EXCLUDES.value).toEqual({ [sourceKey(SRC)]: ['vendor'] });
   });
 
-  // The key is computed from the repo you are in, so the write can only land in
-  // that repo's slot: every other repo's list is copied across untouched.
+  // The whole point of filing it rather than applying it: import from anywhere,
+  // and the paths are hidden when you actually go to that repo.
+  it('has the paths waiting when you later open the repo the file named', () => {
+    setExcludesFor(SRC, ['vendor', 'dist']);
+    const parsed = parse(excludesOnly);
+    EXCLUDES.value = {};
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(ACTIVE_EXCLUDES.value).toEqual([]);
+
+    CURRENT_SOURCE.value = { src: SRC };
+    expect(ACTIVE_EXCLUDES.value).toEqual(['dist', 'vendor']);
+  });
+
+  it('leaves the open repo untouched when the file names a different one', () => {
+    setExcludesFor(SRC, ['vendor']);
+    const parsed = parse(excludesOnly);
+    EXCLUDES.value = {};
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    applySettingsFile(parsed, excludesOnly);
+    expect(EXCLUDES.value[sourceKey(OTHER_SRC)]).toBeUndefined();
+  });
+
+  // One slot written, the rest of the map copied across: an import can only
+  // ever change the hidden paths of the one repo its list is for.
   it("leaves every other repo's hidden paths alone", () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
@@ -216,7 +239,7 @@ describe('applySettingsFile', () => {
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({
       [sourceKey(THIRD_SRC)]: ['keep-me'],
-      [sourceKey(OTHER_SRC)]: ['vendor'],
+      [sourceKey(SRC)]: ['vendor'],
     });
   });
 
@@ -228,11 +251,11 @@ describe('applySettingsFile', () => {
     expect(CURRENT_SOURCE.value).toEqual({ src: OTHER_SRC });
   });
 
-  it('applies no hidden paths when no repo is open to apply them to', () => {
-    setExcludesFor(SRC, ['vendor']);
-    const parsed = parse(excludesOnly);
-    EXCLUDES.value = {};
+  // Exported with nothing open, so the list names no repo to be filed under.
+  it('files nothing when the file names no repo', () => {
     CURRENT_SOURCE.value = null;
+    const parsed = parse(excludesOnly);
+    CURRENT_SOURCE.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({});
   });

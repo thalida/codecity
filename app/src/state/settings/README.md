@@ -135,13 +135,16 @@ top. A store the file never names is left alone. Everything is offered every
 time, whether or not it differs from stock.
 
 `source` carries one reserved key, `EXCLUDES`, holding the open repo's hidden
-paths plus the `src` and `branch` they were tuned against. Those two are
-**provenance only**. The stored key is a one-way hash of the src, so another
-machine's clone of the same repo — checked out at another path — hashes
-differently and would never match; the file therefore carries plain path strings
-and an import writes them under the key of the repo _you_ have open. It never
-moves you to the repo the file names, and it touches no other repo's list. An
-empty list is a real value there too, and clears what you were hiding.
+paths together with the `src` and `branch` they belong to. Those are not
+decoration: `src` is the key the list gets filed under on import. An exclude
+list is about one repo, so it is stored against that repo and is waiting there
+the next time you open it, whichever city you happened to be looking at when you
+imported. Nothing here navigates, and no other repo's list is touched. A list
+exported with no repo open names none, and is filed nowhere.
+
+The stored key is a one-way hash of the src, which is why the file carries the
+src itself rather than the key: the hash is re-derived on the far side, so a
+build that changes how it hashes does not strand every existing file.
 
 A file states `kind` and `version` up front and is refused outright if either is
 wrong, rather than half-applied. Within a file that does load, each value is
