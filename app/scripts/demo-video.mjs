@@ -1,14 +1,7 @@
-// app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4: a smooth
-// looping orbit of codecity rendering its own repo.
-//
-// Run via `just demo-video` (needs `just dev` up and ffmpeg installed). It
-// drives the debug-gated `orbit` shot (app/src/city/capture), which self-drives
-// one full turn and marks <html data-cc-orbit-start/done>. This records the
-// page with Playwright (real time, so capture is fast), trims to the orbit
-// window, and encodes a small h264 mp4 with ffmpeg. A CSS init script pins the
-// <canvas> full-viewport so the recording has no UI chrome.
-//
-// Lives under app/ so `playwright` resolves from app/node_modules.
+// app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4, a looping
+// orbit of codecity rendering its own repo. Run via `just demo-video` (needs
+// the app served and ffmpeg); it records the debug-gated `orbit` shot between
+// its data-cc-orbit-start/done marks. Under app/ so `playwright` resolves.
 
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
@@ -33,9 +26,8 @@ if (spawnSync('ffmpeg', ['-version']).status !== 0) {
 }
 
 const videoDir = await mkdtemp(join(tmpdir(), 'cc-demo-vid-'));
-// Headed: headless Chromium renders WebGL in software (SwiftShader) at a low,
-// choppy frame rate. A real window uses the GPU, so the orbit records smoothly.
-// A Chromium window appears for the ~20s capture.
+// Headed: headless Chromium renders WebGL in software at a choppy frame rate,
+// so a real (visible, ~20s) window is what makes the orbit record smoothly.
 const browser = await chromium.launch({
   headless: false,
   args: ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--ignore-gpu-blocklist'],
