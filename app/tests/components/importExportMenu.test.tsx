@@ -102,7 +102,7 @@ describe('ImportExportMenu', () => {
     const heads = Array.from(panel().querySelectorAll('.popover-group-title')).map(
       (el) => el.textContent
     );
-    expect(heads).toEqual(['Render Settings', 'Appearance', 'Source Settings']);
+    expect(heads).toEqual(['Render Settings', 'Appearance', 'Scan Settings']);
   });
 
   it('starts with everything ticked, so an export covers what you can see', () => {
@@ -167,14 +167,14 @@ describe('ImportExportMenu', () => {
     mount();
     act(() => button('Export selected').click());
     await flush();
-    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual({ src: REPO, paths: ['vendor'] });
+    expect(JSON.parse(downloaded).scan.EXCLUDES).toEqual({ src: REPO, paths: ['vendor'] });
   });
 
   it('sends an empty list when the repo hides nothing', async () => {
     mount();
     act(() => button('Export selected').click());
     await flush();
-    expect(JSON.parse(downloaded).source.EXCLUDES).toEqual({ src: REPO, paths: [] });
+    expect(JSON.parse(downloaded).scan.EXCLUDES).toEqual({ src: REPO, paths: [] });
   });
 
   it('applies the ticked sections and reports it', async () => {

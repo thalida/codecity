@@ -14,7 +14,7 @@ export const SETTINGS_FILE_KIND = 'codecity-settings';
  *  file from another version is refused rather than half-applied. */
 export const SETTINGS_FILE_VERSION = 1;
 
-/** The reserved key under `source`. Every other key in a family is a store's
+/** The reserved key under `scan`. Every other key in a family is a store's
  *  persisted name. */
 const EXCLUDES_KEY = 'EXCLUDES';
 
@@ -38,7 +38,7 @@ export interface SettingsFile extends Partial<Record<TransferFamily, Record<stri
 export enum TransferFamily {
   Render = 'render',
   Appearance = 'appearance',
-  Source = 'source',
+  Scan = 'scan',
 }
 
 export const TRANSFER_FAMILIES: readonly TransferFamily[] = Object.values(TransferFamily);
@@ -105,7 +105,7 @@ export function buildSettingsFile(selection: TransferSelection): SettingsFile {
   for (const family of TRANSFER_FAMILIES) {
     const payload = familyPayload(selection[family]);
     // An empty list is a real answer, not a missing one: "I hide nothing here".
-    if (family === TransferFamily.Source && selection.excludes) {
+    if (family === TransferFamily.Scan && selection.excludes) {
       payload[EXCLUDES_KEY] = {
         ...(current ? { src: current.src } : {}),
         ...(current?.branch ? { branch: current.branch } : {}),
@@ -190,8 +190,8 @@ export function parseSettingsFile(text: string): ParsedSettingsFile {
     stores[family] = resolveFamily(file[family], byName, unknownStores);
     found += stores[family].length;
   }
-  const source = file[TransferFamily.Source];
-  const excludes = parseExcludes(isPlainObject(source) ? source[EXCLUDES_KEY] : undefined);
+  const scan = file[TransferFamily.Scan];
+  const excludes = parseExcludes(isPlainObject(scan) ? scan[EXCLUDES_KEY] : undefined);
   if (found === 0 && excludes === null) {
     throw new SettingsFileError('That file holds no settings this build recognises.');
   }

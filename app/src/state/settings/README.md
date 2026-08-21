@@ -121,7 +121,7 @@ take the same `TransferSelection`, so neither is all-or-nothing: you pick what
 goes into the file, and pick again what comes out of it.
 
 The file has one key per **family**: `render` (the controls pane), `appearance`
-(the appearance menu) and `source` (the project and what it hides). Adding one is
+(the appearance menu) and `scan` (the scan menu). Adding one is
 a line in `TransferFamily`; everything else loops over `TRANSFER_FAMILIES`.
 
 Under a family, a key is a store's **persisted name** — the same stable string
@@ -134,7 +134,7 @@ An import **replaces** each ticked store: defaults first, then the file over the
 top. A store the file never names is left alone. Everything is offered every
 time, whether or not it differs from stock.
 
-`source` carries one reserved key, `EXCLUDES`, holding the open repo's hidden
+`scan` carries one reserved key, `EXCLUDES`, holding the open repo's hidden
 paths together with the `src` and `branch` they belong to. Those are not
 decoration: `src` is the key the list gets filed under on import. An exclude
 list is about one repo, so it is stored against that repo and is waiting there

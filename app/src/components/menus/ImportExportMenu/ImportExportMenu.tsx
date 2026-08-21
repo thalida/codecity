@@ -30,7 +30,7 @@ const PANEL_LABEL = 'Import & Export';
 const FAMILY_LABEL: Record<TransferFamily, string> = {
   [TransferFamily.Render]: 'Render Settings',
   [TransferFamily.Appearance]: 'Appearance',
-  [TransferFamily.Source]: 'Source Settings',
+  [TransferFamily.Scan]: 'Scan Settings',
 };
 
 // Not a store, so it carries its own id.
@@ -51,7 +51,7 @@ function groupRow(group: TransferGroup, stores: readonly SettingStore[]): Transf
 const EXCLUDES_ROW_DEF: TransferRow = {
   id: EXCLUDES_ROW,
   label: 'Excluded from city',
-  family: TransferFamily.Source,
+  family: TransferFamily.Scan,
   stores: [],
 };
 
@@ -79,7 +79,7 @@ function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): 
   const byFamily: Record<TransferFamily, SettingStore[]> = {
     [TransferFamily.Render]: [],
     [TransferFamily.Appearance]: [],
-    [TransferFamily.Source]: [],
+    [TransferFamily.Scan]: [],
   };
   for (const row of rows) {
     if (off.has(row.id)) continue;

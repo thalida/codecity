@@ -94,13 +94,13 @@ describe('buildSettingsFile', () => {
   it('leaves a family off entirely when nothing in it was selected', () => {
     const file = buildSettingsFile(renderOnly);
     expect(file.render).toBeDefined();
-    expect(file.source).toBeUndefined();
+    expect(file.scan).toBeUndefined();
   });
 
   it("sends the open repo's hidden paths, and the repo they were tuned against", () => {
     CURRENT_SOURCE.value = { src: SRC, branch: 'main' };
     setExcludesFor(SRC, ['vendor', 'dist']);
-    expect(buildSettingsFile(excludesOnly).source).toEqual({
+    expect(buildSettingsFile(excludesOnly).scan).toEqual({
       EXCLUDES: { src: SRC, branch: 'main', paths: ['dist', 'vendor'] },
     });
   });
@@ -108,7 +108,7 @@ describe('buildSettingsFile', () => {
   // Not a missing answer: "I hide nothing here" is worth sending, and under
   // replace semantics it is what clears the importer's list.
   it('sends an empty list when the repo hides nothing', () => {
-    expect(buildSettingsFile(excludesOnly).source).toEqual({
+    expect(buildSettingsFile(excludesOnly).scan).toEqual({
       EXCLUDES: { src: SRC, paths: [] },
     });
   });
@@ -140,7 +140,7 @@ describe('parseSettingsFile', () => {
     STORE.value = { A: 9, B: true };
     const parsed = parseSettingsFile(text(buildSettingsFile(renderOnly)));
     expect(parsed.stores[TransferFamily.Render]).toEqual([STORE]);
-    expect(parsed.stores[TransferFamily.Source]).toEqual([]);
+    expect(parsed.stores[TransferFamily.Scan]).toEqual([]);
   });
 
   it('reports a name it could not resolve beside the ones it could', () => {
@@ -151,7 +151,7 @@ describe('parseSettingsFile', () => {
     expect(parsed.unknownStores).toEqual(['GONE']);
   });
 
-  it('reads the exclude list back out of the source family', () => {
+  it('reads the exclude list back out of the scan family', () => {
     setExcludesFor(SRC, ['vendor']);
     expect(parseSettingsFile(text(buildSettingsFile(excludesOnly))).excludes).toEqual({
       src: SRC,
