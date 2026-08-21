@@ -29,6 +29,15 @@ const PANEL_LABEL = 'Import & Export';
 // Excludes are the one thing here whose scope is not the whole app.
 const EXPORT_SCAN_NOTE = 'Only for the repo you have open';
 
+/** Which face the panel is showing. Export is where it opens and where every
+ *  other face goes back to. */
+enum Mode {
+  Export = 'export',
+  Import = 'import',
+  Error = 'error',
+  Done = 'done',
+}
+
 // One per menu these settings actually live in, so the picker names them the
 // way you already know them.
 const FAMILY_LABEL: Record<TransferFamily, string> = {
@@ -54,12 +63,13 @@ function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
   return { id: `group:${group.key}`, label: group.label, family: group.family, parts };
 }
 
-function excludesRow(): TransferRow {
+function excludesRow(note: string): TransferRow {
   return {
     id: EXCLUDES_ROW,
     label: 'Excluded from City',
     family: EXCLUDES_PART.family,
     parts: [EXCLUDES_PART],
+    note,
   };
 }
 
@@ -67,20 +77,40 @@ function partsOf(group: TransferGroup): TransferPart[] {
   return group.stores.map((s) => storePart(s, group.family)).filter((p) => p !== null);
 }
 
+/** Every part this build will accept from a file. Nothing outside it can be
+ *  applied, however a hand-edited file names it. */
+function catalogueOf(groups: readonly TransferGroup[]): TransferPart[] {
+  return [...groups.flatMap(partsOf), EXCLUDES_PART];
+}
+
 /** Everything this browser could send: every group, plus what the open project
  *  hides. Always offered, since "I hide nothing" is a thing worth sending. */
-function exportRows(groups: readonly TransferGroup[]): TransferRow[] {
-  return [...groups.map((g) => groupRow(g, partsOf(g))), excludesRow()];
+function exportRows(groups: readonly TransferGroup[], note: string): TransferRow[] {
+  return [...groups.map((g) => groupRow(g, partsOf(g))), excludesRow(note)];
 }
 
 /** Only what the file actually carries, so an import never offers to reset a
  *  section its author chose not to send. */
-function importRows(groups: readonly TransferGroup[], parsed: ParsedSettingsFile): TransferRow[] {
+function importRows(
+  groups: readonly TransferGroup[],
+  parsed: ParsedSettingsFile,
+  note: string
+): TransferRow[] {
   const carried = new Set(parsed.parts.map((p) => `${p.family}/${p.key}`));
   const held = (part: TransferPart) => carried.has(`${part.family}/${part.key}`);
-  return exportRows(groups)
+  return exportRows(groups, note)
     .map((row) => ({ ...row, parts: row.parts.filter(held) }))
     .filter((row) => row.parts.length > 0);
+}
+
+/** What to say under the excludes row. Naming the repo beats warning about it:
+ *  the city on screen may well be the one the file came from. */
+function scanNoteFor(mode: Mode, parsed: ParsedSettingsFile | null): string {
+  if (mode !== Mode.Import || !parsed) return EXPORT_SCAN_NOTE;
+  const origin = excludesOrigin(parsed);
+  if (!origin) return 'Saved per repo';
+  const branch = origin.branch ? `@${origin.branch}` : '';
+  return `Saved for ${origin.src}${branch}`;
 }
 
 function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): TransferPart[] {
@@ -104,15 +134,13 @@ function exportFilename(): string {
   return `codecity-settings-${new Date().toISOString().slice(0, 10)}.json`;
 }
 
-type Mode = 'export' | 'import' | 'error' | 'done';
-
 export interface ImportExportMenuProps {
   groups: readonly TransferGroup[];
 }
 
 export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   const open = useSignal(false);
-  const [mode, setMode] = useState<Mode>('export');
+  const [mode, setMode] = useState<Mode>(Mode.Export);
   const [parsed, setParsed] = useState<ParsedSettingsFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -126,23 +154,17 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   // that produced it, not to the next time you reach for the panel.
   useEffect(() => {
     if (!isOpen) return;
-    setMode('export');
+    setMode(Mode.Export);
     setParsed(null);
     setError(null);
     setReport(null);
   }, [isOpen]);
 
-  // Naming the repo beats warning about it: the city on screen may well be it.
-  const origin = mode === 'import' && parsed ? excludesOrigin(parsed) : null;
-  const scanNote =
-    mode !== 'import'
-      ? EXPORT_SCAN_NOTE
-      : origin
-        ? `Saved for ${origin.src}${origin.branch ? `@${origin.branch}` : ''}`
-        : 'Saved per repo';
-  const rows = (mode === 'import' && parsed ? importRows(groups, parsed) : exportRows(groups)).map(
-    (row) => (row.id === EXCLUDES_ROW ? { ...row, note: scanNote } : row)
-  );
+  const scanNote = scanNoteFor(mode, parsed);
+  const rows =
+    mode === Mode.Import && parsed
+      ? importRows(groups, parsed, scanNote)
+      : exportRows(groups, scanNote);
   const chosen = rows.filter((r) => !off.has(r.id));
 
   const toggleRow = (id: string, on: boolean) => {
@@ -169,24 +191,19 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     try {
       // The catalogue is the authority on what may travel: a hand-edited file
       // naming something outside it (auto-refresh, say) resolves to nothing.
-      setParsed(
-        parseSettingsFile(
-          await file.text(),
-          exportRows(groups).flatMap((r) => r.parts)
-        )
-      );
+      setParsed(parseSettingsFile(await file.text(), catalogueOf(groups)));
       setOff(new Set());
-      setMode('import');
+      setMode(Mode.Import);
     } catch (e) {
       setError(e instanceof SettingsFileError ? e.message : 'That file could not be read.');
-      setMode('error');
+      setMode(Mode.Error);
     }
   };
 
   const onApply = () => {
     if (!parsed) return;
     setReport(applySettingsFile(parsed, selectionFrom(rows, off)));
-    setMode('done');
+    setMode(Mode.Done);
   };
 
   const families = Object.values(TransferFamily).filter((f) => rows.some((r) => r.family === f));
@@ -238,23 +255,21 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
       );
     });
 
+  const skipped = report?.skipped.length ?? 0;
+
   const body = () => {
-    if (mode === 'error') {
+    if (mode === Mode.Error) {
       return (
         <p class="transfer-message popover-prose" role="alert">
           {error}
         </p>
       );
     }
-    if (mode === 'done') {
+    if (mode === Mode.Done) {
       return (
         <p class="transfer-message popover-prose" role="status">
           Settings imported.
-          {report && report.skipped.length > 0 && (
-            <>
-              {` ${report.skipped.length} value${report.skipped.length === 1 ? '' : 's'} in the file did not fit this build and stayed at their defaults.`}
-            </>
-          )}
+          {skipped > 0 && ` ${skipped} value${skipped === 1 ? '' : 's'} skipped.`}
         </p>
       );
     }
@@ -262,18 +277,18 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   };
 
   const actions = (close: (refocus: boolean) => void) => {
-    if (mode === 'error') {
+    if (mode === Mode.Error) {
       return (
         <button
           type="button"
           class="btn-secondary popover-action transfer-action"
-          onClick={() => setMode('export')}
+          onClick={() => setMode(Mode.Export)}
         >
           Back
         </button>
       );
     }
-    if (mode === 'done') {
+    if (mode === Mode.Done) {
       return (
         <button
           type="button"
@@ -284,7 +299,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
         </button>
       );
     }
-    if (mode === 'import') {
+    if (mode === Mode.Import) {
       return (
         <>
           <button
@@ -298,7 +313,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
           <button
             type="button"
             class="btn-secondary popover-action transfer-action"
-            onClick={() => setMode('export')}
+            onClick={() => setMode(Mode.Export)}
           >
             Cancel
           </button>
