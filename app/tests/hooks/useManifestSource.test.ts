@@ -396,8 +396,10 @@ describe('the URL drives what is loaded', () => {
   let restoreEventSource: () => void;
   let detach: () => void;
 
-  const srcOf = (i: number): string | null =>
-    new URL(StubEventSource.instances[i]!.url, 'http://x').searchParams.get('src');
+  const paramOf = (i: number, name: string): string | null =>
+    new URL(StubEventSource.instances[i]!.url, 'http://x').searchParams.get(name);
+  const srcOf = (i: number): string | null => paramOf(i, 'src');
+  const branchOf = (i: number): string | null => paramOf(i, 'branch');
 
   /** Finish the in-flight load, which is what commits the source. */
   const complete = async (name: string): Promise<void> => {
@@ -454,6 +456,45 @@ describe('the URL drives what is loaded', () => {
 
     expect(StubEventSource.instances).toHaveLength(2);
     expect(srcOf(1)).toBe('/repos/b');
+  });
+
+  // A remote keeps the branch the server resolved, so committing it writes
+  // ?branch into the URL and moves the identity this effect watches.
+  it('does not reload a fresh clone when its resolved branch lands in the URL', async () => {
+    navigate('/city?src=https%3A%2F%2Fgithub.com%2Fo%2Fr', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+
+    const es = StubEventSource.instances[StubEventSource.instances.length - 1]!;
+    es.emit(
+      'manifest-complete',
+      JSON.stringify({ manifest: { tree: { name: 'o/r' }, repo: { branch: 'main' } } })
+    );
+    await flush();
+
+    expect(ROUTE_PARAMS.value.get('branch'), 'the load should fill the branch in').toBe('main');
+    expect(StubEventSource.instances, 'the repo on screen must not be re-scanned').toHaveLength(1);
+  });
+
+  // The other half of the guard above: filling a branch in must not cost the
+  // ability to change one, which is a different project as far as a scan cares.
+  it('reloads when the URL asks for a different branch of the same repo', async () => {
+    const REMOTE = '/city?src=https%3A%2F%2Fgithub.com%2Fo%2Fr';
+    navigate(REMOTE, { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    StubEventSource.instances[0]!.emit(
+      'manifest-complete',
+      JSON.stringify({ manifest: { tree: { name: 'o/r' }, repo: { branch: 'main' } } })
+    );
+    await flush();
+    expect(StubEventSource.instances).toHaveLength(1);
+
+    navigate(`${REMOTE}&branch=dev`);
+    await flush();
+
+    expect(StubEventSource.instances).toHaveLength(2);
+    expect(branchOf(1)).toBe('dev');
   });
 
   it('does not reload the project already on screen', async () => {

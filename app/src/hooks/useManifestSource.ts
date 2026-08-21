@@ -396,7 +396,15 @@ export function attachRouteLoad(): () => void {
     // must not subscribe this to the view ones alongside it.
     const boot = readUrlView(ROUTE_PARAMS.peek());
     // Out of the tracking scope: the load writes signals this effect reads.
-    queueMicrotask(() => void bootLoad(boot));
+    queueMicrotask(() => {
+      // Committing a remote keeps the branch the server resolved, which lands in
+      // the URL and moves the identity above. The city on screen is not a new ask.
+      const cur = CURRENT_SOURCE.peek();
+      if (cur && boot.src && sameSourceIdentity(cur, { src: boot.src, branch: boot.branch })) {
+        return;
+      }
+      void bootLoad(boot);
+    });
   });
 }
 
