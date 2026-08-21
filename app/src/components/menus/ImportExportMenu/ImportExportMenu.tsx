@@ -8,19 +8,18 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import type { SettingStore } from '@/state/settings/schema';
 import {
   buildSettingsFile,
   parseSettingsFile,
   applySettingsFile,
+  storePart,
+  EXCLUDES_PART,
   SettingsFileError,
   TransferFamily,
-  TRANSFER_FAMILIES,
-  noSelection,
   type ImportReport,
   type ParsedSettingsFile,
   type TransferGroup,
-  type TransferSelection,
+  type TransferPart,
 } from '@/state/settings/transfer';
 
 const PANEL_LABEL = 'Import & Export';
@@ -33,61 +32,50 @@ const FAMILY_LABEL: Record<TransferFamily, string> = {
   [TransferFamily.Scan]: 'Scan Settings',
 };
 
-// Not a store, so it carries its own id.
-const EXCLUDES_ROW = 'excludes';
-
-/** One tickable line: a settings group, or the open project's hidden paths. */
+/** One tickable line, and the parts behind it. Nothing here knows whether a
+ *  part is a settings store or the exclude list. */
 interface TransferRow {
   id: string;
   label: string;
   family: TransferFamily;
-  stores: readonly SettingStore[];
+  parts: TransferPart[];
 }
 
-function groupRow(group: TransferGroup, stores: readonly SettingStore[]): TransferRow {
-  return { id: `group:${group.key}`, label: group.label, family: group.family, stores };
+function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
+  return { id: `group:${group.key}`, label: group.label, family: group.family, parts };
 }
 
-const EXCLUDES_ROW_DEF: TransferRow = {
-  id: EXCLUDES_ROW,
-  label: 'Excluded from city',
-  family: TransferFamily.Scan,
-  stores: [],
-};
+function excludesRow(): TransferRow {
+  return {
+    id: 'excludes',
+    label: 'Excluded from city',
+    family: EXCLUDES_PART.family,
+    parts: [EXCLUDES_PART],
+  };
+}
+
+function partsOf(group: TransferGroup): TransferPart[] {
+  return group.stores.map((s) => storePart(s, group.family)).filter((p) => p !== null);
+}
 
 /** Everything this browser could send: every group, plus what the open project
  *  hides. Always offered, since "I hide nothing" is a thing worth sending. */
 function exportRows(groups: readonly TransferGroup[]): TransferRow[] {
-  return [...groups.map((g) => groupRow(g, g.stores)), EXCLUDES_ROW_DEF];
+  return [...groups.map((g) => groupRow(g, partsOf(g))), excludesRow()];
 }
 
 /** Only what the file actually carries, so an import never offers to reset a
  *  section its author chose not to send. */
 function importRows(groups: readonly TransferGroup[], parsed: ParsedSettingsFile): TransferRow[] {
-  const covered = new Set<SettingStore>(Object.values(parsed.stores).flat());
-  const rows: TransferRow[] = [];
-  for (const group of groups) {
-    const stores = group.stores.filter((s) => covered.has(s));
-    if (stores.length > 0) rows.push(groupRow(group, stores));
-  }
-  if (parsed.excludes) rows.push(EXCLUDES_ROW_DEF);
-  return rows;
+  const carried = new Set(parsed.parts.map((p) => `${p.family}/${p.key}`));
+  const held = (part: TransferPart) => carried.has(`${part.family}/${part.key}`);
+  return exportRows(groups)
+    .map((row) => ({ ...row, parts: row.parts.filter(held) }))
+    .filter((row) => row.parts.length > 0);
 }
 
-function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): TransferSelection {
-  const selection = noSelection();
-  const byFamily: Record<TransferFamily, SettingStore[]> = {
-    [TransferFamily.Render]: [],
-    [TransferFamily.Appearance]: [],
-    [TransferFamily.Scan]: [],
-  };
-  for (const row of rows) {
-    if (off.has(row.id)) continue;
-    if (row.id === EXCLUDES_ROW) selection.excludes = true;
-    else byFamily[row.family].push(...row.stores);
-  }
-  for (const family of TRANSFER_FAMILIES) selection[family] = byFamily[family];
-  return selection;
+function selectionFrom(rows: readonly TransferRow[], off: ReadonlySet<string>): TransferPart[] {
+  return rows.filter((row) => !off.has(row.id)).flatMap((row) => row.parts);
 }
 
 // In the document, and revoked a tick late: some browsers cancel the download if
@@ -160,7 +148,14 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     input.value = ''; // so re-picking the same file fires change again
     if (!file) return;
     try {
-      setParsed(parseSettingsFile(await file.text()));
+      // The catalogue is the authority on what may travel: a hand-edited file
+      // naming something outside it (auto-refresh, say) resolves to nothing.
+      setParsed(
+        parseSettingsFile(
+          await file.text(),
+          exportRows(groups).flatMap((r) => r.parts)
+        )
+      );
       setOff(new Set());
       setMode('import');
     } catch (e) {
@@ -175,7 +170,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     setMode('done');
   };
 
-  const families = TRANSFER_FAMILIES.filter((f) => rows.some((r) => r.family === f));
+  const families = Object.values(TransferFamily).filter((f) => rows.some((r) => r.family === f));
 
   const checklist = () =>
     families.map((family) => {

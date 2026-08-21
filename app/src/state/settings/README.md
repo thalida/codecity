@@ -117,43 +117,46 @@ subscribes to whatever that work reads and re-fires on its own writes.
 ## Transfer
 
 `transfer.ts` writes settings to a JSON file and reads one back. Both directions
-take the same `TransferSelection`, so neither is all-or-nothing: you pick what
-goes into the file, and pick again what comes out of it.
+are all-or-nothing only if you make them so: you pick what goes into the file,
+and pick again what comes out of it.
 
-The file has one key per **family**: `render` (the controls pane), `appearance`
-(the appearance menu) and `scan` (the scan menu). Adding one is
-a line in `TransferFamily`; everything else loops over `TRANSFER_FAMILIES`.
+Everything that can travel is a **part**: a key, a family, a `read()` and a
+`write()`. A settings store is one kind of part; the open repo's hidden paths are
+another. Past that interface nothing tells them apart, so building, reading and
+applying a file are each one loop with no special cases in them. The next thing
+that has to travel is a new part, not another branch through all three.
 
-Under a family, a key is a store's **persisted name** — the same stable string
-`persist.ts` keys localStorage by — and its value is that store's **whole
-value**, defaults included. The file is a snapshot of how things look right now,
-not a list of what was changed away from stock, so an import reproduces a look
-exactly without depending on what the defaults happened to be that day.
+A **family** is a key in the file, one per menu these settings live in: `render`
+(the controls pane), `appearance` (the appearance menu) and `scan` (the scan
+menu). Under a family, a part's key is its own — for a store, the stable string
+`persist.ts` keys localStorage by.
 
-An import **replaces** each ticked store: defaults first, then the file over the
-top. A store the file never names is left alone. Everything is offered every
-time, whether or not it differs from stock.
+A store part carries its **whole value**, defaults included. The file is a
+snapshot of how things look right now, not a list of what was changed away from
+stock, so an import reproduces a look exactly without depending on what the
+defaults happened to be that day. Writing one back **replaces** it: defaults
+first, then the file over the top, and the store's staged drafts are dropped
+since the write goes straight to the signal, nowhere near the pane's Save. A part
+the file never names is left alone.
 
-`scan` carries one reserved key, `EXCLUDES`, holding the open repo's hidden
-paths together with the `src` and `branch` they belong to. Those are not
-decoration: `src` is the key the list gets filed under on import. An exclude
-list is about one repo, so it is stored against that repo and is waiting there
-the next time you open it, whichever city you happened to be looking at when you
-imported. Nothing here navigates, and no other repo's list is touched. A list
-exported with no repo open names none, and is filed nowhere.
+The excludes part carries the open repo's hidden paths plus the `src` and
+`branch` they belong to. That src is not decoration: it is the key the list gets
+filed under on import. An exclude list is about one repo, so it is stored against
+that repo and is waiting there the next time you open it, whichever city you were
+looking at when you imported. Nothing navigates, and no other repo's list is
+touched. The stored key is a one-way hash of the src, which is why the file
+carries the src itself and re-derives the key on the far side.
 
-The stored key is a one-way hash of the src, which is why the file carries the
-src itself rather than the key: the hash is re-derived on the far side, so a
-build that changes how it hashes does not strand every existing file.
+Importing needs a **catalogue** — the parts the app is willing to accept — and it
+is the catalogue, not the settings registry, that decides. A hand-edited file
+naming a real store that deliberately never travels (the auto-refresh interval)
+resolves to nothing. A file also states `kind` and `version` up front and is
+refused outright if either is wrong, rather than half-applied. Within a file that
+does load, each value is still checked against its field: out-of-bounds numbers
+clamp, anything the schema cannot use is skipped and reported.
 
-A file states `kind` and `version` up front and is refused outright if either is
-wrong, rather than half-applied. Within a file that does load, each value is
-still checked against its field: out-of-bounds numbers clamp, anything the
-schema cannot use at all is skipped and reported.
-
-Which stores are grouped under which name is **not** here, for the same reason
+Which parts are grouped under which name is **not** here, for the same reason
 arrangement isn't: the controls layer owns that
 (`views/CityView/chrome/CityFooter/transferGroups.ts`). Render's groups are read
 off the pane's own sections so the two cannot drift, and that file also declares
-`NON_TRANSFERABLE` — settings that deliberately never travel, such as the
-auto-refresh interval, which describes your machine rather than a look.
+`NON_TRANSFERABLE`.

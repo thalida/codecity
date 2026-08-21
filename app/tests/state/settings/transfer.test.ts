@@ -15,9 +15,10 @@ import {
   SettingsFileError,
   SETTINGS_FILE_KIND,
   SETTINGS_FILE_VERSION,
+  storePart,
+  EXCLUDES_PART,
   TransferFamily,
-  noSelection,
-  type TransferSelection,
+  type TransferPart,
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
 import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
@@ -59,13 +60,15 @@ afterAll(() => {
   _unregisterForTests(SCALAR);
 });
 
-const select = (over: Partial<TransferSelection>): TransferSelection => ({
-  ...noSelection(),
-  ...over,
-});
+const STORE_PART = storePart(STORE, TransferFamily.Render)!;
+const SCALAR_PART = storePart(SCALAR, TransferFamily.Appearance)!;
 
-const renderOnly = select({ render: [STORE] });
-const excludesOnly = select({ excludes: true });
+// The catalogue: everything these tests allow to travel. Anything outside it is
+// not resolvable by a file, which is the point of passing it to the parser.
+const CATALOGUE: TransferPart[] = [STORE_PART, SCALAR_PART, EXCLUDES_PART];
+
+const renderOnly = [STORE_PART];
+const excludesOnly = [EXCLUDES_PART];
 
 describe('buildSettingsFile', () => {
   it('stamps the kind and version every reader checks first', () => {
@@ -85,10 +88,11 @@ describe('buildSettingsFile', () => {
     expect(buildSettingsFile(renderOnly).render).toEqual({ TEST_TRANSFER: DEFAULTS });
   });
 
-  it('carries a scalar store whole, since it has no diff to take', () => {
+  it('carries a scalar store whole, since it has no fields to walk', () => {
     SCALAR.value = 'nord';
-    const file = buildSettingsFile(select({ render: [SCALAR] }));
-    expect(file.render).toEqual({ TEST_TRANSFER_SCALAR: 'nord' });
+    expect(buildSettingsFile([SCALAR_PART]).appearance).toEqual({
+      TEST_TRANSFER_SCALAR: 'nord',
+    });
   });
 
   it('leaves a family off entirely when nothing in it was selected', () => {
@@ -118,50 +122,60 @@ describe('parseSettingsFile', () => {
   const text = (obj: unknown) => JSON.stringify(obj);
 
   it('refuses a file that is not JSON', () => {
-    expect(() => parseSettingsFile('{nope')).toThrow(SettingsFileError);
+    expect(() => parseSettingsFile('{nope', CATALOGUE)).toThrow(SettingsFileError);
   });
 
   it('refuses a JSON file that is not ours', () => {
-    expect(() => parseSettingsFile(text({ version: 1, render: {} }))).toThrow(SettingsFileError);
+    expect(() => parseSettingsFile(text({ version: 1, render: {} }), CATALOGUE)).toThrow(
+      SettingsFileError
+    );
   });
 
   // A file that outlives a shape change must refuse rather than half-apply.
   it('refuses a file written by a different version', () => {
     const file = { ...buildSettingsFile(renderOnly), version: SETTINGS_FILE_VERSION + 1 };
-    expect(() => parseSettingsFile(text(file))).toThrow(/version/);
+    expect(() => parseSettingsFile(text(file), CATALOGUE)).toThrow(/version/);
   });
 
   it('refuses a file whose stores this build no longer has', () => {
     const file = { kind: SETTINGS_FILE_KIND, version: SETTINGS_FILE_VERSION, render: { GONE: {} } };
-    expect(() => parseSettingsFile(text(file))).toThrow(SettingsFileError);
+    expect(() => parseSettingsFile(text(file), CATALOGUE)).toThrow(SettingsFileError);
   });
 
-  it('resolves store names to the live stores', () => {
+  it('resolves a key to the part that owns it', () => {
     STORE.value = { A: 9, B: true };
-    const parsed = parseSettingsFile(text(buildSettingsFile(renderOnly)));
-    expect(parsed.stores[TransferFamily.Render]).toEqual([STORE]);
-    expect(parsed.stores[TransferFamily.Scan]).toEqual([]);
+    expect(parseSettingsFile(text(buildSettingsFile(renderOnly)), CATALOGUE).parts).toEqual([
+      STORE_PART,
+    ]);
   });
 
-  it('reports a name it could not resolve beside the ones it could', () => {
+  // The catalogue, not the settings registry, is the authority: a hand-edited
+  // file naming something that deliberately never travels resolves to nothing.
+  it('refuses a key the catalogue does not offer, even for a real store', () => {
+    const file = { kind: SETTINGS_FILE_KIND, version: SETTINGS_FILE_VERSION, render: {} };
+    (file.render as Record<string, unknown>).LIVE_UPDATES = { POLL_SECONDS: 1 };
+    expect(() => parseSettingsFile(text(file), CATALOGUE)).toThrow(SettingsFileError);
+  });
+
+  it('reports a key it could not resolve beside the ones it could', () => {
     const file = buildSettingsFile(renderOnly);
     (file.render as Record<string, unknown>).GONE = {};
-    const parsed = parseSettingsFile(text(file));
-    expect(parsed.stores[TransferFamily.Render]).toEqual([STORE]);
-    expect(parsed.unknownStores).toEqual(['GONE']);
+    const parsed = parseSettingsFile(text(file), CATALOGUE);
+    expect(parsed.parts).toEqual([STORE_PART]);
+    expect(parsed.unknownKeys).toEqual(['GONE']);
   });
 
   it('reads the exclude list back out of the scan family', () => {
     setExcludesFor(SRC, ['vendor']);
-    expect(parseSettingsFile(text(buildSettingsFile(excludesOnly))).excludes).toEqual({
-      src: SRC,
-      paths: ['vendor'],
-    });
+    const parsed = parseSettingsFile(text(buildSettingsFile(excludesOnly)), CATALOGUE);
+    expect(parsed.parts).toEqual([EXCLUDES_PART]);
+    expect(parsed.file.scan?.EXCLUDES).toEqual({ src: SRC, paths: ['vendor'] });
   });
 });
 
 describe('applySettingsFile', () => {
-  const parse = (sel = renderOnly) => parseSettingsFile(JSON.stringify(buildSettingsFile(sel)));
+  const parse = (sel = renderOnly) =>
+    parseSettingsFile(JSON.stringify(buildSettingsFile(sel)), CATALOGUE);
 
   it('replaces the section, so the importer keeps none of their own tuning', () => {
     STORE.value = { A: 9, B: true };
@@ -171,11 +185,11 @@ describe('applySettingsFile', () => {
     expect(STORE.value).toEqual({ A: 9, B: true });
   });
 
-  it('leaves a store the selection did not tick alone', () => {
+  it('leaves a part the selection did not tick alone', () => {
     STORE.value = { A: 9, B: true };
     const parsed = parse();
     STORE.value = { A: 1, B: false };
-    applySettingsFile(parsed, noSelection());
+    applySettingsFile(parsed, []);
     expect(STORE.value).toEqual({ A: 1, B: false });
   });
 
@@ -274,8 +288,8 @@ describe('applySettingsFile', () => {
   it('round-trips a tuned store through a file back to the same values', () => {
     STORE.value = { A: 7, B: false };
     SCALAR.value = 'nord';
-    const sel = select({ render: [STORE, SCALAR] });
-    const parsed = parseSettingsFile(JSON.stringify(buildSettingsFile(sel)));
+    const sel = [STORE_PART, SCALAR_PART];
+    const parsed = parseSettingsFile(JSON.stringify(buildSettingsFile(sel)), CATALOGUE);
     STORE.value = { ...DEFAULTS };
     SCALAR.value = 'stock';
     applySettingsFile(parsed, sel);
