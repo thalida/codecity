@@ -351,7 +351,7 @@ describe('NewProjectForm', () => {
     // No switch is claimed, because a mount is what actually turns this on.
     expect(note.textContent).not.toMatch(/turned off/i);
     expect(note.textContent).toMatch(/couldn't open that path/i);
-    expect(note.textContent).toMatch(/have to be mounted/i);
+    expect(note.textContent).toMatch(/run codecity with a volume mount/i);
     // Cloning is not the answer to a folder already on this machine.
     expect(note.textContent).not.toMatch(/clone/i);
     // The remedy is offered, not just described.

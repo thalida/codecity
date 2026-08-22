@@ -15,7 +15,7 @@ const PREAMBLE: Record<NoticeReason, RegExp> = {
 
 const OPEN_IT_HERE = /clone it yourself and open the folder/i;
 const RUN_ONE = /clone it yourself, then run codecity locally/i;
-const MOUNT_RULE = /local folders have to be mounted/i;
+const MOUNT_RULE = /run codecity with a volume mount/i;
 const ALL_REMEDIES = [OPEN_IT_HERE, RUN_ONE, MOUNT_RULE];
 
 // Three states, not eight. `allowLocal` is the only thing that changes the

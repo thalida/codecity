@@ -47,7 +47,7 @@ const PREAMBLE: Record<NoticeReason, string> = {
  *  instance that reads folders. A blocked path states the rule instead. */
 function remedyFor(reason: NoticeReason, allowLocal: boolean): string {
   if (reason === NoticeReason.PathBlocked) {
-    return 'Local folders have to be mounted when codecity starts.';
+    return 'Run codecity with a volume mount to access local repos.';
   }
   return allowLocal
     ? "If it's private, clone it yourself and open the folder."
