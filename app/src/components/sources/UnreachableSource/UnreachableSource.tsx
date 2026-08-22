@@ -3,7 +3,6 @@
 // typo alike to an anonymous caller) or says "you don't have access", which
 // blames the user for a property of this server.
 import './UnreachableSource.css';
-import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { AlertCircle, ChevronDown } from 'lucide-preact';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
@@ -74,7 +73,7 @@ function Remedy({ allowLocal, src }: Pick<UnreachableSourceProps, 'allowLocal' |
       <>
         <CloneCommand src={src} />
         <p class="unreachable-actions">
-          <DocsLink>See&nbsp;docs</DocsLink>
+          <DocsLink />
         </p>
       </>
     );
@@ -98,7 +97,7 @@ function RunItYourself({ src }: { src?: string }) {
           Run it yourself
           <ChevronDown class={`icon unreachable-chevron${open ? ' is-open' : ''}`} />
         </button>
-        <DocsLink>Full&nbsp;setup</DocsLink>
+        <DocsLink />
       </div>
       {open && (
         <div class="unreachable-detail">
@@ -127,10 +126,11 @@ function CloneCommand({ src }: { src?: string }) {
   );
 }
 
-function DocsLink({ children }: { children: ComponentChildren }) {
+/** One label, because both states point at the same README section. */
+function DocsLink() {
   return (
     <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-      {children}
+      Setup&nbsp;guide
     </a>
   );
 }
