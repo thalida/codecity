@@ -1,6 +1,6 @@
 # Settings
 
-Four machinery files and the fields they operate on. Each file is one stage of a
+Five machinery files and the fields they operate on. Each file is one stage of a
 setting's life:
 
 ```
@@ -8,6 +8,7 @@ schema.ts      declare it   what a field IS: kind, default, label, tip, bounds
 drafts.ts      edit it      staged changes, behind the Save button
 reactions.ts   apply it     a committed change → rebuild or refresh the scene
 indicators.ts  report it    how many differ from default → the dirty dot
+transfer.ts    move it      settings out to a file, and a file back in
 fields/        the settings themselves, one file per group
 ```
 
@@ -112,3 +113,56 @@ never call `scheduleRebuild`, so they keep using the cache.
 Each effect must track **only** its signature computed, so the imperative work —
 which writes build status — runs inside `untracked()`. Otherwise the effect
 subscribes to whatever that work reads and re-fires on its own writes.
+
+## Transfer
+
+`transfer.ts` writes settings to a JSON file and reads one back. Both directions
+are all-or-nothing only if you make them so: you pick what goes into the file,
+and pick again what comes out of it.
+
+Everything that can travel is a **part**: a key, a family, a `read()` and a
+`write()`. A settings store is one kind of part; the open repo's hidden paths are
+another. Past that interface nothing tells them apart, so building, reading and
+applying a file are each one loop with no special cases in them. The next thing
+that has to travel is a new part, not another branch through all three.
+
+A **family** is a key in the file, one per menu these settings live in: `render`
+(the controls pane), `appearance` (the appearance menu) and `scan` (the scan
+menu). Under a family, a part's key is its own — for a store, the stable string
+`persist.ts` keys localStorage by.
+
+A store part carries its **whole value**, defaults included. The file is a
+snapshot of how things look right now, not a list of what was changed away from
+stock, so an import reproduces a look exactly without depending on what the
+defaults happened to be that day. Writing one back **replaces** it: defaults
+first, then the file over the top, and the store's staged drafts are dropped
+since the write goes straight to the signal, nowhere near the pane's Save. A part
+the file never names is left alone.
+
+The excludes part carries the open repo's hidden paths plus the `src` and
+`branch` they belong to. That src is not decoration: it is the key the list gets
+filed under on import. An exclude list is about one repo, so it is stored against
+that repo and is waiting there the next time you open it, whichever city you were
+looking at when you imported. Nothing navigates, and no other repo's list is
+touched. The stored key is a one-way hash of the src, which is why the file
+carries the src itself and re-derives the key on the far side.
+
+Every part can also say whether writing a given value would land on something
+other than what is there now. Asked with no value, that is "does this differ from
+its default", which is what marks a row as yours on the way out; asked with the
+file's value, it is "would this overwrite something of mine", which is what marks
+a row as a change on the way in. One question, two baselines, one dot.
+
+Importing needs a **catalogue** — the parts the app is willing to accept — and it
+is the catalogue, not the settings registry, that decides. A hand-edited file
+naming a real store that deliberately never travels (the auto-refresh interval)
+resolves to nothing. A file also states `kind` and `version` up front and is
+refused outright if either is wrong, rather than half-applied. Within a file that
+does load, each value is still checked against its field: out-of-bounds numbers
+clamp, anything the schema cannot use is skipped and reported.
+
+Which parts are grouped under which name is **not** here, for the same reason
+arrangement isn't: the controls layer owns that
+(`views/CityView/chrome/CityFooter/transferGroups.ts`). Render's groups are read
+off the pane's own sections so the two cannot drift, and that file also declares
+`NON_TRANSFERABLE`.

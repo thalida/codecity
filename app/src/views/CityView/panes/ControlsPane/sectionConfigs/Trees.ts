@@ -23,7 +23,7 @@ export const TREES_SECTION: SectionNode = {
     },
     {
       key: 'height',
-      label: 'Height by age',
+      label: 'Height by Age',
       children: [
         field(TREES, 'MIN_HEIGHT'),
         field(TREES, 'MAX_HEIGHT'),
@@ -34,7 +34,7 @@ export const TREES_SECTION: SectionNode = {
     },
     {
       key: 'width',
-      label: 'Width by files',
+      label: 'Width by Files',
       children: [
         field(TREES, 'MIN_WIDTH'),
         field(TREES, 'MAX_WIDTH'),
@@ -44,7 +44,7 @@ export const TREES_SECTION: SectionNode = {
     },
     {
       key: 'trees-color',
-      label: 'Color by commits-per-day',
+      label: 'Color by Commits-per-Day',
       children: [
         field(TREES, 'COLOR_BUSY_DAY'),
         field(TREES, 'COLOR_SOLO_DAY'),

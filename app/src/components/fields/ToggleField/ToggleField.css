@@ -2,8 +2,8 @@
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
 .setting-toggle {
-  width: 20px;
-  height: 20px;
+  width: var(--cc-toggle-size);
+  height: var(--cc-toggle-size);
   cursor: pointer;
   accent-color: var(--cc-accent);
   margin: var(--cc-space-0);

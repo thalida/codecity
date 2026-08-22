@@ -12,7 +12,7 @@ export const STREETS_SECTION: SectionNode = {
   children: [
     {
       key: 'width-tiers',
-      label: 'Width tiers',
+      label: 'Width Tiers',
       children: [field(STREET_TIERS, 'TIERS')],
     },
     {
@@ -55,7 +55,7 @@ export const STREETS_SECTION: SectionNode = {
         },
         {
           key: 'path-lines',
-          label: 'Path lines',
+          label: 'Path Lines',
           children: [
             field(STREETS, 'PATH_LINEWIDTH_PCT'),
             field(STREETS, 'PATH_OPACITY'),

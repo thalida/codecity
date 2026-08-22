@@ -5,12 +5,12 @@ import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/settings/fields/gem';
 
 export const GEM_SECTION: SectionNode = {
   key: 'gem',
-  label: 'Root gem',
+  label: 'Root Gem',
   description: 'The floating spinning octahedron above the root street.',
   children: [
     {
       key: 'size-shape',
-      label: 'Size & shape',
+      label: 'Size & Shape',
       children: [
         field(GEM_SIZING, 'RADIUS_AS_STREET_FRAC'),
         field(GEM_SIZING, 'MIN_RADIUS'),
@@ -24,7 +24,7 @@ export const GEM_SECTION: SectionNode = {
     },
     {
       key: 'face-colors',
-      label: 'Face colors',
+      label: 'Face Colors',
       children: [
         field(GEM, 'FACE_1'),
         field(GEM, 'FACE_2'),
@@ -38,7 +38,7 @@ export const GEM_SECTION: SectionNode = {
     },
     {
       key: 'glow',
-      label: 'Glow halo',
+      label: 'Glow Halo',
       children: [
         field(GEM, 'GLOW_ENABLED'),
         field(GEM, 'GLOW_INNER_SCALE'),
@@ -63,7 +63,7 @@ export const GEM_SECTION: SectionNode = {
     },
     {
       key: 'repo-label',
-      label: 'Repo label',
+      label: 'Repo Label',
       children: [
         field(REPO_LABEL, 'ENABLED'),
         field(REPO_LABEL, 'HEIGHT_PCT'),

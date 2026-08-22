@@ -220,15 +220,21 @@ export function activeExcludePathsFor(src: string): string[] {
   return EXCLUDES.peek()[repoKeyFor(src)] ?? [];
 }
 
-function setForCurrentRepo(next: string[]): void {
-  const cur = CURRENT_SOURCE.peek();
-  if (!cur) return; // no source loaded: nothing to key against
-  const key = repoKeyFor(cur.src);
+/** Replace one repo's exclude list. Sorted and de-duped, and an empty list
+ *  drops the slot so the store holds only repos that hide something. */
+export function setExcludesFor(src: string, next: readonly string[]): void {
+  const key = repoKeyFor(src);
   const sorted = [...new Set(next)].sort();
   const map = { ...EXCLUDES.peek() };
   if (sorted.length === 0) delete map[key];
   else map[key] = sorted;
   EXCLUDES.value = map;
+}
+
+function setForCurrentRepo(next: string[]): void {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return; // no source loaded: nothing to key against
+  setExcludesFor(cur.src, next);
 }
 
 /** Hide `path` from the current repo's city. Sorted + de-duped. No-op if none. */

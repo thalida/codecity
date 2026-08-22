@@ -128,7 +128,7 @@ describe('DynamicSection rendering', () => {
 
     expect(container.textContent).toContain('Trees');
     expect(container.textContent).toContain('Placement');
-    expect(container.textContent).toContain('Height by age');
+    expect(container.textContent).toContain('Height by Age');
 
     // One .setting-row per placed field (RangePairField counts as one row).
     const placed = collectRefs(TREES_SECTION.children ?? []).length;
@@ -147,7 +147,7 @@ describe('DynamicSection rendering', () => {
       (s) => s.textContent ?? ''
     );
     // Selection fade (depth 3) is still a collapsible accordion.
-    expect(toggles.some((t) => t.includes('Selection fade'))).toBe(true);
+    expect(toggles.some((t) => t.includes('Selection Fade'))).toBe(true);
     // A fade tier (depth 4) is past the cap → a flat labeled cluster, no toggle…
     expect(toggles.some((t) => t.includes('Level 1'))).toBe(false);
     // …but its label + fields still render.

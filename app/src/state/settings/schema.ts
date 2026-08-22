@@ -78,10 +78,16 @@ export function _unregisterForTests(store: object): void {
   _FIELDS.delete(store);
 }
 
+/** A settings store as the machinery around it reads and writes one. Always a
+ *  @preact/signals Signal at runtime; this is the narrow surface used here. */
+export interface SettingStore {
+  value: any;
+}
+
 /** Visit every settings store (settingSignal + hand-registered). The settings
  *  draft/reset machinery uses this instead of persist.forEachRegisteredStore. */
-export function forEachSettingStore(cb: (store: { value: unknown }) => void): void {
-  for (const s of _SETTING_STORES) cb(s as { value: unknown });
+export function forEachSettingStore(cb: (store: SettingStore) => void): void {
+  for (const s of _SETTING_STORES) cb(s as SettingStore);
 }
 
 const _AUTOSAVE_STORES = new WeakSet<object>();
@@ -113,31 +119,45 @@ function clampToBounds(n: number, def: FieldDef): number {
   return n;
 }
 
-// One hydrated value against its definition, falling back to the default.
-// Guards stale or tampered localStorage; the cases are in README.md.
-function sanitizeField(value: unknown, def: FieldDef): unknown {
-  const fallback = def.default;
+// One value against its definition: the usable form of it (clamped where the
+// field has bounds), or undefined when it is not that kind of value at all.
+function coerceField(value: unknown, def: FieldDef): unknown | undefined {
   switch (def.kind) {
     case FieldKind.SliderField:
     case FieldKind.Number:
       return typeof value === 'number' && Number.isFinite(value)
         ? clampToBounds(value, def)
-        : fallback;
+        : undefined;
     case FieldKind.RangePairField:
       return Array.isArray(value) &&
         value.length === 2 &&
         value.every((n) => typeof n === 'number' && Number.isFinite(n))
         ? [clampToBounds(value[0] as number, def), clampToBounds(value[1] as number, def)]
-        : fallback;
+        : undefined;
     case FieldKind.ToggleField:
-      return typeof value === 'boolean' ? value : fallback;
+      return typeof value === 'boolean' ? value : undefined;
     case FieldKind.Select:
-      return def.options?.some((o) => o.value === value) ? value : fallback;
+      return def.options?.some((o) => o.value === value) ? value : undefined;
     default:
-      return typeof value === typeof fallback && Array.isArray(value) === Array.isArray(fallback)
+      return typeof value === typeof def.default &&
+        Array.isArray(value) === Array.isArray(def.default)
         ? value
-        : fallback;
+        : undefined;
   }
+}
+
+// One hydrated value against its definition, falling back to the default.
+// Guards stale or tampered localStorage; the cases are in README.md.
+function sanitizeField(value: unknown, def: FieldDef): unknown {
+  const coerced = coerceField(value, def);
+  return coerced === undefined ? def.default : coerced;
+}
+
+/** An outside value (an imported file) against a field: its usable form, or
+ *  undefined so the caller can report the miss instead of quietly defaulting. */
+export function coerceFieldValue(store: object, key: string, value: unknown): unknown | undefined {
+  const def = _FIELDS.get(store)?.[key];
+  return def === undefined ? undefined : coerceField(value, def);
 }
 
 /** A persisted settings store from a flat field map: defaults, validation and
@@ -180,16 +200,12 @@ export function getFieldKeys(store: object): string[] {
   return map ? Object.keys(map) : [];
 }
 
-interface ValueStore {
-  value: Record<string, unknown>;
-}
-
 /** A string that changes iff a field with this route changes, so the wrapping
  *  computed notifies for one route only. Call inside a computed(). */
 export function routeSignature(route: ChangeRoute): string {
   let sig = '';
   for (const [store, fields] of _FIELDS) {
-    const v = (store as ValueStore).value;
+    const v = (store as SettingStore).value as Record<string, unknown>;
     for (const key in fields) {
       if (fields[key].route === route) {
         sig += `${key}=${JSON.stringify(v[key])};`;

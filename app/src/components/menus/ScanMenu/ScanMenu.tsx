@@ -22,7 +22,7 @@ import {
 } from '@/state/stores/source';
 import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
 
-const PANEL_LABEL = 'Scan and freshness';
+const PANEL_LABEL = 'Scan Settings';
 
 /** Truncated from the middle: the tail of a rel-path (the filename) identifies
  *  it, and an end-ellipsis cuts exactly that off. */
@@ -60,7 +60,7 @@ function ExcludesGroup() {
         {/* On the title, not each row: it says what the whole group is, and
             repeating it down the list adds a column without adding meaning. */}
         <EyeOff class="icon popover-group-icon" aria-hidden="true" />
-        <h3 class="popover-group-title">Excluded from city</h3>
+        <h3 class="popover-group-title">Excluded from City</h3>
         {paths.length > 0 && (
           <button
             type="button"

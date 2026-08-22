@@ -42,7 +42,7 @@ export const BUILDINGS_SECTION: SectionNode = {
     },
     {
       key: 'buildings-color',
-      label: 'Color by age',
+      label: 'Color by Age',
       children: [
         field(BUILDINGS, 'HALF_LIFE_DAYS'),
         field(BUILDINGS, 'SATURATION_MIN'),
@@ -53,7 +53,7 @@ export const BUILDINGS_SECTION: SectionNode = {
     },
     {
       key: 'hues',
-      label: 'Extension hues (0–359°)',
+      label: 'Extension Hues (0–359°)',
       children: [field(BUILDINGS, 'HUE_EXT_MAP')],
     },
     {
@@ -77,7 +77,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-contrast',
-          label: 'Contrast (HSL lightness Δ)',
+          label: 'Contrast (HSL Lightness Δ)',
           children: [
             field(BUILDINGS, 'SLAB_LIGHTNESS_DELTA'),
             field(BUILDINGS, 'DOOR_LIGHTNESS_DELTA'),
@@ -85,7 +85,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-windows',
-          label: 'Window lighting',
+          label: 'Window Lighting',
           children: [
             field(BUILDINGS, 'UNLIT_LIGHTNESS_DELTA'),
             field(BUILDINGS, 'GAP_BASE_THRESHOLD'),
@@ -97,7 +97,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-ads',
-          label: 'Billboards (media files)',
+          label: 'Billboards (Media Files)',
           children: [
             field(BUILDINGS, 'MEDIA_ENABLED'),
             field(BUILDINGS, 'MEDIA_SIDE_MARGIN_FRAC'),
@@ -108,7 +108,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-data',
-          label: 'Data blocks (binary files)',
+          label: 'Data Blocks (Binary Files)',
           children: [
             field(BUILDINGS, 'DATA_ENABLED'),
             field(BUILDING_DIMENSIONS, 'DATA_HEIGHT_RATIO'),
@@ -118,7 +118,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-grime',
-          label: 'Grime streaks',
+          label: 'Grime Streaks',
           children: [
             field(BUILDINGS, 'GRIME_ENABLED'),
             field(BUILDINGS, 'GRIME_INTENSITY'),
@@ -148,7 +148,7 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'selection-fade',
-          label: 'Selection fade',
+          label: 'Selection Fade',
           children: [
             fadeTier('Default tier — selected, hovered, or idle', 'DEFAULT'),
             fadeTier('Level 1 — same dir as selection', 'LEVEL1'),

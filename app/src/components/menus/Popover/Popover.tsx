@@ -8,7 +8,7 @@ import { ChevronsUpDown } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
 import { useSignal, type Signal } from '@preact/signals';
-import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useDismissable } from '@/hooks/useDismissable';
 import { IS_PHONE } from '@/state/stores/viewport';
 
@@ -58,6 +58,9 @@ export interface PopoverProps {
   triggerClass?: string;
   placement: PopoverPlacement;
   panelClass?: string;
+  /** Pinned below the scrolling body. For actions that must stay reachable
+   *  however far the panel's content runs. Receives `close`, as children do. */
+  footer?: (close: (refocus: boolean) => void) => ComponentChildren;
   /** Open state to share, for a panel something outside can open (the "?" key
    *  opens shortcuts) or that other state reads. Omit to keep it internal. */
   openSignal?: Signal<boolean>;
@@ -73,9 +76,11 @@ export function Popover({
   triggerClass,
   placement,
   panelClass,
+  footer,
   openSignal,
   children,
 }: PopoverProps) {
+  const titleId = useId();
   // Always created (hook rules); ignored when the caller supplies its own.
   const ownOpen = useSignal(false);
   const isOpen = openSignal ?? ownOpen;
@@ -138,7 +143,7 @@ export function Popover({
               ref={panelRef}
               class={`popover-panel popover-panel--${placement} surface-glass${panelClass ? ` ${panelClass}` : ''}`}
               role="dialog"
-              aria-label={label}
+              aria-labelledby={titleId}
               style={anchor ?? undefined}
             >
               {/* Sheet-only (hidden by CSS when anchored), and a real control: a
@@ -149,7 +154,15 @@ export function Popover({
                 aria-label="Close"
                 onClick={() => close(true)}
               />
-              {children(close)}
+              {/* The panel's name, shown rather than only announced: a portal
+                  panel has no trigger beside it to say what you opened. */}
+              <div class="popover-header">
+                <h2 id={titleId} class="popover-title">
+                  {label}
+                </h2>
+              </div>
+              <div class="popover-body">{children(close)}</div>
+              {footer && <div class="popover-footer">{footer(close)}</div>}
             </div>
           </>,
           document.body
