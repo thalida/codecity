@@ -1,8 +1,7 @@
 // state/stores/progress.ts — how far along the thing you are waiting for is,
 // for ONE project: what the server reports, what the build is doing, and what
-// the overlay shows on top of both. The overlay is a reduction over the other
-// two (a running max over rows, the last tail each saw), which is why it needs
-// the driver at the bottom.
+// the overlay shows over both. The overlay is a reduction over the other two,
+// which is why it needs the driver at the bottom.
 
 import { signal, computed, effect, type ReadonlySignal, type Signal } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
@@ -64,9 +63,8 @@ export enum RebuildStatus {
   Error = 'error',
 }
 
-/** The status writes a city makes as it assembles. A city is handed one of
- *  these, which is how its build reaches the readouts describing it — or does
- *  not, when nobody is waiting for that city. */
+/** The status writes a city makes as it assembles: how its build reaches the
+ *  readouts describing it, or does not, when nobody is waiting for that one. */
 export interface BuildReporter {
   beginBuild(stages: readonly BuildStage[]): void;
   enterBuildStage(stage: BuildStage): void;

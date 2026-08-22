@@ -283,8 +283,7 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
   );
 
   // The whole commit scrubPos lands on, so anything keyed on presence
-  // recomputes once a crossing. Capped: past the last one the city is still
-  // its, only older.
+  // recomputes once a crossing. Capped: past the last, the city is still its.
   const scrubCommit = computed(() =>
     Math.min(Math.floor(scrubPos.value), Math.max(0, commitCount.value - 1))
   );

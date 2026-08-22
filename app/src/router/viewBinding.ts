@@ -16,9 +16,8 @@ import type { PickerSelectionKey } from '@/types';
 
 const REPLACE: NavigateOptions = { replace: true };
 
-/** Bind one project's view — the mode, the commit the scrubber rests on, and
- *  the selection — to the URL, in both directions. Attached for the session the
- *  address bar is describing; a second one simply is not. */
+/** Bind one project's view (mode, scrubbed commit, selection) to the URL, both
+ *  ways. Attached for the session the address bar describes; others are not. */
 export function attachViewUrlReactions(session: ProjectSession): () => void {
   const { source, progress, timeline, commands, city } = session;
 

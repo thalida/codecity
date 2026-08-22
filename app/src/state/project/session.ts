@@ -1,8 +1,7 @@
 // state/project/session.ts — one open project, whole: which repo, its manifest,
-// how far its load and build have got, the history it is being scrubbed
-// through, and the city rendering it. Nothing in here is app-wide, so a second
-// session is a second project with nothing shared — which is what lets two
-// cities sit side by side without hearing each other.
+// how far its load and build have got, the history it is scrubbed through, and
+// the city rendering it. Nothing here is app-wide, so a second session shares
+// nothing — which is what lets two cities sit side by side.
 
 import { signal, type Signal } from '@preact/signals';
 import { createManifestStore, type ManifestStore } from '@/state/stores/manifest';
@@ -39,9 +38,8 @@ export function createProjectSession(): ProjectSession {
   const progress = createProgressStore({ manifest, source });
   const timeline = createTimelineStore({ manifest });
 
-  // The three below take the session they belong to, so a call can reach the
-  // rest of it: filled in on the object rather than passed around, which is
-  // what a scan needing the timeline (and vice versa) used to inject by hand.
+  // The three below take the session they belong to, so a scan can reach the
+  // timeline and back without the handler injection that used to bridge them.
   const session = {
     source,
     manifest,

@@ -1,8 +1,7 @@
 // state/stores/source.ts — which repo. Per project: the one this session
-// opened, how it failed, and the folders hidden inside it. App-wide: the ones
-// you have opened before, the exclude lists they are keyed into, and the repo
-// merely showing behind the landing. The excludes are here rather than in
-// settings/ because the fetch layer sends them in the manifest URL.
+// opened, how it failed, the folders hidden inside it. App-wide: the ones
+// opened before, their exclude lists, and the repo behind the landing. The
+// excludes live here because the fetch layer sends them in the manifest URL.
 
 import { signal, computed, type ReadonlySignal, type Signal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
@@ -195,9 +194,8 @@ export interface BackdropCity {
  *  you can't see. Null means the hero image is what's showing. */
 export const BACKDROP_CITY = signal<BackdropCity | null>(null);
 
-/** What is on screen: the project a session opened, or the repo the landing is
- *  rendering behind itself. Lists mark rows against it, so one repo marks the
- *  same way wherever you are. Read during render — it tracks the backdrop. */
+/** What is on screen: the project a session opened, or the repo behind the
+ *  landing. Read during render, since it tracks the backdrop. */
 export function activeSourceOf(opened: SourceRef | null): SourceRef | null {
   if (opened) return opened;
   const backdrop = BACKDROP_CITY.value;

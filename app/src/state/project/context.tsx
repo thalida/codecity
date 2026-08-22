@@ -1,8 +1,7 @@
 // state/project/context.tsx — which project the chrome around a city is bound
-// to. Provided, not global: wrap the app in one session and the chrome reads
-// that one, wrap each column of a side-by-side view in its own and the same
-// components read theirs. The city itself takes its config directly and needs
-// none of this.
+// to. Provided, not global: wrap the app in one session, or wrap each column of
+// a side-by-side view in its own, and the same components work either way. The
+// city itself takes its config directly and needs none of this.
 
 import { createContext } from 'preact';
 import { useContext } from 'preact/hooks';
@@ -21,9 +20,8 @@ export function ProjectProvider({
   return <ProjectContext.Provider value={session}>{children}</ProjectContext.Provider>;
 }
 
-/** The project this part of the tree belongs to. Throws rather than falling
- *  back to a global: a component reading the wrong project is the bug this
- *  whole shape exists to make impossible. */
+/** The project this part of the tree belongs to. Throws rather than falling back
+ *  to a global: reading the wrong project is the bug this shape rules out. */
 export function useProject(): ProjectSession {
   const session = useContext(ProjectContext);
   if (!session) throw new Error('useProject: no <ProjectProvider> above this component');

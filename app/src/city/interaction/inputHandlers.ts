@@ -226,10 +226,8 @@ export function createInputHandlers({
       // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
-      // The command the panes' Focus buttons call. The gem isn't selectable:
-      // clicking it resets the view instead.
-      // Aim at whatever is selected, and get the chrome out of the way: the
-      // same thing the panes' Focus button does, from this city's own picker.
+      // What the panes' Focus button does, from this city's own picker: aim at
+      // the selection, and get the chrome out of the way.
       const sel = picker.selection.peek();
       if (sel) {
         rig.focusSelection(sel);
