@@ -79,7 +79,6 @@ export function commitStats(commits: CommitEntry[]): RepoStats {
     .sort((a, b) => b.commits - a.commits || a.name.localeCompare(b.name));
   return {
     ...EMPTY_REPO_STATS,
-    commitDates: { oldest, newest },
     maxFilesPerCommit: { sha: grandest.sha, files: grandest.files, date: grandest.date },
     minFilesPerCommit: { sha: sparsest.sha, files: sparsest.files, date: sparsest.date },
     authors,

@@ -264,19 +264,6 @@ export interface components {
          * @enum {string}
          */
         CloneStage: "receiving" | "resolving" | "counting" | "updating";
-        /** CommitDateRange */
-        CommitDateRange: {
-            /**
-             * Oldest
-             * @description Oldest commit date (YYYY-MM-DD), or null when the repo has no commits
-             */
-            oldest: string | null;
-            /**
-             * Newest
-             * @description Newest commit date (YYYY-MM-DD), or null when the repo has no commits
-             */
-            newest: string | null;
-        };
         /** CommitDetailResponse */
         CommitDetailResponse: {
             /** Sha */
@@ -673,7 +660,6 @@ export interface components {
              * @description Commits in the full history, however many `commits` carries
              */
             commitCount: number;
-            commitDates: components["schemas"]["CommitDateRange"];
             maxCommitsPerDay: components["schemas"]["DayLeader"] | null;
             /** Maxcommitstreakdays */
             maxCommitStreakDays: number;

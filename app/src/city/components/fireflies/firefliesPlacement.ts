@@ -8,7 +8,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/settings/fields/trees';
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import {
-  computeAgeRange,
+  ageMoment,
   computeSizeRange,
   treeHeight,
   treeRadius,
@@ -109,7 +109,7 @@ export function placeFireflies(
 
   // Shared with the tree renderer, scan date included, or the orbs sit at a
   // height the trees they belong to never reach.
-  const ageRange = computeAgeRange(stats, scannedAt);
+  const scanDay = ageMoment(scannedAt);
   const sizeRange = computeSizeRange(stats);
 
   const out: FireflyPlacement[] = [];
@@ -120,8 +120,8 @@ export function placeFireflies(
 
     // Canopy radius/height come from treeEncoding — the same source the
     // tree renderer uses — so orbs stay pinned to their trees.
-    const canopyRadius = treeRadius(commit, ageRange, sizeRange, cfg);
-    const height = treeHeight(commit, ageRange, cfg);
+    const canopyRadius = treeRadius(commit, scanDay, sizeRange, cfg);
+    const height = treeHeight(commit, scanDay, cfg);
 
     for (const author of commit.authors ?? []) {
       // Orbs are trees times authors, so a capped forest can still balloon past

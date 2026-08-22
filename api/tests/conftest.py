@@ -545,7 +545,6 @@ def make_manifest(src: str = "/repo", **overrides: Any) -> Manifest:
             "dirtyFileCount": 0,
             "codeBytes": 0,
             "commitCount": 0,
-            "commitDates": {"oldest": None, "newest": None},
             "maxCommitStreakDays": 0,
             "authors": [],
         },

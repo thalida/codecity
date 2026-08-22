@@ -7,11 +7,10 @@ import type { CommitEntry, RepoStats } from '@/types';
 import { TREES } from '@/state/settings/fields/trees';
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import {
-  computeAgeRange,
   computeSizeRange,
   treeHeight,
   treeRadius,
-  type AgeRange,
+  type AgeMoment,
 } from '@/city/components/trees/treeEncoding';
 import { epochDayAt } from '@/utils/dates';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
@@ -25,14 +24,12 @@ export interface FirefliesScrub {
 export function createFirefliesScrub(
   orbs: FireflyPlacement[],
   commits: CommitEntry[] | null,
-  stats: RepoStats | null | undefined,
-  scannedAt?: string | null
+  stats: RepoStats | null | undefined
 ): FirefliesScrub {
   const history = commits ?? [];
   // The busiest author's all-time total, the fixed maximum sizes are read
   // against, so an orb grows through the scrub instead of holding its rank.
   const maxCommits = stats?.authors?.[0]?.commits ?? 0;
-  const ageRange = computeAgeRange(stats, scannedAt);
   const sizeRange = computeSizeRange(stats);
   // The sizes the placements were built with, to restore on the way back to
   // Live without recomputing them and drifting by a rounding step.
@@ -91,7 +88,7 @@ export function createFirefliesScrub(
       // Tree sizes at this date, from the same formulas the forest grows by, so
       // an orb keeps its place just outside the canopy.
       const cfg = TREES.value;
-      const scrubbed: AgeRange = { ...ageRange, scanned: day };
+      const scrubbed: AgeMoment = day;
       const heightAt = new Map<number, number>();
       const radiusAt = new Map<number, number>();
 

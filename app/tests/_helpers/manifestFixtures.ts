@@ -37,7 +37,6 @@ export const EMPTY_REPO_STATS: RepoStats = {
   maxFilesPerCommit: null,
   minFilesPerCommit: null,
   commitCount: 0,
-  commitDates: { oldest: null, newest: null },
   maxCommitsPerDay: null,
   maxCommitStreakDays: 0,
   authors: [],

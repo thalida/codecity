@@ -38,8 +38,11 @@ describe('decoration golden (bit-identical guard)', () => {
       commitCount: 43000,
       islandGeoOverride: null,
     });
-    const orbs = placeFireflies(placements, commits, stats);
-    const renderer = createTreeRenderer(placements, commits, busyness, stats);
+    // The scan date the manifest always carries. Explicit here because it is
+    // what every tree is aged against, and the digest below moves with it.
+    const scannedAt = commits[commits.length - 1].date;
+    const orbs = placeFireflies(placements, commits, stats, scannedAt);
+    const renderer = createTreeRenderer(placements, commits, busyness, stats, scannedAt);
 
     const hasher = makeDigestHasher();
     for (const p of placements) {

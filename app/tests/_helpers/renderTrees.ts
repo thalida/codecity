@@ -13,9 +13,18 @@ import { commitStats } from './statsFixtures';
 export function renderTrees(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
-  busyness: BusynessThresholds
+  busyness: BusynessThresholds,
+  // The scan date every manifest carries, and every tree is aged against.
+  // Defaults to the newest commit, which is what a fresh scan reads as.
+  scannedAt: string | null = commits?.[commits.length - 1]?.date ?? null
 ): Trees {
-  return createTreeRenderer(placements, commits, busyness, commits ? commitStats(commits) : null);
+  return createTreeRenderer(
+    placements,
+    commits,
+    busyness,
+    commits ? commitStats(commits) : null,
+    scannedAt
+  );
 }
 
 /** The chunk mesh rendering `placementIndex`, and its slot within it. */

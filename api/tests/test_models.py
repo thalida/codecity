@@ -148,7 +148,6 @@ class ModelTests(unittest.TestCase):
                 "oldestCommit": None,
                 "newestCommit": None,
                 "commitCount": 0,
-                "commitDates": {"oldest": None, "newest": None},
                 "maxCommitsPerDay": None,
                 "maxCommitStreakDays": 0,
                 "authors": [],

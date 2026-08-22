@@ -27,7 +27,7 @@ const ms = (d: string) => parseDateMs(d);
 function field() {
   const placements = COMMITS.map((_, i) => treePlacement(i, i * 200, 0));
   const orbs = placeFireflies(placements, COMMITS, STATS, SCANNED);
-  return { orbs, scrub: createFirefliesScrub(orbs, COMMITS, STATS, SCANNED) };
+  return { orbs, scrub: createFirefliesScrub(orbs, COMMITS, STATS) };
 }
 
 const scaleOf = (orbs: ReturnType<typeof field>['orbs'], author: string) =>
@@ -114,7 +114,7 @@ describe('createFirefliesScrub', () => {
     );
     const stats = commitStats(shared);
     const orbs = placeFireflies([treePlacement(0, 0, 0), treePlacement(1, 200, 0)], shared, stats);
-    const scrub = createFirefliesScrub(orbs, shared, stats, '2026-02-01');
+    const scrub = createFirefliesScrub(orbs, shared, stats);
     scrub.resize(0, ms('2026-01-01'));
     // One commit each after the first: Grace is not behind Ada yet.
     expect(scaleOf(orbs, 'Grace')).toBe(scaleOf(orbs, 'Ada'));

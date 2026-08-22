@@ -8,12 +8,9 @@ import type { TreesConfig } from '@/state/settings/fields/trees';
 import { recencyT } from '@/city/utils/recency';
 import { epochDay } from '@/utils/dates';
 
-/** What every commit is aged against. Not Date.now(): a live clock would drift
- *  tree heights and break the goldens. */
-export interface AgeRange {
-  /** Epoch days. The scrub swaps it for the moment under the scrubber. */
-  scanned: number;
-}
+/** The moment every commit is aged against, in epoch days. Not Date.now(): a
+ *  live clock would drift tree heights and break the goldens. */
+export type AgeMoment = number;
 
 export interface SizeRange {
   min: number;
@@ -48,18 +45,9 @@ function clamp01(t: number): number {
   return t;
 }
 
-/** What "now" is for a tree, in epoch days. Without a scan date the newest
- *  commit stands in, so a repo can't look abandoned the moment it is read. */
-export function computeAgeRange(
-  stats: RepoStats | null | undefined,
-  scannedAt?: string | null
-): AgeRange {
-  // No commits, no trees: there is nothing for a moment to age, so it stays 0
-  // however recently the repo was read.
-  const newest = stats?.commitDates?.newest;
-  if (!newest) return { scanned: 0 };
-  const newestDay = dateToDays(newest);
-  return { scanned: scannedAt == null ? newestDay : Math.max(newestDay, dateToDays(scannedAt)) };
+/** When the repo was read, as the day trees age against. */
+export function ageMoment(scannedAt?: string | null): AgeMoment {
+  return scannedAt == null ? 0 : dateToDays(scannedAt);
 }
 
 /** The files-changed range, from the backend's leaders. Zeroes with no stats,
@@ -103,31 +91,27 @@ export function dailyCountTByIndex(
  *  uses. Shared with the firefly orbits, which would otherwise drift. */
 export function treeHeight(
   commit: CommitEntry | null | undefined,
-  ageRange: AgeRange,
+  now: AgeMoment,
   cfg: TreesConfig
 ): number {
   const minHeight = cfg.MIN_HEIGHT;
   const maxHeight = cfg.MAX_HEIGHT;
   if (!commit) return (minHeight + maxHeight) * 0.5;
-  const maturity = 1 - commitRecency(commit, ageRange, cfg);
+  const maturity = 1 - commitRecency(commit, now, cfg);
   return minHeight + maturity * (maxHeight - minHeight);
 }
 
 /** Epoch days here (the scanner emits YYYY-MM-DD), converted on the way into
  *  the shared scale. */
-function commitRecency(commit: CommitEntry, ageRange: AgeRange, cfg: TreesConfig): number {
-  return recencyT(
-    dateToDays(commit.date) * MS_PER_DAY,
-    ageRange.scanned * MS_PER_DAY,
-    cfg.HALF_LIFE_DAYS
-  );
+function commitRecency(commit: CommitEntry, now: AgeMoment, cfg: TreesConfig): number {
+  return recencyT(dateToDays(commit.date) * MS_PER_DAY, now * MS_PER_DAY, cfg.HALF_LIFE_DAYS);
 }
 
 /** A tree's radius, from its commit's file count, attenuated by age so a young
  *  tree isn't adult-wide. Shared with the firefly orbit radius. */
 export function treeRadius(
   commit: CommitEntry | null | undefined,
-  ageRange: AgeRange,
+  now: AgeMoment,
   sizeRange: SizeRange,
   cfg: TreesConfig
 ): number {
@@ -145,7 +129,7 @@ export function treeRadius(
   }
   // Clamp height range to avoid divide-by-zero when min == max.
   const heightRange = Math.max(0.001, maxHeight - minHeight);
-  const heightRatio = (treeHeight(commit, ageRange, cfg) - minHeight) / heightRange;
+  const heightRatio = (treeHeight(commit, now, cfg) - minHeight) / heightRange;
   const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
   const ageAttenuation = floor + (1 - floor) * heightRatio;
   return baseRadius * ageAttenuation;

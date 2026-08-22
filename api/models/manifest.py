@@ -194,17 +194,6 @@ class CommitLeader(BaseModel):
     date: str
 
 
-# Both fields required-nullable: the scanner always emits them (null for a repo
-# with no commits), so they're present-but-nullable on the wire, not optional.
-class CommitDateRange(BaseModel):
-    oldest: Optional[str] = Field(
-        description="Oldest commit date (YYYY-MM-DD), or null when the repo has no commits"
-    )
-    newest: Optional[str] = Field(
-        description="Newest commit date (YYYY-MM-DD), or null when the repo has no commits"
-    )
-
-
 class DayLeader(BaseModel):
     date: str
     count: int
@@ -252,7 +241,6 @@ class RepoStats(BaseModel):
     commitCount: int = Field(
         description="Commits in the full history, however many `commits` carries"
     )
-    commitDates: CommitDateRange
     maxCommitsPerDay: Optional[DayLeader]
     maxCommitStreakDays: int
     authors: list[AuthorStat]

@@ -3,7 +3,6 @@ import pytest
 from api.models.manifest import (
     AuthorStat,
     BusynessThresholds,
-    CommitDateRange,
     CommitLeader,
     RangeStat,
 )
@@ -178,7 +177,6 @@ def test_commit_leaders_authors_and_streak():
     assert s.newestCommit.sha == "ddd"
     assert s.newestCommit.date == "2022-02-10"
     assert s.minFilesPerCommit == CommitLeader(sha="ccc", files=1, date="2022-01-03")
-    assert s.commitDates == CommitDateRange(oldest="2022-01-01", newest="2022-02-10")
     assert s.maxCommitsPerDay.count == 2
     assert s.maxCommitStreakDays == 3
     assert s.authors[0] == AuthorStat(name="Ada", commits=3, hue=_author_hue("Ada"))
@@ -203,8 +201,6 @@ def test_newest_commit_is_the_last_one_that_day():
 
     assert s.newestCommit.sha == "ccc"
     assert s.oldestCommit.sha == "aaa"
-    # The day range is still a day, whatever the timestamps carry.
-    assert s.commitDates == CommitDateRange(oldest="2026-08-15", newest="2026-08-15")
 
 
 def test_empty_tree_and_no_commits():
@@ -213,7 +209,6 @@ def test_empty_tree_and_no_commits():
     assert s.maxFilesPerCommit is None
     assert s.maxCommitStreakDays == 0
     assert s.authors == []
-    assert s.commitDates == CommitDateRange(oldest=None, newest=None)
     assert s.lineCountRange == RangeStat(min=0, max=0)
     assert s.mediaCount == 0
 

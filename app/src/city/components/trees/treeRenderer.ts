@@ -9,12 +9,12 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import {
-  computeAgeRange,
+  ageMoment,
   computeSizeRange,
   dailyCountTByIndex,
   treeHeight,
   treeRadius,
-  type AgeRange,
+  type AgeMoment,
   type SizeRange,
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
@@ -174,7 +174,7 @@ export function createTreeRenderer(
 
   // Ranges come from backend-precomputed stats, not a client-side scan;
   // scannedAt drives the absolute-age staleness lift on height.
-  const ageRange: AgeRange = computeAgeRange(stats, scannedAt);
+  const scanDay: AgeMoment = ageMoment(scannedAt);
   const sizeRange: SizeRange = computeSizeRange(stats);
 
   /** Resolve the commit a placement points at, or null when the index is
@@ -189,11 +189,11 @@ export function createTreeRenderer(
   // HEIGHT follows AGE, WIDTH follows FILES (age-attenuated); formulas live
   // in treeEncoding so firefly orbits derive from identical math.
   function perTreeHeight(i: number): number {
-    return treeHeight(commitForPlacement(i), ageRange, cfg);
+    return treeHeight(commitForPlacement(i), scanDay, cfg);
   }
 
   function perTreeRadius(i: number): number {
-    return treeRadius(commitForPlacement(i), ageRange, sizeRange, cfg);
+    return treeRadius(commitForPlacement(i), scanDay, sizeRange, cfg);
   }
 
   // The day the scrub sits on, or null in Live. The shader regrows what it
@@ -203,7 +203,7 @@ export function createTreeRenderer(
   function sizeAt(i: number): { height: number; radius: number } {
     if (_scrubDay === null) return { height: heights[i], radius: radii[i] };
     const commit = commitForPlacement(i);
-    const scrubbed: AgeRange = { ...ageRange, scanned: _scrubDay };
+    const scrubbed: AgeMoment = _scrubDay;
     return {
       height: treeHeight(commit, scrubbed, cfg),
       radius: treeRadius(commit, scrubbed, sizeRange, cfg),
@@ -410,7 +410,7 @@ export function createTreeRenderer(
   mergedMaterial.uniforms.uWidthAgeFloor = { value: Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR)) };
   // The day the heights were baked against: Live leaves the geometry untouched,
   // Timeline moves it to the scrubbed day.
-  mergedMaterial.uniforms.uNowDay = { value: ageRange.scanned };
+  mergedMaterial.uniforms.uNowDay = { value: scanDay };
 
   const group = new THREE.Group();
   group.name = 'trees';
@@ -529,7 +529,7 @@ export function createTreeRenderer(
   /** The day the scrub sits on, so every tree is the size it was then. Null
    *  (Live) restores the scan date, where the ratio is 1. */
   function setScrubNow(nowMs: number | null): void {
-    const day = nowMs === null ? ageRange.scanned : epochDayAt(nowMs);
+    const day = nowMs === null ? scanDay : epochDayAt(nowMs);
     if (day === mergedMaterial.uniforms.uNowDay.value) return;
     _scrubDay = nowMs === null ? null : day;
     mergedMaterial.uniforms.uNowDay.value = day;

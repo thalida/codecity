@@ -11,7 +11,6 @@ from typing import Optional
 from api.models.manifest import (
     AuthorStat,
     BusynessThresholds,
-    CommitDateRange,
     CommitEntry,
     CommitLeader,
     DayLeader,
@@ -242,7 +241,6 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
                 newest_dir = d
 
     grandest = sparsest = None  # commits, by files changed
-    oldest_commit = newest_commit = None  # commit-date range
     # The walk yields oldest first, so the ends ARE the leaders. Comparing dates
     # instead would tie on a busy day and keep the first, which is not newest.
     first = commits[0] if commits else None
@@ -259,10 +257,6 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         # multi-counting. 0 until manifest-wrap bakes it; read that as 1.
         d = day_of(c.date)
         day_totals[d] = max(day_totals.get(d, 0), c.same_day_total or 1)
-        if oldest_commit is None or d < oldest_commit:
-            oldest_commit = d
-        if newest_commit is None or d > newest_commit:
-            newest_commit = d
 
     busiest_day: DayLeader | None = None
     if day_totals:
@@ -320,7 +314,6 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         newestCommit=_commit_leader(last),
         commitCount=len(commits),
         # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.
-        commitDates=CommitDateRange(oldest=oldest_commit, newest=newest_commit),
         maxCommitsPerDay=busiest_day,
         maxCommitStreakDays=_longest_streak(list(day_totals.keys())),
         authors=authors,

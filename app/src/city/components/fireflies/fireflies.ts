@@ -62,7 +62,7 @@ export function createFireflyAssembly(
   const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
   const rings = createOrbitRings(orbs);
   const renderer = createFireflyRenderer(orbs, canvas);
-  const scrub = createFirefliesScrub(orbs, commits, stats, scannedAt);
+  const scrub = createFirefliesScrub(orbs, commits, stats);
   // Both arrive per frame, from the same controller, and both feed one resize.
   let _scrubCommit: number | null = null;
   let _scrubNow: number | null = null;

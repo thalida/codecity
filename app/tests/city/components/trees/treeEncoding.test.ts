@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  computeAgeRange,
+  ageMoment,
   computeSizeRange,
   sizeT,
   dailyCountT,
@@ -26,34 +26,25 @@ const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-21', files: 9 }
 );
 
-describe('computeAgeRange() scanned', () => {
-  // What "now" means to every commit. Newest commit in this fixture is 2026-01-21.
-  // Through the shared helper, so the expectation isn't the runner's timezone.
+describe('ageMoment()', () => {
+  // What "now" means to every commit. Through the shared helper, so the
+  // expectation isn't the runner's timezone.
   const day = (d: string) => epochDay(d);
 
-  it('is the scan date', () => {
-    expect(computeAgeRange(commitStats(commits), '2027-01-21').scanned).toBe(day('2027-01-21'));
+  it('is the day the repo was read', () => {
+    expect(ageMoment('2027-01-21')).toBe(day('2027-01-21'));
   });
 
-  it('falls back to the newest commit when no scan date is given', () => {
-    // An unknown scan date must not make the forest look abandoned.
-    expect(computeAgeRange(commitStats(commits)).scanned).toBe(day('2026-01-21'));
+  it('is 0 with no scan date, which is a manifest that has no trees either', () => {
+    expect(ageMoment()).toBe(0);
+    expect(ageMoment(null)).toBe(0);
   });
 
-  it('never sits before the newest commit, so a stale scan cannot age it backwards', () => {
-    expect(computeAgeRange(commitStats(commits), '2025-06-01').scanned).toBe(day('2026-01-21'));
-  });
-
-  it('is 0 when there are no commits, regardless of scanned_at', () => {
-    expect(computeAgeRange(commitStats([]), '2036-01-21').scanned).toBe(0);
-    expect(computeAgeRange(null, '2036-01-21').scanned).toBe(0);
-  });
-
-  it('reduces a timestamped scanned_at to the whole day it falls on', () => {
+  it('reduces a timestamped scan to the whole day it falls on', () => {
     // Not compared against a fixed day number: which calendar day an instant
     // falls on is the reader's, and this is the same day everywhere.
-    const morning = computeAgeRange(commitStats(commits), '2027-01-21T09:00:00Z').scanned;
-    const later = computeAgeRange(commitStats(commits), '2027-01-21T09:30:00Z').scanned;
+    const morning = ageMoment('2027-01-21T09:00:00Z');
+    const later = ageMoment('2027-01-21T09:30:00Z');
     expect(Number.isInteger(morning)).toBe(true);
     expect(later).toBe(morning);
     expect(morning).toBeGreaterThan(day('2027-01-20'));
@@ -181,13 +172,13 @@ describe('treeHeight() / treeRadius()', () => {
     { date: '2026-01-11', files: 5 }, // middle
     { date: '2026-01-21', files: 9 } // newest, largest
   );
-  const ageRange = computeAgeRange(commitStats(sizing));
+  const scanDay = ageMoment('2026-01-21');
   const sizeRange = computeSizeRange(commitStats(sizing));
 
   describe('treeHeight()', () => {
-    const fresh = computeAgeRange(commitStats(sizing), '2026-01-21');
-    const stale = computeAgeRange(commitStats(sizing), '2027-01-21');
-    const ancient = computeAgeRange(commitStats(sizing), '2036-01-21');
+    const fresh = ageMoment('2026-01-21');
+    const stale = ageMoment('2027-01-21');
+    const ancient = ageMoment('2036-01-21');
 
     it('puts a commit made today at MIN_HEIGHT', () => {
       expect(treeHeight(sizing[2], fresh, cfg)).toBe(8);
@@ -238,22 +229,22 @@ describe('treeHeight() / treeRadius()', () => {
   describe('treeRadius()', () => {
     it('oldest+smallest: baseRadius=MIN_WIDTH/2, attenuated toward the floor', () => {
       // sizeT=0 → baseRadius 16; heightRatio 0.4 → attenuation 0.7.
-      expect(treeRadius(sizing[0], ageRange, sizeRange, cfg)).toBeCloseTo(11.2, 5);
+      expect(treeRadius(sizing[0], scanDay, sizeRange, cfg)).toBeCloseTo(11.2, 5);
     });
 
     it('newest+largest: baseRadius=MAX_WIDTH/2, but shortest tree → floor attenuation', () => {
       // sizeT=1 → baseRadius 32; heightRatio 0 → attenuation 0.5.
-      expect(treeRadius(sizing[2], ageRange, sizeRange, cfg)).toBeCloseTo(16, 5);
+      expect(treeRadius(sizing[2], scanDay, sizeRange, cfg)).toBeCloseTo(16, 5);
     });
 
     it('floor=1.0 disables age attenuation (radius = baseRadius)', () => {
       const noFloor = { ...cfg, WIDTH_AGE_FLOOR: 1 } as TreesConfig;
-      expect(treeRadius(sizing[2], ageRange, sizeRange, noFloor)).toBeCloseTo(32, 5);
+      expect(treeRadius(sizing[2], scanDay, sizeRange, noFloor)).toBeCloseTo(32, 5);
     });
 
     it('null commit uses the midpoint base radius', () => {
       // baseRadius 24; midpoint height 52 → ratio 0.5 → attenuation 0.75.
-      expect(treeRadius(null, ageRange, sizeRange, cfg)).toBeCloseTo(18, 5);
+      expect(treeRadius(null, scanDay, sizeRange, cfg)).toBeCloseTo(18, 5);
     });
   });
 });
