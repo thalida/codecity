@@ -46,7 +46,7 @@ describe('RecentsList', () => {
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
-    renderInCity(<RecentsList />, session, container);
+    renderInCity(<RecentsList active={session.source.current.peek()} />, session, container);
     await flush();
 
     const activeRow = container.querySelector('.source-row--active');
@@ -61,7 +61,7 @@ describe('RecentsList', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
     ];
-    renderInCity(<RecentsList />, session, container);
+    renderInCity(<RecentsList active={session.source.current.peek()} />, session, container);
     await flush();
     const note = container.querySelector('.source-row--active .source-row-note');
     expect(note?.textContent).toBe('Active');
@@ -70,7 +70,7 @@ describe('RecentsList', () => {
   it('every row is a link to the project it names', async () => {
     // A real href, so the destination shows on hover, cmd-click opens a tab,
     // and a row can never open a repo other than the one it is labelled with.
-    renderInCity(<RecentsList />, session, container);
+    renderInCity(<RecentsList active={session.source.current.peek()} />, session, container);
     await flush();
 
     const active = container.querySelector<HTMLAnchorElement>('.source-row--active')!;
@@ -92,7 +92,7 @@ describe('RecentsList', () => {
       tree: { name: 'proj' },
       repo: { branch: 'feat/x' },
     } as unknown as Manifest);
-    renderInCity(<RecentsList />, session, container);
+    renderInCity(<RecentsList active={session.source.current.peek()} />, session, container);
     await flush();
 
     const rows = container.querySelectorAll('.source-list-item');
@@ -102,7 +102,7 @@ describe('RecentsList', () => {
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
-    renderInCity(<RecentsList />, session, container);
+    renderInCity(<RecentsList active={session.source.current.peek()} />, session, container);
     await flush();
 
     const removeButtons = container.querySelectorAll<HTMLButtonElement>(

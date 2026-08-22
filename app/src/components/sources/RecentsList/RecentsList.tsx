@@ -4,16 +4,14 @@
 // entry only; the scan cache is the skip-cache control's business.
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { RECENTS, removeRecent, activeSourceOf } from '@/state/stores/source';
-import { useCity } from '@/state/city/context';
+import { RECENTS, removeRecent, type SourceRef } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import { RecentRow } from './RecentRow';
 import { cityHref } from '@/router/location';
 
-export function RecentsList() {
+export function RecentsList({ active }: { active: SourceRef | null }) {
   const recents = RECENTS.value;
-  const active = activeSourceOf(useCity().source.current.value);
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row
 

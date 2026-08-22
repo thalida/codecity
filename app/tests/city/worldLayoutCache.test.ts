@@ -52,6 +52,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
         },
       },
       report: session.progress,
+      config: session.config,
     });
 
     // What Save does: commit() fires setKey on the real store, which is what

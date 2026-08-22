@@ -85,23 +85,30 @@ export class SourceStore {
 
   /** Commit a loaded source: this session's source, its recents entry, and the
    *  manifest the UI reads. Every mode ends its load here. */
-  commit = (src: string, branch: string | undefined, loaded: Manifest): void => {
-    // ONE identity for the load, used by both writes below. Deriving it twice
-    // is what listed a repo twice (#185): see the test for the two rows.
-    const checkout = resolveBranch(loaded, branch);
+  /** Show this source: what the session holds, without claiming you opened it.
+   *  The landing's backdrop shows a repo you did not ask for. */
+  set = (src: string, branch: string | undefined, loaded: Manifest): SourceRef => {
     // A local source carries no branch: its checkout is dynamic, so identity
     // omits it. The header still shows it, read off the manifest.
-    const idBranch = identityBranch(src, checkout);
+    const ref = { src, branch: identityBranch(src, resolveBranch(loaded, branch)) };
     // Source before manifest: the camera-reframe reaction reads the source at
     // apply-start, and the apply is kicked off by the manifest write.
-    this.current.value = { src, branch: idBranch };
+    this.current.value = ref;
     this.manifest.set(loaded);
+    return ref;
+  };
+
+  /** Show it, and remember you opened it. */
+  commit = (src: string, branch: string | undefined, loaded: Manifest): void => {
+    // ONE identity for the load, shared by both writes: deriving it twice is
+    // what listed a repo twice (#185).
+    const ref = this.set(src, branch, loaded);
     pushRecent({
       src,
       // tree.name is the canonical owner/repo; a worktree's is its folder.
       label: loaded.tree?.name || src,
-      branch: idBranch,
-      checkout,
+      branch: ref.branch,
+      checkout: resolveBranch(loaded, branch),
     });
   };
 
@@ -175,14 +182,6 @@ export interface BackdropCity {
 /** Written only once the backdrop has actually painted, so nothing names a repo
  *  you can't see. Null means the hero image is what's showing. */
 export const BACKDROP_CITY = signal<BackdropCity | null>(null);
-
-/** What is on screen: the project a session opened, or the repo behind the
- *  landing. Read during render, since it tracks the backdrop. */
-export function activeSourceOf(opened: SourceRef | null): SourceRef | null {
-  if (opened) return opened;
-  const backdrop = BACKDROP_CITY.value;
-  return backdrop ? { src: backdrop.src, branch: backdrop.branch } : null;
-}
 
 // ── Folders you have hidden, per repo (app-wide, keyed by repo) ───────
 

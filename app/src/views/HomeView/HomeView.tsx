@@ -29,6 +29,9 @@ export function HomeView() {
   // one a deep link uses. Loading here waited for the scan before routing.
   const open = (payload: SourcePayload): void => navigate(cityHref(payload.src, payload.branch));
   const failed = opened.source.error.value;
+  // Which row is the city you can see: the one you left, else whatever the
+  // backdrop settled on. Two cities meet here and nowhere else.
+  const onScreen = opened.source.current.value ?? BACKDROP_CITY.value;
 
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.
@@ -152,7 +155,11 @@ export function HomeView() {
               aria-labelledby={`${SOURCE_PANEL_ID}-tab-${activeTab}`}
               class="landing-tabpanel"
             >
-              {activeTab === SOURCE_TAB.recents ? <RecentsList /> : <DiscoverList />}
+              {activeTab === SOURCE_TAB.recents ? (
+                <RecentsList active={onScreen} />
+              ) : (
+                <DiscoverList active={onScreen} />
+              )}
             </div>
           </section>
         </div>

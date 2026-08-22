@@ -48,7 +48,11 @@ export function City({ session, label = DEFAULT_LABEL }: CityProps) {
         session.scene.value = built;
         // It knows what it is showing and how to re-pack it, so a Save needs to
         // be told neither.
-        disposeReactions = attachSettingsReactions({ scene: built, report: progress });
+        disposeReactions = attachSettingsReactions({
+          scene: built,
+          report: progress,
+          config: session.config,
+        });
 
         // Only kicks the apply off and surfaces its error: reaching Idle is the
         // decoration pass's, and framing the composer's.

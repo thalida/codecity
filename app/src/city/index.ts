@@ -84,6 +84,7 @@ export async function createCityScene(
     canvas,
     sceneState,
     timeline: session.timeline,
+    config: session.config,
     picker: null,
   } as unknown as SceneContext;
 

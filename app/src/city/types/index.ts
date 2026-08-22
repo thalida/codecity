@@ -3,6 +3,7 @@
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
+import type { CityConfig } from '../config';
 import type { CameraRig } from '../render/cameraRig';
 import type { CitySceneState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
@@ -19,6 +20,9 @@ export interface SceneContext {
   canvas: HTMLCanvasElement;
   picker: Picker;
   sceneState: CitySceneState;
+  /** What this city looks like. Every visual setting is read through here, so
+   *  nothing under city/ reaches for the panel's own signals. */
+  config: CityConfig;
   /** This city's history state, for the components drawing what a scrub
    *  implies. Its own, so a second city scrubs its own. */
   timeline: TimelineStore;

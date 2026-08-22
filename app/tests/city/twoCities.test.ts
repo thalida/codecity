@@ -8,6 +8,8 @@ import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
 import { RebuildStatus } from '@/state/stores/progress';
 import { SourceKind } from '@/utils/sources';
+import { TREES } from '@/state/settings/fields/trees';
+import { ChangeRoute } from '@/state/settings/schema';
 import type { Manifest } from '@/types';
 
 vi.mock('three', async () => {
@@ -177,6 +179,25 @@ describe('two cities at once', () => {
     } finally {
       left.dispose();
       right.dispose();
+    }
+  });
+
+  // What a session's config is FOR: same fields, its own values.
+  it('lets one city look different without touching the other', () => {
+    const dark = makeSession();
+    try {
+      expect(dark.config.TREES.value).toEqual(opened.config.TREES.value);
+      const rebuiltBefore = opened.config.signature(ChangeRoute.Rebuild);
+
+      dark.config.override(TREES, { ...TREES.value, CITY_CLEARANCE_PERCENT: 42 });
+
+      expect(dark.config.TREES.value.CITY_CLEARANCE_PERCENT).toBe(42);
+      expect(opened.config.TREES.value.CITY_CLEARANCE_PERCENT).not.toBe(42);
+      // Only the one that changed rebuilds: the signature is per city.
+      expect(dark.config.signature(ChangeRoute.Rebuild)).not.toBe(rebuiltBefore);
+      expect(opened.config.signature(ChangeRoute.Rebuild)).toBe(rebuiltBefore);
+    } finally {
+      dark.dispose();
     }
   });
 

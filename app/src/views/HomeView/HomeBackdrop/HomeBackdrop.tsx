@@ -112,15 +112,10 @@ export function HomeBackdrop({ opened }: { opened: CitySession }) {
           void tryNext(featuredRepo);
           return;
         }
-        backdrop.manifest.set(manifest);
-        pending = {
-          src: next.src,
-          label: manifest.tree?.name ?? next.src,
-          // Normalised the way a commit does: identity includes the branch, or
-          // the repo won't match its own row in recents.
-          branch: identityBranch(next.src, resolveBranch(manifest, next.branch)),
-          kind: next.kind,
-        };
+        // set, not commit: showing you a repo is not you having opened it, so
+        // it stays out of recents.
+        const ref = backdrop.source.set(next.src, next.branch, manifest);
+        pending = { ...ref, label: manifest.tree?.name ?? next.src, kind: next.kind };
       } finally {
         inFlight = false;
       }

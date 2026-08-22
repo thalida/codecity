@@ -33,6 +33,7 @@ describe('attachSettingsReactions routing', () => {
         invalidateLayoutCache: () => {},
       },
       report: session.progress,
+      config: session.config,
     });
   });
 

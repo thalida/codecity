@@ -90,6 +90,11 @@ export function forEachSettingStore(cb: (store: SettingStore) => void): void {
   for (const s of _SETTING_STORES) cb(s as SettingStore);
 }
 
+/** What a store's fields are, for anything folding its values by route. */
+export function fieldsOf(store: SettingStore): FieldMap {
+  return _FIELDS.get(store) ?? {};
+}
+
 const _AUTOSAVE_STORES = new WeakSet<object>();
 
 /** Write-through: widgets apply on change instead of staging drafts. The
@@ -202,15 +207,3 @@ export function getFieldKeys(store: object): string[] {
 
 /** A string that changes iff a field with this route changes, so the wrapping
  *  computed notifies for one route only. Call inside a computed(). */
-export function routeSignature(route: ChangeRoute): string {
-  let sig = '';
-  for (const [store, fields] of _FIELDS) {
-    const v = (store as SettingStore).value as Record<string, unknown>;
-    for (const key in fields) {
-      if (fields[key].route === route) {
-        sig += `${key}=${JSON.stringify(v[key])};`;
-      }
-    }
-  }
-  return sig;
-}

@@ -12,6 +12,7 @@ import { CityCommands } from '@/city/commands';
 import { CityLoader } from '@/state/city/loader';
 import { TimelineMode } from '@/state/city/timelineMode';
 import type { CameraMode } from '@/city/render/cameraRig';
+import { CityConfig } from '@/city/config';
 import type { CityScene } from '@/city/types';
 
 /** The city open in one place. Loading a new source swaps its contents rather
@@ -27,6 +28,8 @@ export class CitySession {
   readonly source = new SourceStore(this.manifest);
   readonly progress = new ProgressStore(this.manifest, this.source);
   readonly timeline = new TimelineStore(this.manifest);
+  /** What this city looks like. Its own, so a second city can differ. */
+  readonly config = new CityConfig();
 
   /** The scene drawing this city, while one is mounted. The chrome reaches
    *  through here to command it; a city with no scene is still a city. */
