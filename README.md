@@ -15,8 +15,7 @@
 
 **Open any public repo at [codecity.io](https://codecity.io).**
 
-codecity.io clones anonymously and cannot see your filesystem, so private repos and
-local folders need codecity running on your own machine. That is the next section.
+Private repos and local folders need codecity on your own machine.
 
 ## Run it yourself
 
@@ -28,9 +27,7 @@ You need:
   - Linux: `docker`
 - A modern browser with WebGL2 (Chrome, Safari, Firefox, Edge)
 
-codecity carries no git credentials of its own, so a private repo is one you clone
-yourself and then open as a folder. Set `CODECITY_ALLOW_LOCAL_REPOS=1` _and_ mount each
-directory read-only into the container at the same absolute path:
+Set `CODECITY_ALLOW_LOCAL_REPOS=1` and mount each repo directory read-only:
 
 ```sh
 docker run --rm --init --pull=always \
@@ -41,12 +38,13 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-1. Point `-v` at the folder your repos live in, the same absolute path on both sides
-2. Open <http://localhost:8080/> to reach the Projects page
-3. Paste a repo URL and pick a branch, or type the path to a mounted folder
-4. Explore your city!
+1. Open <http://localhost:8080/>
+2. Enter a repo URL or a local path
+3. Explore your city!
 
+- Same path on both sides of the `-v` is easiest: that is the path you type in
 - Use multiple `-v` flags to mount more than one directory
+- Private repos: clone it yourself, then open the folder
 - codecity only renders git working trees: `git init` first to render a non-git directory
 
 ### Public repos only
