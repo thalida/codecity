@@ -17,9 +17,8 @@ import { SCENE } from '@/state/settings/fields/scene';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 
-/** One city's settings. Each section follows the settings panel until this city
- *  is given its own value for it, so the opened city tracks what you save and a
- *  city that wants to look different says so once. */
+/** One city's settings. Each section follows the panel until this city is given
+ *  its own value for it, so the opened city tracks what you save. */
 export class CityConfig {
   // app store -> this city's value for it. Iterated by signature(), so the
   // rebuild trigger is this city's fields, not every city's.

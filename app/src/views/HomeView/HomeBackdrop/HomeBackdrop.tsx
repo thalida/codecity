@@ -10,7 +10,7 @@ import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { CitySession } from '@/state/city/session';
 import { RECENTS, BACKDROP_CITY, BackdropKind, type BackdropCity } from '@/state/stores/source';
-import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
+import { sameSourceIdentity } from '@/utils/sources';
 import { City } from '@/city/City';
 import { CameraMode } from '@/city/render/cameraRig';
 import type { Manifest } from '@/types';

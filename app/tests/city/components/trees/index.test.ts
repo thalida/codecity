@@ -10,7 +10,6 @@ import { createTrees } from '@/city/components/trees';
 import { createCitySceneState } from '@/city/state';
 import {
   commitTarget,
-  makeCityState,
   makePickableSceneContext,
   makePrePickerSceneContext,
   stubPlacementClient,
@@ -19,8 +18,6 @@ import {
 import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 import { NodeKind, StreetAxis } from '@/types';
 import { makeSession } from '../../../_helpers/city';
 
@@ -73,7 +70,6 @@ const _origTrees = TREES.value;
 // SceneContext with controllable picker signals + a fake canvas with client
 // dims, which the outline LineMaterial reads during arming.
 
-// Pre-picker ctx: picker null (the construction-time window).
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
 

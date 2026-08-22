@@ -7,7 +7,6 @@ import * as THREE from 'three';
 
 import { createBuildings } from '@/city/components/buildings';
 import {
-  makeCityState,
   makePickableSceneContext,
   makePrePickerSceneContext,
 } from '../../../_helpers/cityFixtures';
@@ -18,8 +17,6 @@ import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, FileTarget } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
 import { makeSession } from '../../../_helpers/city';
 
@@ -36,11 +33,6 @@ function resetStores(): void {
   RUINS.value = { ..._origRuins };
 }
 
-// A context whose picker exposes drivable selection and hover, and a canvas the
-// outline material can measure during arming.
-
-// Pre-picker ctx: picker null (the construction-time window). Used to prove the
-// theme effect is safe to run at construction and the overlays do NOT arm.
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
 

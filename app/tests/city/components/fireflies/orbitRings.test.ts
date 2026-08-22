@@ -3,7 +3,6 @@
 // pool itself, not the surrounding renderer wiring.
 
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
-import { TREES } from '@/state/settings/fields/trees';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createOrbitRings, ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';

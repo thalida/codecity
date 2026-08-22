@@ -2,7 +2,6 @@
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 
-import { TREES } from '@/state/settings/fields/trees';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
@@ -10,7 +9,6 @@ import { createFireflies } from '@/city/components/fireflies';
 import { FIREFLY_ORBS_MESH } from '@/city/components/fireflies/firefliesRenderer';
 import {
   commitTarget,
-  makeCityState,
   makePickableSceneContext,
   makePrePickerSceneContext,
   treePlacement,
@@ -18,8 +16,6 @@ import {
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
