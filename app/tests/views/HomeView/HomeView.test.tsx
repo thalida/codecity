@@ -314,6 +314,66 @@ describe('HomeView', () => {
     });
   });
 
+  // Read top to bottom: the pitch stays one uninterrupted thought, and the
+  // wallpaper caption is a caption rather than part of it.
+  describe('hero column', () => {
+    const hero = async () => {
+      navigate(ROUTES.HOME);
+      render(<HomeView />, container);
+      await flush();
+      return container.querySelector('.landing-hero')!;
+    };
+
+    it('keeps the tagline and the cues together, with nothing between them', async () => {
+      const pitch = (await hero()).querySelector('.landing-pitch')!;
+      expect(pitch.querySelector('.landing-tagline')).not.toBeNull();
+      expect(pitch.querySelector('.landing-delights')).not.toBeNull();
+      // Two children only: anything else here splits the pitch in half.
+      expect(pitch.children).toHaveLength(2);
+    });
+
+    it('puts the wallpaper caption last, below everything it is not part of', async () => {
+      BACKDROP_CITY.value = {
+        src: 'https://github.com/thalida/codecity',
+        label: 'thalida/codecity',
+        kind: BackdropKind.Featured,
+      };
+      const column = await hero();
+      expect(column.lastElementChild!.classList.contains('landing-featured')).toBe(true);
+    });
+  });
+
+  // Answered in the field's helper-text slot at the smallest step in the type
+  // scale, which is why it kept getting missed.
+  describe('private and local repos', () => {
+    const band = () => container.querySelector('.landing-local');
+
+    const renderAt = async (hosted: boolean) => {
+      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted, allowLocalRepos: !hosted };
+      navigate(ROUTES.HOME);
+      render(<HomeView />, container);
+      await flush();
+    };
+
+    it('answers in the hero, not under the field, on the public deployment', async () => {
+      await renderAt(true);
+      expect(band()).not.toBeNull();
+      expect(band()!.textContent).toContain('private and local repos work');
+      expect(band()!.querySelector('a')!.getAttribute('href')).toMatch(/#run-it-yourself$/);
+    });
+
+    it('says nothing anywhere else: you are already the machine it names', async () => {
+      await renderAt(false);
+      expect(band()).toBeNull();
+    });
+
+    // Two copies of one sentence on one screen is how neither gets read.
+    it('leaves the field slot to real failures once the band is up', async () => {
+      await renderAt(true);
+      expect(container.querySelector('.unreachable')).toBeNull();
+    });
+  });
+
   // The landing covers the app header and footer, so without these a cold
   // boot shows no version, repo link, or credit at all.
   describe('identity line', () => {
@@ -332,7 +392,7 @@ describe('HomeView', () => {
       expect(hero.textContent).toContain('v1.4.0');
     });
 
-    it('links the brand home, about to the repo, and the credit to thalida.com', async () => {
+    it('links the brand home, the repo link to GitHub, and the credit to thalida.com', async () => {
       const hero = await renderLanding({ dismissible: false });
       const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
       expect(links.map((a) => a.getAttribute('href'))).toEqual([
@@ -345,6 +405,12 @@ describe('HomeView', () => {
         expect(a.getAttribute('target')).toBe('_blank');
         expect(a.getAttribute('rel')).toBe('noopener noreferrer');
       }
+    });
+
+    it('names the repo link for where it goes', async () => {
+      const hero = await renderLanding({ dismissible: false });
+      const repo = hero.querySelector<HTMLAnchorElement>('a[href$="/thalida/codecity"]')!;
+      expect(repo.textContent).toBe('GitHub');
     });
 
     it('credits the creator with the unicorn', async () => {

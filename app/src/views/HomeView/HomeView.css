@@ -89,7 +89,15 @@
 
 /* ── Brand hero ── */
 
+/* Groups, not a stack: identity, pitch, scope and caption sit a step apart, and
+   the pitch closes up inside itself. One even gap grouped nothing. */
 .landing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+}
+
+.landing-pitch {
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
@@ -176,7 +184,7 @@
 
 .landing-delights {
   list-style: none;
-  margin: var(--cc-space-2) 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -210,6 +218,27 @@
 }
 .landing-delight--authors > svg {
   color: var(--cc-layer-fireflies);
+}
+
+/* No glyph: the four cues above own that left edge, and a fifth there would read
+   as a fifth cue in a box. */
+.landing-local {
+  padding: var(--cc-space-6) var(--cc-space-7);
+  border: 1px solid var(--cc-accent-border);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-accent-bg);
+  font-size: var(--cc-font-md);
+  line-height: var(--cc-lh-base);
+}
+.landing-local p {
+  margin: 0;
+}
+.landing-local-lead {
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-strong);
+}
+.landing-local-body {
+  color: var(--cc-text-primary);
 }
 
 /* Names the city rendered behind the page, so "what am I looking at" has an
@@ -348,7 +377,16 @@
 
   .landing-hero {
     padding-inline: 0;
+    gap: var(--cc-space-7);
+  }
+
+  .landing-pitch {
     gap: var(--cc-space-5);
+  }
+
+  .landing-local {
+    font-size: var(--cc-font-sm);
+    padding: var(--cc-space-5) var(--cc-space-6);
   }
 
   .landing-card {

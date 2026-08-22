@@ -87,9 +87,9 @@ export function NewProjectForm({
   // The one thing this form can't open. Gated on looksLikePath so a half-typed
   // URL never trips it, and it suppresses the "enter a git URL" nudge.
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
-  // The standing notice is only useful while the field could still be a path:
-  // hide it once the input reads as a URL so the URL flow stays clean.
-  const showStandingNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
+  // Only useful while the field could still be a path, and never hosted, where
+  // the landing's own band already says it a column over.
+  const showStandingNotice = !allowLocalRepos && !hosted && !(isRemote && activeSrc.length > 0);
   // A remote repo the server couldn't reach. Shown regardless of what the field
   // now reads as, because it answers the attempt the user just made.
   const openError = retired ? undefined : error;

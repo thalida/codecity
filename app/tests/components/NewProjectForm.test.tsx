@@ -331,7 +331,7 @@ describe('NewProjectForm', () => {
     // The notice stands on its own (before any input), with the how-to link.
     const note = container.querySelector('.unreachable--standing');
     expect(note?.textContent).toMatch(/turn on local paths to open a folder/i);
-    expect(note?.querySelector('a')?.getAttribute('href')).toMatch(/local-directories/);
+    expect(note?.querySelector('a')?.getAttribute('href')).toMatch(/run-it-yourself/);
 
     // Typing a clear path blocks submit (the button stays present, just disabled).
     setInput(field(container), '/Users/thalida/repo');
@@ -339,6 +339,23 @@ describe('NewProjectForm', () => {
     const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     expect(submitBtn).not.toBeNull();
     expect(submitBtn.disabled).toBe(true);
+  });
+
+  // On the public deployment the landing carries this in its own hero band. Two
+  // copies of one sentence, a column apart, is how neither one gets read.
+  it('leaves the standing notice to the landing when hosted', async () => {
+    render(<NewProjectForm allowLocalRepos={false} hosted onSubmit={() => {}} />, container);
+    await flush();
+    expect(container.querySelector('.unreachable--standing')).toBeNull();
+
+    // A real failure still gets answered here, where the field is.
+    setInput(field(container), '/Users/thalida/repo');
+    await flush();
+    const blocked = container.querySelector('.unreachable--error');
+    expect(blocked).not.toBeNull();
+    // There is no switch on codecity.io, so it must not claim one is off.
+    expect(blocked!.textContent).not.toMatch(/turned off/i);
+    expect(blocked!.textContent).toMatch(/can't reach a folder on your machine/i);
   });
 
   // A blocked path left the notice standing under an already-red field with
