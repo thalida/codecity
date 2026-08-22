@@ -17,8 +17,9 @@ export interface MetaLinkProps {
   linkClass?: string;
 }
 
-/** Outward link to the repo. */
-function MetaAbout({ linkClass }: MetaLinkProps = {}) {
+/** Outward link to the repo, named for where it goes: "about" read as a page
+ *  describing the project rather than the source and its setup. */
+function MetaRepo({ linkClass }: MetaLinkProps = {}) {
   return (
     <a
       class={linkClass ? `meta-link ${linkClass}` : 'meta-link'}
@@ -27,7 +28,7 @@ function MetaAbout({ linkClass }: MetaLinkProps = {}) {
       rel="noopener noreferrer"
       title="codecity on GitHub"
     >
-      about
+      GitHub
     </a>
   );
 }
@@ -56,7 +57,7 @@ export function MetaLine({ linkClass }: MetaLinkProps = {}) {
     <span class="meta-line">
       <MetaVersion />
       <span class="meta-sep">·</span>
-      <MetaAbout linkClass={linkClass} />
+      <MetaRepo linkClass={linkClass} />
       <span class="meta-sep">·</span>
       <MetaCredit linkClass={linkClass} />
     </span>
