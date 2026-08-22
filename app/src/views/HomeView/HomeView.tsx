@@ -102,14 +102,15 @@ export function HomeView() {
             </ul>
           </div>
 
-          {/* Hosted only: anywhere else you are already the machine it names. */}
-          {SERVER_CONFIG.value.hosted && (
+          {/* The resting statement, wherever a folder can't be opened here. A
+              failure gets the same fact under the field, with the command. */}
+          {!SERVER_CONFIG.value.allowLocalRepos && (
             <div class="landing-local">
               <p class="landing-local-lead">Yes, private and local repos work</p>
               <p class="landing-local-body">
                 Clone one yourself, then{' '}
                 <a class="link" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-                  run codecity on your machine
+                  run codecity with that folder mounted
                 </a>
                 .
               </p>
@@ -135,7 +136,6 @@ export function HomeView() {
               // was typed instead of clearing it.
               key={failed?.prefill?.src ?? ''}
               allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
-              hosted={SERVER_CONFIG.value.hosted}
               error={failed?.error}
               errorCode={failed?.code}
               prefill={failed?.prefill}

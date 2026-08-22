@@ -348,29 +348,37 @@ describe('HomeView', () => {
   describe('private and local repos', () => {
     const band = () => container.querySelector('.landing-local');
 
-    const renderAt = async (hosted: boolean) => {
-      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted, allowLocalRepos: !hosted };
+    const renderAt = async (allowLocalRepos: boolean) => {
+      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos };
       navigate(ROUTES.HOME);
       render(<HomeView />, container);
       await flush();
     };
 
-    it('answers in the hero, not under the field, on the public deployment', async () => {
-      await renderAt(true);
+    it('answers in the hero, not under the field, wherever a folder is unreachable', async () => {
+      await renderAt(false);
       expect(band()).not.toBeNull();
       expect(band()!.textContent).toContain('private and local repos work');
       expect(band()!.querySelector('a')!.getAttribute('href')).toMatch(/#run-it-yourself$/);
     });
 
-    it('says nothing anywhere else: you are already the machine it names', async () => {
-      await renderAt(false);
-      expect(band()).toBeNull();
+    // Keyed on what this instance can open, not on which deployment it is: the
+    // message used to move between the hero and the field slot with `hosted`.
+    it('stays put whether or not this is the public deployment', async () => {
+      for (const hosted of [false, true]) {
+        SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false, hosted };
+        navigate(ROUTES.HOME);
+        render(<HomeView />, container);
+        await flush();
+        expect(band()).not.toBeNull();
+        expect(container.querySelector('.unreachable')).toBeNull();
+        render(null, container);
+      }
     });
 
-    // Two copies of one sentence on one screen is how neither gets read.
-    it('leaves the field slot to real failures once the band is up', async () => {
+    it('says nothing once a folder here is openable', async () => {
       await renderAt(true);
-      expect(container.querySelector('.unreachable')).toBeNull();
+      expect(band()).toBeNull();
     });
   });
 

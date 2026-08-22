@@ -36,8 +36,6 @@ const HOSTS_NOTE = 'GitHub, GitLab, Forgejo, any git host';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
-  /** This is the public deployment: a local path can never resolve here. */
-  hosted: boolean;
   /** The message from the load that just failed. Rendered in the field's own
    *  slot: it is about what's in the field, so it belongs under it. */
   error?: string;
@@ -52,7 +50,6 @@ const ERROR_ID = 'new-project-error';
 
 export function NewProjectForm({
   allowLocalRepos,
-  hosted,
   error,
   errorCode,
   prefill,
@@ -87,9 +84,6 @@ export function NewProjectForm({
   // The one thing this form can't open. Gated on looksLikePath so a half-typed
   // URL never trips it, and it suppresses the "enter a git URL" nudge.
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
-  // Only useful while the field could still be a path, and never hosted, where
-  // the landing's own band already says it a column over.
-  const showStandingNotice = !allowLocalRepos && !hosted && !(isRemote && activeSrc.length > 0);
   // A remote repo the server couldn't reach. Shown regardless of what the field
   // now reads as, because it answers the attempt the user just made.
   const openError = retired ? undefined : error;
@@ -161,12 +155,10 @@ export function NewProjectForm({
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {/* One slot, in precedence order: what already failed beats a
-            validation complaint, which beats standing guidance. */}
+        {/* One slot: what already failed beats a validation complaint. */}
         {failedToReach ? (
           <UnreachableSource
             id={ERROR_ID}
-            hosted={hosted}
             allowLocal={allowLocalRepos}
             reason={NoticeReason.Unreachable}
             src={activeSrc || prefill?.src}
@@ -174,23 +166,16 @@ export function NewProjectForm({
         ) : pathBlocked ? (
           <UnreachableSource
             id={ERROR_ID}
-            hosted={hosted}
             allowLocal={allowLocalRepos}
             reason={NoticeReason.PathBlocked}
           />
-        ) : fieldError || openError ? (
+        ) : (
           // Live validation beats the message from the last submit, which the
           // next keystroke retires anyway.
-          <p id={ERROR_ID} role="alert" class="new-project-error">
-            {fieldError ?? openError}
-          </p>
-        ) : (
-          showStandingNotice && (
-            <UnreachableSource
-              hosted={hosted}
-              allowLocal={allowLocalRepos}
-              reason={NoticeReason.Standing}
-            />
+          (fieldError || openError) && (
+            <p id={ERROR_ID} role="alert" class="new-project-error">
+              {fieldError ?? openError}
+            </p>
           )
         )}
       </div>
