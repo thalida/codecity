@@ -1,7 +1,7 @@
-// hooks/useManifestSource.ts — The FETCH layer of the city's manifest pipeline.
-// Scene-free by contract: it streams manifests and publishes canonical signals
-// (MANIFEST, SCAN_PROGRESS, CURRENT_SOURCE via setCurrentSource, SOURCE_ERROR).
-// The render layer consumes them and owns the apply's rebuild status.
+// hooks/useManifestSource.ts — the FETCH layer for ONE project: it streams
+// manifests and writes that session's stores, and nothing else. Scene-free by
+// contract; the render layer consumes those signals and owns the apply's
+// rebuild status.
 
 import { useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
@@ -15,26 +15,11 @@ import {
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
-import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
-import {
-  RECENTS,
-  SOURCE_ERROR,
-  commitSource,
-  CURRENT_SOURCE,
-  isOpenedSource,
-  activeExcludePathsFor,
-  ACTIVE_EXCLUDES,
-} from '@/state/stores/source';
+import { LIVE_UPDATES, liveUpdatesActive } from '@/state/settings/fields/updates';
+import { RECENTS, activeExcludePathsFor } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
-import { MANIFEST, setManifest } from '@/state/stores/manifest';
-import {
-  markError,
-  markRebuilding,
-  SCAN_PROGRESS,
-  PENDING_SOURCE_LABEL,
-  CITY_ON_SCREEN,
-} from '@/state/stores/progress';
-import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
+import type { ProgressStore } from '@/state/stores/progress';
+import type { ProjectSession } from '@/state/project/session';
 import { srcKind, SourceKind, identityBranch, sourceKey, sourceIdentity } from '@/utils/sources';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
@@ -42,13 +27,13 @@ import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
 
-// ── Shared helpers ───────────────────────────────────────────────────
-
 /** Consume a manifest stream, publishing SCAN_PROGRESS per event and handing
  *  each skeleton/final to onManifest. Returns the final; throws without one. */
 async function pumpManifestStream(
   url: string,
   meta: { kind: SourceKind; branch?: string },
+  /** Where the stream's own progress goes: this project's readouts. */
+  progress: ProgressStore,
   onManifest: (
     manifest: Manifest,
     phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
@@ -66,11 +51,11 @@ async function pumpManifestStream(
     if ('label' in event && event.label) {
       // Server-side, so the document title and the overlay header name the
       // project the same way instead of each deriving it from the src.
-      PENDING_SOURCE_LABEL.value = event.label;
+      progress.pendingLabel.value = event.label;
     }
 
     if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
-      SCAN_PROGRESS.value = {
+      progress.scan.value = {
         ...meta,
         phase: event.phase,
         percent: event.phase === ScanPhase.CloneProgress ? event.percent : undefined,
@@ -86,337 +71,359 @@ async function pumpManifestStream(
 
     // tree.name beats the src basename, which for a working tree is whatever
     // the folder is called (e.g. a git-worktree dir).
-    if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
+    if (event.manifest.tree?.name) progress.pendingLabel.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
     if (event.phase === ScanPhase.PartialManifest) appliedPending = event.manifest.pending;
     // After onManifest, so the overlay reaction can never see "heights final"
     // ahead of the paint that shows them.
-    SCAN_PROGRESS.value = { ...meta, phase: event.phase, appliedPending };
+    progress.scan.value = { ...meta, phase: event.phase, appliedPending };
   }
 
   if (!lastManifest) throw new Error('No manifest received');
   return lastManifest;
 }
 
-// Injected, not imported (importing useTimelineMode back was a cycle); it
-// registers before TIMELINE_MODE can turn on.
-type TimelineRefresh = (opts?: { noCache?: boolean; overlay?: boolean }) => Promise<void>;
-
-let timelineRefresh: TimelineRefresh | null = null;
-
-export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
-  timelineRefresh = fn;
+/** Fetching one project. Every write lands in that session's stores, so two of
+ *  these can stream different repos at once without a shared generation. */
+export interface ProjectLoader {
+  /** The one way to load a source into this session. */
+  loadSource(payload: SourcePayload): Promise<void>;
+  /** Abort the in-flight foreground load. A clean cancel, not a failure. */
+  cancel(): void;
+  /** Re-read the source already open, in whichever mode it is being viewed. */
+  refresh(skipCache?: boolean): void;
+  /** Load whatever the URL names, in the mode it asks for. */
+  boot(view: UrlView): Promise<void>;
+  /** Follow the URL into this session: attach for the focused one only. */
+  attachRouteLoad(): () => void;
+  /** Start the live-update poll + exclude-refresh reaction. */
+  setupLiveUpdates(): () => void;
+  dispose(): void;
 }
 
-/** The Timeline boot: `?mode=timeline` loads the history bundle instead of a
- *  HEAD scan, and commits its own manifest. Injected for the same cycle reason. */
-type TimelineBoot = (payload: { src: string; branch?: string; commit?: string }) => Promise<void>;
+export function createProjectLoader(session: ProjectSession): ProjectLoader {
+  const { source, manifest, progress, timeline } = session;
 
-let timelineBoot: TimelineBoot | null = null;
+  // ── Single-writer generation guard ───────────────────────────────────
 
-export function setTimelineBootHandler(fn: TimelineBoot | null): void {
-  timelineBoot = fn;
-}
+  // Every write is gated on "am I still the current generation?", so a newer load
+  // silently drops an older one and any in-flight poll write with it.
+  let loadGeneration = 0;
 
-// ── Single-writer generation guard ───────────────────────────────────
+  // The AbortController for the current foreground load, so the UI can cancel a
+  // slow clone/scan. A new load or a cancel aborts the previous one.
+  let loadController: AbortController | null = null;
 
-// Every write is gated on "am I still the current generation?", so a newer load
-// silently drops an older one and any in-flight poll write with it.
-let loadGeneration = 0;
+  // ── Canonical source load (cold-boot + user switch) ──────────────────
 
-// The AbortController for the current foreground load, so the UI can cancel a
-// slow clone/scan. A new load or a cancel aborts the previous one.
-let loadController: AbortController | null = null;
-
-// ── Canonical source load (cold-boot + user switch) ──────────────────
-
-// The one way to load a source. The poll below is a separate op that shares
-// only the MANIFEST sink and yields to this via the generation.
-export async function loadSource(payload: SourcePayload): Promise<void> {
-  // This attempt supersedes the last failure, so nothing outlives it to explain
-  // a load that is no longer the current one.
-  SOURCE_ERROR.value = null;
-  // A source switch always exits Timeline; the city layer reacts to the flip.
-  if (TIMELINE_MODE.peek()) resetTimelineMode();
-  const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
-  loadController?.abort(); // supersede any in-flight load
-  const controller = new AbortController();
-  loadController = controller;
-  // A local source has no branch axis, so a stale deep-link's branch is dropped
-  // rather than carried into the URL, the overlay and the committed source.
-  const branch = identityBranch(payload.src, payload.branch);
-  // The server's label arrives with the first stream event, by which time the
-  // overlay is already up; recents cover the gap.
-  PENDING_SOURCE_LABEL.value = RECENTS.peek().find((r) => r.src === payload.src)?.label ?? null;
-  const meta = {
-    kind: srcKind(payload.src),
-    branch,
-  };
-  SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
-  // What a cancel rolls back to, captured before the clear below: otherwise the
-  // canceled repo's geometry lingers under the unchanged header.
-  const prevManifest = MANIFEST.peek();
-  // What is on screen stays only while re-scanning the very project it shows:
-  // otherwise the manifest in hand builds a city this load is about to replace.
-  const keepCityUp = isOpenedSource(payload.src, branch) && CITY_ON_SCREEN.peek();
-  if (!keepCityUp) setManifest(null);
-
-  try {
-    const url = manifestUrlFor({
-      src: payload.src,
+  // The one way to load a source. The poll below is a separate op that shares
+  // only the MANIFEST sink and yields to this via the generation.
+  async function loadSource(payload: SourcePayload): Promise<void> {
+    // This attempt supersedes the last failure, so nothing outlives it to explain
+    // a load that is no longer the current one.
+    source.error.value = null;
+    // A source switch always exits Timeline; the city layer reacts to the flip.
+    if (timeline.mode.peek()) timeline.reset();
+    const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
+    loadController?.abort(); // supersede any in-flight load
+    const controller = new AbortController();
+    loadController = controller;
+    // A local source has no branch axis, so a stale deep-link's branch is dropped
+    // rather than carried into the URL, the overlay and the committed source.
+    const branch = identityBranch(payload.src, payload.branch);
+    // The server's label arrives with the first stream event, by which time the
+    // overlay is already up; recents cover the gap.
+    progress.pendingLabel.value = RECENTS.peek().find((r) => r.src === payload.src)?.label ?? null;
+    const meta = {
+      kind: srcKind(payload.src),
       branch,
-      noCache: !!payload.skipCache,
-      exclude: activeExcludePathsFor(payload.src),
-    });
-    // Skeleton streams out here; the final is published below, after the
-    // source is committed.
-    const manifest = await pumpManifestStream(
-      url,
-      meta,
-      (m, phase) => {
-        if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
-      },
-      controller.signal
-    );
-    // A newer load superseded this one: it owns MANIFEST now, don't touch.
-    if (myGen !== loadGeneration) return;
-    // An aborted stream ends as done, not a throw, so a cancel arrives here
-    // holding the partial. Roll back rather than commit it.
-    if (controller.signal.aborted) {
-      setManifest(prevManifest);
-      return;
-    }
-    // One commit point, whichever view loaded it: source, recents, manifest.
-    commitSource(payload.src, branch, manifest);
-  } catch (err) {
-    if (myGen !== loadGeneration) return; // superseded — its error isn't current
-    if (controller.signal.aborted) {
-      setManifest(prevManifest); // user canceled: not an error; roll back any skeleton
-      return;
-    }
-    SOURCE_ERROR.value = {
-      error: err instanceof Error ? err.message : String(err),
-      code: err instanceof ScanError ? err.code : undefined,
-      prefill: { src: payload.src, branch },
     };
-  } finally {
-    // Only the authoritative load tears the overlay down, or a superseded one
-    // clears it out from under the load still streaming.
-    if (myGen === loadGeneration) {
-      SCAN_PROGRESS.value = null;
-      if (loadController === controller) loadController = null;
-    }
-  }
-}
+    progress.scan.value = { ...meta, phase: null }; // show overlay immediately
+    // What a cancel rolls back to, captured before the clear below: otherwise the
+    // canceled repo's geometry lingers under the unchanged header.
+    const prevManifest = manifest.current.peek();
+    // What is on screen stays only while re-scanning the very project it shows:
+    // otherwise the manifest in hand builds a city this load is about to replace.
+    const keepCityUp = source.isOpen(payload.src, branch) && progress.cityOnScreen.peek();
+    if (!keepCityUp) manifest.set(null);
 
-/** Abort the in-flight foreground load. Treated as a clean user cancel, not a
- *  failure: see the `catch` branch above. */
-export function cancelLoad(): void {
-  loadController?.abort();
-}
-
-/** Re-read the source already open, in whichever mode it is being viewed:
- *  Timeline refetches its bundle in place rather than dropping to live HEAD. */
-export function refreshCurrentSource(skipCache = false): void {
-  const cur = CURRENT_SOURCE.peek();
-  if (!cur) return;
-  if (TIMELINE_MODE.peek() && timelineRefresh) {
-    // Asked for by hand, so it gets the same stepped overlay a Live refresh
-    // does: the history walk behind it runs for minutes on a big repo.
-    void timelineRefresh({ noCache: skipCache, overlay: true });
-    return;
-  }
-  void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
-}
-
-// ── Live-update poll loop ────────────────────────────────────────────
-
-// Floor: the server walks the filesystem per poll, so tighter burns CPU.
-// Ceiling: past a minute "live" stops feeling live.
-const POLL_SECONDS_MIN = 1;
-const POLL_SECONDS_MAX = 60;
-
-function _clampPollSeconds(s: number | unknown): number {
-  if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
-  return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
-}
-
-interface SignatureResponse {
-  root: string;
-  scanned_at: string;
-  content_signature: string;
-}
-
-/** Start the live-update poll loop and the exclude-refresh reaction, returning
- *  a dispose for both. Exported so the reaction is directly testable. */
-export function setupLiveUpdates(): () => void {
-  let timer: number | null = null;
-  let inFlight = false;
-
-  async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
-    const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
     try {
-      for await (const event of streamManifest(
-        manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
-      )) {
-        if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
-        // Skip the skeleton: the city is already drawn, and applying one would
-        // animate every building to placeholder heights and back on each save.
-        if (event.phase !== ScanPhase.CompleteManifest) continue;
-        if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
-        const m = event.manifest;
-        if (m?.content_signature) setManifest(m);
-      }
-    } catch (err) {
-      if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
-      markError(err);
-    }
-  }
-
-  // Cheap signature first, full manifest only when it differs. Targets the
-  // committed CURRENT_SOURCE, not the page URL, which lags a switch.
-  async function tick(): Promise<void> {
-    if (inFlight) return;
-    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
-    if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
-    const cur = CURRENT_SOURCE.peek();
-    if (!cur) return; // nothing loaded yet
-    const current = MANIFEST.peek();
-    if (!current) return;
-    const applied = (current as Manifest).content_signature;
-    inFlight = true;
-    try {
-      const sigResp = await fetch(
-        signatureUrlFor(cur.src, cur.branch, activeExcludePathsFor(cur.src))
+      const url = manifestUrlFor({
+        src: payload.src,
+        branch,
+        noCache: !!payload.skipCache,
+        exclude: activeExcludePathsFor(payload.src),
+      });
+      // Skeleton streams out here; the final is published below, after the
+      // source is committed.
+      const loaded = await pumpManifestStream(
+        url,
+        meta,
+        progress,
+        (m, phase) => {
+          if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) manifest.set(m);
+        },
+        controller.signal
       );
-      if (!sigResp.ok) return;
-      const sig: SignatureResponse | null = await sigResp.json();
-      if (!sig?.content_signature || sig.content_signature === applied) return;
-      await fetchAndApply(cur.src, cur.branch);
-    } catch (_) {
-      // Cheap-probe network blip: no rebuild attempted, so not surfaced. Next
-      // tick retries.
+      // A newer load superseded this one: it owns MANIFEST now, don't touch.
+      if (myGen !== loadGeneration) return;
+      // An aborted stream ends as done, not a throw, so a cancel arrives here
+      // holding the partial. Roll back rather than commit it.
+      if (controller.signal.aborted) {
+        manifest.set(prevManifest);
+        return;
+      }
+      // One commit point, whichever view loaded it: source, recents, manifest.
+      source.commit(payload.src, branch, loaded);
+    } catch (err) {
+      if (myGen !== loadGeneration) return; // superseded — its error isn't current
+      if (controller.signal.aborted) {
+        manifest.set(prevManifest); // user canceled: not an error; roll back any skeleton
+        return;
+      }
+      source.error.value = {
+        error: err instanceof Error ? err.message : String(err),
+        code: err instanceof ScanError ? err.code : undefined,
+        prefill: { src: payload.src, branch },
+      };
     } finally {
-      inFlight = false;
+      // Only the authoritative load tears the overlay down, or a superseded one
+      // clears it out from under the load still streaming.
+      if (myGen === loadGeneration) {
+        progress.scan.value = null;
+        if (loadController === controller) loadController = null;
+      }
     }
   }
 
-  function start(): void {
-    stop();
-    const seconds = _clampPollSeconds(LIVE_UPDATES.value.POLL_SECONDS);
-    timer = window.setInterval(tick, seconds * 1000);
-  }
-  function stop(): void {
-    if (timer != null) {
-      window.clearInterval(timer);
-      timer = null;
-    }
+  /** Abort the in-flight foreground load. Treated as a clean user cancel, not a
+   *  failure: see the `catch` branch above. */
+  function cancelLoad(): void {
+    loadController?.abort();
   }
 
-  const disposeEnabledEffect = effect(() => {
-    // Tracks the source too, so switching between a local tree and a clone
-    // starts or stops the timer without a reload.
-    if (LIVE_UPDATES_ACTIVE.value) start();
-    else stop();
-  });
-
-  // Excludes need their own trigger, since the poll is gated on
-  // LIVE_UPDATES_ACTIVE. Key-guarded so a source switch isn't read as an edit.
-  let lastExcludeKey: string | null = null;
-  const disposeExcludeRefresh = effect(() => {
-    const serialized = ACTIVE_EXCLUDES.value.join('\n');
-    const cur = CURRENT_SOURCE.peek();
-    const repoKey = cur ? sourceKey(cur.src) : null;
-    const nextKey = repoKey === null ? null : `${repoKey}|${serialized}`;
-    const prev = lastExcludeKey;
-    lastExcludeKey = nextKey;
-    if (prev === null || nextKey === null) return; // first run / no source
-    const [prevRepo] = prev.split('|', 1);
-    if (prevRepo !== repoKey) return; // source switched — the load owns it
-    if (prev === nextKey) return; // no actual change
-    if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
+  /** Re-read the source already open, in whichever mode it is being viewed:
+   *  Timeline refetches its bundle in place rather than dropping to live HEAD. */
+  function refreshCurrentSource(skipCache = false): void {
+    const cur = source.current.peek();
     if (!cur) return;
-    if (inFlight) return; // the poll's tick is already covering this refresh
-    inFlight = true;
-    // Timeline owns the scene: excludes change the union data, so refetch its
-    // bundle + re-pack (it reports itself through the readout). Live: re-scan.
-    let refresh: Promise<void>;
-    if (TIMELINE_MODE.peek() && timelineRefresh) {
-      refresh = timelineRefresh();
-    } else {
-      markRebuilding(); // say so now, not after the re-scan streams back
-      refresh = fetchAndApply(cur.src, cur.branch);
-    }
-    void refresh.finally(() => {
-      inFlight = false;
-    });
-  });
-
-  return () => {
-    stop();
-    disposeEnabledEffect();
-    disposeExcludeRefresh();
-  };
-}
-
-/** The load the URL asks for, in the mode it asks for. A Timeline boot that
- *  fails to engage falls through to Live, so the page lands on a working city. */
-export async function bootLoad(boot: UrlView): Promise<void> {
-  const src = boot.src;
-  if (!src) return;
-  if (boot.timeline && timelineBoot) {
-    await timelineBoot({ src, branch: boot.branch, commit: boot.commit ?? undefined });
-    if (TIMELINE_MODE.peek()) return;
-  }
-  await loadSource({ src, branch: boot.branch });
-}
-
-/** The project the URL asks for, as one comparable string: a computed notifies
- *  only when THAT changes, so writing ?sel= or ?mode= cannot re-ask it. */
-const URL_SOURCE = computed(() => {
-  if (ROUTE_PATH.value !== ROUTES.CITY) return '';
-  const view = readUrlView(ROUTE_PARAMS.value);
-  return view.src ? sourceIdentity(view.src, view.branch) : '';
-});
-
-/** Load whatever project the URL names, whenever that changes: the boot read
- *  and every Back/Forward between cities are the same event. Returns a dispose. */
-export function attachRouteLoad(): () => void {
-  // Whether the URL named a city on the last run, so this one can tell arriving
-  // at one from moving around inside it.
-  let onCityRoute = false;
-  return effect(() => {
-    if (!URL_SOURCE.value) {
-      onCityRoute = false;
+    if (timeline.mode.peek()) {
+      // Asked for by hand, so it gets the same stepped overlay a Live refresh
+      // does: the history walk behind it runs for minutes on a big repo.
+      void session.timelineMode.loadScene({ inPlace: true, noCache: skipCache, overlay: true });
       return;
     }
-    const arriving = !onCityRoute;
-    onCityRoute = true;
-    // Peeked: the identity above is the trigger, and re-reading the params here
-    // must not subscribe this to the view ones alongside it.
-    const boot = readUrlView(ROUTE_PARAMS.peek());
-    // Out of the tracking scope: the load writes signals this effect reads.
-    queueMicrotask(() => {
-      // Arriving always asks: only the server knows if its scan still holds.
-      // Once here, that project again is the branch a commit put in the URL.
-      if (!arriving && isOpenedSource(boot.src, boot.branch)) return;
-      void bootLoad(boot);
+    void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
+  }
+
+  // ── Live-update poll loop ────────────────────────────────────────────
+
+  // Floor: the server walks the filesystem per poll, so tighter burns CPU.
+  // Ceiling: past a minute "live" stops feeling live.
+  const POLL_SECONDS_MIN = 1;
+  const POLL_SECONDS_MAX = 60;
+
+  function _clampPollSeconds(s: number | unknown): number {
+    if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
+    return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
+  }
+
+  interface SignatureResponse {
+    root: string;
+    scanned_at: string;
+    content_signature: string;
+  }
+
+  /** Start the live-update poll loop and the exclude-refresh reaction, returning
+   *  a dispose for both. Exported so the reaction is directly testable. */
+  function setupLiveUpdates(): () => void {
+    let timer: number | null = null;
+    let inFlight = false;
+
+    async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
+      const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
+      try {
+        for await (const event of streamManifest(
+          manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
+        )) {
+          if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
+          // Skip the skeleton: the city is already drawn, and applying one would
+          // animate every building to placeholder heights and back on each save.
+          if (event.phase !== ScanPhase.CompleteManifest) continue;
+          if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
+          const m = event.manifest;
+          if (m?.content_signature) manifest.set(m);
+        }
+      } catch (err) {
+        if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
+        progress.reporter.markError(err);
+      }
+    }
+
+    // Cheap signature first, full manifest only when it differs. Targets the
+    // committed CURRENT_SOURCE, not the page URL, which lags a switch.
+    async function tick(): Promise<void> {
+      if (inFlight) return;
+      if (timeline.mode.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
+      if (progress.scan.peek() !== null) return; // a foreground load is in flight — yield
+      const cur = source.current.peek();
+      if (!cur) return; // nothing loaded yet
+      const current = manifest.current.peek();
+      if (!current) return;
+      const applied = (current as Manifest).content_signature;
+      inFlight = true;
+      try {
+        const sigResp = await fetch(
+          signatureUrlFor(cur.src, cur.branch, activeExcludePathsFor(cur.src))
+        );
+        if (!sigResp.ok) return;
+        const sig: SignatureResponse | null = await sigResp.json();
+        if (!sig?.content_signature || sig.content_signature === applied) return;
+        await fetchAndApply(cur.src, cur.branch);
+      } catch (_) {
+        // Cheap-probe network blip: no rebuild attempted, so not surfaced. Next
+        // tick retries.
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    function start(): void {
+      stop();
+      const seconds = _clampPollSeconds(LIVE_UPDATES.value.POLL_SECONDS);
+      timer = window.setInterval(tick, seconds * 1000);
+    }
+    function stop(): void {
+      if (timer != null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    const disposeEnabledEffect = effect(() => {
+      // Tracks the source too, so switching between a local tree and a clone
+      // starts or stops the timer without a reload.
+      if (liveUpdatesActive(source)) start();
+      else stop();
     });
+
+    // Excludes need their own trigger, since the poll is gated on
+    // the poll being active. Key-guarded so a source switch isn't read as an edit.
+    let lastExcludeKey: string | null = null;
+    const disposeExcludeRefresh = effect(() => {
+      const serialized = source.excludes.value.join('\n');
+      const cur = source.current.peek();
+      const repoKey = cur ? sourceKey(cur.src) : null;
+      const nextKey = repoKey === null ? null : `${repoKey}|${serialized}`;
+      const prev = lastExcludeKey;
+      lastExcludeKey = nextKey;
+      if (prev === null || nextKey === null) return; // first run / no source
+      const [prevRepo] = prev.split('|', 1);
+      if (prevRepo !== repoKey) return; // source switched — the load owns it
+      if (prev === nextKey) return; // no actual change
+      if (progress.scan.peek() !== null) return; // yield to a foreground load
+      if (!cur) return;
+      if (inFlight) return; // the poll's tick is already covering this refresh
+      inFlight = true;
+      // Timeline owns the scene: excludes change the union data, so refetch its
+      // bundle + re-pack (it reports itself through the readout). Live: re-scan.
+      let refresh: Promise<void>;
+      if (timeline.mode.peek()) {
+        refresh = session.timelineMode.loadScene({ inPlace: true });
+      } else {
+        progress.reporter.markRebuilding(); // say so now, not after the re-scan streams back
+        refresh = fetchAndApply(cur.src, cur.branch);
+      }
+      void refresh.finally(() => {
+        inFlight = false;
+      });
+    });
+
+    return () => {
+      stop();
+      disposeEnabledEffect();
+      disposeExcludeRefresh();
+    };
+  }
+
+  /** The load the URL asks for, in the mode it asks for. A Timeline boot that
+   *  fails to engage falls through to Live, so the page lands on a working city. */
+  async function bootLoad(boot: UrlView): Promise<void> {
+    const src = boot.src;
+    if (!src) return;
+    if (boot.timeline) {
+      await session.timelineMode.loadSource({
+        src,
+        branch: boot.branch,
+        commit: boot.commit ?? undefined,
+      });
+      if (timeline.mode.peek()) return;
+    }
+    await loadSource({ src, branch: boot.branch });
+  }
+
+  /** The project the URL asks for, as one comparable string: a computed notifies
+   *  only when THAT changes, so writing ?sel= or ?mode= cannot re-ask it. */
+  const URL_SOURCE = computed(() => {
+    if (ROUTE_PATH.value !== ROUTES.CITY) return '';
+    const view = readUrlView(ROUTE_PARAMS.value);
+    return view.src ? sourceIdentity(view.src, view.branch) : '';
   });
+
+  /** Load whatever project the URL names, whenever that changes: the boot read
+   *  and every Back/Forward between cities are the same event. Returns a dispose. */
+  function attachRouteLoad(): () => void {
+    // Whether the URL named a city on the last run, so this one can tell arriving
+    // at one from moving around inside it.
+    let onCityRoute = false;
+    return effect(() => {
+      if (!URL_SOURCE.value) {
+        onCityRoute = false;
+        return;
+      }
+      const arriving = !onCityRoute;
+      onCityRoute = true;
+      // Peeked: the identity above is the trigger, and re-reading the params here
+      // must not subscribe this to the view ones alongside it.
+      const boot = readUrlView(ROUTE_PARAMS.peek());
+      // Out of the tracking scope: the load writes signals this effect reads.
+      queueMicrotask(() => {
+        // Arriving always asks: only the server knows if its scan still holds.
+        // Once here, that project again is the branch a commit put in the URL.
+        if (!arriving && source.isOpen(boot.src, boot.branch)) return;
+        void bootLoad(boot);
+      });
+    });
+  }
+
+  const disposers: (() => void)[] = [];
+  return {
+    loadSource,
+    cancel: cancelLoad,
+    refresh: refreshCurrentSource,
+    boot: bootLoad,
+    attachRouteLoad,
+    setupLiveUpdates() {
+      const stop = setupLiveUpdates();
+      disposers.push(stop);
+      return stop;
+    },
+    dispose: () => disposers.splice(0).forEach((stop) => stop()),
+  };
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────
 
 /** Boot the fetch pipeline on mount. Nothing to hand back: loadSource and
  *  friends are module functions, so each view calls the one it needs. */
-export function useManifestSource(): void {
+export function useManifestSource(session: ProjectSession): void {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
     // The URL drives what is rendered: boot read and every later Back/Forward.
     // A bare ?src is complete; the server resolves the default branch.
-    const disposeRouteLoad = attachRouteLoad();
+    const disposeRouteLoad = session.load.attachRouteLoad();
     (async () => {
       // Independent boot reads, so they go out together rather than making the
       // landing wait for two round trips in series.
@@ -427,7 +434,7 @@ export function useManifestSource(): void {
 
       // One loop for the app's lifetime: it re-reads the canonical signals per
       // tick, so boot and every switch are covered without restarting it.
-      disposeLiveUpdates = setupLiveUpdates();
+      disposeLiveUpdates = session.load.setupLiveUpdates();
     })();
     return () => {
       cancelled = true;

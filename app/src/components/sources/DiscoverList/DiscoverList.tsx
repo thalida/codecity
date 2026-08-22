@@ -3,14 +3,15 @@
 // stars or timings, which would rot or reopen a third-party dependency, and no
 // "Featured" note, since what a row can usefully say is whether you can see it.
 import { DISCOVER } from '@/state/stores/serverData';
-import { ACTIVE_SOURCE } from '@/state/stores/source';
+import { activeSourceOf } from '@/state/stores/source';
+import { useProject } from '@/state/project/context';
 import { sameSourceIdentity } from '@/utils/sources';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
 import { cityHref } from '@/router/location';
 
 export function DiscoverList() {
   const repos = DISCOVER.value;
-  const active = ACTIVE_SOURCE.value;
+  const active = activeSourceOf(useProject().source.current.value);
   // src alone: a Discover row names a repo, not a branch, so it is the one on
   // screen whichever branch is loaded. Recents compare on full identity.
   if (repos.length === 0) return null;

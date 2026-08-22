@@ -6,7 +6,7 @@ import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { SCENE_HANDLE, clearSelection } from '@/city/sceneHandle';
+import { useProject } from '@/state/project/context';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 
@@ -20,8 +20,9 @@ interface ChipSelection {
 
 /** The selected node as the chip shows it, or null when nothing is selected. */
 function useChipSelection() {
+  const { city } = useProject();
   return useComputed<ChipSelection | null>(() => {
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    const sel = city.value?.picker.selection.value ?? null;
     if (sel?.kind === NodeKind.File)
       return { label: sel.file.name, kind: NodeKind.File, extension: sel.file.extension };
     if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, kind: NodeKind.Directory };
@@ -32,6 +33,7 @@ function useChipSelection() {
 }
 
 export function SelectionChip() {
+  const { commands } = useProject();
   const selection = useChipSelection();
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
@@ -47,7 +49,7 @@ export function SelectionChip() {
         class="selection-chip-clear"
         title="Clear selection"
         aria-label={`Clear selection: ${label}`}
-        onClick={clearSelection}
+        onClick={commands.clearSelection}
       >
         <X class="icon" aria-hidden="true" />
       </button>

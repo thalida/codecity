@@ -5,7 +5,7 @@
 
 import { batch } from '@preact/signals';
 import { getStoreName, getDefault } from '@/state/persist';
-import { CURRENT_SOURCE, activeExcludePathsFor, setExcludesFor } from '@/state/stores/source';
+import { activeExcludePathsFor, setExcludesFor, type SourceStore } from '@/state/stores/source';
 import { deepEqual } from '@/utils/deep';
 import { coerceFieldValue, type SettingStore } from './schema';
 import { dropDrafts } from './drafts';
@@ -134,35 +134,42 @@ function readExcludes(raw: unknown): TransferExcludes | null {
   };
 }
 
-export const EXCLUDES_PART: TransferPart = {
-  key: 'EXCLUDES',
-  family: TransferFamily.Scan,
-  read: () => {
-    const current = CURRENT_SOURCE.peek();
-    // An empty list is a real answer, not a missing one: "I hide nothing here".
-    return {
-      ...(current ? { src: current.src } : {}),
-      ...(current?.branch ? { branch: current.branch } : {}),
-      paths: current ? activeExcludePathsFor(current.src) : [],
-    } satisfies TransferExcludes;
-  },
-  write: (value) => {
-    // Onto the repo the list is FOR, which is the exporter's, not whichever
-    // city is on screen. Nothing here opens it: it is there when you next go.
-    const excludes = readExcludes(value);
-    if (excludes?.src) setExcludesFor(excludes.src, excludes.paths);
-    return [];
-  },
-  differsFrom: (value) => {
-    const excludes = readExcludes(value);
-    // Whose list is being compared: the file's repo on the way in, the open one
-    // when asking whether this browser has anything to send.
-    const src = excludes?.src ?? CURRENT_SOURCE.peek()?.src;
-    if (!src) return false;
-    const next = [...new Set(excludes?.paths ?? [])].sort();
-    return !deepEqual(activeExcludePathsFor(src), next);
-  },
-};
+/** The hidden-paths part, for one project: whose list travels depends on which
+ *  repo is open, so this is made per session rather than being a module const. */
+/** The one key the excludes travel under, for readers that have no part. */
+export const EXCLUDES_KEY = 'EXCLUDES';
+
+export function excludesPart(source: SourceStore): TransferPart {
+  return {
+    key: EXCLUDES_KEY,
+    family: TransferFamily.Scan,
+    read: () => {
+      const current = source.current.peek();
+      // An empty list is a real answer, not a missing one: "I hide nothing here".
+      return {
+        ...(current ? { src: current.src } : {}),
+        ...(current?.branch ? { branch: current.branch } : {}),
+        paths: current ? activeExcludePathsFor(current.src) : [],
+      } satisfies TransferExcludes;
+    },
+    write: (value) => {
+      // Onto the repo the list is FOR, which is the exporter's, not whichever
+      // city is on screen. Nothing here opens it: it is there when you next go.
+      const excludes = readExcludes(value);
+      if (excludes?.src) setExcludesFor(excludes.src, excludes.paths);
+      return [];
+    },
+    differsFrom: (value) => {
+      const excludes = readExcludes(value);
+      // Whose list is being compared: the file's repo on the way in, the open one
+      // when asking whether this browser has anything to send.
+      const src = excludes?.src ?? source.current.peek()?.src;
+      if (!src) return false;
+      const next = [...new Set(excludes?.paths ?? [])].sort();
+      return !deepEqual(activeExcludePathsFor(src), next);
+    },
+  };
+}
 
 // ── Export ─────────────────────────────────────────────────────────────────
 
@@ -233,7 +240,7 @@ export function parseSettingsFile(
 /** Which repo a file's hidden paths will be filed under, for the UI to name.
  *  Null when it carries none, or carries a list that names no repo. */
 export function excludesOrigin(parsed: ParsedSettingsFile): TransferExcludes | null {
-  const raw = parsed.file[TransferFamily.Scan]?.[EXCLUDES_PART.key];
+  const raw = parsed.file[TransferFamily.Scan]?.[EXCLUDES_KEY];
   const excludes = readExcludes(raw);
   return excludes?.src ? excludes : null;
 }

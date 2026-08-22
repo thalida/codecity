@@ -7,6 +7,7 @@ import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/constants/manifest';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import type { TimelineStore } from '@/state/stores/timeline';
 
 /** Longest path rendered before the middle segments collapse to an ellipsis. */
 const PATH_BUDGET_CHARS = 44;
@@ -57,8 +58,10 @@ export function middleTruncatePath(path: string, budget = PATH_BUDGET_CHARS): st
 export function hoverTooltipContent(
   target: PickTarget | null,
   rootName: string | null,
-  // Timeline: lines at the scrubbed commit, or at deletion for a file already gone.
-  scrubLines?: number | null
+  // Timeline: lines at the scrubbed commit, or at deletion for a file already
+  // gone, and the history those come from.
+  scrubLines?: number | null,
+  timeline?: TimelineStore | null
 ): TooltipContent | null {
   if (!target) return null;
   const deleted = isDeletedTarget(target);
@@ -88,7 +91,7 @@ export function hoverTooltipContent(
     return {
       title: f.name || rel,
       path: middleTruncatePath(withRoot(parent, rootName)),
-      stats: fileStatItems(node, { dates: false }).map((i) => i.text),
+      stats: fileStatItems(node, { dates: false, timeline }).map((i) => i.text),
       deleted,
     };
   }

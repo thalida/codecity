@@ -10,15 +10,12 @@ import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
-import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/city/sceneHandle';
-import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST } from '@/state/stores/timeline';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
+import { useProject } from '@/state/project/context';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -81,6 +78,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function CitySidebarLeft() {
+  const { manifest, source, timeline, commands, city } = useProject();
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
   const activeTab = SIDEBAR_TAB;
@@ -95,7 +93,7 @@ export function CitySidebarLeft() {
   // Mirror picker.selection.value → selectedPath. Re-runs on every
   // SCENE_HANDLE swap and every picker change.
   useSignalEffect(() => {
-    const handle = SCENE_HANDLE.value;
+    const handle = city.value;
     if (!handle) {
       selectedPath.value = null;
       return;
@@ -104,7 +102,7 @@ export function CitySidebarLeft() {
   });
 
   useSignalEffect(() => {
-    const handle = SCENE_HANDLE.value;
+    const handle = city.value;
     if (!handle) {
       hoveredPath.value = null;
       return;
@@ -115,7 +113,7 @@ export function CitySidebarLeft() {
   // Closed on every world commit, so a new city opens unobscured. Live reloads
   // don't write CURRENT_SOURCE, so this can't fight a manual change.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) {
+    if (source.current.value) {
       activeTab.value = DEFAULT_SIDEBAR_TAB;
       collapsed.value = true;
     }
@@ -123,7 +121,7 @@ export function CitySidebarLeft() {
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
-  const manifestIsEmpty = useComputed(() => !MANIFEST.value);
+  const manifestIsEmpty = useComputed(() => !manifest.current.value);
 
   const onIconClick = (tab: SidebarTab) => {
     if (!collapsed.value && tab === activeTab.value) {
@@ -141,10 +139,10 @@ export function CitySidebarLeft() {
   // Bound at call time, so they always reach the live scene. Rows hand back a
   // node; the path-shaped handlers use the scene commands directly below.
   const onTreeSelect = (node: TreeNode) => {
-    if (node?.path) goToPath(node.path);
+    if (node?.path) commands.goToPath(node.path);
   };
   const onTreeHover = (node: TreeNode) => {
-    if (node?.path) hoverPath(node.path);
+    if (node?.path) commands.hoverPath(node.path);
   };
 
   // Effective collapsed: forced when manifest is empty.
@@ -163,21 +161,25 @@ export function CitySidebarLeft() {
       <div class="pane">
         {tab === SidebarTab.Explore && (
           <ExplorePane
-            manifest={PANE_MANIFEST}
+            manifest={timeline.paneManifest}
             selectedPath={selectedPath}
             hoveredPath={hoveredPath}
             expanded={treeExpanded}
-            rootPath={(PANE_MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
+            rootPath={(timeline.paneManifest.value as { tree?: TreeNode })?.tree?.path ?? ''}
             onClose={onPaneClose}
             onSelect={onTreeSelect}
             onHover={onTreeHover}
-            onHoverEnd={clearHover}
+            onHoverEnd={commands.clearHover}
           />
         )}
         {tab === SidebarTab.Search && (
-          <SearchPane manifest={PANE_MANIFEST} onClose={onPaneClose} onSelect={goToPath} />
+          <SearchPane
+            manifest={timeline.paneManifest}
+            onClose={onPaneClose}
+            onSelect={commands.goToPath}
+          />
         )}
-        {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
+        {tab === SidebarTab.Info && <InfoPane manifest={manifest.current} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (
           <ControlsPane onClose={onPaneClose} collapsed={effectiveCollapsed} />
         )}

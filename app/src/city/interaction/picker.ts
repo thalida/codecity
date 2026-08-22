@@ -1,36 +1,38 @@
 // city/interaction/picker.ts — owns the raycaster + the hover/selection state
-// machine on @preact/signals. selection is the source of truth; the in-memory
-// PICKER_SELECTION_KEY (path/sha) is derived from it and re-resolved to a live
-// target on world rebuilds, so selections survive mesh swaps. Not persisted.
+// machine on @preact/signals, per city. selection is the source of truth; the
+// in-memory selectionKey (path/sha) is derived from it and re-resolved to a
+// live target on world rebuilds, so selections survive mesh swaps.
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import type { TimelineStore } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { CommitEntry, PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
-
-// In-memory selection key. Reset to null on a fresh load; survives in-session
-// world rebuilds via the re-resolution below. Never written to localStorage.
-export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
 
 export function createPicker({
   canvas,
   camera,
   world,
   cityState,
+  timeline,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   world: PickerWorld;
   cityState: CityState;
+  /** This city's history, when something scrubs it. */
+  timeline: TimelineStore | null;
 }) {
   const hover = signal<PickTarget | null>(null);
   const selection = signal<PickTarget | null>(null);
+  // In-memory selection key, per city. Reset to null on a fresh load; survives
+  // in-session world rebuilds via the re-resolution below. Never persisted.
+  const selectionKey = signal<PickerSelectionKey | null>(null);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -77,19 +79,19 @@ export function createPicker({
     const sel = selection.value;
     if (_suspendKeyDerive) return;
     if (!sel) {
-      PICKER_SELECTION_KEY.value = null;
+      selectionKey.value = null;
       return;
     }
     if (sel.kind === NodeKind.File && sel.file?.path != null) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: sel.file.path };
+      selectionKey.value = { kind: NodeKind.File, path: sel.file.path };
       return;
     }
     if (sel.kind === NodeKind.Directory && sel.dir?.path != null) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.Directory, path: sel.dir.path };
+      selectionKey.value = { kind: NodeKind.Directory, path: sel.dir.path };
       return;
     }
     if (sel.kind === NodeKind.Commit && sel.commit?.sha) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: sel.commit.sha };
+      selectionKey.value = { kind: NodeKind.Commit, sha: sel.commit.sha };
       return;
     }
   });
@@ -99,7 +101,7 @@ export function createPicker({
   // Key → selection re-resolution on rebuild: a manifest swap stales every
   // live mesh ref; the key keeps the selected node alive.
   function _resolveKeyToSelection() {
-    const key = PICKER_SELECTION_KEY.value;
+    const key = selectionKey.value;
     _refreshPickables(); // also refresh pickables on every rebuild
 
     if (!key) {
@@ -122,7 +124,7 @@ export function createPicker({
         };
       } else {
         selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
+        selectionKey.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -140,7 +142,7 @@ export function createPicker({
         };
       } else {
         selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
+        selectionKey.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -154,7 +156,7 @@ export function createPicker({
         selection.value = target;
       } else {
         selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
+        selectionKey.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -180,10 +182,10 @@ export function createPicker({
   // here are the ones the components just built. Fires once at construction too.
 
   // The scrub rewrites building matrices per frame but the BVH caches bounds
-  // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
+  // at build time — invalidate on the scrub position or hitboxes freeze.
   const _disposeScrubBvhEffect = effect(() => {
-    void SCRUB_POS.value;
-    if (!TIMELINE_MODE.peek()) return;
+    void timeline?.scrubPos.value;
+    if (!timeline?.mode.peek()) return;
     _bvh = null;
     _bvhDirty = true;
   });
@@ -237,7 +239,7 @@ export function createPicker({
   /** The commit itself, for one the city drew no tree for. Timeline's list is
    *  the one the scrubber names; Live's comes off the manifest. */
   function _commitBySha(sha: string): CommitEntry | null {
-    const commits = TIMELINE_BUNDLE.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
+    const commits = timeline?.bundle.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
     return commits.find((c) => c.sha === sha) ?? null;
   }
 
@@ -386,7 +388,7 @@ export function createPicker({
     slot: number | undefined
   ): PickTarget | null {
     if (slot == null) return null;
-    if (TIMELINE_MODE.peek() && _buildingScrubHidden(mesh, slot)) return null;
+    if (timeline?.mode.peek() && _buildingScrubHidden(mesh, slot)) return null;
     const building = world.getBuildingIndex()?.byCellSlot(`${cellId}:${slot}`);
     if (!building?.file) return null;
     return {
@@ -395,7 +397,7 @@ export function createPicker({
       data: building,
       file: building.file,
       instanceId: slot,
-      isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(mesh, slot),
+      isRuin: !!timeline?.mode.peek() && _buildingIsRuin(mesh, slot),
     };
   }
 
@@ -403,7 +405,7 @@ export function createPicker({
    *  its street through the faceIndex map baked onto userData. */
   function sidewalkTargetFor(hit: THREE.Intersection<THREE.Object3D>): PickTarget | null {
     const mesh = hit.object as THREE.Mesh;
-    if (TIMELINE_MODE.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
+    if (timeline?.mode.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
     const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
     if (!street?.dir) return null;
     return {
@@ -411,7 +413,7 @@ export function createPicker({
       sidewalk: mesh,
       street,
       dir: street.dir,
-      isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+      isRuin: !!timeline?.mode.peek() && RUINED_STREET_DIRS.has(street.dir.path),
       vertexHint: hit.face?.a,
     };
   }
@@ -456,7 +458,7 @@ export function createPicker({
   return {
     hover,
     selection,
-    selectionKey: PICKER_SELECTION_KEY,
+    selectionKey,
     setHover,
     setSelection,
     clearSelection,

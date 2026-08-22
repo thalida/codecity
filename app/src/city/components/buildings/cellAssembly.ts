@@ -10,6 +10,7 @@ import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
+import type { TimelineStore } from '@/state/stores/timeline';
 import type { Building, SourceRef } from '@/types/index';
 
 export interface CellAssemblyOutput {
@@ -26,7 +27,9 @@ export interface CellAssemblyOutput {
 export function buildCellsFromLayout(
   bounds: WorldBounds,
   buildings: Building[],
-  source: SourceRef | null
+  source: SourceRef | null,
+  /** This city's history: which blob a facade reads is a scrub question. */
+  timeline: TimelineStore | null
 ): CellAssemblyOutput {
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
@@ -111,7 +114,11 @@ export function buildCellsFromLayout(
   let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {
-    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)), source);
+    facadePanels = new InstancedFacadePanels(
+      Math.max(64, Math.ceil(panelCount * 1.5)),
+      source,
+      timeline
+    );
     for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
     for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);
     sceneRoot.add(facadePanels.mesh);

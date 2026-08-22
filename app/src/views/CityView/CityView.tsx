@@ -16,38 +16,28 @@ import { LoadingOverlay } from '@/components/loading/LoadingOverlay/LoadingOverl
 import { HljsThemeLink } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
-import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
-import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { LOADING_CANCEL } from '@/state/stores/progress';
-import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
-import {
-  clearSelection,
-  runCollisionCheck,
-  runStemDiagnostic,
-  runTreeGroundingCheck,
-} from '@/city/sceneHandle';
+import { clearSourceUrl } from '@/router/urlBinding';
+import { useProject } from '@/state/project/context';
 
 export function CityView() {
+  const session = useProject();
+  const { source, progress, commands, load } = session;
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();
-  // Mode, scrub commit and selection are this view's: the landing has nothing
-  // to describe, and reflecting there would write them onto `/`.
-  useEffect(() => attachViewUrlReactions(), []);
-
   // A newly loaded source has nothing selected in it yet.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) clearSelection();
+    if (source.current.value) commands.clearSelection();
   });
 
   const onCancelLoad = () => {
     // A load with something to go back to registers its own handler; one with
     // nothing to go back to leaves the URL describing what it just called off.
-    const registered = LOADING_CANCEL.peek();
+    const registered = progress.cancel.peek();
     if (registered) registered();
     else {
-      cancelLoad();
+      load.cancel();
       clearSourceUrl();
     }
   };
@@ -59,16 +49,16 @@ export function CityView() {
       </a>
       {/* The header owns the control; which read a refresh means in the mode
           you are in is the fetch layer's call. */}
-      <CityHeader onSwitchSource={() => navigate(ROUTES.HOME)} onRefresh={refreshCurrentSource} />
+      <CityHeader onSwitchSource={() => navigate(ROUTES.HOME)} onRefresh={load.refresh} />
       <main id="city-body" tabIndex={-1}>
         <CitySidebarLeft />
         <CityStage />
         <CitySidebarRight />
       </main>
       <CityFooter
-        onRunCollisionCheck={runCollisionCheck}
-        onRunStemDiagnostic={runStemDiagnostic}
-        onRunTreeGroundingCheck={runTreeGroundingCheck}
+        onRunCollisionCheck={commands.runCollisionCheck}
+        onRunStemDiagnostic={commands.runStemDiagnostic}
+        onRunTreeGroundingCheck={commands.runTreeGroundingCheck}
       />
       {/* Belongs to this route: a load started from the landing shows its
           progress there, in the card it was started from. */}

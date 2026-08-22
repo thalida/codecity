@@ -5,8 +5,6 @@
 
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
-import { SOURCE_INFO } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -15,6 +13,7 @@ import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeClust
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
+import { useProject } from '@/state/project/context';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */
@@ -25,8 +24,9 @@ export interface AppHeaderProps {
 }
 
 export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
-  const si = SOURCE_INFO.value;
-  const remoteUrl = (MANIFEST.value as Manifest)?.repo?.remote_url ?? null;
+  const { source, manifest } = useProject();
+  const si = source.info.value;
+  const remoteUrl = (manifest.current.value as Manifest)?.repo?.remote_url ?? null;
   // Nothing loaded: the freshness cluster would be reporting on a project that
   // doesn't exist, and refresh would have nothing to re-open.
   const hasProject = Boolean(si.src);

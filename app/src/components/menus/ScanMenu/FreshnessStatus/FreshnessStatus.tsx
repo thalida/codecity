@@ -7,14 +7,9 @@ import './FreshnessStatus.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
-import { LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_REBUILD_ERROR,
-  LAST_UPDATED_AT,
-  REBUILD_DETAIL,
-} from '@/state/stores/progress';
+import { liveUpdatesActive } from '@/state/settings/fields/updates';
+import { RebuildStatus } from '@/state/stores/progress';
+import { useProject } from '@/state/project/context';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.
@@ -63,11 +58,12 @@ export function useFreshness(): Freshness {
   }, []);
   void tick.value;
 
-  const liveEnabled = LIVE_UPDATES_ACTIVE.value;
-  const rebuildStatus = REBUILD_STATUS.value;
-  const lastUpdatedAt = LAST_UPDATED_AT.value;
-  const errorMessage = LAST_REBUILD_ERROR.value;
-  const rebuildDetail = REBUILD_DETAIL.value;
+  const { progress, source } = useProject();
+  const liveEnabled = liveUpdatesActive(source);
+  const rebuildStatus = progress.rebuildStatus.value;
+  const lastUpdatedAt = progress.lastUpdatedAt.value;
+  const errorMessage = progress.lastError.value;
+  const rebuildDetail = progress.detail.value;
 
   let buildClass: BuildClass;
   let detailText: string;

@@ -14,9 +14,9 @@ import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
+import { useProject } from '@/state/project/context';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 
@@ -45,13 +45,14 @@ export interface InfoPaneProps {
 }
 
 export function InfoPane({ manifest, onClose }: InfoPaneProps) {
+  const { source } = useProject();
   const [tab, setTab] = useState<InfoTab>(InfoTab.Overview);
   const active = INFO_TABS.find((t) => t.id === tab) ?? INFO_TABS[0];
 
   // A new world resets to Overview; keyed on CURRENT_SOURCE, not the manifest,
   // so an in-place refresh keeps the tab you were on.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) setTab(InfoTab.Overview);
+    if (source.current.value) setTab(InfoTab.Overview);
   });
   return (
     <Pane

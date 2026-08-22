@@ -8,17 +8,18 @@ import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { focusPath, focusCommit } from '@/city/sceneHandle';
 import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
+import { useProject } from '@/state/project/context';
+import type { CityCommands } from '@/city/sceneHandle';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.
-function visit(landmark: LandmarkRef): void {
-  if (landmark.kind === NodeKind.Commit) focusCommit(landmark.id);
-  else focusPath(landmark.id);
+function visit(commands: CityCommands, landmark: LandmarkRef): void {
+  if (landmark.kind === NodeKind.Commit) commands.focusCommit(landmark.id);
+  else commands.focusPath(landmark.id);
 }
 
 /** Collapse a section's flat fact list into render groups: consecutive facts
@@ -52,6 +53,7 @@ function PrimaryValue({ fact }: { fact: AlmanacFact }) {
 /** One fact row. A landmark is the whole row as a button; a summary fact is a
  *  plain row with nothing to press. */
 function FactRow({ fact }: { fact: AlmanacFact }) {
+  const { commands } = useProject();
   const landmark = fact.landmark;
   const inner = (
     <>
@@ -74,7 +76,7 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
       class="almanac-fact almanac-fact--nav"
       title={fact.tip}
       aria-label={`Focus ${fact.primary} in the world`}
-      onClick={() => visit(landmark)}
+      onClick={() => visit(commands, landmark)}
     >
       {inner}
     </button>
@@ -107,6 +109,7 @@ export interface OverviewTabProps {
 }
 
 export function OverviewTab({ manifest }: OverviewTabProps) {
+  const { commands } = useProject();
   const current = manifest.value;
   // The Forest section's contents depend on whether the Trees layer is on, so
   // it's a compute input — the section's notice comes back as an empty state.

@@ -92,6 +92,7 @@ export async function createCity(
     scene,
     canvas,
     cityState,
+    timeline: timeline ?? null,
     picker: null,
   } as unknown as SceneContext;
 
@@ -198,6 +199,7 @@ export async function createCity(
     canvas,
     camera: rig.camera,
     cityState,
+    timeline: timeline?.store ?? null,
     world: {
       getStreetPickables: () => streets.getPickables(),
       getRootGem: () => gem.getRootGroup(),
@@ -219,6 +221,7 @@ export async function createCity(
     rig,
     renderer,
     cityState,
+    timeline: timeline?.store ?? null,
     showTooltip,
     hideTooltip,
     onResize() {
@@ -269,8 +272,8 @@ export async function createCity(
     after() {
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
-      if (!timeline?.mode.peek() || timeline.scrubDragging.peek()) return;
-      const pos = timeline.scrubPos.peek();
+      if (!timeline?.store.mode.peek() || timeline.store.dragging.peek()) return;
+      const pos = timeline.store.scrubPos.peek();
       if (pos === _lastPrunedScrubPos) return;
       _lastPrunedScrubPos = pos;
       picker.pruneScrubHiddenSelection();
@@ -284,6 +287,7 @@ export async function createCity(
     ): void {
       _scrubController?.dispose();
       _scrubController = createScrubController({
+        timeline: timeline!.store,
         buildings: {
           getBuildingIndex: () => buildings.getBuildingIndex(),
           applyScrub: (states) => buildings.applyScrub(states),
@@ -322,7 +326,7 @@ export async function createCity(
   // HEAD, so only a rebuild from the live manifest is a valid live city.
   const stopTimelineTeardown = timeline
     ? effect(() => {
-        if (timeline.mode.value || !_scrubController) return;
+        if (timeline.store.mode.value || !_scrubController) return;
         timelineApi.uninstallScrubController();
         const live = timeline.liveManifest();
         // Best-effort: a dispose or a newer apply can supersede this mid-flight,
@@ -334,7 +338,7 @@ export async function createCity(
   /** Re-pack what is already on screen: the settings path. A union city under
    *  a scrubber was not built from one manifest, so it reassembles instead. */
   async function repack(): Promise<void> {
-    if (timeline?.mode.peek()) return timeline.repack();
+    if (timeline?.store.mode.peek()) return timeline.repack();
     const showing = cityState.manifest.peek();
     if (showing) await applyManifest(showing);
   }

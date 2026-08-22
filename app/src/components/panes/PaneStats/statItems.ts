@@ -6,7 +6,7 @@ import type { FileNode, DirNode } from '@/types';
 import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
-import { scrubbedStatsFor } from '@/state/stores/timeline';
+import type { TimelineStore } from '@/state/stores/timeline';
 import type { PaneStatItem } from './PaneStats';
 
 /** Direct and recursive counts as one item, collapsing to a single number when
@@ -41,14 +41,17 @@ export interface FileStatOpts {
   dates?: boolean;
   /** Reference point for the relative ages. Defaults to now. */
   now?: number;
+  /** The history this file is being read through, when it is being scrubbed:
+   *  the replayed numbers win over the node's max-over-history ones. */
+  timeline?: TimelineStore | null;
 }
 
 export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStatItem[] {
-  const { dates = true, now = Date.now() } = opts;
+  const { dates = true, now = Date.now(), timeline = null } = opts;
   const items: PaneStatItem[] = [];
   // In Timeline the static node carries max-over-history values, so the replayed
   // ones win where they exist (at deletion for a file already gone).
-  const scrubbed = file.path != null ? scrubbedStatsFor(file.path) : null;
+  const scrubbed = file.path != null ? (timeline?.scrubbedStatsFor(file.path) ?? null) : null;
   const lines = scrubbed ? scrubbed.lines : file.lines;
   const size = scrubbed ? scrubbed.bytes : file.size;
 

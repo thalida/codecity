@@ -11,14 +11,9 @@ import { effect, signal, type ReadonlySignal } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { SILENT_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
-import { MANIFEST } from '@/state/stores/manifest';
-import {
-  RECENTS,
-  CURRENT_SOURCE,
-  BACKDROP_CITY,
-  BackdropKind,
-  type BackdropCity,
-} from '@/state/stores/source';
+import { useProject } from '@/state/project/context';
+import type { ProjectSession } from '@/state/project/session';
+import { RECENTS, BACKDROP_CITY, BackdropKind, type BackdropCity } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import type { Manifest } from '@/types';
 
@@ -55,12 +50,12 @@ function fitsBehindTheLanding(manifest: Manifest): boolean {
 }
 
 /** Who gets to be the backdrop, best first. */
-function candidates(featuredRepo: string | undefined): Candidate[] {
+function candidates(featuredRepo: string | undefined, session: ProjectSession): Candidate[] {
   const out: Candidate[] = [];
-  // The project you just left, still in memory: no round trip, and it is the
-  // city you were looking at a moment ago.
-  const loaded = MANIFEST.peek();
-  const current = CURRENT_SOURCE.peek();
+  // The project you just left, still in that session: no round trip, and it is
+  // the city you were looking at a moment ago.
+  const loaded = session.manifest.current.peek();
+  const current = session.source.current.peek();
   if (current && loaded) {
     out.push({
       src: current.src,
@@ -97,6 +92,8 @@ export interface HomeBackdrop {
 }
 
 export function useHomeBackdrop(): HomeBackdrop {
+  // The landing's wallpaper opens on the project the focused session last had.
+  const session = useProject();
   // Per landing visit, like the city it feeds: a second one would be a second
   // wallpaper, showing whatever IT picked.
   const backdrop = useMemo(() => {
@@ -126,7 +123,7 @@ export function useHomeBackdrop(): HomeBackdrop {
 
     async function tryNext(featuredRepo?: string): Promise<void> {
       const signal = controller.signal;
-      const next = candidates(featuredRepo).find((c) => !tried.has(`${c.kind}:${c.src}`));
+      const next = candidates(featuredRepo, session).find((c) => !tried.has(`${c.kind}:${c.src}`));
       if (!next) return;
       tried.add(`${next.kind}:${next.src}`);
       inFlight = true;

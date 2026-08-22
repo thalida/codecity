@@ -13,7 +13,7 @@ import DOMPurify from 'dompurify';
 import type { DirNode, Manifest, SourceRef } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { sourceOf } from '@/utils/manifest';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
+import { useProject } from '@/state/project/context';
 import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
@@ -65,6 +65,7 @@ export interface ReadmeTabProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function ReadmeTab({ manifest }: ReadmeTabProps) {
+  const { timeline } = useProject();
   const [body, setBody] = useState<InfoBodyState>({ kind: InfoBodyKind.NoProject });
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
         return;
       }
       // No README yet at this commit: say so rather than fetching HEAD's.
-      if (hasNoContentAtScrub(readmePath)) {
+      if (timeline.hasNoContentAtScrub(readmePath)) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
@@ -92,7 +93,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
         source,
         readmePath,
         (m as Manifest).readmeModified ?? undefined,
-        scrubbedBlobShaFor(readmePath)
+        timeline.scrubbedBlobShaFor(readmePath)
       )
         .then((text) => {
           if (!cancelled)

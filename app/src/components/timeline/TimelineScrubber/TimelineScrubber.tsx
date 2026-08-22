@@ -1,22 +1,13 @@
 // components/timeline/TimelineScrubber/TimelineScrubber.tsx — the scrub track. A time axis, so busy periods
-// bunch and quiet stretches spread, driving SCRUB_POS as a float commit index so
+// bunch and quiet stretches spread, driving the position as a float index so
 // the scrub controller stays index-based. See scrubberScale for the mapping.
 
 import './TimelineScrubber.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import {
-  TIMELINE_MODE,
-  SCRUB_POS,
-  SCRUB_MAX,
-  SCRUB_TODAY_MS,
-  TIMELINE_BUNDLE,
-  SCRUB_DRAGGING,
-  setScrubPos,
-} from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/settings/fields/theme';
 import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
-import { showCommit } from '@/city/sceneHandle';
+import { useProject } from '@/state/project/context';
 import {
   buildScrubberScale,
   commitFraction,
@@ -27,12 +18,13 @@ import {
 } from './scrubberScale';
 
 export function TimelineScrubber() {
-  const inTimeline = TIMELINE_MODE.value;
-  const bundle = TIMELINE_BUNDLE.value;
+  const { timeline, commands } = useProject();
+  const inTimeline = timeline.mode.value;
+  const bundle = timeline.bundle.value;
   const commits = bundle?.commits ?? [];
 
   const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
-  const todayMs = SCRUB_TODAY_MS.value;
+  const todayMs = timeline.todayMs.value;
   const scale = useMemo(
     () =>
       buildScrubberScale(
@@ -47,8 +39,8 @@ export function TimelineScrubber() {
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const maxIndex = SCRUB_MAX.value;
-  const pos = SCRUB_POS.value;
+  const maxIndex = timeline.scrubMax.value;
+  const pos = timeline.scrubPos.value;
   // A single-commit repo has no history to scrub: the handle pins to the present
   // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
   const inert = maxIndex === 0;
@@ -126,21 +118,21 @@ export function TimelineScrubber() {
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
     const raw = fractionToIndex(scale, (clientX - r.left) / r.width);
-    setScrubPos(snapToStop(scale, indexToMs(scale, raw)));
+    timeline.setScrubPos(snapToStop(scale, indexToMs(scale, raw)));
   };
 
   const onPointerDown = (e: PointerEvent) => {
     if (inert) return;
-    SCRUB_DRAGGING.value = true;
+    timeline.dragging.value = true;
     // Optional-chained: jsdom (and old browsers) lack pointer capture.
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     setFromClientX(e.clientX);
   };
   const onPointerMove = (e: PointerEvent) => {
-    if (SCRUB_DRAGGING.peek()) setFromClientX(e.clientX);
+    if (timeline.dragging.peek()) setFromClientX(e.clientX);
   };
   const onPointerUp = (e: PointerEvent) => {
-    SCRUB_DRAGGING.value = false;
+    timeline.dragging.value = false;
     const el = e.currentTarget as HTMLElement;
     el.releasePointerCapture?.(e.pointerId);
     // Focus back to the scene, so the next R or F reaches the camera. Keyboard
@@ -162,7 +154,7 @@ export function TimelineScrubber() {
     else return;
     e.preventDefault();
     e.stopPropagation();
-    setScrubPos(next);
+    timeline.setScrubPos(next);
   };
 
   return (
@@ -197,7 +189,7 @@ export function TimelineScrubber() {
           type="button"
           class="timeline-scrubber-edge"
           title={`Jump to the first commit: ${formatFullDate(commits[0].date)}`}
-          onClick={() => setScrubPos(0)}
+          onClick={() => timeline.setScrubPos(0)}
         >
           {formatShortDate(commits[0].date)}
         </button>
@@ -216,7 +208,7 @@ export function TimelineScrubber() {
               ? `Jump to the latest commit: ${formatFullDate(commits[lastCommit].date)}`
               : `Jump to today: ${formatFullDate(endDay)}`
           }
-          onClick={() => setScrubPos(maxIndex)}
+          onClick={() => timeline.setScrubPos(maxIndex)}
         >
           {formatShortDate(endDay)}
         </button>
@@ -231,7 +223,7 @@ export function TimelineScrubber() {
             type="button"
             class="timeline-scrubber-commit"
             title="Show this commit's details"
-            onClick={() => showCommit(commit.sha)}
+            onClick={() => commands.showCommit(commit.sha)}
           >
             <span class="timeline-scrubber-sha">{commit.sha.slice(0, 7)}</span>
             <span class="timeline-scrubber-subject">{commit.subject || '(no subject)'}</span>

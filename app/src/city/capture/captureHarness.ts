@@ -6,9 +6,8 @@
 import { effect } from '@preact/signals';
 
 import { isDebugMode } from '@/utils/debugMode';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { MANIFEST } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { RebuildStatus } from '@/state/stores/progress';
+import type { ProjectSession } from '@/state/project/session';
 import type { Manifest } from '@/types';
 
 import { SHOTS, type ShotOverrides } from './shots';
@@ -20,7 +19,7 @@ const SETTLE_MS = 2200;
 const POSE_RETRY_MS = 400;
 const MAX_POSE_ATTEMPTS = 120;
 
-export function initCaptureHarness(): void {
+export function initCaptureHarness(session: ProjectSession): void {
   const params = new URLSearchParams(window.location.search);
   const shot = params.get('shot');
   if (!shot || !isDebugMode()) return;
@@ -46,9 +45,10 @@ export function initCaptureHarness(): void {
 
   let posed = false;
   const stop = effect(() => {
-    const handle = SCENE_HANDLE.value;
-    const manifest = MANIFEST.value as Manifest;
-    if (posed || !handle || !manifest || REBUILD_STATUS.value !== RebuildStatus.Idle) return;
+    const handle = session.city.value;
+    const manifest = session.manifest.current.value as Manifest;
+    if (posed || !handle || !manifest) return;
+    if (session.progress.rebuildStatus.value !== RebuildStatus.Idle) return;
     // A skeleton also reaches Idle, and framing on its root-street bbox locks
     // onto a close-up. Reading anchors subscribes to bbox, so this re-fires.
     if (handle.rig.captureAnchors().tallestHeight <= 0) return;
@@ -63,7 +63,8 @@ export function initCaptureHarness(): void {
       const tryPose = () => {
         let ready = true;
         try {
-          ready = pose(h, MANIFEST.peek() as Manifest, overrides) !== false;
+          ready =
+            pose(h, session.manifest.current.peek() as Manifest, overrides, session) !== false;
         } catch (err) {
           console.error(`[capture] shot "${shot}" pose failed`, err);
         }

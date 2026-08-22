@@ -12,10 +12,9 @@ import type { DirNode, Manifest, TreeNode } from '@/types';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { PANE_MANIFEST } from '@/state/stores/timeline';
+import { useProject } from '@/state/project/context';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.
@@ -56,12 +55,13 @@ export function ExplorePane({
   onHover,
   onHoverEnd,
 }: ExplorePaneProps) {
+  const { source, timeline } = useProject();
   const [tab, setTab] = useState<ExploreTab>(ExploreTab.Tree);
 
   // A new world resets to the tree; keyed on CURRENT_SOURCE, not the manifest,
   // so an in-place refresh keeps the tab you were on.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) setTab(ExploreTab.Tree);
+    if (source.current.value) setTab(ExploreTab.Tree);
   });
 
   return (
@@ -87,7 +87,7 @@ export function ExplorePane({
         />
       ) : (
         // README reads HEAD (fetches the current checkout), never the scrubbed union.
-        <ReadmeTab manifest={PANE_MANIFEST} />
+        <ReadmeTab manifest={timeline.paneManifest} />
       )}
     </Pane>
   );

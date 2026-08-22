@@ -1,7 +1,6 @@
-// The only per-frame reader of SCRUB_POS, the ruin/building stores
+// The only per-frame reader of the scrub position, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-import { SCRUB_POS } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
@@ -40,6 +39,8 @@ export interface ScrubFrame {
 }
 
 export interface ScrubFrameDeps {
+  /** Where this city's scrubber is, read by its caller once per frame. */
+  scrubPos: number;
   commitLineRanges: readonly RangeStat[];
   /** Replayed over the present set, so at HEAD weathering matches Live. */
   commitDateRanges: readonly CommitDateRange[];
@@ -63,9 +64,9 @@ function scrubNow(pos: number, deps: ScrubFrameDeps): number {
 }
 
 export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
-  const pos = SCRUB_POS.peek();
+  const pos = deps.scrubPos;
 
-  // SCRUB_POS is clamped to the bundle; only the range arrays can fall short.
+  // The position is clamped to the bundle; only the ranges can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];
 
   const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;

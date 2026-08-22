@@ -4,17 +4,18 @@
 // under what name, is the app's call rather than this panel's.
 
 import './ImportExportMenu.css';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState, useMemo } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
+import { useProject } from '@/state/project/context';
 import {
   buildSettingsFile,
   parseSettingsFile,
   applySettingsFile,
   excludesOrigin,
   storePart,
-  EXCLUDES_PART,
+  excludesPart,
   SettingsFileError,
   TransferFamily,
   type ImportReport,
@@ -69,12 +70,12 @@ function groupRow(group: TransferGroup, parts: TransferPart[]): TransferRow {
   return { id: `group:${group.key}`, label: group.label, family: group.family, parts };
 }
 
-function excludesRow(note: string): TransferRow {
+function excludesRow(part: TransferPart, note: string): TransferRow {
   return {
     id: EXCLUDES_ROW,
     label: 'Excluded from City',
-    family: EXCLUDES_PART.family,
-    parts: [EXCLUDES_PART],
+    family: part.family,
+    parts: [part],
     note,
   };
 }
@@ -85,26 +86,31 @@ function partsOf(group: TransferGroup): TransferPart[] {
 
 /** Every part this build will accept from a file. Nothing outside it can be
  *  applied, however a hand-edited file names it. */
-function catalogueOf(groups: readonly TransferGroup[]): TransferPart[] {
-  return [...groups.flatMap(partsOf), EXCLUDES_PART];
+function catalogueOf(groups: readonly TransferGroup[], excludes: TransferPart): TransferPart[] {
+  return [...groups.flatMap(partsOf), excludes];
 }
 
 /** Everything this browser could send: every group, plus what the open project
  *  hides. Always offered, since "I hide nothing" is a thing worth sending. */
-function exportRows(groups: readonly TransferGroup[], note: string): TransferRow[] {
-  return [...groups.map((g) => groupRow(g, partsOf(g))), excludesRow(note)];
+function exportRows(
+  groups: readonly TransferGroup[],
+  excludes: TransferPart,
+  note: string
+): TransferRow[] {
+  return [...groups.map((g) => groupRow(g, partsOf(g))), excludesRow(excludes, note)];
 }
 
 /** Only what the file actually carries, so an import never offers to reset a
  *  section its author chose not to send. */
 function importRows(
   groups: readonly TransferGroup[],
+  excludes: TransferPart,
   parsed: ParsedSettingsFile,
   note: string
 ): TransferRow[] {
   const carried = new Set(parsed.parts.map((p) => `${p.family}/${p.key}`));
   const held = (part: TransferPart) => carried.has(`${part.family}/${part.key}`);
-  return exportRows(groups, note)
+  return exportRows(groups, excludes, note)
     .map((row) => ({ ...row, parts: row.parts.filter(held) }))
     .filter((row) => row.parts.length > 0);
 }
@@ -145,6 +151,10 @@ export interface ImportExportMenuProps {
 }
 
 export function ImportExportMenu({ groups }: ImportExportMenuProps) {
+  const { source } = useProject();
+  // This project's hidden paths: whose list travels is a question about which
+  // repo is open, so the part is made here rather than imported ready-made.
+  const excludes = useMemo(() => excludesPart(source), [source]);
   const open = useSignal(false);
   const [mode, setMode] = useState<Mode>(Mode.Export);
   const [parsed, setParsed] = useState<ParsedSettingsFile | null>(null);
@@ -174,8 +184,8 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   const dotTitle = mode === Mode.Import ? DOT_TITLE.import : DOT_TITLE.export;
   const rows =
     mode === Mode.Import && parsed
-      ? importRows(groups, parsed, scanNote)
-      : exportRows(groups, scanNote);
+      ? importRows(groups, excludes, parsed, scanNote)
+      : exportRows(groups, excludes, scanNote);
   const chosen = rows.filter((r) => !off.has(r.id));
 
   const toggleRow = (id: string, on: boolean) => {
@@ -202,7 +212,7 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
     try {
       // The catalogue is the authority on what may travel: a hand-edited file
       // naming something outside it (auto-refresh, say) resolves to nothing.
-      setParsed(parseSettingsFile(await file.text(), catalogueOf(groups)));
+      setParsed(parseSettingsFile(await file.text(), catalogueOf(groups, excludes)));
       setOff(new Set());
       setMode(Mode.Import);
     } catch (e) {

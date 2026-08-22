@@ -10,7 +10,6 @@ import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/settings/fields/building
 import { BLOOM } from '@/state/settings/fields/effects';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -67,13 +66,15 @@ export interface Buildings extends SceneComponent {
    *  ad panels. The scrub pass decides the states; this owns the writes. */
   applyScrub(states: ReadonlyMap<string, BuildingScrubState>): void;
   /** Install (or clear with null) the Timeline scrub controller, which drives
-   *  scaleY + iFade per frame while TIMELINE_MODE is on. */
+   *  scaleY + iFade per frame while a scrub is on. */
   setScrubController(controller: { update(): void } | null): void;
   /** Window-resize hook — forwards to the outline LineMaterial resolution. */
   onResize(): void;
 }
 
 export function createBuildings(ctx: SceneContext): Buildings {
+  // This city's history, or null when nothing scrubs it.
+  const timeline = ctx.timeline?.store ?? null;
   // Persistent outer group — added to the scene once by createCity. rebuild()
   // swaps the inner cell root in and out of this group.
   const group = new THREE.Group();
@@ -162,6 +163,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       },
       cityState: ctx.cityState,
       picker: ctx.picker!,
+      timeline,
     });
     // Their overlays go straight on the scene: explicit renderOrders, so where
     // they sit in the graph doesn't decide draw order.
@@ -215,7 +217,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   });
 
   // Timeline scrub controller (installed by the timeline lifecycle). While
-  // TIMELINE_MODE, it drives scaleY + iFade per frame instead of the tweens.
+  // a scrub, it drives scaleY + iFade per frame instead of the tweens.
   let _scrubController: { update(): void } | null = null;
 
   // The prior meshes are disposed by now, but that frees GPU geometry only: the
@@ -318,7 +320,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function tick(_dt: number, frame: FrameContext): void {
     // First in the tick: outline and ghost read these matrices further down. In
     // Timeline the scrub controller owns them instead and this stays dormant.
-    if (TIMELINE_MODE.peek() && _scrubController) _scrubController.update();
+    if (timeline?.mode.peek() && _scrubController) _scrubController.update();
     else _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
@@ -386,7 +388,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const cellOut = buildCellsFromLayout(
       bounds,
       buildings,
-      sourceOf(ctx.cityState.manifest.peek())
+      sourceOf(ctx.cityState.manifest.peek()),
+      timeline
     );
 
     // Grabbed before the swap reassigns them: the arrays stay readable through
@@ -431,7 +434,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _scrubController = null;
     if (!_firstBuildDone) {
       _firstBuildDone = true;
-    } else if (!TIMELINE_MODE.peek()) {
+    } else if (!timeline?.mode.peek()) {
       // Timeline mode packs the union once; the scrub controller owns the
       // matrix from here, so don't animate a per-commit diff against it.
       _tweens.onDiff(diff);

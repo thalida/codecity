@@ -68,7 +68,7 @@ export function City({
           if (!m) return; // nothing to show yet
           // Scrubbing owns the contents while it runs. Peeked, so leaving the
           // mode doesn't repack what it committed (the teardown owns that).
-          if (bindings.timeline?.mode.peek()) return;
+          if (bindings.timeline?.store.mode.peek()) return;
           report.markRebuilding();
           void made.applyManifest(m).catch(report.markError);
         });

@@ -11,10 +11,15 @@ const TOUCH_CLICK_MOVE_THRESHOLD_PX = 12;
 const TOUCH_CLICK_TIME_THRESHOLD_MS = 700;
 const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
-import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/chrome';
-import { focusSelection } from '@/city/sceneHandle';
+import {
+  OVERLAY_OPEN,
+  openSelectionPane,
+  dismissSelectionPane,
+  SIDEBAR_COLLAPSED,
+} from '@/state/stores/chrome';
+import { IS_PHONE } from '@/state/stores/viewport';
 import { NodeKind } from '@/types';
-import { scrubbedStatsFor } from '@/state/stores/timeline';
+import type { TimelineStore } from '@/state/stores/timeline';
 import type { PickTarget } from '@/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
@@ -27,6 +32,7 @@ export function createInputHandlers({
   rig,
   renderer,
   cityState,
+  timeline,
   showTooltip,
   hideTooltip,
   onResize,
@@ -37,6 +43,8 @@ export function createInputHandlers({
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   cityState: CityState;
+  /** This city's history, for the hover readout at a scrubbed commit. */
+  timeline: TimelineStore | null;
   showTooltip: (content: TooltipContent, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
@@ -94,9 +102,9 @@ export function createInputHandlers({
     const rootName = cityState.manifest.peek()?.tree?.name ?? null;
     const scrubLines =
       newHover?.kind === NodeKind.File && newHover.file?.path != null
-        ? (scrubbedStatsFor(newHover.file.path)?.lines ?? null)
+        ? (timeline?.scrubbedStatsFor(newHover.file.path)?.lines ?? null)
         : null;
-    const tooltipText = hoverTooltipContent(newHover, rootName, scrubLines);
+    const tooltipText = hoverTooltipContent(newHover, rootName, scrubLines, timeline);
     if (tooltipText) {
       showTooltip(tooltipText, e.clientX, e.clientY);
       canvas.style.cursor = 'pointer';
@@ -220,7 +228,14 @@ export function createInputHandlers({
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       // The command the panes' Focus buttons call. The gem isn't selectable:
       // clicking it resets the view instead.
-      focusSelection();
+      // Aim at whatever is selected, and get the chrome out of the way: the
+      // same thing the panes' Focus button does, from this city's own picker.
+      const sel = picker.selection.peek();
+      if (sel) {
+        rig.focusSelection(sel);
+        dismissSelectionPane();
+        if (IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
+      }
     }
   });
 

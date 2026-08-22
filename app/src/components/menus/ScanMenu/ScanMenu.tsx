@@ -14,14 +14,9 @@ import { Field } from '@/components/fields/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
-import {
-  CURRENT_SOURCE_IS_LOCAL,
-  ACTIVE_EXCLUDES,
-  removeExclude,
-  clearExcludes,
-} from '@/state/stores/source';
 import { EXCLUDES_DOCS_URL } from '@/constants/ui';
 import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
+import { useProject } from '@/state/project/context';
 
 const PANEL_LABEL = 'Scan Settings';
 
@@ -54,7 +49,8 @@ function ExcludePath({ path }: { path: string }) {
 }
 
 function ExcludesGroup() {
-  const paths = ACTIVE_EXCLUDES.value;
+  const { source } = useProject();
+  const paths = source.excludes.value;
   return (
     <section class="popover-group">
       <div class="popover-group-head">
@@ -68,7 +64,7 @@ function ExcludesGroup() {
             class="setting-row-reset"
             title="Restore all excluded paths"
             aria-label="Restore all excluded paths"
-            onClick={clearExcludes}
+            onClick={source.clearExcludes}
           >
             <RotateCcw class="icon" />
           </button>
@@ -86,7 +82,7 @@ function ExcludesGroup() {
                 class="setting-row-reset"
                 title={`Restore ${p}`}
                 aria-label={`Restore ${p}`}
-                onClick={() => removeExclude(p)}
+                onClick={() => source.removeExclude(p)}
               >
                 <RotateCcw class="icon" />
               </button>
@@ -129,10 +125,11 @@ export interface ScanMenuProps {
 }
 
 export function ScanMenu({ onRefresh }: ScanMenuProps) {
+  const { source } = useProject();
   const freshness = useFreshness();
   // Excluding is the one act whose result is an absence: the pane closes, the
   // building goes, and nothing else in the app says where it went.
-  const hiddenCount = ACTIVE_EXCLUDES.value.length;
+  const hiddenCount = source.excludes.value.length;
   const countRef = useReplayAnimation<HTMLSpanElement>(hiddenCount);
   const status = hiddenCount
     ? `${freshness.titleText} · ${hiddenCount} ${hiddenCount === 1 ? 'path' : 'paths'} hidden`
@@ -186,7 +183,7 @@ export function ScanMenu({ onRefresh }: ScanMenuProps) {
               <Field store={LIVE_UPDATES} fieldKey="POLL_SECONDS" compact />
               {/* Only where it explains something: on a clone the controls
                   above look live but nothing can change under them. */}
-              {!CURRENT_SOURCE_IS_LOCAL.value && (
+              {!source.isLocal.value && (
                 <p class="popover-hint">
                   Local projects only. <SetupGuideLink />
                 </p>

@@ -11,7 +11,7 @@ import { CameraMode } from '@/city/render/cameraRig';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 import { type SourcePayload } from '@/types/ui';
-import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';
+import { RECENTS, BACKDROP_CITY } from '@/state/stores/source';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { cityHref, navigate } from '@/router/location';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
@@ -20,16 +20,18 @@ import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectFo
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/sources/DiscoverList/DiscoverList';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
+import { useProject } from '@/state/project/context';
 
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
+  const { source } = useProject();
   const backdrop = useHomeBackdrop();
   // Navigate, don't load: the URL carrying a src IS the load trigger, the same
   // one a deep link uses. Loading here waited for the scan before routing.
   const open = (payload: SourcePayload): void => navigate(cityHref(payload.src, payload.branch));
-  const failed = SOURCE_ERROR.value;
+  const failed = source.error.value;
 
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.

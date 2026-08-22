@@ -1,9 +1,10 @@
-// state/stores/progress.ts — how far along the thing you are waiting for is:
-// what the SERVER reports, what the BUILD is doing, and what the OVERLAY shows
-// on top of both. The overlay is a reduction over the other two (a running max
-// over rows, the last tail each saw), which is why it needs the driver below.
+// state/stores/progress.ts — how far along the thing you are waiting for is,
+// for ONE project: what the server reports, what the build is doing, and what
+// the overlay shows on top of both. The overlay is a reduction over the other
+// two (a running max over rows, the last tail each saw), which is why it needs
+// the driver at the bottom.
 
-import { signal, computed, effect } from '@preact/signals';
+import { signal, computed, effect, type ReadonlySignal, type Signal } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
 import type { Manifest } from '@/types';
@@ -18,8 +19,8 @@ import {
   stepForPhase,
   transferTail,
 } from '@/constants/progress';
-import { MANIFEST, type ManifestValue } from './manifest';
-import { SOURCE_INFO } from './source';
+import type { ManifestStore, ManifestValue } from './manifest';
+import type { SourceStore } from './source';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 
 // ── What the server is doing ─────────────────────────────────────────
@@ -49,9 +50,6 @@ export interface ScanProgress {
   appliedPending?: Manifest['pending'];
 }
 
-/** Non-null while a source is actively loading; null when idle/done. */
-export const SCAN_PROGRESS = signal<ScanProgress | null>(null);
-
 // ── What the build is doing ──────────────────────────────────────────
 
 /** State of the most recent world rebuild. Decorating is the city already on
@@ -66,114 +64,9 @@ export enum RebuildStatus {
   Error = 'error',
 }
 
-export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
-
-/** The manifest the FINISHED city was built from, trees included: a consumer
- *  that aims the camera at a node needs that node to exist. */
-export const BUILT_MANIFEST = signal<ManifestValue>(null);
-
-/** Whether a finished city is on screen RIGHT NOW: set when one is presented,
- *  cleared when the canvas goes away. Not "has anything ever been built". */
-export const CITY_ON_SCREEN = computed<boolean>(() => BUILT_MANIFEST.value !== null);
-
-/** Error message from the most recent failed rebuild; null when idle/success. */
-export const LAST_REBUILD_ERROR = signal<string | null>(null);
-
-/** Progress beside "rebuilding…", for the one build nothing else reports:
- *  Timeline's no-overlay refetch. Every transition clears it. */
-export const REBUILD_DETAIL = signal<string | null>(null);
-
-/** Epoch millis of the most recent finished apply, in whichever mode: a live
- *  scan or Timeline's history bundle both land here via markIdle. */
-export const LAST_UPDATED_AT = signal<number>(0);
-
-/** Which stage the running build is on, null between builds. The one source
- *  behind both of its readouts (see state/loadingReactions.ts). */
-export const BUILD_PROGRESS = signal<BuildProgress | null>(null);
-
-// ── Status transitions (single owner of each state + its coupled writes) ──
-
-// Every rebuild path goes through these, so the status/error/timestamp set
-// can't drift across the four call sites. markIdle ends every applyManifest.
-export function markRebuilding(): void {
-  REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-  REBUILD_DETAIL.value = null;
-  BUILD_PROGRESS.value = null;
-}
-
-// Decoration is the build's last stage, not the end of it: the overlay stays up
-// through the tree pass, and the trees land at the END of that stage.
-export function markDecorating(): void {
-  REBUILD_STATUS.value = RebuildStatus.Decorating;
-  enterBuildStage(BuildStage.Decorate);
-}
-
-/** The city is on screen. Set by the composer once the meshes exist and a frame
- *  carrying them has been presented — NOT when applyStructure returns. */
-export function markIdle(): void {
-  REBUILD_STATUS.value = RebuildStatus.Idle;
-  BUILT_MANIFEST.value = MANIFEST.peek();
-  LAST_REBUILD_ERROR.value = null;
-  REBUILD_DETAIL.value = null;
-  BUILD_PROGRESS.value = null;
-  LAST_UPDATED_AT.value = Date.now();
-}
-
-/** The canvas went away (leaving `/city` unmounts it), so nothing is on screen:
- *  the remount's rebuild is a load with a world to wait for. */
-function markGone(): void {
-  REBUILD_STATUS.value = RebuildStatus.Pending;
-  BUILT_MANIFEST.value = null;
-  REBUILD_DETAIL.value = null;
-  BUILD_PROGRESS.value = null;
-}
-
-export function markError(err: unknown): void {
-  REBUILD_STATUS.value = RebuildStatus.Error;
-  // Logged with the stack, where a developer can use it. The UI shows a generic
-  // line: the message names our internals and a user cannot act on it.
-  console.error('[codecity] city build failed', err);
-  LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
-  REBUILD_DETAIL.value = null;
-  BUILD_PROGRESS.value = null;
-}
-
-/** How far along the rebuild already announced by markRebuilding is. */
-export function setRebuildDetail(detail: string | null): void {
-  REBUILD_DETAIL.value = detail;
-}
-
-// ── Build stages ─────────────────────────────────────────────────────
-
-// The build's own transitions, owned here for the same reason as the status
-// ones above. The plan is per build: only what runs is an honest denominator.
-
-/** Open a build on the first of the stages it is going to run. */
-export function beginBuild(stages: readonly BuildStage[]): void {
-  BUILD_PROGRESS.value = { stages, index: 0, percent: null };
-}
-
-/** Advance to a stage of the declared plan. A stage the plan didn't list is
- *  ignored rather than appended: the denominator was already shown. */
-export function enterBuildStage(stage: BuildStage): void {
-  const prev = BUILD_PROGRESS.peek();
-  if (!prev) return;
-  const index = prev.stages.indexOf(stage);
-  if (index < 0 || index === prev.index) return;
-  BUILD_PROGRESS.value = { ...prev, index, percent: null };
-}
-
-/** Report progress within the current stage, for one that can measure itself. */
-export function setBuildStagePercent(percent: number): void {
-  const prev = BUILD_PROGRESS.peek();
-  if (!prev || prev.percent === percent) return;
-  BUILD_PROGRESS.value = { ...prev, percent };
-}
-
-// ── Who reports the world's build ────────────────────────────────────
-
-/** The status writes a city makes as it assembles. Two cities build over one
- *  session, and only the project you opened is the world these describe. */
+/** The status writes a city makes as it assembles. A city is handed one of
+ *  these, which is how its build reaches the readouts describing it — or does
+ *  not, when nobody is waiting for that city. */
 export interface BuildReporter {
   beginBuild(stages: readonly BuildStage[]): void;
   enterBuildStage(stage: BuildStage): void;
@@ -188,21 +81,8 @@ export interface BuildReporter {
   status(): RebuildStatus;
 }
 
-/** The project you opened: its build is the wait every readout is about. */
-export const OPENED_PROJECT_REPORTER: BuildReporter = {
-  beginBuild,
-  enterBuildStage,
-  setBuildStagePercent,
-  markRebuilding,
-  markDecorating,
-  markIdle,
-  markError,
-  markGone,
-  status: () => REBUILD_STATUS.peek(),
-};
-
-/** Scenery: nobody is waiting for it, and a finished wallpaper claiming the
- *  world is on screen outlives the canvas it was drawn on. */
+/** Scenery: nobody is waiting for it, and a finished wallpaper claiming a city
+ *  is on screen outlives the canvas it was drawn on. */
 export const SILENT_BUILD_REPORTER: BuildReporter = {
   beginBuild: () => {},
   enterBuildStage: () => {},
@@ -211,159 +91,306 @@ export const SILENT_BUILD_REPORTER: BuildReporter = {
   markDecorating: () => {},
   markIdle: () => {},
   markGone: () => {},
-  // Logged, never surfaced: a city nobody is waiting for has no readout to
-  // fail in, and a silent throw is how a broken wallpaper goes unnoticed.
+  // Logged, never surfaced: a city nobody is waiting for has no readout to fail
+  // in, and a silent throw is how a broken wallpaper goes unnoticed.
   markError: (err) => console.error('[codecity] scenery build failed', err),
   status: () => RebuildStatus.Pending,
 };
 
-// ── What the overlay shows ───────────────────────────────────────────
+export interface ProgressStore {
+  /** Non-null while this project is actively loading; null when idle/done. */
+  readonly scan: Signal<ScanProgress | null>;
+  readonly rebuildStatus: Signal<RebuildStatus>;
+  /** The manifest the FINISHED city was built from, trees included: a consumer
+   *  that aims the camera at a node needs that node to exist. */
+  readonly builtManifest: Signal<ManifestValue>;
+  /** Whether a finished city is on screen RIGHT NOW: set when one is presented,
+   *  cleared when the canvas goes away. Not "has anything ever been built". */
+  readonly cityOnScreen: ReadonlySignal<boolean>;
+  /** Error message from the most recent failed rebuild; null when idle/success. */
+  readonly lastError: Signal<string | null>;
+  /** Progress beside "rebuilding…", for the one build nothing else reports:
+   *  Timeline's no-overlay refetch. Every transition clears it. */
+  readonly detail: Signal<string | null>;
+  /** Epoch millis of the most recent finished apply, in whichever mode. */
+  readonly lastUpdatedAt: Signal<number>;
+  /** Which stage the running build is on, null between builds. */
+  readonly buildProgress: Signal<BuildProgress | null>;
+  /** This project's city writes its status here. */
+  readonly reporter: BuildReporter;
+  /** How far along the rebuild already announced by markRebuilding is. */
+  setDetail(detail: string | null): void;
 
-/** Repo name in the loading overlay's header, shown before the manifest lands.
- *  Overlay-owned: showLoadingOverlay/hideLoadingOverlay control its lifetime. */
-export const PENDING_SOURCE_LABEL = signal<string | null>(null);
+  // ── The overlay over this project ──
+  readonly overlay: Signal<LoadingOverlayState>;
+  /** Repo name in the overlay's header, shown before the manifest lands. */
+  readonly pendingLabel: Signal<string | null>;
+  /** A load that can be backed out of registers its own abort; null falls back
+   *  to the view's default. */
+  readonly cancel: Signal<(() => void) | null>;
+  showOverlay(opts: LoadingOverlayShowOpts, onCancel?: (() => void) | null): void;
+  hideOverlay(): void;
+  setStep(step: LoadingStep): void;
+  setStepTail(step: LoadingStep, tail: string | null): void;
+  setCancel(onCancel: (() => void) | null): void;
+  /** Drive the overlay off this project's scan + build. Returns a dispose. */
+  attachOverlayDriver(): () => void;
+}
 
-export const LOADING_OVERLAY = signal<LoadingOverlayState>({
-  visible: false,
-  showOpts: null,
-  activeStep: null,
-  stepTails: {},
-});
+export function createProgressStore({
+  manifest,
+  source,
+}: {
+  manifest: ManifestStore;
+  source: SourceStore;
+}): ProgressStore {
+  const scan = signal<ScanProgress | null>(null);
+  const rebuildStatus = signal<RebuildStatus>(RebuildStatus.Pending);
+  const builtManifest = signal<ManifestValue>(null);
+  const cityOnScreen = computed<boolean>(() => builtManifest.value !== null);
+  const lastError = signal<string | null>(null);
+  const detail = signal<string | null>(null);
+  const lastUpdatedAt = signal<number>(0);
+  const buildProgress = signal<BuildProgress | null>(null);
 
-// A load that can be backed out of registers its own abort; null falls back to
-// the App default.
-export const LOADING_CANCEL = signal<(() => void) | null>(null);
-
-// peek, not value: these are called from inside other effects, and tracking the
-// prior state would subscribe an effect to a signal it goes on to write.
-
-// Omitting onCancel leaves any registered handler in place, so a caller can
-// pre-register one before the reaction shows the overlay.
-export function showLoadingOverlay(
-  opts: LoadingOverlayShowOpts,
-  onCancel?: (() => void) | null
-): void {
-  LOADING_OVERLAY.value = {
-    visible: true,
-    showOpts: opts,
-    activeStep: firstStepFor(opts.steps ?? LOADING_STEPS, opts.kind),
+  const overlay = signal<LoadingOverlayState>({
+    visible: false,
+    showOpts: null,
+    activeStep: null,
     stepTails: {},
-  };
-  if (onCancel !== undefined) LOADING_CANCEL.value = onCancel;
-}
-
-export function setLoadingCancel(onCancel: (() => void) | null): void {
-  LOADING_CANCEL.value = onCancel;
-}
-
-export function hideLoadingOverlay(): void {
-  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
-  LOADING_CANCEL.value = null;
-  // The header belongs to the overlay, so it clears here rather than at each
-  // call site: one that forgets leaves a stale label over the next load.
-  PENDING_SOURCE_LABEL.value = null;
-}
-
-export function setLoadingStep(step: LoadingStep): void {
-  const prev = LOADING_OVERLAY.peek();
-  if (prev.activeStep === step) return;
-  LOADING_OVERLAY.value = { ...prev, activeStep: step };
-}
-
-export function setLoadingStepTail(step: LoadingStep, tail: string | null): void {
-  const prev = LOADING_OVERLAY.peek();
-  LOADING_OVERLAY.value = {
-    ...prev,
-    stepTails: { ...prev.stepTails, [step]: tail },
-  };
-}
-
-// ── The Live driver ──────────────────────────────────────────────────
-
-export function attachOverlayDriver(): () => void {
-  const stops = [attachLoadReaction(), attachBuildReaction()];
-  return () => stops.forEach((stop) => stop());
-}
-
-// The overlay's row only: these stages pass in a few frames, and the freshness
-// readout flickering through them cost more attention than they are worth.
-function attachBuildReaction(): () => void {
-  return effect(() => {
-    setLoadingStepTail(LoadingStep.Building, buildStageTail(BUILD_PROGRESS.value));
   });
-}
+  const pendingLabel = signal<string | null>(null);
+  const cancel = signal<(() => void) | null>(null);
 
-// The overlay's whole lifetime: up while a world is coming, down once that
-// world is ON SCREEN. The stream ending is only the middle of that wait.
-function attachLoadReaction(): () => void {
-  let overlayUp = false;
-  // How far down the list this load has got. A row that lights up again after a
-  // later one reads as the whole load starting over.
-  let reached = -1;
-  const advance = (step: LoadingStep): void => {
-    if (!overlayUp) return;
-    const index = LOADING_STEPS.indexOf(step);
-    if (index <= reached) return;
-    reached = index;
-    setLoadingStep(step);
+  // ── Status transitions (single owner of each state + its coupled writes) ──
+
+  // Every rebuild path goes through these, so the status/error/timestamp set
+  // can't drift across call sites. markIdle ends every applyManifest.
+  function markRebuilding(): void {
+    rebuildStatus.value = RebuildStatus.Rebuilding;
+    detail.value = null;
+    buildProgress.value = null;
+  }
+
+  // Decoration is the build's last stage, not the end of it: the overlay stays
+  // up through the tree pass, and the trees land at the END of that stage.
+  function markDecorating(): void {
+    rebuildStatus.value = RebuildStatus.Decorating;
+    enterBuildStage(BuildStage.Decorate);
+  }
+
+  /** The city is on screen. Set by the composer once the meshes exist and a
+   *  frame carrying them has been presented — NOT when applyStructure returns. */
+  function markIdle(): void {
+    rebuildStatus.value = RebuildStatus.Idle;
+    builtManifest.value = manifest.current.peek();
+    lastError.value = null;
+    detail.value = null;
+    buildProgress.value = null;
+    lastUpdatedAt.value = Date.now();
+  }
+
+  /** The canvas went away (leaving `/city` unmounts it), so nothing is on
+   *  screen: the remount's rebuild is a load with a world to wait for. */
+  function markGone(): void {
+    rebuildStatus.value = RebuildStatus.Pending;
+    builtManifest.value = null;
+    detail.value = null;
+    buildProgress.value = null;
+  }
+
+  function markError(err: unknown): void {
+    rebuildStatus.value = RebuildStatus.Error;
+    // Logged with the stack, where a developer can use it. The UI shows a
+    // generic line: the message names our internals and a user cannot act on it.
+    console.error('[codecity] city build failed', err);
+    lastError.value = err instanceof Error ? err.message : String(err);
+    detail.value = null;
+    buildProgress.value = null;
+  }
+
+  // ── Build stages ───────────────────────────────────────────────────
+
+  // The plan is per build: only what runs is an honest denominator.
+  function beginBuild(stages: readonly BuildStage[]): void {
+    buildProgress.value = { stages, index: 0, percent: null };
+  }
+
+  /** Advance to a stage of the declared plan. A stage the plan didn't list is
+   *  ignored rather than appended: the denominator was already shown. */
+  function enterBuildStage(stage: BuildStage): void {
+    const prev = buildProgress.peek();
+    if (!prev) return;
+    const index = prev.stages.indexOf(stage);
+    if (index < 0 || index === prev.index) return;
+    buildProgress.value = { ...prev, index, percent: null };
+  }
+
+  function setBuildStagePercent(percent: number): void {
+    const prev = buildProgress.peek();
+    if (!prev || prev.percent === percent) return;
+    buildProgress.value = { ...prev, percent };
+  }
+
+  const reporter: BuildReporter = {
+    beginBuild,
+    enterBuildStage,
+    setBuildStagePercent,
+    markRebuilding,
+    markDecorating,
+    markIdle,
+    markError,
+    markGone,
+    status: () => rebuildStatus.peek(),
   };
-  // Nothing was fetched, so the build row is the only honest one. An overlay
-  // already up belongs to whoever raised it (Timeline brings its own list).
-  const showForBuild = (): void => {
-    if (LOADING_OVERLAY.peek().visible) return;
-    PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
-    showLoadingOverlay({ kind: null, steps: BUILD_ONLY_STEPS });
-    overlayUp = true;
-    reached = -1;
-  };
-  return effect(() => {
-    const p = SCAN_PROGRESS.value;
-    // The stream finishing is not the city appearing: Idle means a frame of it
-    // has been presented, so every earlier status keeps the overlay up.
-    const status = REBUILD_STATUS.value;
-    const building = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
-    const onScreen = CITY_ON_SCREEN.value;
-    const hide = () => {
-      if (overlayUp) hideLoadingOverlay();
-      overlayUp = false;
+
+  // ── What the overlay shows ─────────────────────────────────────────
+
+  // peek, not value: these are called from inside effects, and tracking the
+  // prior state would subscribe an effect to a signal it goes on to write.
+
+  // Omitting onCancel leaves any registered handler in place, so a caller can
+  // pre-register one before the reaction shows the overlay.
+  function showOverlay(opts: LoadingOverlayShowOpts, onCancel?: (() => void) | null): void {
+    overlay.value = {
+      visible: true,
+      showOpts: opts,
+      activeStep: firstStepFor(opts.steps ?? LOADING_STEPS, opts.kind),
+      stepTails: {},
     };
-    if (!p) {
-      // A build is all that's left to wait for: this overlay's own, or one for
-      // a city not up yet. A rebuild UNDER one is the footer's to report.
-      if (building && (overlayUp || !onScreen)) {
-        if (!overlayUp) showForBuild();
-        advance(LoadingStep.Building);
+    if (onCancel !== undefined) cancel.value = onCancel;
+  }
+
+  function hideOverlay(): void {
+    overlay.value = { ...overlay.peek(), visible: false };
+    cancel.value = null;
+    // The header belongs to the overlay, so it clears here rather than at each
+    // call site: one that forgets leaves a stale label over the next load.
+    pendingLabel.value = null;
+  }
+
+  function setStep(step: LoadingStep): void {
+    const prev = overlay.peek();
+    if (prev.activeStep === step) return;
+    overlay.value = { ...prev, activeStep: step };
+  }
+
+  function setStepTail(step: LoadingStep, tail: string | null): void {
+    const prev = overlay.peek();
+    overlay.value = { ...prev, stepTails: { ...prev.stepTails, [step]: tail } };
+  }
+
+  // ── The driver ─────────────────────────────────────────────────────
+
+  // The overlay's row only: these stages pass in a few frames, and the
+  // freshness readout flickering through them cost more than they are worth.
+  function attachBuildReaction(): () => void {
+    return effect(() => {
+      setStepTail(LoadingStep.Building, buildStageTail(buildProgress.value));
+    });
+  }
+
+  // The overlay's whole lifetime: up while a world is coming, down once that
+  // world is ON SCREEN. The stream ending is only the middle of that wait.
+  function attachLoadReaction(): () => void {
+    let overlayUp = false;
+    // How far down the list this load has got. A row that lights up again after
+    // a later one reads as the whole load starting over.
+    let reached = -1;
+    const advance = (step: LoadingStep): void => {
+      if (!overlayUp) return;
+      const index = LOADING_STEPS.indexOf(step);
+      if (index <= reached) return;
+      reached = index;
+      setStep(step);
+    };
+    // Nothing was fetched, so the build row is the only honest one. An overlay
+    // already up belongs to whoever raised it (Timeline brings its own list).
+    const showForBuild = (): void => {
+      if (overlay.peek().visible) return;
+      pendingLabel.value = source.info.peek().label || null;
+      showOverlay({ kind: null, steps: BUILD_ONLY_STEPS });
+      overlayUp = true;
+      reached = -1;
+    };
+    return effect(() => {
+      const p = scan.value;
+      // The stream finishing is not the city appearing: Idle means a frame of
+      // it has been presented, so every earlier status keeps the overlay up.
+      const status = rebuildStatus.value;
+      const building = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
+      const onScreen = cityOnScreen.value;
+      const hide = () => {
+        if (overlayUp) hideOverlay();
+        overlayUp = false;
+      };
+      if (!p) {
+        // A build is all that's left to wait for: this overlay's own, or one for
+        // a city not up yet. A rebuild UNDER one is the footer's to report.
+        if (building && (overlayUp || !onScreen)) {
+          if (!overlayUp) showForBuild();
+          advance(LoadingStep.Building);
+          return;
+        }
+        hide();
         return;
       }
-      hide();
-      return;
-    }
-    // A load's first event: a new list, so it starts from the top again.
-    if (p.phase === null) reached = -1;
-    if (!overlayUp) {
-      // null→non-null: show the overlay at the kind-based initial step
-      // (Resolving for git, Scanning for local).
-      showLoadingOverlay({ kind: p.kind, branch: p.branch });
-      overlayUp = true;
-      reached = LOADING_STEPS.indexOf(firstStepFor(LOADING_STEPS, p.kind));
-    }
-    advance(stepForPhase(p.phase, p.kind, p.appliedPending));
-    if (p.phase === ScanPhase.CloneProgress) {
-      // A heartbeat during the silent promisor blob fetch has no percent at
-      // all, and shows the working tree growing on disk instead.
-      const tail = transferTail(p) ?? (p.mbOnDisk !== undefined ? `${p.mbOnDisk} MB` : null);
-      setLoadingStepTail(LoadingStep.Cloning, tail);
-    } else if (p.phase === ScanPhase.ScanProgress) {
-      setLoadingStepTail(
-        LoadingStep.Scanning,
-        p.filesScanned !== undefined ? `${p.filesScanned.toLocaleString()} files` : null
-      );
-    } else if (p.phase === ScanPhase.PartialManifest || p.phase === ScanPhase.CompleteManifest) {
-      // Progress tails done.
-      setLoadingStepTail(LoadingStep.Cloning, null);
-      setLoadingStepTail(LoadingStep.Scanning, null);
-    }
-    // p.phase === null: just-started; showLoadingOverlay already set the
-    // kind-based initial step — nothing more to do until a real event.
-  });
+      // A load's first event: a new list, so it starts from the top again.
+      if (p.phase === null) reached = -1;
+      if (!overlayUp) {
+        // null→non-null: show the overlay at the kind-based initial step
+        // (Resolving for git, Scanning for local).
+        showOverlay({ kind: p.kind, branch: p.branch });
+        overlayUp = true;
+        reached = LOADING_STEPS.indexOf(firstStepFor(LOADING_STEPS, p.kind));
+      }
+      advance(stepForPhase(p.phase, p.kind, p.appliedPending));
+      if (p.phase === ScanPhase.CloneProgress) {
+        // A heartbeat during the silent promisor blob fetch has no percent at
+        // all, and shows the working tree growing on disk instead.
+        const tail = transferTail(p) ?? (p.mbOnDisk !== undefined ? `${p.mbOnDisk} MB` : null);
+        setStepTail(LoadingStep.Cloning, tail);
+      } else if (p.phase === ScanPhase.ScanProgress) {
+        setStepTail(
+          LoadingStep.Scanning,
+          p.filesScanned !== undefined ? `${p.filesScanned.toLocaleString()} files` : null
+        );
+      } else if (p.phase === ScanPhase.PartialManifest || p.phase === ScanPhase.CompleteManifest) {
+        // Progress tails done.
+        setStepTail(LoadingStep.Cloning, null);
+        setStepTail(LoadingStep.Scanning, null);
+      }
+      // p.phase === null: just-started; showOverlay already set the kind-based
+      // initial step — nothing more to do until a real event.
+    });
+  }
+
+  return {
+    scan,
+    rebuildStatus,
+    builtManifest,
+    cityOnScreen,
+    lastError,
+    detail,
+    lastUpdatedAt,
+    buildProgress,
+    reporter,
+    setDetail: (next) => {
+      detail.value = next;
+    },
+    overlay,
+    pendingLabel,
+    cancel,
+    showOverlay,
+    hideOverlay,
+    setStep,
+    setStepTail,
+    setCancel: (onCancel) => {
+      cancel.value = onCancel;
+    },
+    attachOverlayDriver() {
+      const stops = [attachLoadReaction(), attachBuildReaction()];
+      return () => stops.forEach((stop) => stop());
+    },
+  };
 }

@@ -1,10 +1,10 @@
 // components/loading/LoadingOverlay/LoadingOverlay.tsx — full-viewport centered
-// progress, mounted by CityView and driven entirely by the LOADING_OVERLAY
-// signal: what raises it and what takes it down is the store's call (see
+// progress, mounted by CityView and driven entirely by its project's overlay
+// state: what raises it and what takes it down is the store's call (see
 // attachLoadReaction), so this renders and nothing more.
 
 import './LoadingOverlay.css';
-import { LOADING_OVERLAY } from '@/state/stores/progress';
+import { useProject } from '@/state/project/context';
 import { LoadingProgress } from '@/components/loading/LoadingProgress/LoadingProgress';
 
 export interface LoadingOverlayProps {
@@ -13,7 +13,8 @@ export interface LoadingOverlayProps {
 }
 
 export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
-  const lo = LOADING_OVERLAY.value;
+  const { progress } = useProject();
+  const lo = progress.overlay.value;
   if (!lo.visible || !lo.activeStep) return null;
 
   return (

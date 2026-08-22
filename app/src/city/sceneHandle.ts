@@ -1,29 +1,27 @@
-// city/sceneHandle.ts — the live scene handle, and the commands the UI sends
-// through it. Not app state: it holds a Three.js object and calls methods on
-// it, so it lives with the renderer rather than in state/stores.
+// city/sceneHandle.ts — commanding one project's city: waiting for it to
+// exist, and the verbs the chrome sends it. Not app state — it holds a
+// Three.js object and calls methods on it — and not global: every command
+// works on the session it was made for.
 
-import { signal, effect } from '@preact/signals';
-import type { createCity } from './index';
+import { effect, type Signal } from '@preact/signals';
+import type { City } from './types';
 import type { FocusMode } from './render/cameraRig';
+import type { ProjectSession } from '@/state/project/session';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
-export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
+export type SceneHandle = City;
 
-/** The city the app's chrome drives: sidebars, selection chip, capture. One
- *  published nowhere (the landing's wallpaper) is nobody's to command. */
-export const SCENE_HANDLE = signal<SceneHandle | null>(null);
-
-/** Resolves once the city exists. A boot load can outrun createCity, and a load
- *  that finds no handle has nowhere to put its city. */
-export function whenSceneHandle(): Promise<SceneHandle> {
-  const ready = SCENE_HANDLE.peek();
+/** Resolves once this project's city exists. A boot load can outrun createCity,
+ *  and a load that finds no city has nowhere to put its manifest. */
+export function whenCity(city: Signal<City | null>): Promise<City> {
+  const ready = city.peek();
   if (ready) return Promise.resolve(ready);
   return new Promise((resolve) => {
     const stop = effect(() => {
-      const handle = SCENE_HANDLE.value;
-      if (!handle) return;
-      resolve(handle);
+      const made = city.value;
+      if (!made) return;
+      resolve(made);
       queueMicrotask(() => stop());
     });
   });
@@ -49,97 +47,135 @@ function revealDetails(): void {
   collapseDrawerOnPhone();
 }
 
-/** What a command points the camera at: a node by path, a commit by sha, or
- *  whatever is already selected. */
-type NodeRef = { path: string } | { sha: string } | null;
-
-/** Select what `ref` names and aim the camera at it: the one place a ref becomes
- *  a focus. False when there is nothing to look at, so the chrome stays put. */
-function _pointAt(ref: NodeRef, mode?: FocusMode): boolean {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return false;
-  const sel =
-    ref === null
-      ? handle.picker.selection.peek()
-      : 'sha' in ref
-        ? handle.picker.selectByCommit(ref.sha)
-        : handle.picker.selectByPath(ref.path);
-  if (!sel) return false;
-  handle.rig.focusSelection(sel, mode);
-  return true;
+/** The verbs the chrome sends one project's city. All no-op before its scene
+ *  boots, and none of them can reach another session's. */
+export interface CityCommands {
+  hoverPath(path: string): void;
+  clearHover(): void;
+  clearSelection(): void;
+  focusPath(path: string, mode?: FocusMode): void;
+  focusCommit(sha: string, mode?: FocusMode): void;
+  focusSelection(mode?: FocusMode): void;
+  goToPath(path: string, mode?: FocusMode): void;
+  goToCommit(sha: string, mode?: FocusMode): void;
+  showCommit(sha: string): void;
+  resetView(): void;
+  runCollisionCheck(): void;
+  runStemDiagnostic(): void;
+  runTreeGroundingCheck(): void;
 }
 
-// Thin wrappers the UI calls instead of reaching into the handle itself. All
-// no-op before the scene boots.
+export function createCityCommands(session: ProjectSession): CityCommands {
+  const city = session.city;
 
-/** Hover-highlight the node at `path` (tree-row hover → city highlight). */
-export function hoverPath(path: string): void {
-  SCENE_HANDLE.peek()?.picker.hoverByPath(path);
-}
+  /** What a command points the camera at: a node by path, a commit by sha, or
+   *  whatever is already selected. */
+  type NodeRef = { path: string } | { sha: string } | null;
 
-/** Clear the hover highlight. */
-export function clearHover(): void {
-  SCENE_HANDLE.peek()?.picker.setHover(null);
-}
+  /** Select what `ref` names and aim the camera at it: the one place a ref becomes
+   *  a focus. False when there is nothing to look at, so the chrome stays put. */
+  function _pointAt(ref: NodeRef, mode?: FocusMode): boolean {
+    const handle = city.peek();
+    if (!handle) return false;
+    const sel =
+      ref === null
+        ? handle.picker.selection.peek()
+        : 'sha' in ref
+          ? handle.picker.selectByCommit(ref.sha)
+          : handle.picker.selectByPath(ref.path);
+    if (!sel) return false;
+    handle.rig.focusSelection(sel, mode);
+    return true;
+  }
 
-/** Clear the current selection (closes the contextual right sidebar). */
-export function clearSelection(): void {
-  SCENE_HANDLE.peek()?.picker.clearSelection();
-}
+  // Thin wrappers the UI calls instead of reaching into the handle itself. All
+  // no-op before the scene boots.
 
-/** Focus a node, selecting it first if it isn't: an almanac row is a Focus
- *  button for something you haven't picked yet. Re-selecting is identity. */
-export function focusPath(path: string, mode?: FocusMode): void {
-  if (_pointAt({ path }, mode)) revealCity();
-}
+  /** Hover-highlight the node at `path` (tree-row hover → city highlight). */
+  function hoverPath(path: string): void {
+    city.peek()?.picker.hoverByPath(path);
+  }
 
-/** focusPath for a commit's tree, by sha. */
-export function focusCommit(sha: string, mode?: FocusMode): void {
-  if (_pointAt({ sha }, mode)) revealCity();
-}
+  /** Clear the hover highlight. */
+  function clearHover(): void {
+    city.peek()?.picker.setHover(null);
+  }
 
-/** Focus whatever is selected, whichever kind. Here rather than in the key
- *  handler: a keystroke and a Focus button are the same request. */
-export function focusSelection(mode?: FocusMode): void {
-  if (_pointAt(null, mode)) revealCity();
-}
+  /** Clear the current selection (closes the contextual right sidebar). */
+  function clearSelection(): void {
+    city.peek()?.picker.clearSelection();
+  }
 
-/** Go to a node named in a list. The details open, unlike the Focus commands:
- *  there you act on what's in front of you, here you asked for the name. */
-export function goToPath(path: string, mode?: FocusMode): void {
-  if (_pointAt({ path }, mode)) revealDetails();
-}
+  /** Focus a node, selecting it first if it isn't: an almanac row is a Focus
+   *  button for something you haven't picked yet. Re-selecting is identity. */
+  function focusPath(path: string, mode?: FocusMode): void {
+    if (_pointAt({ path }, mode)) revealCity();
+  }
 
-/** goToPath for a commit's tree, by sha (almanac landmarks). */
-export function goToCommit(sha: string, mode?: FocusMode): void {
-  if (_pointAt({ sha }, mode)) revealDetails();
-}
+  /** focusPath for a commit's tree, by sha. */
+  function focusCommit(sha: string, mode?: FocusMode): void {
+    if (_pointAt({ sha }, mode)) revealCity();
+  }
 
-/** A commit's details, with the camera left alone: the timeline's own row,
- *  where you are already looking at what you asked about. */
-export function showCommit(sha: string): void {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
-  handle.picker.selectByCommit(sha);
-  openSelectionPane();
-}
+  /** Focus whatever is selected, whichever kind. Here rather than in the key
+   *  handler: a keystroke and a Focus button are the same request. */
+  function focusSelection(mode?: FocusMode): void {
+    if (_pointAt(null, mode)) revealCity();
+  }
 
-/** Reset the camera framing to the current mode's default pose. */
-export function resetView(): void {
-  SCENE_HANDLE.peek()?.rig.reset();
-}
+  /** Go to a node named in a list. The details open, unlike the Focus commands:
+   *  there you act on what's in front of you, here you asked for the name. */
+  function goToPath(path: string, mode?: FocusMode): void {
+    if (_pointAt({ path }, mode)) revealDetails();
+  }
 
-/** Debug: run the building/street collision check. */
-export function runCollisionCheck(): void {
-  SCENE_HANDLE.peek()?.world.runCollisionCheck();
-}
+  /** goToPath for a commit's tree, by sha (almanac landmarks). */
+  function goToCommit(sha: string, mode?: FocusMode): void {
+    if (_pointAt({ sha }, mode)) revealDetails();
+  }
 
-/** Debug: run the stem-placement diagnostic. */
-export function runStemDiagnostic(): void {
-  SCENE_HANDLE.peek()?.world.runStemPlacementDiagnostic();
-}
+  /** A commit's details, with the camera left alone: the timeline's own row,
+   *  where you are already looking at what you asked about. */
+  function showCommit(sha: string): void {
+    const handle = city.peek();
+    if (!handle) return;
+    handle.picker.selectByCommit(sha);
+    openSelectionPane();
+  }
 
-/** Debug: audit every tree's contact with the ground. */
-export function runTreeGroundingCheck(): void {
-  SCENE_HANDLE.peek()?.world.runTreeGroundingDiagnostic();
+  /** Reset the camera framing to the current mode's default pose. */
+  function resetView(): void {
+    city.peek()?.rig.reset();
+  }
+
+  /** Debug: run the building/street collision check. */
+  function runCollisionCheck(): void {
+    city.peek()?.world.runCollisionCheck();
+  }
+
+  /** Debug: run the stem-placement diagnostic. */
+  function runStemDiagnostic(): void {
+    city.peek()?.world.runStemPlacementDiagnostic();
+  }
+
+  /** Debug: audit every tree's contact with the ground. */
+  function runTreeGroundingCheck(): void {
+    city.peek()?.world.runTreeGroundingDiagnostic();
+  }
+
+  return {
+    hoverPath,
+    clearHover,
+    clearSelection,
+    focusPath,
+    focusCommit,
+    focusSelection,
+    goToPath,
+    goToCommit,
+    showCommit,
+    resetView,
+    runCollisionCheck,
+    runStemDiagnostic,
+    runTreeGroundingCheck,
+  };
 }

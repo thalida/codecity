@@ -15,12 +15,7 @@ import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
-import {
-  SETTLED_COMMIT,
-  TIMELINE_MODE,
-  hasNoContentAtScrub,
-  scrubbedBlobShaFor,
-} from '@/state/stores/timeline';
+import type { TimelineStore } from '@/state/stores/timeline';
 import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
 import { fingerprintUrl } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
@@ -90,8 +85,8 @@ const LIVE_STAMP = -1;
 
 /** What a load of this building would fetch right now. Untracked: a rebuild
  *  computes it, and must not come back to life on every scrub. */
-function versionKeyFor(b: Building): string {
-  return untracked(() => scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '');
+function versionKeyFor(b: Building, timeline: TimelineStore | null): string {
+  return untracked(() => timeline?.scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '');
 }
 
 export class InstancedFacadePanels {
@@ -158,10 +153,13 @@ export class InstancedFacadePanels {
     // The city's own source: paths are repo-relative, so a facade read is
     // meaningless without the repo they are relative to.
     readonly source: SourceRef | null,
+    // This city's history, when something scrubs it: which blob a facade reads
+    // is a question about where the scrubber is.
+    readonly timeline: TimelineStore | null,
     opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
-    this._versionStamp = TIMELINE_MODE.peek() ? SETTLED_COMMIT.peek() : LIVE_STAMP;
+    this._versionStamp = timeline?.mode.peek() ? timeline.settledCommit.peek() : LIVE_STAMP;
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
@@ -392,7 +390,7 @@ export class InstancedFacadePanels {
       radius: Math.max(b.w, b.d, panelHeight),
       shown: true,
       loadedKey: null,
-      wantKey: versionKeyFor(b),
+      wantKey: versionKeyFor(b, this.timeline),
       startLoad,
     });
 
@@ -548,10 +546,10 @@ export class InstancedFacadePanels {
   /** Re-ask every panel which version it wants, only when the scrub moved:
    *  versionKeyFor walks a path's history, so it stays off the per-frame path. */
   private _refreshWantedVersions(): void {
-    const stamp = TIMELINE_MODE.peek() ? SETTLED_COMMIT.peek() : LIVE_STAMP;
+    const stamp = this.timeline?.mode.peek() ? this.timeline.settledCommit.peek() : LIVE_STAMP;
     if (stamp === this._versionStamp) return;
     this._versionStamp = stamp;
-    for (const rec of this._panels) rec.wantKey = versionKeyFor(rec.b);
+    for (const rec of this._panels) rec.wantKey = versionKeyFor(rec.b, this.timeline);
   }
 
   dispose(): void {
@@ -601,14 +599,14 @@ function asyncLoadMediaForBuilding(
   if (!kind) return;
   // Absent at this commit: there is no blob, and asking by path would hit HEAD
   // and 404. The building just shows no image.
-  if (hasNoContentAtScrub(b.file.path)) return;
+  if (ads.timeline?.hasNoContentAtScrub(b.file.path)) return;
 
   const source = ads.source;
   if (!source) return;
   const filePath = b.file.path || '';
   // Scrubbed commits pin a version; Live keys on mtime. Either way the URL names
   // one immutable body, so a rebuild re-reads it from the browser cache.
-  const sha = scrubbedBlobShaFor(b.file.path);
+  const sha = ads.timeline?.scrubbedBlobShaFor(b.file.path) ?? null;
   const version = b.file.modified || '';
 
   if (kind === MediaKind.Image) {
@@ -626,16 +624,17 @@ function asyncLoadDataFacadeForBuilding(
   layer: number,
   panelSlots: number[]
 ): void {
-  if (hasNoContentAtScrub(b.file.path)) return;
+  if (ads.timeline?.hasNoContentAtScrub(b.file.path)) return;
   const source = ads.source;
   if (!source) return;
   const filePath = b.file.path || '';
   const version = b.file.modified || '';
+  const sha = ads.timeline?.scrubbedBlobShaFor(b.file.path) ?? null;
   switch (dataFacadeKind(b.file.extension || '')) {
     case 'font':
       void _loadCanvasFacade(
         ads,
-        () => renderFontGlyphFacade(source, filePath, version),
+        () => renderFontGlyphFacade(source, filePath, version, sha),
         layer,
         panelSlots
       );
@@ -643,7 +642,7 @@ function asyncLoadDataFacadeForBuilding(
     case 'audio':
       void _loadCanvasFacade(
         ads,
-        () => renderWaveformFacade(source, filePath, version),
+        () => renderWaveformFacade(source, filePath, version, sha),
         layer,
         panelSlots
       );

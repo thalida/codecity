@@ -2,7 +2,7 @@
 // live region speaking the city selection to screen readers, since the canvas is
 // a graphic and cannot announce its own (WCAG 4.1.3).
 import { useComputed } from '@preact/signals';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { useProject } from '@/state/project/context';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 
@@ -21,11 +21,12 @@ function describe(sel: PickTarget | null): string {
 }
 
 export function SelectionAnnouncer() {
+  const { city } = useProject();
   // The computed dedupes an equal string, so re-resolving the same selection
   // across a rebuild does not re-announce it.
   const message = useComputed(() => {
-    const handle = SCENE_HANDLE.value;
-    return handle ? describe(handle.picker.selection.value) : '';
+    const made = city.value;
+    return made ? describe(made.picker.selection.value) : '';
   });
   return (
     <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">

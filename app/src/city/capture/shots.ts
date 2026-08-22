@@ -7,8 +7,7 @@ import type { SceneHandle } from '@/city/sceneHandle';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
-import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { loadTimelineScene } from '@/hooks/useTimelineMode';
+import type { ProjectSession } from '@/state/project/session';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
@@ -28,7 +27,9 @@ export interface ShotOverrides {
 export type ShotPose = (
   handle: SceneHandle,
   manifest: Manifest,
-  o: ShotOverrides
+  o: ShotOverrides,
+  /** The project being shot: its history, for a shot that scrubs. */
+  session: ProjectSession
 ) => boolean | void;
 
 /** A placed tree's bounds. A named commit often has no tree, so this walks
@@ -109,17 +110,18 @@ export const SHOTS: Record<string, ShotPose> = {
 
   // The city part-built, at the defaults. The load is async, so this returns
   // false until the mode and bundle are live and the harness retries.
-  timeline: (handle, _m, o) => {
-    if (!TIMELINE_MODE.peek()) {
+  timeline: (handle, _m, o, session) => {
+    const timeline = session.timeline;
+    if (!timeline.mode.peek()) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
-        void loadTimelineScene();
+        void session.timelineMode.loadScene();
       }
       return false;
     }
-    const bundle = TIMELINE_BUNDLE.peek();
+    const bundle = timeline.bundle.peek();
     if (!bundle || bundle.commits.length === 0) return false;
-    setScrubPos(Math.floor(SCRUB_MAX.peek() * 0.5));
+    timeline.setScrubPos(Math.floor(timeline.scrubMax.peek() * 0.5));
     angle(o.elev ?? 44, o.az ?? 32);
     handle.rig.reset();
   },

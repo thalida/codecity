@@ -24,7 +24,7 @@ import {
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
-import { SCAN_PROGRESS } from '@/state/stores/progress';
+import { useProject } from '@/state/project/context';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.
@@ -55,6 +55,7 @@ export function NewProjectForm({
   prefill,
   onSubmit,
 }: NewProjectFormProps) {
+  const { progress } = useProject();
   // Editing the source retires the last attempt's banner. Local, not a write
   // back to SOURCE_ERROR: that failure is still the reason this route is open.
   const [retired, setRetired] = useState(false);
@@ -76,7 +77,7 @@ export function NewProjectForm({
     ? 'https://github.com/owner/repo or /absolute/path/to/repo'
     : 'https://github.com/owner/repo';
 
-  const loading = SCAN_PROGRESS.value !== null;
+  const loading = progress.scan.value !== null;
   const activeSrc = source.trim();
   // One field, classified by what's typed. Empty defaults to a URL so the
   // branch dropdown's absence (not a path) is the resting state.

@@ -1,7 +1,7 @@
 // Timeline mode's per-frame driver: read the frame, run the pass, hand each
 // component its slice. It writes nobody else's buffers.
 
-import { TIMELINE_BUNDLE, SCRUB_TODAY_MS } from '@/state/stores/timeline';
+import type { TimelineStore } from '@/state/stores/timeline';
 import type { RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
@@ -23,6 +23,8 @@ export interface ScrubGate {
 }
 
 export interface ScrubControllerDeps {
+  /** The history being scrubbed: this city's, never the app's. */
+  timeline: TimelineStore;
   buildings: {
     /** The union set the pass decides over. */
     getBuildingIndex(): BuildingIndex | null;
@@ -46,12 +48,12 @@ export interface ScrubControllerDeps {
 export function createScrubController(deps: ScrubControllerDeps) {
   // Fixed for the life of the controller; readScrubFrame owns everything that
   // varies per frame.
-  const bundle = TIMELINE_BUNDLE.peek();
+  const bundle = deps.timeline.bundle.peek();
   const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
   const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
   // The same last stop the bar ends on, so the two agree about the far end.
-  const trackEndMs = SCRUB_TODAY_MS.peek() ?? scannedAtMs;
+  const trackEndMs = deps.timeline.todayMs.peek() ?? scannedAtMs;
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -62,6 +64,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
   function update(): void {
     const frame = readScrubFrame({
+      scrubPos: deps.timeline.scrubPos.peek(),
       commitLineRanges: deps.commitLineRanges,
       commitDateRanges,
       commitMs,

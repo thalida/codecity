@@ -11,6 +11,7 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import type { BuildStage } from '@/constants/progress';
 import type { BuildReporter } from '@/state/stores/progress';
+import type { TimelineStore } from '@/state/stores/timeline';
 
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */
@@ -19,6 +20,9 @@ export interface SceneContext {
   canvas: HTMLCanvasElement;
   picker: Picker;
   cityState: CityState;
+  /** This city's timeline, for the components drawing what a scrub implies.
+   *  Null when nothing scrubs this one. */
+  timeline: CityTimelineBinding | null;
 }
 
 /** Per-frame state passed to each component's tick() method. */
@@ -67,11 +71,8 @@ export interface CityTimeline {
 /** Scrubbing, for a city something scrubs through time. Left out, this city
  *  has no timeline: nothing gates its contents and nothing prunes its picks. */
 export interface CityTimelineBinding {
-  /** Tracked: leaving the mode tears this city's scrub controller down. */
-  mode: ReadonlySignal<boolean>;
-  /** Peeked per frame: where the scrubber is, and whether it is still held. */
-  scrubPos: ReadonlySignal<number>;
-  scrubDragging: ReadonlySignal<boolean>;
+  /** The project's history state. Its own, so a second city scrubs its own. */
+  store: TimelineStore;
   /** What to rebuild from on exit: a union city holds buildings that do not
    *  exist at HEAD. A call, not a signal, so no store's type leaks in here. */
   liveManifest(): Manifest | null;
