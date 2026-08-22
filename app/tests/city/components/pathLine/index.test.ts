@@ -1,4 +1,4 @@
-// createCityScene builds the path line before the picker exists, so the picker-driven
+// createCity builds the path line before the picker exists, so the picker-driven
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 

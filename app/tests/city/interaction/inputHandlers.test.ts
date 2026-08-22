@@ -1,5 +1,5 @@
 // inputHandlers.test.ts — the scene's keybindings must not fire while a modal
-// owns the keyboard. Driven through the real createCityScene path, so it covers the
+// owns the keyboard. Driven through the real createCity path, so it covers the
 // actual listener wiring rather than a stand-in for it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,7 +18,7 @@ vi.mock('@/city/render/postFx', async () =>
   (await import('../../_helpers/threeMock')).postFxMock()
 );
 
-import { createCityScene } from '@/city/index';
+import { createCity } from '@/city/index';
 import { makeSession } from '../../_helpers/city';
 import { cityPropsFor } from '@/city/forSession';
 
@@ -29,7 +29,7 @@ describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
   // Every city binds its own document keydown listener, so one left standing
   // answers the next test's keystroke too.
-  let cities: Array<Awaited<ReturnType<typeof createCityScene>>> = [];
+  let cities: Array<Awaited<ReturnType<typeof createCity>>> = [];
 
   beforeEach(() => {
     // Over a city: home IS the switcher, which owns the keyboard.
@@ -55,7 +55,7 @@ describe('scene keydown handler — modal suppression', () => {
   });
 
   async function mountCity() {
-    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     cities.push(handle);
     return handle;
   }

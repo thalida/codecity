@@ -1,6 +1,6 @@
 // types/building.ts — pairs with state/stores/settings/buildings.ts (the tunables).
 // Defines the Building shape the layout step produces; the city renderer
-// (city/index.ts createCityScene) reads it to instantiate three.js meshes.
+// (city/index.ts createCity) reads it to instantiate three.js meshes.
 
 import type { FileNode } from './manifest';
 

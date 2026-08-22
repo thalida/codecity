@@ -30,7 +30,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCityScene } from '@/city/index';
+import { createCity } from '@/city/index';
 import { makeSession } from '../_helpers/city';
 import { cityPropsFor } from '@/city/forSession';
 
@@ -87,7 +87,7 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
       session.source.current.value = { src: 'test://repo' };
       await handle.applyManifest(makeManifest());
@@ -119,7 +119,7 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
       session.scene.value = handle;
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });

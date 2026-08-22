@@ -6,7 +6,7 @@
 import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { effect, type ReadonlySignal, type Signal } from '@preact/signals';
-import { createCityScene } from '@/city';
+import { createCity } from '@/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { SILENT_BUILD_REPORTER } from '@/state/stores/progress';
 import type { CityScene as CityHandle, CityBindings } from '@/city/types';
@@ -47,7 +47,7 @@ export function City({
     let disposeReactions: (() => void) | null = null;
 
     // Starts empty; the apply below paints the first manifest.
-    createCityScene(canvas, { report, ...bindings })
+    createCity(canvas, { report, ...bindings })
       .then((made) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).

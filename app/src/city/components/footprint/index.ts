@@ -38,7 +38,7 @@ export interface Footprint extends SceneComponent {
 
 export function createFootprint(ctx: SceneContext): Footprint {
   const { cityState } = ctx;
-  // Persistent outer group — added to the scene once by createCityScene.
+  // Persistent outer group — added to the scene once by createCity.
   // rebuild() swaps the inner InstancedMesh in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-footprint';

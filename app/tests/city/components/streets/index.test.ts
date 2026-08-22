@@ -1,4 +1,4 @@
-// createCityScene builds streets before the picker exists, so the picker-driven
+// createCity builds streets before the picker exists, so the picker-driven
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

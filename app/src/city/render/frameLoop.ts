@@ -1,5 +1,5 @@
 // city/render/frameLoop.ts — generic requestAnimationFrame driver. Wired by
-// createCityScene (city/index.ts) as the scene's live loop:
+// createCity (city/index.ts) as the scene's live loop:
 // perFrame.before → rig.update → world-matrix refresh → each
 // component.tick(dt, frame) in array order → perFrame.after → postFx.render.
 //

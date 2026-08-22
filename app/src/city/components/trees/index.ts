@@ -44,7 +44,7 @@ export interface TreesComponent extends SceneComponent {
 }
 
 export function createTrees(ctx: SceneContext): TreesComponent {
-  // Persistent outer group — added to the scene once by createCityScene. rebuild()
+  // Persistent outer group — added to the scene once by createCity. rebuild()
   // swaps the inner tree renderer's group in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-trees';
