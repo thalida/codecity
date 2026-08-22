@@ -1,6 +1,7 @@
 // All sidewalks are ONE merged mesh, down from ~8k draw calls, so picking has to
 // resolve a raycast hit through a baked faceIndex-to-street map. This guards
 // that map and the per-street vertex spans the hover tint uses.
+import { RUINS } from '@/state/settings/fields/ruins';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { STREETS } from '@/state/settings/fields/streets';
@@ -42,7 +43,7 @@ describe('merged sidewalk mesh', () => {
   });
 
   it('returns null for an empty street list', () => {
-    expect(createMergedSidewalkMesh([], 0)).toBeNull();
+    expect(createMergedSidewalkMesh([], 0, STREETS.value, RUINS.value)).toBeNull();
   });
 
   it('merges all streets into one mesh with contiguous per-street ranges', () => {
@@ -51,7 +52,7 @@ describe('merged sidewalk mesh', () => {
       mkStreet('b', { x: 500, orientation: StreetAxis.Y }),
       mkStreet('c', { x: -500, length: 800 }),
     ];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, STREETS.value, RUINS.value)!;
     expect(out).not.toBeNull();
     expect(out.ranges).toHaveLength(3);
 
@@ -71,7 +72,7 @@ describe('merged sidewalk mesh', () => {
 
   it('resolves any face of a street back to that street (picking)', () => {
     const streets = [mkStreet('a'), mkStreet('b', { x: 500 }), mkStreet('c', { x: -500 })];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, STREETS.value, RUINS.value)!;
     const totalFaces = out.mesh.geometry.index!.count / 3;
 
     for (let i = 0; i < out.ranges.length; i++) {
@@ -86,7 +87,7 @@ describe('merged sidewalk mesh', () => {
 
   it('sidewalkStreetForFace returns null when the mesh has no map', () => {
     const streets = [mkStreet('a')];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, STREETS.value, RUINS.value)!;
     delete out.mesh.userData.pickStreets;
     expect(sidewalkStreetForFace(out.mesh, 0)).toBeNull();
   });

@@ -4,7 +4,7 @@
 // plaza, so no separate pad mesh exists.
 
 import * as THREE from 'three';
-import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/settings/fields/gem';
+import type { GemConfig, GemSizingConfig } from '@/state/settings/fields/gem';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { BYTE_MAX } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
@@ -80,9 +80,11 @@ export function gemRadiusFor(streetWidth: number, sizing: GemSizingConfig): numb
   return Math.max(streetWidth * sizing.RADIUS_AS_STREET_FRAC, sizing.MIN_RADIUS);
 }
 
-export function createRootGem(street: Street): THREE.Group {
-  const sizing = GEM_SIZING.value;
-  const appearance = GEM.value;
+export function createRootGem(
+  street: Street,
+  appearance: GemConfig,
+  sizing: GemSizingConfig
+): THREE.Group {
   const edgeColor = appearance.EDGE_COLOR;
   const group = new THREE.Group();
 
@@ -97,9 +99,9 @@ export function createRootGem(street: Street): THREE.Group {
   const gemZ = anchor.y;
 
   // ---- Gem: per-face colored polyhedron -------------------------------------
-  const geo = buildGemGeometry(GEM.value.SIDES, radius);
+  const geo = buildGemGeometry(appearance.SIDES, radius);
 
-  const faceColors = paletteColors(GEM.value);
+  const faceColors = paletteColors(appearance);
 
   const vertexCount = geo.attributes.position.count;
   const colorAttr = new Float32Array(vertexCount * 3);
@@ -129,7 +131,7 @@ export function createRootGem(street: Street): THREE.Group {
   // Halo: two PlaneGeometry quads (hot core + atmosphere), NOT THREE.Sprite
   // — a specialized GPU path some mobile drivers corrupt into flashes.
   const gem = new THREE.Group();
-  const glowCfg = GEM.value;
+  const glowCfg = appearance;
   const glowTex = _makeGlowTexture();
   const glowQuadGeo = new THREE.PlaneGeometry(1, 1);
   const innerGlow = new THREE.Mesh(

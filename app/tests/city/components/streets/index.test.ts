@@ -5,12 +5,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { createStreets } from '@/city/components/streets';
-import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
+import {
+  makePickableSceneContext,
+  makePrePickerSceneContext,
+} from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/settings/fields/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, PickTarget, Street } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',
@@ -111,13 +112,7 @@ describe('createStreets()', () => {
   });
 
   it('theme effect runs at construction with a null picker without throwing', () => {
-    const ctx = {
-      scene: new THREE.Scene(),
-      picker: null as unknown as Picker,
-      camera: null as unknown as THREE.PerspectiveCamera,
-      renderer: null as unknown as THREE.WebGLRenderer,
-      sceneState: makeCityState(),
-    } as unknown as SceneContext;
+    const ctx = makePrePickerSceneContext();
     streets = createStreets(ctx);
     STREETS.value = { ...STREETS.value };
     expect(streets.group.children).toHaveLength(0);

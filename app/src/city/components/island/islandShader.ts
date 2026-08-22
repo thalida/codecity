@@ -3,13 +3,12 @@
 // by the city's own lighting.
 
 import * as THREE from 'three';
-import { ISLAND } from '@/state/settings/fields/island';
+import type { IslandConfig } from '@/state/settings/fields/island';
 
 import vertSrc from './island.vert.glsl?raw';
 import fragSrc from './island.frag.glsl?raw';
 
-export function createIslandMaterial(): THREE.ShaderMaterial {
-  const mats = ISLAND.value;
+export function createIslandMaterial(mats: IslandConfig): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,

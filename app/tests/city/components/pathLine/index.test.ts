@@ -144,7 +144,7 @@ describe('createPathLine() component door', () => {
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
-    const expected = computePathLinewidthPixels(25);
+    const expected = computePathLinewidthPixels(25, STREET_TIERS.value);
     for (const line of lines(comp)) {
       expect((line.material as unknown as { linewidth: number }).linewidth).toBeCloseTo(
         expected,
@@ -203,11 +203,11 @@ describe('computePathLinewidthPixels', () => {
     STREET_TIERS.value = {
       TIERS: widths.map((width, i) => ({ min_descendants: i * 4, width })),
     };
-    expect(computePathLinewidthPixels(pct)).toBeCloseTo(expected);
+    expect(computePathLinewidthPixels(pct, STREET_TIERS.value)).toBeCloseTo(expected);
   });
 
   it('uses the shipped tiers when nothing overrides them', () => {
     // Default widths are 32, 48, 80, 96, 128, so the narrowest is 32.
-    expect(computePathLinewidthPixels(10)).toBeCloseTo(3.2);
+    expect(computePathLinewidthPixels(10, STREET_TIERS.value)).toBeCloseTo(3.2);
   });
 });

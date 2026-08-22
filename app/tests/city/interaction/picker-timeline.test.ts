@@ -3,6 +3,8 @@
 // Timeline mode and leaves live-mode resolution untouched.
 
 import * as THREE from 'three';
+import { STREETS } from '@/state/settings/fields/streets';
+import { RUINS } from '@/state/settings/fields/ruins';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPicker } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
@@ -257,7 +259,12 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
   function setup() {
     const streetA = mk('src', 0);
     const streetB = mk('lib', 200);
-    const built = createMergedSidewalkMesh([streetA, streetB] as never, 0)!;
+    const built = createMergedSidewalkMesh(
+      [streetA, streetB] as never,
+      0,
+      STREETS.value,
+      RUINS.value
+    )!;
     built.mesh.updateMatrixWorld(true);
 
     const sceneState = makeCityState();

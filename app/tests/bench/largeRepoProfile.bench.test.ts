@@ -2,6 +2,7 @@
 // phase measures, and which numbers are browser-representative, is in the
 // README beside this file. Diagnostic driver: no timing assertions.
 
+import { STREETS } from '@/state/settings/fields/streets';
 import { describe, it } from 'vitest';
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
@@ -204,7 +205,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   // ── 6. street-label textures (one canvas + measureText + texture per street) ──
   const tl0 = performance.now();
   let labelCount = 0;
-  for (const s of layout.streets) labelCount += createStreetLabels(s).length;
+  for (const s of layout.streets) labelCount += createStreetLabels(s, STREETS.value).length;
   const tl1 = performance.now();
 
   // ── 7. picker raycast: THREE brute-force (old) vs ObjectBVH (now) ──

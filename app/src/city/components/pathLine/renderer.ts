@@ -7,7 +7,7 @@ import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
+import type { StreetsConfig, StreetTiersConfig } from '@/state/settings/fields/streets';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -20,8 +20,8 @@ import type { CitySceneState } from '@/city/state';
 
 /** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
  *  stays proportional to the streets at any zoom (worldUnits: false). */
-export function computePathLinewidthPixels(pct: number): number {
-  const tiers = STREET_TIERS.value.TIERS;
+export function computePathLinewidthPixels(pct: number, streetTiers: StreetTiersConfig): number {
+  const tiers = streetTiers.TIERS;
   if (!tiers.length) return pct / 100; // degenerate fallback
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);
@@ -39,6 +39,8 @@ export function createPathLineRenderer({
   scene,
   picker,
   sceneState,
+  streets,
+  streetTiers,
 }: {
   canvas: HTMLCanvasElement;
   /** Parent for the two line meshes; draw order comes from
@@ -46,12 +48,15 @@ export function createPathLineRenderer({
   scene: THREE.Object3D;
   picker: PickerSignals;
   sceneState: CitySceneState;
+  /** This city's street settings: the line is sized off its narrowest tier. */
+  streets: ReadonlySignal<StreetsConfig>;
+  streetTiers: ReadonlySignal<StreetTiersConfig>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
-  const _pl = STREETS.value;
+  const _pl = streets.value;
   const pathLineMat = createSafeLineMaterial({
     vertexColors: true,
-    linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT),
+    linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT, streetTiers.value),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -72,8 +77,8 @@ export function createPathLineRenderer({
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
   const hoverPathLineMat = createSafeLineMaterial({
-    color: STREETS.value.HOVER_PATH_COLOR,
-    linewidth: computePathLinewidthPixels(STREETS.value.PATH_LINEWIDTH_PCT),
+    color: streets.value.HOVER_PATH_COLOR,
+    linewidth: computePathLinewidthPixels(streets.value.PATH_LINEWIDTH_PCT, streetTiers.value),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -138,14 +143,14 @@ export function createPathLineRenderer({
     if (_pathColorsBuf.length !== pathSegmentCount * 6) {
       _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
     }
-    pathLineMat.opacity = STREETS.value.PATH_OPACITY;
+    pathLineMat.opacity = streets.value.PATH_OPACITY;
     pathLine.visible = true;
   }
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
     const gemPos = sceneState.gemWorldPos.peek();
-    const cfg = STREETS.value;
+    const cfg = streets.value;
     function hide() {
       hoverPathLine.visible = false;
       hoverPathLineMat.opacity = 0;
@@ -216,11 +221,14 @@ export function createPathLineRenderer({
   }
 
   function refreshMaterials(): void {
-    const pl = STREETS.value;
-    pathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    const pl = streets.value;
+    pathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT, streetTiers.value);
     if (pathLine.visible) pathLineMat.opacity = pl.PATH_OPACITY;
     hoverPathLineMat.color.set(pl.HOVER_PATH_COLOR);
-    hoverPathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(
+      pl.PATH_LINEWIDTH_PCT,
+      streetTiers.value
+    );
     _updateHoverPathLine();
   }
 

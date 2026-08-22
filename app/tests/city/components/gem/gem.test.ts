@@ -2,12 +2,13 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createGem } from '@/city/components/gem';
-import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
+import {
+  makePickableSceneContext,
+  makePrePickerSceneContext,
+} from '../../../_helpers/cityFixtures';
 import { GEM } from '@/state/settings/fields/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the
 // gem only reads geometry fields (x/y/width/length/orientation).
@@ -38,12 +39,7 @@ describe('createGem()', () => {
   it('constructs with an UNPOPULATED picker (ctx.picker=null) and its effect runs', () => {
     // Bridge-safety: world builds the gem before the picker exists. The theme
     // effect must run at construction reading only GEM/BLOOM signals.
-    const ctx = {
-      scene: new THREE.Scene(),
-      canvas: document.createElement('canvas'),
-      picker: null as unknown as Picker,
-      sceneState: makeCityState(),
-    } as unknown as SceneContext;
+    const ctx = makePrePickerSceneContext();
     expect(() => {
       gem = createGem(ctx);
       // Mutating GEM re-runs the effect; must not throw with null refs.

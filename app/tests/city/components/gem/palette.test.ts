@@ -4,7 +4,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { paletteColors, gemFaceColors, type GemFacePalette } from '@/city/components/gem/palette';
+import {
+  paletteColors,
+  gemFaceColorsFor,
+  type GemFacePalette,
+} from '@/city/components/gem/palette';
 import { GEM } from '@/state/settings/fields/gem';
 
 const PALETTE: GemFacePalette = {
@@ -40,7 +44,8 @@ describe('paletteColors()', () => {
   });
 });
 
-describe('gemFaceColors (memoized computed)', () => {
+describe('gemFaceColorsFor (one memo per city)', () => {
+  const faceColors = gemFaceColorsFor(GEM);
   const originalGem = GEM.value;
 
   afterEach(() => {
@@ -50,15 +55,15 @@ describe('gemFaceColors (memoized computed)', () => {
   it('caches the parsed array between reads (no per-frame reparse)', () => {
     // tick() reads this every frame while the glow color cycle is on; the
     // computed must hand back the SAME array until GEM actually changes.
-    const first = gemFaceColors.value;
-    const second = gemFaceColors.value;
+    const first = faceColors.value;
+    const second = faceColors.value;
     expect(second).toBe(first);
   });
 
   it('recomputes (new identity, fresh values) after a GEM Save', () => {
-    const before = gemFaceColors.value;
+    const before = faceColors.value;
     GEM.value = { ...GEM.value, FACE_1: '#123456' };
-    const after = gemFaceColors.value;
+    const after = faceColors.value;
     expect(after).not.toBe(before);
     const reference = new THREE.Color('#123456');
     expect(after[0]).toEqual([reference.r, reference.g, reference.b]);

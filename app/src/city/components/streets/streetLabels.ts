@@ -4,7 +4,7 @@
 // with an ellipsis rather than shrink further.
 
 import * as THREE from 'three';
-import { STREETS } from '@/state/settings/fields/streets';
+import type { StreetsConfig } from '@/state/settings/fields/streets';
 import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/city/constants/streets';
 import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -28,11 +28,11 @@ const LABEL_ELLIPSIS = '…';
 
 function _buildLabelTexture(
   text: string,
+  streets: StreetsConfig,
   maxAspect?: number
 ): { texture: THREE.CanvasTexture; aspect: number; text: string } {
   // High source resolution so close-zoom doesn't reveal bilinear blur; the
   // world-space plane size is unchanged.
-  const streets = STREETS.value;
   const fontSpec = `${LABEL_FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${LABEL_FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
@@ -90,11 +90,10 @@ function _truncateToFit(
   return text.slice(0, lo) + LABEL_ELLIPSIS;
 }
 
-export function createStreetLabels(street: Street): THREE.Group[] {
+export function createStreetLabels(street: Street, streets: StreetsConfig): THREE.Group[] {
   const text = street.label || '';
   if (!text) return [];
 
-  const streets = STREETS.value;
   const orders = RENDER_ORDERS;
 
   // Subtract the cap diameter too: the label is rectangular and would poke its
@@ -106,7 +105,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   // Height scales with street width and width follows the text's aspect, then
   // the whole thing is fit to usableLength.
   const naturalHeight = street.width * streets.LABEL_HEIGHT_FRAC;
-  let info = _buildLabelTexture(text);
+  let info = _buildLabelTexture(text, streets);
   let worldH = naturalHeight;
   let worldW = worldH * info.aspect;
 
@@ -122,7 +121,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
       // this aspect to fit.
       const maxAspect = usableLength / worldH;
       info.texture.dispose();
-      info = _buildLabelTexture(text, maxAspect);
+      info = _buildLabelTexture(text, streets, maxAspect);
       worldW = worldH * info.aspect;
     }
   }

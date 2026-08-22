@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/city/components/island';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeSceneContext } from '../../../_helpers/cityFixtures';
 import { ISLAND } from '@/state/settings/fields/island';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { SceneContext } from '@/city/types';
 
-// Island reads only ctx.sceneState at construction (latestWorldBounds starts
-// null → the bounds effect is a no-op until setBounds drives it directly here).
-const fakeCtx = { sceneState: makeCityState() } as unknown as SceneContext;
+// latestWorldBounds starts null, so the bounds effect is a no-op until
+// setBounds drives it directly here.
+const fakeCtx = makeSceneContext();
 
 describe('createIsland', () => {
   beforeEach(() => {

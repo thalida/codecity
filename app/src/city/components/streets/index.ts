@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { STREETS } from '@/state/settings/fields/streets';
-import { RUINS } from '@/state/settings/fields/ruins';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
@@ -102,7 +100,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // Tint colors as THREE.Color (written into the merged sidewalk's per-vertex
   // color attribute). The theme effect refreshes them whenever STREETS mutates.
-  const _swc0 = STREETS.value;
+  const _swc0 = ctx.config.STREETS.value;
   const _defColor = new THREE.Color(_swc0.SIDEWALK_DEFAULT);
   const _hovColor = new THREE.Color(_swc0.SIDEWALK_HOVER);
   const _selColor = new THREE.Color(_swc0.SIDEWALK_SELECTED);
@@ -256,7 +254,12 @@ export function createStreets(ctx: SceneContext): Streets {
     const streets = layout.streets ?? [];
 
     // Sidewalks + asphalt: one merged mesh each (see createMerged*Mesh).
-    const built = createMergedSidewalkMesh(streets, 0);
+    const built = createMergedSidewalkMesh(
+      streets,
+      0,
+      ctx.config.STREETS.value,
+      ctx.config.RUINS.value
+    );
     sidewalkMesh = built?.mesh ?? null;
     sidewalkRanges = built?.ranges ?? [];
     sidewalkRangeByPath = new Map();
@@ -264,7 +267,12 @@ export function createStreets(ctx: SceneContext): Streets {
     pickables = sidewalkMesh ? [sidewalkMesh] : [];
     if (sidewalkMesh) group.add(sidewalkMesh);
 
-    const asphaltBuilt = createMergedAsphaltMesh(streets, 0);
+    const asphaltBuilt = createMergedAsphaltMesh(
+      streets,
+      0,
+      ctx.config.STREETS.value,
+      ctx.config.RUINS.value
+    );
     asphaltMesh = asphaltBuilt?.mesh ?? null;
     if (asphaltMesh) group.add(asphaltMesh);
 
@@ -281,7 +289,7 @@ export function createStreets(ctx: SceneContext): Streets {
     // Built for every street and culled per frame instead of at build time, so
     // zooming in always brings a nearby label back.
     for (const street of streets) {
-      const labels = createStreetLabels(street);
+      const labels = createStreetLabels(street, ctx.config.STREETS.value);
       for (const label of labels) {
         group.add(label);
         labelGroups.push(label);
@@ -301,8 +309,8 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // Repaints in place on a STREETS Save. Reads only settings, so it is safe at
   // construction, and no-ops over the empty arrays before the first rebuild.
-  const stopTheme = onSettings(STREETS, () => {
-    const streets = STREETS.value;
+  const stopTheme = onSettings(ctx.config.STREETS, () => {
+    const streets = ctx.config.STREETS.value;
 
     _defColor.set(streets.SIDEWALK_DEFAULT);
     _hovColor.set(streets.SIDEWALK_HOVER);
@@ -340,8 +348,8 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // rebuild() seeds a fresh mesh's ruin colour; this keeps it current after.
   const stopRuinColor = effect(() => {
-    const road = RUINS.value.ROAD_COLOR;
-    const border = RUINS.value.SIDEWALK_COLOR;
+    const road = ctx.config.RUINS.value.ROAD_COLOR;
+    const border = ctx.config.RUINS.value.SIDEWALK_COLOR;
     const a = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
     if (a) setColorFromHex(a.value, road);
     const s = sidewalkMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
