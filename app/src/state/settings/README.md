@@ -147,6 +147,12 @@ looking at when you imported. Nothing navigates, and no other repo's list is
 touched. The stored key is a one-way hash of the src, which is why the file
 carries the src itself and re-derives the key on the far side.
 
+Every part can also say whether writing a given value would land on something
+other than what is there now. Asked with no value, that is "does this differ from
+its default", which is what marks a row as yours on the way out; asked with the
+file's value, it is "would this overwrite something of mine", which is what marks
+a row as a change on the way in. One question, two baselines, one dot.
+
 Importing needs a **catalogue** — the parts the app is willing to accept — and it
 is the catalogue, not the settings registry, that decides. A hand-edited file
 naming a real store that deliberately never travels (the auto-refresh interval)

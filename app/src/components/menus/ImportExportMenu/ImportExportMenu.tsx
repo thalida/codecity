@@ -29,6 +29,12 @@ const PANEL_LABEL = 'Import & Export';
 // Excludes are the one thing here whose scope is not the whole app.
 const EXPORT_SCAN_NOTE = 'Only for the repo you have open';
 
+// What the dot beside a row means, which is a different thing per direction.
+const DOT_TITLE: Record<'export' | 'import', string> = {
+  export: 'Changed from default',
+  import: 'Would change what you have now',
+};
+
 /** Which face the panel is showing. Export is where it opens and where every
  *  other face goes back to. */
 enum Mode {
@@ -161,6 +167,11 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
   }, [isOpen]);
 
   const scanNote = scanNoteFor(mode, parsed);
+  // Against the file on the way in, against the defaults on the way out: the
+  // same question, and the same dot, asked of two different baselines.
+  const payloadFor = (part: TransferPart): unknown =>
+    mode === Mode.Import && parsed ? parsed.file[part.family]?.[part.key] : undefined;
+  const dotTitle = mode === Mode.Import ? DOT_TITLE.import : DOT_TITLE.export;
   const rows =
     mode === Mode.Import && parsed
       ? importRows(groups, parsed, scanNote)
@@ -248,6 +259,11 @@ export function ImportExportMenu({ groups }: ImportExportMenuProps) {
                     </span>
                   )}
                 </span>
+                {row.parts.some((part) => part.differsFrom(payloadFor(part))) && (
+                  <span class="transfer-row-dot" title={dotTitle}>
+                    <span class="sr-only">{dotTitle}</span>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

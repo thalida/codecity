@@ -6,6 +6,7 @@
 import { batch } from '@preact/signals';
 import { getStoreName, getDefault } from '@/state/persist';
 import { CURRENT_SOURCE, activeExcludePathsFor, setExcludesFor } from '@/state/stores/source';
+import { deepEqual } from '@/utils/deep';
 import { coerceFieldValue, type SettingStore } from './schema';
 import { dropDrafts } from './drafts';
 
@@ -42,6 +43,9 @@ export interface TransferPart {
   /** What a file's value does on the way back in, returning whatever it could
    *  not use as `KEY.field` strings so the UI can say what didn't land. */
   write(value: unknown): string[];
+  /** Would writing `value` land on something other than what is here now?
+   *  Undefined asks it against the default, which is the export's question. */
+  differsFrom(value: unknown): boolean;
 }
 
 /** A named bundle of stores that travels as a unit. The bundles themselves are
@@ -63,30 +67,29 @@ const partId = (part: TransferPart): string => `${part.family}/${part.key}`;
 
 // Replaced, not merged: defaults first, then the file over the top, so "import
 // the trees" means their trees rather than theirs crossed with yours.
-function writeStore(store: SettingStore, key: string, payload: unknown): string[] {
+function resolveStore(
+  store: SettingStore,
+  key: string,
+  payload: unknown
+): { next: unknown; skipped: string[] } {
   const skipped: string[] = [];
   const defaults = getDefault(store);
 
   if (!isPlainObject(defaults)) {
     const coerced = typeof payload === typeof defaults ? payload : undefined;
     if (payload !== undefined && coerced === undefined) skipped.push(key);
-    store.value = coerced ?? defaults;
-  } else {
-    const next: Record<string, unknown> = { ...defaults };
-    if (isPlainObject(payload)) {
-      for (const field of Object.keys(payload)) {
-        const coerced = coerceFieldValue(store, field, payload[field]);
-        if (coerced === undefined) skipped.push(`${key}.${field}`);
-        else next[field] = coerced;
-      }
-    }
-    store.value = next;
+    return { next: coerced ?? defaults, skipped };
   }
 
-  // Written straight to the signal, nowhere near the pane's Save, so a draft
-  // left staged would put the old value back on screen.
-  dropDrafts([store]);
-  return skipped;
+  const next: Record<string, unknown> = { ...defaults };
+  if (isPlainObject(payload)) {
+    for (const field of Object.keys(payload)) {
+      const coerced = coerceFieldValue(store, field, payload[field]);
+      if (coerced === undefined) skipped.push(`${key}.${field}`);
+      else next[field] = coerced;
+    }
+  }
+  return { next, skipped };
 }
 
 /** A settings store as a part. Null when it is not registered with persistence,
@@ -98,7 +101,15 @@ export function storePart(store: SettingStore, family: TransferFamily): Transfer
     key,
     family,
     read: () => store.value,
-    write: (value) => writeStore(store, key, value),
+    write: (value) => {
+      const { next, skipped } = resolveStore(store, key, value);
+      store.value = next;
+      // Written straight to the signal, nowhere near the pane's Save, so a
+      // draft left staged would put the old value back on screen.
+      dropDrafts([store]);
+      return skipped;
+    },
+    differsFrom: (value) => !deepEqual(store.value, resolveStore(store, key, value).next),
   };
 }
 
@@ -141,6 +152,15 @@ export const EXCLUDES_PART: TransferPart = {
     const excludes = readExcludes(value);
     if (excludes?.src) setExcludesFor(excludes.src, excludes.paths);
     return [];
+  },
+  differsFrom: (value) => {
+    const excludes = readExcludes(value);
+    // Whose list is being compared: the file's repo on the way in, the open one
+    // when asking whether this browser has anything to send.
+    const src = excludes?.src ?? CURRENT_SOURCE.peek()?.src;
+    if (!src) return false;
+    const next = [...new Set(excludes?.paths ?? [])].sort();
+    return !deepEqual(activeExcludePathsFor(src), next);
   },
 };
 

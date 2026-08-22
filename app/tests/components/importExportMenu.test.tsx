@@ -56,6 +56,10 @@ describe('ImportExportMenu', () => {
     )!;
     return row.querySelector('input')!;
   };
+  const dotted = (): string[] =>
+    Array.from(panel().querySelectorAll('.transfer-row'))
+      .filter((li) => li.querySelector('.transfer-row-dot'))
+      .map((li) => li.querySelector('.transfer-row-label')!.textContent!);
   const button = (text: string): HTMLButtonElement =>
     Array.from(panel().querySelectorAll('button')).find((b) => b.textContent?.includes(text))!;
 
@@ -149,6 +153,33 @@ describe('ImportExportMenu', () => {
     await pickFile(downloaded);
     const note = panel().querySelector('.transfer-row-note')!;
     expect(note.textContent).toBe(`Saved for ${REPO}@main`);
+  });
+
+  // Export asks the question of the defaults: what here is mine?
+  it('marks the rows that differ from default', () => {
+    LOOK.value = { A: 9 };
+    mount();
+    expect(dotted()).toEqual(['Look']);
+  });
+
+  it('marks nothing when everything is stock', () => {
+    mount();
+    expect(dotted()).toEqual([]);
+  });
+
+  // Import asks it of the file: what of mine is about to be overwritten? A row
+  // the file agrees with is not a change, even though it is being written.
+  it('marks only the rows an import would actually change', async () => {
+    LOOK.value = { A: 9 };
+    SCAN.value = { A: 3 };
+    mount();
+    act(() => button('Export').click());
+    await flush();
+
+    // Back to stock for one, still matching the file for the other.
+    LOOK.value = { A: 5 };
+    await pickFile(downloaded);
+    expect(dotted()).toEqual(['Look']);
   });
 
   it('refuses a file that is not ours, and says why', async () => {

@@ -70,3 +70,14 @@
 .popover-panel .transfer-action {
   gap: var(--cc-space-3);
 }
+
+/* The same dot the Settings icon wears for "differs from default", saying the
+   same thing per row. Centred on the label's first line, like the tick. */
+.transfer-row-dot {
+  flex: 0 0 auto;
+  width: var(--cc-space-3);
+  height: var(--cc-space-3);
+  margin-block-start: calc((var(--cc-toggle-size) - var(--cc-space-3)) / 2);
+  border-radius: var(--cc-radius-circle);
+  background: var(--cc-accent);
+}
