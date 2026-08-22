@@ -13,6 +13,8 @@ import { createProjectLoader, type ProjectLoader } from '@/hooks/useManifestSour
 import { createTimelineController, type TimelineController } from '@/hooks/useTimelineMode';
 import type { City } from '@/city/types';
 
+/** The project open in one place. Loading a new source swaps its contents
+ *  rather than making a second one; the city rendering it stays put. */
 export interface ProjectSession {
   source: SourceStore;
   manifest: ManifestStore;
