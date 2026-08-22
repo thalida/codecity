@@ -1,68 +1,86 @@
 /* UnreachableSource — guidance under the source field. The error variant is the
    same content with a preamble and a warning tint: something just failed. */
 
-/* The field's own shape (same radius, a full border, not a left rule), so it
-   reads as part of the input group rather than a callout beside it. */
+/* A callout, not field furniture: the input's own shape at the scale's smallest
+   step read as helper text, and got skipped like helper text. */
 .unreachable {
   display: flex;
-  align-items: flex-start;
-  gap: var(--cc-space-3);
-  padding: var(--cc-space-3) var(--cc-space-4);
-  border: 1px solid var(--cc-accent-border);
-  border-radius: var(--cc-radius-sm);
-  background: var(--cc-accent-bg-soft);
-  font-size: var(--cc-font-xs);
+  flex-direction: column;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  border: 1px solid var(--cc-error-border);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-error-bg);
+  font-size: var(--cc-font-sm);
   line-height: 1.5;
 }
 
-/* One text line tall, so the glyph centres on the FIRST line. font-size is left
-   alone: that is what makes 1lh resolve to the first line's real box. */
-.unreachable-glyph-slot {
-  flex: none;
-  display: flex;
-  align-items: center;
-  height: 1lh;
-}
-
-/* The glyph reads as "note" on the standing variant and "that failed" on the
-   error one, which is the only difference between them. */
-.unreachable-glyph {
-  font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
-  color: var(--cc-accent);
-}
-
-.unreachable-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-2);
-  min-width: 0;
-}
-
-.unreachable--error {
-  border-color: var(--cc-error-border);
-  background: var(--cc-error-bg);
-}
-.unreachable--error .unreachable-glyph {
-  color: var(--cc-error-light);
-}
-
+/* Inline, not its own line: what failed and what fixes it are one sentence
+   apiece and the notice is tighter for running them together. */
 .unreachable-preamble {
-  margin: 0;
-  font-weight: var(--cc-fw-medium);
+  font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
 }
 
+/* The sentence that has to land. A step above the rest of the notice, since
+   everything under it is detail for whoever wants it. */
 .unreachable-remedy {
   margin: 0;
+  font-size: var(--cc-font-md);
   /* Body copy, not a caption: secondary clears AA on the error tint at 4.91:1
      but reads washed out beside the strong preamble. primary is 9.04:1. */
   color: var(--cc-text-primary);
+}
+.unreachable-remedy strong {
+  color: var(--cc-text-strong);
+  font-weight: var(--cc-fw-semibold);
 }
 
 .unreachable-remedy code {
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
   color: var(--cc-text-primary);
+}
+
+/* The disclosure and the docs link, side by side: one opens the answer here,
+   the other goes and reads the rest. */
+.unreachable-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-7);
+  flex-wrap: wrap;
+}
+
+.unreachable-disclose {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-3) var(--cc-space-6);
+  border: 1px solid var(--cc-error-border);
+  border-radius: var(--cc-radius-sm);
+  background: color-mix(in oklch, var(--cc-error) 24%, transparent);
+  color: var(--cc-text-strong);
+  font: inherit;
+  font-weight: var(--cc-fw-medium);
+  cursor: pointer;
+  transition: background var(--cc-t-base);
+}
+.unreachable-disclose:hover {
+  background: var(--cc-error-bg);
+}
+
+.unreachable-chevron {
+  font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
+  transition: transform var(--cc-t-base);
+}
+.unreachable-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.unreachable-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4);
 }
 
 /* The `git clone <url>` line: a copyable command, so it gets a real field-ish
@@ -84,5 +102,35 @@
   white-space: nowrap;
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}
+
+/* Multi-line variant: the run command wraps over six lines, so the button sits
+   at the top of the block rather than centred against all of it. */
+.unreachable-command--block {
+  align-items: flex-start;
+  padding: var(--cc-space-5) var(--cc-space-6);
+}
+
+.unreachable-command--block pre {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  line-height: 1.6;
+  color: var(--cc-text-primary);
+}
+
+/* primary, not secondary: at 11px on the tint, secondary clears AA by a hair
+   and this line is the one edit the command needs. */
+.unreachable-hint {
+  margin: 0;
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}
+.unreachable-hint code {
+  font-family: var(--cc-font-mono);
   color: var(--cc-text-primary);
 }

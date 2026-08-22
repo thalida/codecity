@@ -20,7 +20,8 @@ import {
   removeExclude,
   clearExcludes,
 } from '@/state/stores/source';
-import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
+import { EXCLUDES_DOCS_URL } from '@/constants/ui';
+import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
 
 const PANEL_LABEL = 'Scan Settings';
 
@@ -187,15 +188,7 @@ export function ScanMenu({ onRefresh }: ScanMenuProps) {
                   above look live but nothing can change under them. */}
               {!CURRENT_SOURCE_IS_LOCAL.value && (
                 <p class="popover-hint">
-                  Local projects only.{' '}
-                  <a
-                    class="link--chrome"
-                    href={LOCAL_DOCS_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    See&nbsp;local&nbsp;setup
-                  </a>
+                  Local projects only. <SetupGuideLink />
                 </p>
               )}
             </section>

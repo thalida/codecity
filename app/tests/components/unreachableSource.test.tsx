@@ -6,90 +6,29 @@ import {
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import { flush } from '../_helpers/preact';
 
-type Body = 'clone' | 'run-locally' | 'turn-on';
+const SRC = 'https://github.com/owner/private';
 
-const BODY: Record<Body, RegExp> = {
-  clone: /clone it yourself and open the folder/i,
-  'run-locally': /need codecity running on your own machine/i,
-  'turn-on': /turn on local paths to open a folder on this machine/i,
-};
-
-const PREAMBLE: Record<NoticeReason, RegExp | null> = {
-  [NoticeReason.Standing]: null,
+const PREAMBLE: Record<NoticeReason, RegExp> = {
   [NoticeReason.Unreachable]: /couldn't reach that repo/i,
-  [NoticeReason.PathBlocked]: /local paths are turned off/i,
+  [NoticeReason.PathBlocked]: /couldn't open that path/i,
 };
 
-// The extra step, only where turning it on is both possible and needed.
-const PREREQ = /turn on local paths, clone it yourself/i;
+const OPEN_IT_HERE = /clone it yourself and open the folder/i;
+const RUN_ONE = /clone it yourself, then run codecity locally/i;
+const MOUNT_RULE = /run codecity with a volume mount/i;
+const ALL_REMEDIES = [OPEN_IT_HERE, RUN_ONE, MOUNT_RULE];
 
-// Every state the form can reach: standing and path-blocked both need local
-// paths off, so a mounted instance only produces the unreachable rows.
+// Three states, not eight. `allowLocal` is the only thing that changes the
+// remedy, and a blocked path can only arise while it is false.
 const STATES: {
   reason: NoticeReason;
-  hosted: boolean;
   allowLocal: boolean;
-  body: Body;
-  prereq: boolean;
+  mounts: boolean;
+  remedy: RegExp;
 }[] = [
-  {
-    reason: NoticeReason.Standing,
-    hosted: false,
-    allowLocal: false,
-    body: 'turn-on',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.Standing,
-    hosted: true,
-    allowLocal: false,
-    body: 'run-locally',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.PathBlocked,
-    hosted: false,
-    allowLocal: false,
-    body: 'turn-on',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.PathBlocked,
-    hosted: true,
-    allowLocal: false,
-    body: 'run-locally',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.Unreachable,
-    hosted: false,
-    allowLocal: true,
-    body: 'clone',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.Unreachable,
-    hosted: false,
-    allowLocal: false,
-    body: 'clone',
-    prereq: true,
-  },
-  // The deploy DOES produce this: a hosted instance can mount a folder for its
-  // own filesystem. hosted wins, because the visitor is not on that machine.
-  {
-    reason: NoticeReason.Unreachable,
-    hosted: true,
-    allowLocal: true,
-    body: 'run-locally',
-    prereq: false,
-  },
-  {
-    reason: NoticeReason.Unreachable,
-    hosted: true,
-    allowLocal: false,
-    body: 'run-locally',
-    prereq: false,
-  },
+  { reason: NoticeReason.Unreachable, allowLocal: true, mounts: false, remedy: OPEN_IT_HERE },
+  { reason: NoticeReason.Unreachable, allowLocal: false, mounts: true, remedy: RUN_ONE },
+  { reason: NoticeReason.PathBlocked, allowLocal: false, mounts: true, remedy: MOUNT_RULE },
 ];
 
 describe('UnreachableSource', () => {
@@ -107,109 +46,129 @@ describe('UnreachableSource', () => {
 
   const text = () => container.textContent ?? '';
 
-  const show = async (reason: NoticeReason, hosted: boolean, allowLocal: boolean) => {
+  /** `null` means the caller wants no src at all: an explicit `undefined` would
+   *  fall through to the default and quietly hand the component SRC. */
+  const show = async (reason: NoticeReason, allowLocal: boolean, src: string | null = SRC) => {
     render(
-      <UnreachableSource
-        hosted={hosted}
-        allowLocal={allowLocal}
-        reason={reason}
-        src="https://github.com/owner/repo"
-      />,
+      <UnreachableSource allowLocal={allowLocal} reason={reason} src={src ?? undefined} />,
       container
     );
     await flush();
   };
 
-  for (const { reason, hosted, allowLocal, body, prereq } of STATES) {
-    it(`${reason} hosted=${hosted} allowLocal=${allowLocal} -> ${body}${prereq ? ' + prereq' : ''}`, async () => {
-      await show(reason, hosted, allowLocal);
+  const disclose = () => container.querySelector<HTMLButtonElement>('.unreachable-disclose');
 
-      expect(text()).toMatch(BODY[body]);
-      // Exactly one body, never two.
-      for (const other of (Object.keys(BODY) as Body[]).filter((b) => b !== body)) {
-        expect(text()).not.toMatch(BODY[other]);
+  const expand = async () => {
+    disclose()!.click();
+    await flush();
+  };
+
+  for (const { reason, allowLocal, mounts, remedy } of STATES) {
+    it(`${reason} allowLocal=${allowLocal} -> ${mounts ? 'run one that can' : 'open the folder'}`, async () => {
+      await show(reason, allowLocal);
+
+      expect(text()).toMatch(PREAMBLE[reason]);
+      expect(text()).toMatch(remedy);
+      // No other state's name or remedy may leak into this one. Telling someone
+      // who can already open folders to go run codecity is the failure here.
+      for (const other of Object.values(NoticeReason).filter((r) => r !== reason)) {
+        expect(text()).not.toMatch(PREAMBLE[other]);
       }
-      // A hosted visitor can't turn local paths on, and a mounted instance has
-      // nothing to turn on, so the extra step must not leak into either.
-      expect(PREREQ.test(text())).toBe(prereq);
+      for (const other of ALL_REMEDIES.filter((r) => r !== remedy)) {
+        expect(text()).not.toMatch(other);
+      }
     });
   }
 
-  // The trap this component fell into: an empty field carrying instructions for
-  // a failure that hasn't happened.
-  it('states a capability when standing, and never a remedy', async () => {
-    for (const hosted of [false, true]) {
-      await show(NoticeReason.Standing, hosted, false);
-      expect(text()).not.toMatch(/clone it yourself/i);
-      expect(text()).not.toMatch(PREREQ);
+  // The folder is already on the machine. Telling someone to clone it, which the
+  // merged copy did, is an instruction to fetch something they are looking at.
+  it('never tells a blocked path to clone anything', async () => {
+    await show(NoticeReason.PathBlocked, false, null);
+    expect(text()).not.toMatch(/clone/i);
+    await expand();
+    expect(text()).not.toMatch(/clone/i);
+  });
+
+  // A failure is the only thing this renders, so it always announces itself.
+  it('announces every state it can be in', async () => {
+    for (const { reason, allowLocal } of STATES) {
+      await show(reason, allowLocal);
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
       render(null, container);
     }
   });
 
-  it('names what happened in the preamble, and only when something did', async () => {
-    for (const { reason, hosted, allowLocal } of STATES) {
-      await show(reason, hosted, allowLocal);
-      const expected = PREAMBLE[reason];
-      const isFailure = reason !== NoticeReason.Standing;
-
-      if (expected) expect(text()).toMatch(expected);
-      for (const other of (Object.keys(PREAMBLE) as NoticeReason[]).filter((v) => v !== reason)) {
-        const marker = PREAMBLE[other];
-        if (marker) expect(text()).not.toMatch(marker);
-      }
-      // A failure announces itself; guidance must not.
-      expect(container.querySelector('[role="alert"]') !== null).toBe(isFailure);
-      expect(container.querySelector('.unreachable--error') !== null).toBe(isFailure);
+  // The old copy told an unmounted local instance to "turn on local paths" and
+  // left it there. `-e` plus a `-v` IS turning them on, so both audiences get it.
+  it('offers a command in every state, never just a link', async () => {
+    for (const { reason, allowLocal, mounts } of STATES) {
+      await show(reason, allowLocal);
+      if (mounts) await expand();
+      expect(text()).toContain(mounts ? 'docker run' : 'git clone');
       render(null, container);
     }
   });
 
-  it("shows the git clone line only where a folder is the viewer's to open", async () => {
-    const withClone: boolean[] = [];
-    for (const { reason, hosted, allowLocal } of STATES) {
-      await show(reason, hosted, allowLocal);
-      withClone.push(text().includes('git clone https://github.com/owner/repo'));
-      render(null, container);
-    }
-    // Cloning is the answer to an unreachable repo on your own machine. It is
-    // not an answer to a path this instance won't take, nor to a hosted one.
-    expect(withClone).toEqual(
-      STATES.map((s) => s.reason === NoticeReason.Unreachable && !s.hosted)
+  it('hides the run command until asked, then gives the mounted one', async () => {
+    await show(NoticeReason.PathBlocked, false, null);
+    expect(text()).not.toContain('docker run');
+    expect(disclose()!.getAttribute('aria-expanded')).toBe('false');
+
+    await expand();
+
+    expect(disclose()!.getAttribute('aria-expanded')).toBe('true');
+    const command = container.querySelector('.unreachable-command--block pre')!.textContent ?? '';
+    expect(command).toContain('ghcr.io/thalida/codecity');
+    expect(command).toContain('CODECITY_ALLOW_LOCAL_REPOS=1');
+    expect(command).toMatch(/-v "\$HOME\/[^"]+:ro"/);
+  });
+
+  // Two steps, so both are on offer where the repo to clone is known.
+  it('gives the clone and the run together when it knows what failed', async () => {
+    await show(NoticeReason.Unreachable, false);
+    await expand();
+    const commands = [...container.querySelectorAll('.unreachable-command')].map(
+      (n) => n.textContent ?? ''
     );
+    expect(commands[0]).toContain(`git clone ${SRC}`);
+    expect(commands[1]).toContain('docker run');
   });
 
   it('omits the clone line when there is no source to clone', async () => {
-    render(
-      <UnreachableSource hosted={false} allowLocal reason={NoticeReason.Unreachable} />,
-      container
-    );
-    await flush();
+    await show(NoticeReason.Unreachable, true, null);
     expect(text()).not.toContain('git clone');
+  });
+
+  // Every state sends people to the same README section, so every state calls it
+  // the same thing. It used to be "See docs" here and "Full setup" next door.
+  it('always points somewhere to read more, by one name', async () => {
+    for (const { reason, allowLocal } of STATES) {
+      await show(reason, allowLocal);
+      const links = [...container.querySelectorAll('a[href]')];
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link.getAttribute('href')).toMatch(/#run-it-yourself$/);
+        expect(link.textContent?.replace(/\s+/g, ' ')).toMatch(/setup guide/i);
+      }
+      render(null, container);
+    }
   });
 
   // GitHub 404s a private repo exactly as it 404s a typo, so claiming privacy
   // would be a guess.
   it('never asserts the repo is private, and never blames the user', async () => {
-    for (const { reason, hosted, allowLocal } of STATES) {
-      await show(reason, hosted, allowLocal);
+    for (const { reason, allowLocal } of STATES) {
+      await show(reason, allowLocal);
       expect(text()).not.toMatch(/is private/i);
       expect(text()).not.toMatch(/you (do not|don't) have access/i);
       render(null, container);
     }
   });
 
-  it('always points somewhere to read more', async () => {
-    for (const { reason, hosted, allowLocal } of STATES) {
-      await show(reason, hosted, allowLocal);
-      const link = container.querySelector('.unreachable-remedy a');
-      expect(link?.getAttribute('href')).toMatch(/#(local-directories|run-it-yourself)$/);
-      render(null, container);
-    }
-  });
-
   it('uses no em-dashes in its copy', async () => {
-    for (const { reason, hosted, allowLocal } of STATES) {
-      await show(reason, hosted, allowLocal);
+    for (const { reason, allowLocal, mounts } of STATES) {
+      await show(reason, allowLocal);
+      if (mounts) await expand();
       expect(text()).not.toContain('—');
       render(null, container);
     }

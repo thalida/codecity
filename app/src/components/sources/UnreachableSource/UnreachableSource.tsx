@@ -3,15 +3,14 @@
 // typo alike to an anonymous caller) or says "you don't have access", which
 // blames the user for a property of this server.
 import './UnreachableSource.css';
-import { Info, AlertCircle } from 'lucide-preact';
+import { useState } from 'preact/hooks';
+import { ChevronDown } from 'lucide-preact';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
-import { REPO_URL, LOCAL_DOCS_URL } from '@/constants/ui';
+import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
 
-/** Why the notice is on screen. `Standing` is the resting state and carries no
- *  failure; the other two each name a distinct thing that went wrong. */
+/** What failed. The resting state is not here: the landing's own band says what
+ *  this instance can open, so this component only ever answers a failure. */
 export enum NoticeReason {
-  /** Nothing typed or tried: what this instance can open. */
-  Standing = 'standing',
   /** A repo was pasted and the server couldn't reach it. */
   Unreachable = 'unreachable',
   /** A local path was typed where local paths are off. */
@@ -19,10 +18,8 @@ export enum NoticeReason {
 }
 
 export interface UnreachableSourceProps {
-  /** This is the public deployment, where a local path can never resolve. */
-  hosted: boolean;
-  /** This instance can read local paths. Standing and PathBlocked only arise
-   *  when it's false, so only Unreachable reads it. */
+  /** This instance can read local paths, which is the only thing that changes
+   *  the remedy: with it, a folder you already have is openable. */
   allowLocal: boolean;
   reason: NoticeReason;
   /** The source that failed, used for the `git clone` line. */
@@ -32,74 +29,89 @@ export interface UnreachableSourceProps {
   id?: string;
 }
 
-const RUN_DOCS_URL = `${REPO_URL}#run-it-yourself`;
+// `-e` plus a matching `-v` IS turning local paths on, which is why this is the
+// one answer for a visitor and an unmounted local instance alike.
+const RUN_COMMAND = `docker run --rm --init --pull=always \\
+    -e CODECITY_ALLOW_LOCAL_REPOS=1 \\
+    -v "$HOME/Repos:$HOME/Repos:ro" \\
+    -v codecity-cache:/cache \\
+    -p 8080:8080 \\
+    ghcr.io/thalida/codecity`;
 
-const PREAMBLE: Record<NoticeReason, string | null> = {
-  [NoticeReason.Standing]: null,
+const PREAMBLE: Record<NoticeReason, string> = {
   [NoticeReason.Unreachable]: "Couldn't reach that repo.",
-  [NoticeReason.PathBlocked]: 'Local paths are turned off',
+  [NoticeReason.PathBlocked]: "Couldn't open that path.",
 };
 
-export function UnreachableSource({ hosted, allowLocal, reason, src, id }: UnreachableSourceProps) {
-  const preamble = PREAMBLE[reason];
-  const failed = reason !== NoticeReason.Standing;
-  const Glyph = failed ? AlertCircle : Info;
+/** What happens after you clone it: openable here, or nowhere until you have an
+ *  instance that reads folders. A blocked path states the rule instead. */
+function remedyFor(reason: NoticeReason, allowLocal: boolean): string {
+  if (reason === NoticeReason.PathBlocked) {
+    return 'Run codecity with a volume mount to access local repos.';
+  }
+  return allowLocal
+    ? "If it's private, clone it yourself and open the folder."
+    : "If it's private, clone it yourself, then run codecity locally.";
+}
 
+export function UnreachableSource({ allowLocal, reason, src, id }: UnreachableSourceProps) {
   return (
-    <div
-      id={id}
-      class={`unreachable unreachable--${failed ? 'error' : 'standing'}`}
-      role={failed ? 'alert' : undefined}
-    >
-      <span class="unreachable-glyph-slot">
-        <Glyph class="icon unreachable-glyph" aria-hidden="true" />
-      </span>
-      <div class="unreachable-text">
-        {preamble && <p class="unreachable-preamble">{preamble}</p>}
-        <Remedy hosted={hosted} allowLocal={allowLocal} reason={reason} src={src} />
-      </div>
+    <div id={id} class="unreachable" role="alert">
+      <p class="unreachable-remedy">
+        <strong class="unreachable-preamble">{PREAMBLE[reason]}</strong>{' '}
+        {remedyFor(reason, allowLocal)}
+      </p>
+      <Remedy allowLocal={allowLocal} src={src} />
     </div>
   );
 }
 
-function Remedy({ hosted, allowLocal, reason, src }: Omit<UnreachableSourceProps, 'id'>) {
-  if (hosted) {
-    return (
-      <p class="unreachable-remedy">
-        Private and local repos need codecity running on your own machine.{' '}
-        <DocsLink href={RUN_DOCS_URL} />
-      </p>
-    );
-  }
-
-  // Cloning is no help for a path already on this machine.
-  if (reason === NoticeReason.Standing || reason === NoticeReason.PathBlocked) {
-    return (
-      <p class="unreachable-remedy">
-        Turn on local paths to open a folder on this machine. <DocsLink href={LOCAL_DOCS_URL} />
-      </p>
-    );
-  }
-
+/** One boolean: either this instance can open a folder you already have, or you
+ *  need one that can. Both hand over the command, never just a link. */
+function Remedy({ allowLocal, src }: Pick<UnreachableSourceProps, 'allowLocal' | 'src'>) {
   if (allowLocal) {
     return (
       <>
-        <p class="unreachable-remedy">
-          If it's private, clone it yourself and open the folder instead.{' '}
-          <DocsLink href={LOCAL_DOCS_URL} />
-        </p>
         <CloneCommand src={src} />
+        <p class="unreachable-actions">
+          <SetupGuideLink />
+        </p>
       </>
     );
   }
+  return <RunItYourself src={src} />;
+}
 
+/** Both steps, behind one disclosure: collapsed it is a control, open it is the
+ *  whole answer rather than a link to go and find it. */
+function RunItYourself({ src }: { src?: string }) {
+  const [open, setOpen] = useState(false);
   return (
     <>
-      <p class="unreachable-remedy">
-        If it's private, turn on local paths, clone it yourself and open the folder instead.{' '}
-        <DocsLink href={LOCAL_DOCS_URL} />
-      </p>
-      <CloneCommand src={src} />
+      <div class="unreachable-actions">
+        <button
+          type="button"
+          class="unreachable-disclose"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          Run it yourself
+          <ChevronDown class={`icon unreachable-chevron${open ? ' is-open' : ''}`} />
+        </button>
+        <SetupGuideLink />
+      </div>
+      {open && (
+        <div class="unreachable-detail">
+          <CloneCommand src={src} />
+          <div class="unreachable-command unreachable-command--block">
+            <pre>{RUN_COMMAND}</pre>
+            <CopyButton text={RUN_COMMAND} label="Copy run command" />
+          </div>
+          <p class="unreachable-hint">
+            Point <code>-v</code> at the folder your repos live in, then open localhost:8080.
+          </p>
+        </div>
+      )}
     </>
   );
 }
@@ -112,13 +124,5 @@ function CloneCommand({ src }: { src?: string }) {
       <code>{command}</code>
       <CopyButton text={command} label="Copy clone command" />
     </div>
-  );
-}
-
-function DocsLink({ href }: { href: string }) {
-  return (
-    <a class="link--chrome" href={href} target="_blank" rel="noopener noreferrer">
-      See&nbsp;docs
-    </a>
   );
 }

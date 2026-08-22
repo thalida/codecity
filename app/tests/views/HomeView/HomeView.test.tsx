@@ -314,6 +314,74 @@ describe('HomeView', () => {
     });
   });
 
+  // Read top to bottom: the pitch stays one uninterrupted thought, and the
+  // wallpaper caption is a caption rather than part of it.
+  describe('hero column', () => {
+    const hero = async () => {
+      navigate(ROUTES.HOME);
+      render(<HomeView />, container);
+      await flush();
+      return container.querySelector('.landing-hero')!;
+    };
+
+    it('keeps the tagline and the cues together, with nothing between them', async () => {
+      const pitch = (await hero()).querySelector('.landing-pitch')!;
+      expect(pitch.querySelector('.landing-tagline')).not.toBeNull();
+      expect(pitch.querySelector('.landing-delights')).not.toBeNull();
+      // Two children only: anything else here splits the pitch in half.
+      expect(pitch.children).toHaveLength(2);
+    });
+
+    it('puts the wallpaper caption last, below everything it is not part of', async () => {
+      BACKDROP_CITY.value = {
+        src: 'https://github.com/thalida/codecity',
+        label: 'thalida/codecity',
+        kind: BackdropKind.Featured,
+      };
+      const column = await hero();
+      expect(column.lastElementChild!.classList.contains('landing-featured')).toBe(true);
+    });
+  });
+
+  // Answered in the field's helper-text slot at the smallest step in the type
+  // scale, which is why it kept getting missed.
+  describe('private and local repos', () => {
+    const band = () => container.querySelector('.landing-local');
+
+    const renderAt = async (allowLocalRepos: boolean) => {
+      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos };
+      navigate(ROUTES.HOME);
+      render(<HomeView />, container);
+      await flush();
+    };
+
+    it('answers in the hero, not under the field, wherever a folder is unreachable', async () => {
+      await renderAt(false);
+      expect(band()).not.toBeNull();
+      expect(band()!.textContent).toContain('private and local repos work');
+      expect(band()!.querySelector('a')!.getAttribute('href')).toMatch(/#run-it-yourself$/);
+    });
+
+    // Keyed on what this instance can open, not on which deployment it is: the
+    // message used to move between the hero and the field slot with `hosted`.
+    it('stays put whether or not this is the public deployment', async () => {
+      for (const hosted of [false, true]) {
+        SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false, hosted };
+        navigate(ROUTES.HOME);
+        render(<HomeView />, container);
+        await flush();
+        expect(band()).not.toBeNull();
+        expect(container.querySelector('.unreachable')).toBeNull();
+        render(null, container);
+      }
+    });
+
+    it('says nothing once a folder here is openable', async () => {
+      await renderAt(true);
+      expect(band()).toBeNull();
+    });
+  });
+
   // The landing covers the app header and footer, so without these a cold
   // boot shows no version, repo link, or credit at all.
   describe('identity line', () => {
@@ -332,7 +400,7 @@ describe('HomeView', () => {
       expect(hero.textContent).toContain('v1.4.0');
     });
 
-    it('links the brand home, about to the repo, and the credit to thalida.com', async () => {
+    it('links the brand home, the repo link to GitHub, and the credit to thalida.com', async () => {
       const hero = await renderLanding({ dismissible: false });
       const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
       expect(links.map((a) => a.getAttribute('href'))).toEqual([
@@ -345,6 +413,12 @@ describe('HomeView', () => {
         expect(a.getAttribute('target')).toBe('_blank');
         expect(a.getAttribute('rel')).toBe('noopener noreferrer');
       }
+    });
+
+    it('names the repo link for where it goes', async () => {
+      const hero = await renderLanding({ dismissible: false });
+      const repo = hero.querySelector<HTMLAnchorElement>('a[href$="/thalida/codecity"]')!;
+      expect(repo.textContent).toBe('GitHub');
     });
 
     it('credits the creator with the unicorn', async () => {

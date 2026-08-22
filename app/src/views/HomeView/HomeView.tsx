@@ -14,6 +14,7 @@ import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';
 import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { cityHref, navigate } from '@/router/location';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
+import { RUN_DOCS_URL } from '@/constants/ui';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/sources/DiscoverList/DiscoverList';
@@ -69,40 +70,60 @@ export function HomeView() {
                 version and credit appear before a repo loads. */}
             <MetaLine linkClass="link" />
           </div>
-          <p class="landing-tagline">Turn any git repo into a 3D city</p>
-          {/* Set only once the city is painted, so it can't name something you
-              can't see. */}
+          {/* The pitch is one thought: the tagline and the cues that unpack it.
+              Nothing goes between them. */}
+          <div class="landing-pitch">
+            <p class="landing-tagline">Turn any git repo into a 3D city</p>
+            <ul class="landing-delights">
+              <li class="landing-delight landing-delight--streets">
+                <Waypoints class="icon" aria-hidden="true" />
+                <span>
+                  Directories become <strong>streets</strong>
+                </span>
+              </li>
+              <li class="landing-delight landing-delight--buildings">
+                <Building2 class="icon" aria-hidden="true" />
+                <span>
+                  Files rise into <strong>buildings</strong>
+                </span>
+              </li>
+              <li class="landing-delight landing-delight--trees">
+                <TreePine class="icon" aria-hidden="true" />
+                <span>
+                  Every commit grows a <strong>tree</strong>
+                </span>
+              </li>
+              <li class="landing-delight landing-delight--authors">
+                <Sparkles class="icon" aria-hidden="true" />
+                <span>
+                  Commit authors orbit trees as <strong>fireflies</strong>
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          {/* The resting statement, wherever a folder can't be opened here. A
+              failure gets the same fact under the field, with the command. */}
+          {!SERVER_CONFIG.value.allowLocalRepos && (
+            <div class="landing-local">
+              <p class="landing-local-lead">Yes, private and local repos work</p>
+              <p class="landing-local-body">
+                Clone a repo locally, then{' '}
+                <a class="link" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
+                  run codecity
+                </a>{' '}
+                on your machine.
+              </p>
+            </div>
+          )}
+
+          {/* A caption on the wallpaper, so it sits at the foot of the column
+              rather than splitting the pitch, and only once one has painted. */}
           {BACKDROP_CITY.value && (
             <p class="landing-featured">
               You're looking at <strong>{BACKDROP_CITY.value.label}</strong>
             </p>
           )}
-          <ul class="landing-delights">
-            <li class="landing-delight landing-delight--streets">
-              <Waypoints class="icon" aria-hidden="true" />
-              <span>
-                Directories become <strong>streets</strong>
-              </span>
-            </li>
-            <li class="landing-delight landing-delight--buildings">
-              <Building2 class="icon" aria-hidden="true" />
-              <span>
-                Files rise into <strong>buildings</strong>
-              </span>
-            </li>
-            <li class="landing-delight landing-delight--trees">
-              <TreePine class="icon" aria-hidden="true" />
-              <span>
-                Every commit grows a <strong>tree</strong>
-              </span>
-            </li>
-            <li class="landing-delight landing-delight--authors">
-              <Sparkles class="icon" aria-hidden="true" />
-              <span>
-                Commit authors orbit trees as <strong>fireflies</strong>
-              </span>
-            </li>
-          </ul>
         </section>
 
         {/* No progress surface here: committing a source routes to /city
@@ -115,7 +136,6 @@ export function HomeView() {
               // was typed instead of clearing it.
               key={failed?.prefill?.src ?? ''}
               allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
-              hosted={SERVER_CONFIG.value.hosted}
               error={failed?.error}
               errorCode={failed?.code}
               prefill={failed?.prefill}
