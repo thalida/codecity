@@ -5,6 +5,7 @@
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
+import { RebuildStatus } from '@/state/stores/progress';
 import { createCitySceneState } from '@/city/state';
 import { buildStageTail } from '@/constants/progress';
 import { NodeKind } from '@/types';
@@ -75,6 +76,20 @@ async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
 describe('sceneState.applyManifest — the build says where it is (#185)', () => {
   beforeEach(() => {
     session.progress.buildProgress.value = null;
+  });
+
+  it('opens the rebuild itself, so no caller has to say so first', async () => {
+    const state = createCitySceneState(
+      fakeLayoutClient() as never,
+      stubPlacementClient() as never,
+      session.progress
+    );
+    session.progress.rebuildStatus.value = RebuildStatus.Idle;
+    const apply = state.applyManifest(manifest('sig-1'));
+    // Synchronously: the status is up before the first await yields, or the
+    // readout says idle through the stage it is already running.
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Rebuilding);
+    await apply;
   });
 
   it('walks the stages it is going to run', async () => {

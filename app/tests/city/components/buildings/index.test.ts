@@ -146,11 +146,7 @@ describe('createBuildings()', () => {
   it('rebuild() drops a scrub controller installed for the previous city', async () => {
     // Same hazard the tween queue already guards: the controller holds the old
     // manifest's Buildings, whose cellId/slotId resolve into the NEW cells.
-    const { ctx } = makePickableSceneContext(undefined, {
-      store: session.timeline,
-      liveManifest: () => null,
-      reassemble: () => Promise.resolve(),
-    });
+    const { ctx } = makePickableSceneContext(undefined, session.timeline);
     buildings = createBuildings(ctx);
     session.timeline.mode.value = true;
 

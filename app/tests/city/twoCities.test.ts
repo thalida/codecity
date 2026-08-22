@@ -84,7 +84,7 @@ describe('two cities at once', () => {
   }
 
   it('builds the backdrop, telling its own session and no other', async () => {
-    const scenery = await createCityScene(makeCanvas(), backdrop.bindings());
+    const scenery = await createCityScene(makeCanvas(), backdrop);
     try {
       backdrop.manifest.set(makeManifest('wallpaper'));
       await scenery.applyManifest(backdrop.manifest.current.peek() as Manifest);
@@ -104,8 +104,8 @@ describe('two cities at once', () => {
   });
 
   it('holds the opened one’s "on screen" while the backdrop builds beside it', async () => {
-    const world = await createCityScene(makeCanvas(), opened.bindings());
-    const scenery = await createCityScene(makeCanvas(), backdrop.bindings());
+    const world = await createCityScene(makeCanvas(), opened);
+    const scenery = await createCityScene(makeCanvas(), backdrop);
     try {
       opened.source.current.value = { src: 'test://repo' };
       opened.manifest.current.value = makeManifest('repo');
@@ -130,7 +130,7 @@ describe('two cities at once', () => {
   });
 
   it('leaves the backdrop alone when the opened one exits Timeline', async () => {
-    const scenery = await createCityScene(makeCanvas(), backdrop.bindings());
+    const scenery = await createCityScene(makeCanvas(), backdrop);
     try {
       await scenery.applyManifest(makeManifest('wallpaper'));
       scenery.timeline.installScrubController(new Map(), []);
@@ -181,7 +181,7 @@ describe('two cities at once', () => {
   });
 
   it('holds the backdrop’s camera when the opened city changes', async () => {
-    const scenery = await createCityScene(makeCanvas(), backdrop.bindings());
+    const scenery = await createCityScene(makeCanvas(), backdrop);
     try {
       opened.source.current.value = { src: 'test://one' };
       await scenery.applyManifest(makeManifest('wallpaper'));

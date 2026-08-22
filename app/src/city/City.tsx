@@ -7,20 +7,13 @@ import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
 import { createCityScene } from '@/city';
-import type { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import type { CityScene } from '@/city/types';
 import type { CitySession } from '@/state/city/session';
 import type { Manifest } from '@/types';
 
 export interface CityProps {
   /** The city to render. Everything this canvas needs is in it. */
   session: CitySession;
-  /** Camera behaviour: what this rendering is FOR. */
-  cameraMode?: CameraMode;
-  /** Paint the canvas: a sub-frame gap during a resize flashes through an
-   *  unpainted one, which only matters where nothing sits behind it. */
-  opaque?: boolean;
   /** What a screen reader is told this canvas is. */
   label?: string;
 }
@@ -28,15 +21,13 @@ export interface CityProps {
 const DEFAULT_LABEL =
   '3D city map of the repository. Files are buildings, directories are streets, commits are trees. Browse it with the file tree and search panels.';
 
-export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABEL }: CityProps) {
+export function City({ session, label = DEFAULT_LABEL }: CityProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let disposed = false;
-    // Held for teardown; session.scene is where everyone else finds it.
-    let scene: CityScene | null = null;
     let unsubApply: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
@@ -46,7 +37,7 @@ export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABE
     const showing = computed<Manifest | null>(() => manifest.current.value as Manifest | null);
 
     // Starts empty; the apply below paints the first manifest.
-    createCityScene(canvas, session.bindings(cameraMode))
+    createCityScene(canvas, session)
       .then((built) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).
@@ -54,7 +45,6 @@ export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABE
           built.dispose();
           return;
         }
-        scene = built;
         session.scene.value = built;
         // It knows what it is showing and how to re-pack it, so a Save needs to
         // be told neither.
@@ -68,7 +58,6 @@ export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABE
           // Scrubbing owns the contents while it runs. Peeked, so leaving the
           // mode doesn't repack what it committed (the teardown owns that).
           if (timeline.mode.peek()) return;
-          progress.markRebuilding();
           void built.applyManifest(m).catch(progress.markError);
         });
       })
@@ -78,8 +67,7 @@ export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABE
       disposed = true;
       unsubApply?.();
       disposeReactions?.();
-      scene?.dispose();
-      scene = null;
+      session.scene.peek()?.dispose();
       session.scene.value = null;
       // The canvas is gone, so nothing it had on it is on screen: a remount
       // rebuilds from scratch, and that build is a load with a world to wait for.
@@ -89,12 +77,5 @@ export function City({ session, cameraMode, opaque = false, label = DEFAULT_LABE
 
   // Non-text content needs a text alternative (WCAG 1.1.1). Keyboard users
   // browse the same data through Explore and Search.
-  return (
-    <canvas
-      class={`city-canvas${opaque ? ' city-canvas--opaque' : ''}`}
-      ref={canvasRef}
-      role="img"
-      aria-label={label}
-    />
-  );
+  return <canvas class="city-canvas" ref={canvasRef} role="img" aria-label={label} />;
 }

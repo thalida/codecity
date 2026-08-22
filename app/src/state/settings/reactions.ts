@@ -34,7 +34,6 @@ export function attachSettingsReactions({ scene, report }: SettingsReactionsOpts
 
   async function scheduleRebuild() {
     if (!armed) return;
-    report.markRebuilding();
     try {
       // Always invalidate: the manifest is unchanged, so reuseLayoutFrom would
       // skip the recompute and the setting would do nothing visible.

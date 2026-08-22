@@ -5,13 +5,14 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
-import type { CityTimelineBinding, SceneContext } from '@/city/types';
+import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCitySceneState, type CitySceneState } from '@/city/state';
 import { commits } from './commits';
 import { makeSession } from './city';
+import type { TimelineStore } from '@/state/stores/timeline';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
@@ -65,7 +66,7 @@ export function makeSceneContext(sceneState: CitySceneState = makeCityState()): 
  *  test can drive hover/selection and assert what the component does. */
 export function makePickableSceneContext(
   sceneState: CitySceneState = makeCityState(),
-  timeline: CityTimelineBinding | null = null
+  timeline: TimelineStore = session.timeline
 ): {
   ctx: SceneContext;
   selection: ReturnType<typeof signal<PickTarget | null>>;

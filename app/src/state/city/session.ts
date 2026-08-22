@@ -12,12 +12,15 @@ import { CityCommands } from '@/city/commands';
 import { CityLoader } from '@/state/city/loader';
 import { TimelineMode } from '@/state/city/timelineMode';
 import type { CameraMode } from '@/city/render/cameraRig';
-import type { CityBindings, CityScene } from '@/city/types';
-import type { Manifest } from '@/types';
+import type { CityScene } from '@/city/types';
 
 /** The city open in one place. Loading a new source swaps its contents rather
  *  than making a second one; the scene rendering it stays put. */
 export class CitySession {
+  /** What a scene of this city is for: the opened city is one you fly around,
+   *  the landing's is a turntable. Left out, it is one you fly around. */
+  constructor(readonly cameraMode?: CameraMode) {}
+
   /** Order is the dependency graph: the manifest is what a source describes,
    *  and both are what progress and history are measured against. */
   readonly manifest = new ManifestStore();
@@ -35,23 +38,6 @@ export class CitySession {
   readonly load = new CityLoader(this);
   /** Timeline for this city: entering, scrubbing, and leaving. */
   readonly timelineMode = new TimelineMode(this);
-
-  /** Everything a scene drawing this city is wired to. One place, so the two
-   *  cities on screen differ only in which session they were handed. */
-  bindings(cameraMode?: CameraMode): CityBindings {
-    return {
-      cameraMode,
-      report: this.progress,
-      subjectKey: () => this.source.key.peek(),
-      timeline: {
-        store: this.timeline,
-        // The store's value spans the skeleton the stream emits before it is
-        // fully typed; the scene takes manifests.
-        liveManifest: () => this.manifest.current.peek() as Manifest | null,
-        reassemble: () => this.timelineMode.reassemble(),
-      },
-    };
-  }
 
   dispose(): void {
     this.load.dispose();

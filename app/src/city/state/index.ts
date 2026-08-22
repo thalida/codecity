@@ -238,6 +238,9 @@ export function createCitySceneState(
     leadingStages: readonly BuildStage[] = []
   ): Promise<void> {
     const myGeneration = ++generation;
+    // Applying IS rebuilding: the status opens here so no caller has to say so
+    // before calling, and none can forget to.
+    report.markRebuilding();
 
     // Structure only (no mtime/size), so it holds across skeleton and final.
     // Gates the atlas alone; layout reuse keys on layout_signature instead.

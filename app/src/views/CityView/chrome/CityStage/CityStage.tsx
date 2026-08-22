@@ -14,7 +14,7 @@ export function CityStage() {
     <div id="city-stage">
       {/* Opaque: nothing sits behind this canvas, so a resize gap would flash
           the page through it. */}
-      <City session={session} opaque />
+      <City session={session} />
       <SelectionChip />
       <div id="scene-controls">
         <TimelineScrubber />

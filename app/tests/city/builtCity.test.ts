@@ -86,7 +86,7 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCityScene(makeCanvas(), session.bindings());
+    const handle = await createCityScene(makeCanvas(), session);
     try {
       session.source.current.value = { src: 'test://repo' };
       await handle.applyManifest(makeManifest());
@@ -118,7 +118,7 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCityScene(makeCanvas(), session.bindings());
+    const handle = await createCityScene(makeCanvas(), session);
     try {
       session.scene.value = handle;
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });

@@ -88,7 +88,7 @@ function candidates(featuredRepo: string | undefined, opened: CitySession): Cand
 export function HomeBackdrop({ opened }: { opened: CitySession }) {
   // Per landing visit, like the canvas it feeds: a second one would be a
   // second wallpaper, showing whatever IT picked.
-  const backdrop = useMemo(() => new CitySession(), []);
+  const backdrop = useMemo(() => new CitySession(CameraMode.Backdrop), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -152,7 +152,7 @@ export function HomeBackdrop({ opened }: { opened: CitySession }) {
   // that the landing does not already say in text.
   return (
     <div class={`landing-stage${BACKDROP_CITY.value ? ' is-painted' : ''}`} aria-hidden="true">
-      <City session={backdrop} cameraMode={CameraMode.Backdrop} label="Decorative 3D city." />
+      <City session={backdrop} label="Decorative 3D city." />
     </div>
   );
 }

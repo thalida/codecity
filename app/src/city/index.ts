@@ -34,7 +34,9 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { CityScene, CityBindings, SceneComponent, SceneContext } from './types';
+import type { CityScene, SceneComponent, SceneContext } from './types';
+import type { CitySession } from '@/state/city/session';
+import type { Manifest } from '@/types';
 import { createCameraRig, CameraMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -45,7 +47,7 @@ import { registerRenderer as registerFacadePanelRenderer } from './components/bu
 
 export async function createCityScene(
   canvas: HTMLCanvasElement,
-  { cameraMode = CameraMode.Project, report, subjectKey, timeline }: CityBindings
+  session: CitySession
 ): Promise<CityScene> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -70,7 +72,7 @@ export async function createCityScene(
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const sceneState = createCitySceneState(layoutClient, treePlacementClient, report);
+  const sceneState = createCitySceneState(layoutClient, treePlacementClient, session.progress);
   // Pulled off sceneState for the City handle; components never wire into
   // these — they rebuild reactively off sceneState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = sceneState;
@@ -81,7 +83,7 @@ export async function createCityScene(
     scene,
     canvas,
     sceneState,
-    timeline: timeline ?? null,
+    timeline: session.timeline,
     picker: null,
   } as unknown as SceneContext;
 
@@ -121,7 +123,7 @@ export async function createCityScene(
   const rig = createCameraRig({
     canvas,
     sceneState,
-    mode: cameraMode,
+    mode: session.cameraMode ?? CameraMode.Project,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
       // the first tick, and framing that waits frames a different city (#62).
@@ -140,7 +142,7 @@ export async function createCityScene(
   let framedSubject: string | null = null;
   const stopReframe = effect(() => {
     void sceneState.cityRevision.value;
-    const subject = subjectKey();
+    const subject = session.source.key.peek();
     if (subject === null || subject === framedSubject) return;
     // No city yet: claiming the subject here would make the first real one,
     // which is what there is to frame, skip its reframe.
@@ -165,7 +167,7 @@ export async function createCityScene(
             // max, not assign: a superseded build's frame can land after a
             // newer one's, and the newer one is what is on screen.
             presented.value = Math.max(presented.peek(), revision);
-            report.markIdle();
+            session.progress.markIdle();
           })
         );
       });
@@ -185,7 +187,7 @@ export async function createCityScene(
     canvas,
     camera: rig.camera,
     sceneState,
-    timeline: timeline?.store ?? null,
+    timeline: session.timeline,
     world: {
       getStreetPickables: () => streets.getPickables(),
       getRootGem: () => gem.getRootGroup(),
@@ -207,7 +209,7 @@ export async function createCityScene(
     rig,
     renderer,
     sceneState,
-    timeline: timeline?.store ?? null,
+    timeline: session.timeline,
     showTooltip,
     hideTooltip,
     onResize() {
@@ -258,8 +260,8 @@ export async function createCityScene(
     after() {
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
-      if (!timeline?.store.mode.peek() || timeline.store.dragging.peek()) return;
-      const pos = timeline.store.scrubPos.peek();
+      if (!session.timeline.mode.peek() || session.timeline.dragging.peek()) return;
+      const pos = session.timeline.scrubPos.peek();
       if (pos === _lastPrunedScrubPos) return;
       _lastPrunedScrubPos = pos;
       picker.pruneScrubHiddenSelection();
@@ -271,12 +273,9 @@ export async function createCityScene(
       timelines: Map<string, PathTimeline>,
       commitLineRanges: RangeStat[]
     ): void {
-      // Nothing scrubs this city, so there is no position to gate it on: a
-      // scrubber handed to one is a caller pointing at the wrong instance.
-      if (!timeline) return;
       _scrubController?.dispose();
       _scrubController = createScrubController({
-        timeline: timeline.store,
+        timeline: session.timeline,
         buildings: {
           getBuildingIndex: () => buildings.getBuildingIndex(),
           applyScrub: (states) => buildings.applyScrub(states),
@@ -313,21 +312,21 @@ export async function createCityScene(
 
   // Every Timeline exit. The union city holds buildings that do not exist at
   // HEAD, so only a rebuild from the live manifest is a valid live city.
-  const stopTimelineTeardown = timeline
-    ? effect(() => {
-        if (timeline.store.mode.value || !_scrubController) return;
-        timelineApi.uninstallScrubController();
-        const live = timeline.liveManifest();
-        // Best-effort: a dispose or a newer apply can supersede this mid-flight,
-        // and neither is a failure worth surfacing from a teardown.
-        if (live) void applyManifest(live).catch(() => {});
-      })
-    : () => {};
+  const stopTimelineTeardown = effect(() => {
+    if (session.timeline.mode.value || !_scrubController) return;
+    timelineApi.uninstallScrubController();
+    // The store's value spans the skeleton the stream emits before it is fully
+    // typed; the scene takes manifests.
+    const live = session.manifest.current.peek() as Manifest | null;
+    // Best-effort: a dispose or a newer apply can supersede this mid-flight,
+    // and neither is a failure worth surfacing from a teardown.
+    if (live) void applyManifest(live).catch(() => {});
+  });
 
   /** Re-pack what is already on screen: the settings path. A union city under
    *  a scrubber was not built from one manifest, so it reassembles instead. */
   async function repack(): Promise<void> {
-    if (timeline?.store.mode.peek()) return timeline.reassemble();
+    if (session.timeline.mode.peek()) return session.timelineMode.reassemble();
     const showing = sceneState.manifest.peek();
     if (showing) await applyManifest(showing);
   }

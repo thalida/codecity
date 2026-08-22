@@ -73,8 +73,7 @@ export interface Buildings extends SceneComponent {
 }
 
 export function createBuildings(ctx: SceneContext): Buildings {
-  // This city's history, or null when nothing scrubs it.
-  const timeline = ctx.timeline?.store ?? null;
+  const timeline = ctx.timeline;
   // Persistent outer group — added to the scene once by createCityScene. rebuild()
   // swaps the inner cell root in and out of this group.
   const group = new THREE.Group();

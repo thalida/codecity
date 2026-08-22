@@ -54,7 +54,7 @@ describe('scene keydown handler — modal suppression', () => {
   });
 
   async function mountCity() {
-    const handle = await createCityScene(makeCanvas(), session.bindings());
+    const handle = await createCityScene(makeCanvas(), session);
     cities.push(handle);
     return handle;
   }

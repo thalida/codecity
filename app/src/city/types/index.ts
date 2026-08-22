@@ -3,14 +3,13 @@
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
-import type { CameraMode, CameraRig } from '../render/cameraRig';
+import type { CameraRig } from '../render/cameraRig';
 import type { CitySceneState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { ReadonlySignal } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import type { BuildStage } from '@/constants/progress';
-import type { BuildReporter } from '@/state/stores/progress';
 import type { TimelineStore } from '@/state/stores/timeline';
 
 /** What a component needs to wire itself in. picker is null until after the
@@ -20,9 +19,9 @@ export interface SceneContext {
   canvas: HTMLCanvasElement;
   picker: Picker;
   sceneState: CitySceneState;
-  /** This city's timeline, for the components drawing what a scrub implies.
-   *  Null when nothing scrubs this one. */
-  timeline: CityTimelineBinding | null;
+  /** This city's history state, for the components drawing what a scrub
+   *  implies. Its own, so a second city scrubs its own. */
+  timeline: TimelineStore;
 }
 
 /** Per-frame state passed to each component's tick() method. */
@@ -65,34 +64,6 @@ export interface CityTimeline {
   setStreetsTransparent(on: boolean): void;
   /** Move the footprint material into (true) or out of (false) the transparent pass. */
   setFootprintsTransparent(on: boolean): void;
-}
-
-/** The top-level city object returned by the city composer (createCityScene). */
-/** Scrubbing, for a city something scrubs through time. Left out, this city
- *  has no timeline: nothing gates its contents and nothing prunes its picks. */
-export interface CityTimelineBinding {
-  /** The project's history state. Its own, so a second city scrubs its own. */
-  store: TimelineStore;
-  /** What to rebuild from on exit: a union city holds buildings that do not
-   *  exist at HEAD. A call, not a signal, so no store's type leaks in here. */
-  liveManifest(): Manifest | null;
-  /** Rebuild the union city from its bundle and put the scrubber back. What
-   *  repack means while something scrubs: there is no one manifest to apply. */
-  reassemble(): Promise<void>;
-}
-
-/** What a scene is wired to, all of it from the session <City> renders. Two
- *  scenes are two sessions, which is what makes them independent. */
-export interface CityBindings {
-  /** Camera behaviour: what this rendering is for. */
-  cameraMode?: CameraMode;
-  /** Where this scene announces its build. The session's progress store IS
-   *  this, so a city nobody watches reports into stores nobody reads. */
-  report: BuildReporter;
-  /** What it is a picture OF, as one comparable string. The camera refits when
-   *  it changes, so skeleton→heights→history frames once, not three times. */
-  subjectKey(): string | null;
-  timeline: CityTimelineBinding;
 }
 
 /** The machinery drawing one city: its canvas, renderer, camera and picker,

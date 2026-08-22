@@ -50,7 +50,7 @@ describe('createCityScene', () => {
   }
 
   it('builds with no manifest and returns the expected handle shape', async () => {
-    const handle = await createCityScene(makeCanvas(), session.bindings());
+    const handle = await createCityScene(makeCanvas(), session);
 
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
@@ -58,7 +58,7 @@ describe('createCityScene', () => {
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
-    const handle = await createCityScene(makeCanvas(), session.bindings());
+    const handle = await createCityScene(makeCanvas(), session);
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe('createCityScene', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.
     it('reacts to TIMELINE_MODE going true→false by uninstalling the controller', async () => {
-      const handle = await createCityScene(makeCanvas(), session.bindings());
+      const handle = await createCityScene(makeCanvas(), session);
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
@@ -84,7 +84,7 @@ describe('createCityScene', () => {
     });
 
     it('no-ops when no controller was ever installed', async () => {
-      const handle = await createCityScene(makeCanvas(), session.bindings());
+      const handle = await createCityScene(makeCanvas(), session);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
       session.timeline.mode.value = true;
