@@ -13,7 +13,7 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
-import type { Building, CityLayout, DateRanges, FileTarget } from '@/types';
+import type { Building, CityLayout, FileTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
@@ -48,13 +48,6 @@ function makePrePickerCtx(): SceneContext {
 
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
-
-const EMPTY_DATE_RANGES = {
-  minCreated: null,
-  maxCreated: null,
-  minModified: null,
-  maxModified: null,
-} as unknown as DateRanges;
 
 // A buildings-only layout. bbox keeps cellSize at the MIN granularity. Two
 // buildings at distinct positions so getByPath/tallest are unambiguous.
@@ -125,7 +118,7 @@ describe('createBuildings()', () => {
 
     const b0 = building({ x: 10, y: 10, h: 4, file: fileOf('src/a.ts') as never });
     const b1 = building({ x: -20, y: -20, h: 9, file: fileOf('src/b.ts') as never });
-    await buildings.rebuild(buildingLayout([b0, b1]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([b0, b1]));
 
     // Inner cell root is a child of the persistent group.
     expect(buildings.group.children.length).toBe(1);
@@ -162,7 +155,7 @@ describe('createBuildings()', () => {
     session.timeline.mode.value = true;
 
     const oldA = building({ x: 10, y: 10, h: 4, file: fileOf('old/a.ts') as never });
-    await buildings.rebuild(buildingLayout([oldA]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([oldA]));
 
     const controller = { update: vi.fn() };
     buildings.setScrubController(controller);
@@ -172,7 +165,7 @@ describe('createBuildings()', () => {
 
     // A different repo lands while Timeline is still flagged on.
     const newA = building({ x: 10, y: 10, h: 4, file: fileOf('new/a.ts') as never });
-    await buildings.rebuild(buildingLayout([newA]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([newA]));
     buildings.tick(0, { camera: CAMERA } as never);
 
     expect(
@@ -185,7 +178,7 @@ describe('createBuildings()', () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     const b0 = building({ x: 1, y: 1, color: '__unset__', file: fileOf('src/a.ts') as never });
-    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([b0]));
     // The color loop overwrote the placeholder with a real CSS color from
     // getBuildingColor (hsl(...) form).
     expect(b0.color).not.toBe('__unset__');
@@ -197,8 +190,7 @@ describe('createBuildings()', () => {
     buildings = createBuildings(ctx);
 
     await buildings.rebuild(
-      buildingLayout([building({ x: 5, y: 5, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 5, y: 5, file: fileOf('src/a.ts') as never })])
     );
     const firstCellRoot = buildings.group.children[0];
     const firstMesh = [...buildings.getCells().values()][0].detailMesh;
@@ -207,8 +199,7 @@ describe('createBuildings()', () => {
     expect(firstMesh.userData.sharedMaterial).toBe(true);
 
     await buildings.rebuild(
-      buildingLayout([building({ x: 5, y: 5, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 5, y: 5, file: fileOf('src/a.ts') as never })])
     );
 
     // Old cell root detached; new one swapped in (no accumulation).
@@ -232,8 +223,7 @@ describe('createBuildings()', () => {
     buildings = createBuildings(ctx);
     // Force the shared material to exist (created lazily during rebuild).
     await buildings.rebuild(
-      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
     const uniforms = getBuildingMaterial().uniforms;
 
@@ -248,8 +238,7 @@ describe('createBuildings()', () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     await buildings.rebuild(
-      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
     const uniforms = getBuildingMaterial().uniforms;
 
@@ -264,8 +253,7 @@ describe('createBuildings()', () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     await buildings.rebuild(
-      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
     const uniforms = getBuildingMaterial().uniforms;
 
@@ -290,7 +278,7 @@ describe('createBuildings()', () => {
     const { ctx, hover } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
-    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([b0]));
 
     // No tick yet → overlays not constructed → no ghost mesh exists.
     expect(findGhost(ctx.scene)).toBeNull();
@@ -308,7 +296,7 @@ describe('createBuildings()', () => {
     const { ctx, hover } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
-    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([b0]));
 
     // First tick arms the overlays — the ghost mesh now exists (hidden).
     buildings.tick(0.016, { dt: 0.016, time: 0, camera: CAMERA });
@@ -341,7 +329,7 @@ describe('createBuildings()', () => {
     const now = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
     try {
-      await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+      await buildings.rebuild(buildingLayout([b0]));
 
       // The boot rebuild lands the building at its final transform, so a tick
       // where an entering tween would write scaleY≈0 leaves it full height.
@@ -364,7 +352,7 @@ describe('createBuildings()', () => {
     buildings = createBuildings(ctx);
     // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
-    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+    await buildings.rebuild(buildingLayout([b0]));
 
     const transitionMs = BUILDINGS.value.BUILDING_TRANSITION_MS;
     let now = 0;
@@ -373,7 +361,7 @@ describe('createBuildings()', () => {
       // Second rebuild adds a NEW building path → it enters (grows in).
       const b1 = building({ x: -20, y: -20, h: 12, file: fileOf('src/b.ts') as never });
       const a = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
-      await buildings.rebuild(buildingLayout([a, b1]), EMPTY_DATE_RANGES);
+      await buildings.rebuild(buildingLayout([a, b1]));
 
       const resolved = buildings.getMeshForBuilding(b1)!;
       const mesh = resolved.mesh;
@@ -406,8 +394,7 @@ describe('createBuildings()', () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
     await buildings.rebuild(
-      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
-      EMPTY_DATE_RANGES
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
     buildings.tick(0, { dt: 0, time: 0, camera: CAMERA });
     expect(findGhost(ctx.scene)).not.toBeNull();

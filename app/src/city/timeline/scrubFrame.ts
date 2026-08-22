@@ -4,11 +4,9 @@
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
-import type { FileNode, RangeStat, Street, TimelineBundle } from '@/types';
+import type { FileNode, RangeStat, Street } from '@/types';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/interaction/picker';
-
-export type CommitDateRange = NonNullable<TimelineBundle['commitDateRanges']>[number];
 
 /** Already in THREE's working space: components rather than a CSS string keep
  *  the scrub decision free of THREE. */
@@ -30,8 +28,6 @@ export interface ScrubFrame {
   /** What "now" means at this position: the commit under the scrubber, or the
    *  end of the track once past the last one. */
   nowMs: number;
-  minCreated: number;
-  createdSpread: number;
   bldgTargetFile: FileNode | null;
   dirTarget: ReturnType<typeof resolveDirTarget>;
   hoverFile: FileNode | null;
@@ -42,8 +38,6 @@ export interface ScrubFrameDeps {
   /** Where this city's scrubber is, read by its caller once per frame. */
   scrubPos: number;
   commitLineRanges: readonly RangeStat[];
-  /** Replayed over the present set, so at HEAD weathering matches Live. */
-  commitDateRanges: readonly CommitDateRange[];
   /** Commit dates as ms, for resolving what "now" is mid-scrub. */
   commitMs: readonly number[];
   /** What the far end of the track means. The bar's last stop is the same
@@ -72,10 +66,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
   const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
   const ruins = RUINS.peek();
 
-  const dateRange =
-    deps.commitDateRanges[Math.min(Math.floor(pos), deps.commitDateRanges.length - 1)];
-  const minCreated = dateRange?.minCreated ?? 0;
-
   // The fader is dormant in Timeline, so resolve its targets here instead.
   const sel = deps.picker.selection.peek();
   const hov = deps.picker.hover.peek();
@@ -90,8 +80,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     ruinHeight: ruins.STUB_HEIGHT * floorHeight,
     ruinGrayMix: ruins.DESATURATION,
     nowMs: scrubNow(pos, deps),
-    minCreated,
-    createdSpread: (dateRange?.maxCreated ?? 0) - minCreated,
     bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
     dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
     hoverFile: hov?.kind === NodeKind.File ? hov.file : null,

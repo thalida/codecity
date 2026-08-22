@@ -129,17 +129,30 @@ export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELD
 // Everything painted on top of the dimensions. The fade tiers route Live, since
 // the fader subscribes here itself, so a tweak can't force a rebuild.
 const BUILDINGS_FIELDS = {
-  // ── Palette (HSL) — rebuild ──
-  HALF_LIFE_DAYS: {
+  // ── Age: the two clocks every weathering factor reads ──
+  // Standing runs the first, neglect the second; neither is one effect's.
+  CREATED_HALF_LIFE_DAYS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.SliderField,
+    default: 365,
+    min: 1,
+    max: 3650,
+    step: 5,
+    label: 'Created half-life (days)',
+    tip: 'Days since a file was created before its building is halfway aged. Counts from when it was laid down, so a file weathers while it stays in use.',
+  },
+  MODIFIED_HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.SliderField,
     default: 90,
     min: 1,
     max: 730,
     step: 1,
-    label: 'Color half-life (days)',
-    tip: 'Days untouched before a file is halfway to its stalest color.',
+    label: 'Modified half-life (days)',
+    tip: 'Days since a file was last edited before its building is halfway stale. Counts from the last change, so a file kept in use stays fresh however old it is.',
   },
+
+  // ── Palette (HSL) — rebuild ──
   SATURATION_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.SliderField,
@@ -482,7 +495,7 @@ const BUILDINGS_FIELDS = {
     tip: 'Brightness multiplier on the data facades. Requires Bloom enabled in Effects to glow. 0 is black, 1 is normal, higher is neon.',
   },
 
-  // ── Aging (createdAge-driven weathering) — refresh ──
+  // ── Aging (createdAge-driven weathering) ──
   GRIME_ENABLED: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.ToggleField,

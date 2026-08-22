@@ -37,7 +37,7 @@ beforeEach(() => {
     SATURATION_MAX: TEST_SAT_RANGE.max,
     LIGHTNESS_MIN: TEST_LIGHT_RANGE.min,
     LIGHTNESS_MAX: TEST_LIGHT_RANGE.max,
-    HALF_LIFE_DAYS: 30,
+    MODIFIED_HALF_LIFE_DAYS: 30,
   };
 });
 afterEach(() => {
@@ -116,9 +116,9 @@ describe('modifiedRecency', () => {
   });
 
   it('stretches with the half-life instead of clipping at a horizon', () => {
-    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 365 };
+    BUILDINGS.value = { ...BUILDINGS.value, MODIFIED_HALF_LIFE_DAYS: 365 };
     const long = modifiedRecency(at(OLDEST), NOW);
-    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 30 };
+    BUILDINGS.value = { ...BUILDINGS.value, MODIFIED_HALF_LIFE_DAYS: 30 };
     expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW));
   });
 

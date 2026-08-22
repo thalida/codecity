@@ -10,7 +10,7 @@ import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/settings/fields/building
 import { BLOOM } from '@/state/settings/fields/effects';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
-import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
+import type { Building, CityLayout, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -45,7 +45,7 @@ export interface Buildings extends SceneComponent {
   tick(dt: number, ctx: FrameContext): void;
   /** Colour, assemble, swap in, relookup. Diffs against the prior cells to fire
    *  the tweens; the boot rebuild snaps in rather than animating. */
-  rebuild(layout: CityLayout, dateRanges: DateRanges, scannedAt?: string | null): Promise<void>;
+  rebuild(layout: CityLayout, scannedAt?: string | null): Promise<void>;
   /** Resolves when the meshes for the layout in effect exist. A later rebuild
    *  supersedes rather than extends it: the caller re-asks on the next city. */
   whenSettled(): Promise<void>;
@@ -140,7 +140,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       untracked(() => {
         // Held, not just fired: nothing downstream can know the meshes exist
         // without it (see whenSettled).
-        _rebuilding = rebuild(layout, manifest.dateRanges, manifest.scanned_at);
+        _rebuilding = rebuild(layout, manifest.scanned_at);
         void _rebuilding;
       });
   });
@@ -335,11 +335,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _outline?.onResize();
   }
 
-  async function rebuild(
-    layout: CityLayout,
-    dateRanges: DateRanges,
-    scannedAt?: string | null
-  ): Promise<void> {
+  async function rebuild(layout: CityLayout, scannedAt?: string | null): Promise<void> {
     const buildings = layout?.buildings ?? [];
     // Colour and weathering measure against the scan, not a live clock, so a
     // rebuild is deterministic and the goldens hold.
@@ -353,12 +349,9 @@ export function createBuildings(ctx: SceneContext): Buildings {
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
         nowMs
       );
-      // Independent of colour: creation age, so grime can mark an old file
-      // that was edited yesterday.
-      b.createdAge = getCreatedAge(
-        b.file as unknown as Parameters<typeof getCreatedAge>[0],
-        dateRanges
-      );
+      // The other clock: how long it has STOOD, so a building weathers even
+      // while it is being edited.
+      b.createdAge = getCreatedAge(b.file as unknown as Parameters<typeof getCreatedAge>[0], nowMs);
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
         nowMs

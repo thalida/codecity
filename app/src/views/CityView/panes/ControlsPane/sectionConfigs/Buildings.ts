@@ -41,10 +41,19 @@ export const BUILDINGS_SECTION: SectionNode = {
       ],
     },
     {
+      key: 'buildings-age',
+      label: 'Age',
+      description:
+        'How fast a building ages on each of its two dates. Every weathering factor below reads one of these.',
+      children: [
+        field(BUILDINGS, 'CREATED_HALF_LIFE_DAYS'),
+        field(BUILDINGS, 'MODIFIED_HALF_LIFE_DAYS'),
+      ],
+    },
+    {
       key: 'buildings-color',
       label: 'Color by Age',
       children: [
-        field(BUILDINGS, 'HALF_LIFE_DAYS'),
         field(BUILDINGS, 'SATURATION_MIN'),
         field(BUILDINGS, 'SATURATION_MAX'),
         field(BUILDINGS, 'LIGHTNESS_MIN'),

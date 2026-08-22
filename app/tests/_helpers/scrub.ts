@@ -24,8 +24,6 @@ export function makeScrubFrame(over: Partial<ScrubFrame> = {}): ScrubFrame {
     ruinHeight: 1.4,
     ruinGrayMix: 0.8,
     nowMs: 0,
-    minCreated: 0,
-    createdSpread: 0,
     bldgTargetFile: null,
     dirTarget: null,
     hoverFile: null,

@@ -134,11 +134,11 @@ export function resolveBuildingScrubState(
       ? f.ruinBuildingOpacity
       : 0;
 
-  const createdMs = createdMsFor(input, commitMs);
-  out.createdAge =
-    present && f.createdSpread > 0
-      ? 1 - Math.max(0, Math.min(1, (createdMs - f.minCreated) / f.createdSpread))
-      : 0;
+  // The standing clock, against the scrubbed moment: a building goes on
+  // weathering as you scrub forward, however long ago it was last edited.
+  out.createdAge = present
+    ? 1 - recencyT(createdMsFor(input, commitMs), f.nowMs, f.fadeCfg.CREATED_HALF_LIFE_DAYS)
+    : 0;
 
   // The union node's size is max-over-history, so only the replay knows what
   // this file measured HERE. Presence gates height, not lines: media is 0.
@@ -166,7 +166,7 @@ export function resolveBuildingScrubState(
     const recency = recencyT(
       modifiedMsAt(input, f.pos, commitMs),
       f.nowMs,
-      f.fadeCfg.HALF_LIFE_DAYS
+      f.fadeCfg.MODIFIED_HALF_LIFE_DAYS
     );
     out.modifiedAge = 1 - recency;
     out.colorBase = getBuildingColorForRecency(b.file, recency);

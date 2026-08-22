@@ -196,7 +196,7 @@ describe('weathering', () => {
     nowMs: T0 + 4 * DAY,
     minCreated: T0,
     createdSpread: 4 * DAY,
-    fadeCfg: { ...makeScrubFrame().fadeCfg, HALF_LIFE_DAYS: 2 },
+    fadeCfg: { ...makeScrubFrame().fadeCfg, MODIFIED_HALF_LIFE_DAYS: 2 },
   };
 
   it('runs the base colour through the same curve the live view uses', () => {
@@ -233,6 +233,26 @@ describe('weathering', () => {
     // 2.5-day-old date wins (age 1.5d); before it, commit 1's (age 3d).
     expect(resolve(2, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 1 / 1.75, 5);
     expect(resolve(1, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 1 / 2.5, 5);
+  });
+
+  // The reported bug: streaks stood still, because grime ranked a file inside
+  // the repo's created span rather than aging it against the moment shown.
+  it('weathers the same building further the later you scrub, with no new files', () => {
+    const built = scrubSubject(
+      SUBJECT_BUNDLE,
+      makeFile({ path: 'f.txt', created: new Date(T0).toISOString() })
+    );
+    const at = (pos: number, nowMs: number) =>
+      resolveBuildingScrubState(
+        built.input,
+        makeScrubFrame({ pos, nowMs }),
+        commitMs,
+        blankBuildingScrubState()
+      ).createdAge;
+
+    const early = at(2, T0 + 30 * DAY);
+    const later = at(2, T0 + 400 * DAY);
+    expect(later).toBeGreaterThan(early);
   });
 
   it('ages a building from its own created date, oldest first', () => {

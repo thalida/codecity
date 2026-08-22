@@ -50,7 +50,6 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // varies per frame.
   const bundle = deps.timeline.bundle.peek();
   const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
-  const commitDateRanges = bundle?.commitDateRanges ?? [];
   const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
   // The same last stop the bar ends on, so the two agree about the far end.
   const trackEndMs = deps.timeline.todayMs.peek() ?? scannedAtMs;
@@ -66,7 +65,6 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const frame = readScrubFrame({
       scrubPos: deps.timeline.scrubPos.peek(),
       commitLineRanges: deps.commitLineRanges,
-      commitDateRanges,
       commitMs,
       trackEndMs,
       byteStats: deps.heightCtx.byteStats,

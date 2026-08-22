@@ -40,10 +40,6 @@ const RANGES: RangeStat[] = [
   { min: 1, max: 20 },
   { min: 1, max: 30 },
 ];
-const DATE_RANGES = [
-  { minCreated: 0, maxCreated: 10, minModified: 0, maxModified: 10 },
-  { minCreated: 5, maxCreated: 25, minModified: 5, maxModified: 45 },
-];
 
 const dirStreet = { dir: { path: 'src' } } as unknown as Street;
 const someFile = { path: 'src/a.txt' } as unknown as FileNode;
@@ -53,7 +49,6 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
   return {
     scrubPos: session.timeline.scrubPos.peek(),
     commitLineRanges: RANGES,
-    commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
     trackEndMs: SCANNED_AT,
     byteStats: { min: 1, max: 5000 },
@@ -94,24 +89,6 @@ describe('the ruin settings', () => {
     expect(frame.ruinsOn).toBe(true);
     expect(frame.ruinHeight).toBeCloseTo(0.5 * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT, 5);
     expect(frame.ruinBuildingOpacity).toBe(0.3);
-  });
-});
-
-describe('the created span, which still ranks (it drives grime, not colour)', () => {
-  it('reads the replayed created range for the commit it is standing on', () => {
-    const frame = at(1);
-    expect(frame.minCreated).toBe(5);
-    expect(frame.createdSpread).toBe(20);
-  });
-
-  it('clamps past the end, so scrubbing to HEAD keeps the last real span', () => {
-    expect(at(99).minCreated).toBe(5);
-  });
-
-  it('falls back to a zero span when the backend sent no ranges', () => {
-    const frame = at(0, { commitDateRanges: [] });
-    expect(frame.minCreated).toBe(0);
-    expect(frame.createdSpread).toBe(0);
   });
 });
 

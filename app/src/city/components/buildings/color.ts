@@ -6,7 +6,7 @@
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { recencyT } from '@/city/utils/recency';
 import { NodeKind } from '@/types';
-import type { DateRanges } from '@/types';
+import type {} from '@/types';
 import { parseDateMs } from '@/utils/dates';
 
 // created/modified stay optional so a sparse mock still reaches the no-date
@@ -56,17 +56,16 @@ function lerpRange(t: number, config: MinMaxRange): number {
 
 // ── Building color ────────────────────────────────────────────────────────────
 
-/** Weathering from the creation date, 1 for the repo's oldest file. Colour
- *  samples the modified date, so the two say different things. */
-export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
-  const created = file.created || null;
-  if (!created) return 0.5; // unknown → midpoint (half-weathered)
-  const c = parseDateMs(created);
-  const min = parseDateMs(dateRanges.minCreated || '');
-  const max = parseDateMs(dateRanges.maxCreated || '');
-  if (isNaN(c) || isNaN(min) || isNaN(max) || max === min) return 0;
-  const t = (c - min) / (max - min);
-  return Math.max(0, Math.min(1, 1 - t));
+/** Weathering from how long ago the file was CREATED, 1 for the longest
+ *  standing: laid down years ago and edited yesterday reads grimy and vivid. */
+export function getCreatedAge(file: FileLike, nowMs: number): number {
+  return 1 - createdRecency(file, nowMs);
+}
+
+/** How lately a file came into existence, on colour's curve but its own clock:
+ *  standing a year and going untouched a year are not the same span. */
+export function createdRecency(file: FileLike, nowMs: number): number {
+  return recencyT(parseDateMs(file.created || ''), nowMs, BUILDINGS.value.CREATED_HALF_LIFE_DAYS);
 }
 
 /** The colour axis inverted for the shader's iModifiedAge: 1 = longest
@@ -83,7 +82,7 @@ export function getBuildingColor(file: FileLike, nowMs: number): string {
 /** How recently a file was touched, from its own age alone: a long-lived file
  *  edited yesterday reads vivid and grimy at once. */
 export function modifiedRecency(file: FileLike, nowMs: number): number {
-  return recencyT(parseDateMs(file.modified || ''), nowMs, BUILDINGS.value.HALF_LIFE_DAYS);
+  return recencyT(parseDateMs(file.modified || ''), nowMs, BUILDINGS.value.MODIFIED_HALF_LIFE_DAYS);
 }
 
 /** getBuildingColor's curve driven by an explicit recency (1 freshest), so the
