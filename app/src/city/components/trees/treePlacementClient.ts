@@ -3,9 +3,10 @@
 // arrives, and falls back to a synchronous call where Worker is unavailable.
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
-import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
-import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/settings/fields/island';
+import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { FootprintConfig } from '@/state/settings/fields/footprint';
+import type { IslandConfig, WorldConfig } from '@/state/settings/fields/island';
+import type { CityConfig } from '@/city/config';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -47,16 +48,15 @@ function _slimLayout(layout: CityLayout): LayoutGeometry {
   };
 }
 
-function _snapshot(): ConfigSnapshot {
-  return {
-    trees: TREES.value,
-    footprint: FOOTPRINT.value,
-    islandGeo: ISLAND.value,
-    world: WORLD.value,
-  };
-}
+export function createTreePlacementClient(config: CityConfig): TreePlacementClient {
+  // Read per request, not once: a Save changes what the next forest grows from.
+  const snapshot = (): ConfigSnapshot => ({
+    trees: config.TREES.value,
+    footprint: config.FOOTPRINT.value,
+    islandGeo: config.ISLAND.value,
+    world: config.WORLD.value,
+  });
 
-export function createTreePlacementClient(): TreePlacementClient {
   const pending = new Map<number, PendingRequest>();
   let nextId = 1;
   let disposed = false;
@@ -114,7 +114,12 @@ export function createTreePlacementClient(): TreePlacementClient {
     reject: PendingRequest['reject']
   ): void {
     try {
-      const placements = placeTrees(layout, bbox, { commitCount, cityHeight });
+      const snap = snapshot();
+      const placements = placeTrees(layout, bbox, {
+        commitCount,
+        cityHeight,
+        config: { trees: snap.trees, footprint: snap.footprint, island: snap.islandGeo },
+      });
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -154,7 +159,7 @@ export function createTreePlacementClient(): TreePlacementClient {
         bbox,
         commitCount,
         cityHeight,
-        configSnapshot: _snapshot(),
+        configSnapshot: snapshot(),
       });
     });
   }

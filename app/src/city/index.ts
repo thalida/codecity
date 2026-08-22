@@ -71,7 +71,7 @@ export async function createCityScene(
   const layoutClient = createLayoutClient();
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
-  const treePlacementClient = createTreePlacementClient();
+  const treePlacementClient = createTreePlacementClient(session.config);
   const sceneState = createCitySceneState(layoutClient, treePlacementClient, session.progress);
   // Pulled off sceneState for the City handle; components never wire into
   // these — they rebuild reactively off sceneState's signals.

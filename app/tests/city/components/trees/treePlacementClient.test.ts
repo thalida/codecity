@@ -5,6 +5,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/city/components/trees/treePlacementClient';
 import type { CityLayout } from '@/types';
 import { bbox, emptyLayout } from '../../../_helpers/cityFixtures';
+import { makeSession } from '../../../_helpers/city';
+
+// One city for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;
@@ -20,14 +24,14 @@ describe('treePlacementClient (sync fallback path)', () => {
   });
 
   it('falls back to the sync path when Worker is unavailable', async () => {
-    const client = createTreePlacementClient();
+    const client = createTreePlacementClient(session.config);
     const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     expect(result).toEqual([]);
     client.dispose();
   });
 
   it('rejects the prior request with "superseded" when a new compute() arrives', async () => {
-    const client = createTreePlacementClient();
+    const client = createTreePlacementClient(session.config);
     const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0, 0);
     await expect(a).rejects.toThrow(/superseded/);
@@ -36,14 +40,14 @@ describe('treePlacementClient (sync fallback path)', () => {
   });
 
   it('rejects all pending requests after dispose()', async () => {
-    const client = createTreePlacementClient();
+    const client = createTreePlacementClient(session.config);
     const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     client.dispose();
     await expect(p).rejects.toThrow(/disposed/);
   });
 
   it('forwards commitCount to placeTrees', async () => {
-    const client = createTreePlacementClient();
+    const client = createTreePlacementClient(session.config);
     // Bbox sized generously so the polygon-in rejection doesn't crowd out the
     // 25 candidates we expect. Nothing pads a tiny bbox on our behalf.
     const layout: CityLayout = {

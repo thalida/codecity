@@ -4,7 +4,8 @@
 // tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/fields/trees';
+import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { ReadonlySignal } from '@preact/signals';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
@@ -161,9 +162,10 @@ export function createTreeRenderer(
   commits: CommitEntry[] | null,
   busyness: BusynessThresholds,
   stats: RepoStats | null | undefined,
-  scannedAt?: string | null
+  scannedAt: string | null | undefined,
+  trees: ReadonlySignal<TreesConfig>
 ): Trees {
-  let cfg = TREES.value;
+  let cfg = trees.value;
 
   // Heights/widths come from treeEncoding — shared with the firefly field.
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
@@ -419,7 +421,7 @@ export function createTreeRenderer(
   for (const m of mergedMeshes) group.add(m);
 
   function refresh(): void {
-    cfg = TREES.value;
+    cfg = trees.value;
     group.visible = cfg.ENABLED;
     for (const m of mergedMeshes) m.visible = cfg.ENABLED;
 

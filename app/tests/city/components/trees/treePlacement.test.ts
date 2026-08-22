@@ -1,6 +1,7 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { placementConfig } from '../../../_helpers/cityFixtures';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/settings/fields/trees';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
@@ -24,7 +25,10 @@ describe('placeTrees (commit-driven)', () => {
   it('returns empty when ENABLED is false', () => {
     TREES.value = { ...TREES.value, ENABLED: false };
     expect(
-      placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })
+      placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, {
+        commitCount: 10,
+        config: placementConfig(),
+      })
     ).toEqual([]);
   });
 
@@ -35,17 +39,24 @@ describe('placeTrees (commit-driven)', () => {
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
     };
-    expect(placeTrees(layout, undefined, { commitCount: 10 })).toEqual([]);
+    expect(placeTrees(layout, undefined, { commitCount: 10, config: placementConfig() })).toEqual(
+      []
+    );
   });
 
   it('returns empty when commitCount is 0', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    expect(placeTrees(layout, layout.bbox, { commitCount: 0 })).toEqual([]);
+    expect(placeTrees(layout, layout.bbox, { commitCount: 0, config: placementConfig() })).toEqual(
+      []
+    );
   });
 
   it('emits exactly commitCount tree placements', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 50 });
+    const placements = placeTrees(layout, layout.bbox, {
+      commitCount: 50,
+      config: placementConfig(),
+    });
     expect(placements.length).toBe(50);
   });
 
@@ -58,7 +69,7 @@ describe('placeTrees (commit-driven)', () => {
       buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
     };
     for (const commitCount of [1, 2, 3]) {
-      const placements = placeTrees(layout, bb, { commitCount });
+      const placements = placeTrees(layout, bb, { commitCount, config: placementConfig() });
       expect(placements.length).toBe(commitCount);
       // Each commit index appears exactly once.
       expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(commitCount);
@@ -75,14 +86,17 @@ describe('placeTrees (commit-driven)', () => {
       ...emptyLayout(bb),
       buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
     };
-    const placements = placeTrees(layout, bb, { commitCount: 200 });
+    const placements = placeTrees(layout, bb, { commitCount: 200, config: placementConfig() });
     expect(placements.length).toBe(200);
     expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(200);
   });
 
   it('tree placements are sorted by distance from gem (closest first)', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });
+    const placements = placeTrees(layout, layout.bbox, {
+      commitCount: 100,
+      config: placementConfig(),
+    });
     const gem = { x: 0, y: 0 };
     const d2 = (p: TreePlacement) => (p.x - gem.x) ** 2 + (p.y - gem.y) ** 2;
     for (let i = 1; i < placements.length; i++) {
@@ -92,15 +106,24 @@ describe('placeTrees (commit-driven)', () => {
 
   it('assigns commitIndex 0..N-1 in distance order', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 20 });
+    const placements = placeTrees(layout, layout.bbox, {
+      commitCount: 20,
+      config: placementConfig(),
+    });
     placements.forEach((t, i) => {
       expect(t.commitIndex).toBe(i);
     });
   });
 
   it('is deterministic — same layout → identical placements', () => {
-    const a = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 30 });
-    const b = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 30 });
+    const a = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, {
+      commitCount: 30,
+      config: placementConfig(),
+    });
+    const b = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, {
+      commitCount: 30,
+      config: placementConfig(),
+    });
     expect(a.length).toBe(b.length);
     for (let i = 0; i < a.length; i++) {
       expect(a[i].x).toBe(b[i].x);
@@ -116,7 +139,7 @@ describe('placeTrees (commit-driven)', () => {
       ...emptyLayout(bb),
       buildings: [building({ x: 0, y: 0, w: 400, d: 400, h: 10 })],
     };
-    const placements = placeTrees(layout, bb, { commitCount: 50 });
+    const placements = placeTrees(layout, bb, { commitCount: 50, config: placementConfig() });
     for (const p of placements) {
       const inside = p.x > -200 && p.x < 200 && p.y > -200 && p.y < 200;
       expect(inside).toBe(false);
@@ -142,7 +165,7 @@ describe('placeTrees (commit-driven)', () => {
       ],
     };
 
-    const placements = placeTrees(layout, bb, { commitCount: 30 });
+    const placements = placeTrees(layout, bb, { commitCount: 30, config: placementConfig() });
 
     for (const p of placements) {
       const dInf = Math.max(Math.abs(p.x), Math.abs(p.y));
@@ -176,10 +199,14 @@ describe('placeTrees (commit-driven)', () => {
       TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 10 };
 
       TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
-      const unclamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+      const unclamped = narrowestGap(
+        placeTrees(layout, bb, { commitCount: 400, config: placementConfig() })
+      );
 
       TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 300] };
-      const clamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+      const clamped = narrowestGap(
+        placeTrees(layout, bb, { commitCount: 400, config: placementConfig() })
+      );
 
       expect(clamped).toBeGreaterThanOrEqual(300);
       expect(clamped).toBeLessThan(unclamped);
@@ -191,10 +218,14 @@ describe('placeTrees (commit-driven)', () => {
       TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 1 };
 
       TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
-      const unfloored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+      const unfloored = narrowestGap(
+        placeTrees(layout, bb, { commitCount: 200, config: placementConfig() })
+      );
 
       TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [80, 2000] };
-      const floored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+      const floored = narrowestGap(
+        placeTrees(layout, bb, { commitCount: 200, config: placementConfig() })
+      );
 
       expect(floored).toBeGreaterThanOrEqual(80);
       expect(floored).toBeGreaterThan(unfloored);
@@ -214,7 +245,7 @@ describe('placeTrees (commit-driven)', () => {
         EDGE_INSET_PERCENT: percent,
         EDGE_INSET_LIMITS: limits,
       };
-      return placeTrees(emptyLayout(bb), bb, { commitCount: 600 });
+      return placeTrees(emptyLayout(bb), bb, { commitCount: 600, config: placementConfig() });
     };
 
     it('caps the inset, so a big island keeps its trees out at the rim', () => {

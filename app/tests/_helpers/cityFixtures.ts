@@ -8,6 +8,9 @@ import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { ISLAND } from '@/state/settings/fields/island';
+import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCitySceneState, type CitySceneState } from '@/city/state';
 import { commits } from './commits';
@@ -59,6 +62,20 @@ export function makeSceneContext(sceneState: CitySceneState = makeCityState()): 
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
     sceneState,
+    config: session.config,
+  } as unknown as SceneContext;
+}
+
+/** SceneContext as a component sees it at construction, before the picker
+ *  exists: what armOnFirstTick is there for. */
+export function makePrePickerSceneContext(): SceneContext {
+  return {
+    scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
+    picker: null as unknown as Picker,
+    sceneState: makeCityState(),
+    timeline: session.timeline,
+    config: session.config,
   } as unknown as SceneContext;
 }
 
@@ -82,8 +99,20 @@ export function makePickableSceneContext(
     picker: { selection, hover } as unknown as Picker,
     sceneState,
     timeline,
+    config: session.config,
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
+}
+
+/** What placeTrees grows a forest from, as the app's own settings read now. */
+export function placementConfig(): TreePlacementConfig {
+  return { trees: TREES.value, footprint: FOOTPRINT.value, island: ISLAND.value };
+}
+
+/** The same, with the island off: no polygon to cull the forest to, which is
+ *  what the goldens and benches measure against. */
+export function noIslandConfig(): TreePlacementConfig {
+  return { ...placementConfig(), island: { ...ISLAND.value, ENABLED: false } };
 }
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */

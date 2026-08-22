@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
+import { TREES } from '@/state/settings/fields/trees';
+import { noIslandConfig } from '../_helpers/cityFixtures';
 import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import {
@@ -36,13 +38,13 @@ describe('decoration golden (bit-identical guard)', () => {
 
     const placements = placeTrees(layout as any, bbox, {
       commitCount: 43000,
-      islandGeoOverride: null,
+      config: noIslandConfig(),
     });
     // The scan date the manifest always carries. Explicit here because it is
     // what every tree is aged against, and the digest below moves with it.
     const scannedAt = commits[commits.length - 1].date;
     const orbs = placeFireflies(placements, commits, stats, scannedAt);
-    const renderer = createTreeRenderer(placements, commits, busyness, stats, scannedAt);
+    const renderer = createTreeRenderer(placements, commits, busyness, stats, scannedAt, TREES);
 
     const hasher = makeDigestHasher();
     for (const p of placements) {

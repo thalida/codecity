@@ -6,7 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { TREES } from '@/state/settings/fields/trees';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -49,7 +48,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   const group = new THREE.Group();
   group.name = 'city-trees';
 
-  const { sceneState } = ctx;
+  const { sceneState, config } = ctx;
 
   let _inner: Trees | null = null;
   // Declared BEFORE the theme effect below — the effect body runs
@@ -72,13 +71,13 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     scannedAt?: string | null
   ): void {
     clear();
-    _inner = createTreeRenderer(placements, commits, busyness, stats, scannedAt);
+    _inner = createTreeRenderer(placements, commits, busyness, stats, scannedAt, config.TREES);
     group.add(_inner.group);
   }
 
-  // Reads only TREES, so it is safe at construction, before the picker.
+  // Reads only its tree settings, so it is safe at construction, before the picker.
   const stopTheme = effect(() => {
-    void TREES.value;
+    void config.TREES.value;
     _inner?.refresh();
     _outline?.refreshMaterials();
   });
@@ -111,6 +110,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       scene: ctx.scene,
       picker: ctx.picker!,
       getTrees: () => _inner,
+      trees: config.TREES,
     });
     return [
       () => {

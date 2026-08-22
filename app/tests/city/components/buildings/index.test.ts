@@ -6,7 +6,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { createBuildings } from '@/city/components/buildings';
-import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
+import {
+  makeCityState,
+  makePickableSceneContext,
+  makePrePickerSceneContext,
+} from '../../../_helpers/cityFixtures';
 import { getBuildingMaterial } from '@/city/components/buildings/material';
 import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
@@ -37,15 +41,6 @@ function resetStores(): void {
 
 // Pre-picker ctx: picker null (the construction-time window). Used to prove the
 // theme effect is safe to run at construction and the overlays do NOT arm.
-function makePrePickerCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: null as unknown as Picker,
-    sceneState: makeCityState(),
-  } as unknown as SceneContext;
-}
-
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
 
@@ -106,7 +101,7 @@ describe('createBuildings()', () => {
   });
 
   it('material theme effect is inert while the picker is still null', () => {
-    const ctx = makePrePickerCtx();
+    const ctx = makePrePickerSceneContext();
     buildings = createBuildings(ctx);
     BUILDINGS.value = { ...BUILDINGS.value };
     expect(buildings.group.children).toHaveLength(0);

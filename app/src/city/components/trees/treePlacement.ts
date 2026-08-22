@@ -5,9 +5,7 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/fields/trees';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { ISLAND } from '@/state/settings/fields/island';
+
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
@@ -15,6 +13,8 @@ import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
 import type { Building, CityBbox, Street } from '@/types';
 import type { IslandConfig } from '@/state/settings/fields/island';
+import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { FootprintConfig } from '@/state/settings/fields/footprint';
 
 interface Rect {
   minX: number;
@@ -39,14 +39,22 @@ export interface LayoutGeometry {
   bbox?: CityBbox;
 }
 
+/** What the forest is grown from: this city's values, passed in because this
+ *  runs in a worker as often as on the main thread. */
+export interface TreePlacementConfig {
+  trees: TreesConfig;
+  footprint: FootprintConfig;
+  /** The island's shape: the extent trees are sampled over, and the polygon
+   *  they are culled to. Disabled, the ground is a rect and nothing culls. */
+  island: IslandConfig;
+}
+
 export interface PlaceTreesOptions {
   /** Number of trees to plant — one per commit. */
   commitCount: number;
   /** Scene height, so a small but tall city gets a buffer to match. */
   cityHeight?: number;
-  /** The worker's copy of the island config, since it can't read the store.
-   *  Null disables the polygon rejection pass. */
-  islandGeoOverride?: IslandConfig | null;
+  config: TreePlacementConfig;
 }
 
 /** Ceiling on grid resolution, so a multi-million-commit repo can't OOM the
@@ -111,10 +119,10 @@ function gemCenterFromLayout(layout: LayoutGeometry, bbox: CityBbox): { x: numbe
 
 export function placeTrees(
   layout: LayoutGeometry,
-  bboxOverride?: CityBbox,
-  options: PlaceTreesOptions = { commitCount: 0 }
+  bboxOverride: CityBbox | undefined,
+  options: PlaceTreesOptions
 ): TreePlacement[] {
-  const cfg = TREES.value;
+  const cfg = options.config.trees;
   if (!cfg.ENABLED) return [];
 
   const bbox = bboxOverride ?? layout.bbox;
@@ -123,7 +131,7 @@ export function placeTrees(
   const treeTarget = Math.max(0, options.commitCount | 0);
   if (treeTarget === 0) return [];
 
-  const footprint = FOOTPRINT.value;
+  const footprint = options.config.footprint;
   const halo = footprint.ENABLED ? Math.max(0, footprint.HALO_WIDTH) : 0;
 
   // Build rbush of every layout rect, inflated by the halo.
@@ -145,7 +153,7 @@ export function placeTrees(
 
   // Sampled to the island polygon's extent, not the rect it circumscribes: the
   // ears past the rect corners would otherwise read as bare ground.
-  const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
+  const sides = options.config.island.SIDES;
   // Jitter only shrinks vertices inward, so baseScale bounds the extent.
   const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
   const sampleHalfW = bounds.halfWidth * polygonScale;
@@ -180,8 +188,8 @@ export function placeTrees(
   // The same polygon islandMesh renders, pulled inward by the inset so the
   // clearance from the edge reads as uniform however irregular it is.
   let islandPolygon: THREE.Vector3[] | null = null;
-  if (options.islandGeoOverride !== null) {
-    const islandGeo = options.islandGeoOverride ?? ISLAND.value;
+  {
+    const islandGeo = options.config.island;
     if (islandGeo.ENABLED) {
       const rawPolygon = buildTopPolygon({
         sides: islandGeo.SIDES,

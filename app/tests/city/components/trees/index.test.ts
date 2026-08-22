@@ -12,6 +12,7 @@ import {
   commitTarget,
   makeCityState,
   makePickableSceneContext,
+  makePrePickerSceneContext,
   stubPlacementClient,
   treePlacement,
 } from '../../../_helpers/cityFixtures';
@@ -73,15 +74,6 @@ const _origTrees = TREES.value;
 // dims, which the outline LineMaterial reads during arming.
 
 // Pre-picker ctx: picker null (the construction-time window).
-function makePrePickerCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: null as unknown as Picker,
-    sceneState: makeCityState(),
-  } as unknown as SceneContext;
-}
-
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
 
@@ -111,7 +103,7 @@ describe('createTrees() component door', () => {
   it('theme effect is inert while the picker is still null', () => {
     // createTrees runs before the picker exists, so the effect fires against a
     // null inner renderer. Its optional chaining is what holds here.
-    trees = createTrees(makePrePickerCtx());
+    trees = createTrees(makePrePickerSceneContext());
     TREES.value = { ...TREES.value };
     expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
@@ -213,7 +205,7 @@ describe('createTrees() component door', () => {
   });
 
   it('tick() with a null picker does not arm', () => {
-    const ctx = makePrePickerCtx();
+    const ctx = makePrePickerSceneContext();
     trees = createTrees(ctx);
     trees.tick(0, FRAME(new THREE.PerspectiveCamera()));
     expect(ctx.scene.children.filter((c) => c instanceof LineSegments2)).toHaveLength(0);

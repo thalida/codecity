@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { TREES } from '@/state/settings/fields/trees';
+import type { TreesConfig } from '@/state/settings/fields/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
@@ -35,10 +35,12 @@ interface CreateArgs {
   /** Late-bound: trees are built after this renderer is created. Returns
    *  null when no manifest has been applied yet. */
   getTrees: () => TreesHandle | null;
+  /** This city's tree settings: the outline follows what it is drawn around. */
+  trees: ReadonlySignal<TreesConfig>;
 }
 
-export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
-  const _cfg = TREES.value;
+export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees, trees }: CreateArgs) {
+  const _cfg = trees.value;
 
   // One shared silhouette: every tree uses the same facet count, so there's
   // no per-tier geometry swap.
@@ -172,7 +174,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   }
 
   function refreshMaterials(): void {
-    const c = TREES.value;
+    const c = trees.value;
     hoverLineMat.color.set(c.OUTLINE_HOVER_COLOR);
     hoverLineMat.linewidth = c.OUTLINE_WIDTH;
     hoverLineMat.opacity = c.OUTLINE_HOVER_OPACITY;

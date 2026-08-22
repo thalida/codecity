@@ -9,6 +9,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, BusynessThresholds } from '@/types';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commitStats } from './statsFixtures';
+import { TREES } from '@/state/settings/fields/trees';
 
 export function renderTrees(
   placements: TreePlacement[],
@@ -23,7 +24,8 @@ export function renderTrees(
     commits,
     busyness,
     commits ? commitStats(commits) : null,
-    scannedAt
+    scannedAt,
+    TREES
   );
 }
 

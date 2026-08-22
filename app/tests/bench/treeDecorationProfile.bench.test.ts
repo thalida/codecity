@@ -5,6 +5,8 @@
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
+import { TREES } from '@/state/settings/fields/trees';
+import { noIslandConfig } from '../_helpers/cityFixtures';
 import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
 import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
@@ -27,9 +29,9 @@ describe('tree decoration profile', () => {
     const bbox = bboxOf(layout);
 
     const t0 = performance.now();
-    const placements = placeTrees(layout as any, bbox, { commitCount, islandGeoOverride: null });
+    const placements = placeTrees(layout as any, bbox, { commitCount, config: noIslandConfig() });
     const t1 = performance.now();
-    createTreeRenderer(placements, commits, busyness, stats);
+    createTreeRenderer(placements, commits, busyness, stats, null, TREES);
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();

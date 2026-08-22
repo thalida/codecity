@@ -11,6 +11,7 @@ import {
   commitTarget,
   makeCityState,
   makePickableSceneContext,
+  makePrePickerSceneContext,
   treePlacement,
 } from '../../../_helpers/cityFixtures';
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
@@ -29,15 +30,6 @@ const COMMITS = buildCommits(
 const PLACEMENTS = [treePlacement(0)];
 
 const _origFireflies = FIREFLIES.value;
-
-function makePrePickerCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: null as unknown as Picker,
-    sceneState: makeCityState(),
-  } as unknown as SceneContext;
-}
 
 // Reach the orb shader uniforms through the inner assembly's Points draw.
 function orbUniforms(comp: ReturnType<typeof createFireflies>): Record<string, { value: number }> {
@@ -68,7 +60,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('constructs an empty named group, and the theme effect is inert pre-picker', () => {
-    comp = createFireflies(makePrePickerCtx());
+    comp = createFireflies(makePrePickerSceneContext());
     FIREFLIES.value = { ...FIREFLIES.value };
     expect(comp.group.name).toBe('city-fireflies');
     expect(comp.group.children).toHaveLength(0);
