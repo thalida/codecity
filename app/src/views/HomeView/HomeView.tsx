@@ -108,11 +108,11 @@ export function HomeView() {
             <div class="landing-local">
               <p class="landing-local-lead">Yes, private and local repos work</p>
               <p class="landing-local-body">
-                Clone one yourself, then{' '}
+                Clone a repo locally, then{' '}
                 <a class="link" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
                   run codecity
-                </a>
-                .
+                </a>{' '}
+                on your machine.
               </p>
             </div>
           )}

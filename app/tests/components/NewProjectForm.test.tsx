@@ -350,8 +350,8 @@ describe('NewProjectForm', () => {
     expect(field(container).getAttribute('aria-describedby')).toBe(note.id);
     // No switch is claimed, because a mount is what actually turns this on.
     expect(note.textContent).not.toMatch(/turned off/i);
-    expect(note.textContent).toMatch(/can't open folders here/i);
-    expect(note.textContent).toMatch(/mount that folder/i);
+    expect(note.textContent).toMatch(/can't open that path/i);
+    expect(note.textContent).toMatch(/have to be mounted/i);
     // Cloning is not the answer to a folder already on this machine.
     expect(note.textContent).not.toMatch(/clone/i);
     // The remedy is offered, not just described.

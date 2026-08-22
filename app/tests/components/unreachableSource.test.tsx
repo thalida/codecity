@@ -10,12 +10,12 @@ const SRC = 'https://github.com/owner/private';
 
 const PREAMBLE: Record<NoticeReason, RegExp> = {
   [NoticeReason.Unreachable]: /couldn't reach that repo/i,
-  [NoticeReason.PathBlocked]: /can't open folders here/i,
+  [NoticeReason.PathBlocked]: /can't open that path/i,
 };
 
 const REMEDY: Record<NoticeReason, RegExp> = {
   [NoticeReason.Unreachable]: /clone it yourself and open the folder/i,
-  [NoticeReason.PathBlocked]: /mount that folder and it can/i,
+  [NoticeReason.PathBlocked]: /local folders have to be mounted/i,
 };
 
 // Three states, not eight. `allowLocal` is the only thing that changes the

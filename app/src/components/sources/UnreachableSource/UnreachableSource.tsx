@@ -40,14 +40,14 @@ const RUN_COMMAND = `docker run --rm --init --pull=always \\
 
 const PREAMBLE: Record<NoticeReason, string> = {
   [NoticeReason.Unreachable]: "Couldn't reach that repo.",
-  [NoticeReason.PathBlocked]: "codecity can't open folders here.",
+  [NoticeReason.PathBlocked]: "codecity can't open that path.",
 };
 
-// One sentence each, because the two failures want different things: a repo you
-// don't have has to be cloned, a folder you already have only has to be mounted.
+// The rule, not an instruction: nothing on this screen can mount anything, so an
+// imperative here would be an affordance the notice does not have.
 const REMEDY: Record<NoticeReason, string> = {
   [NoticeReason.Unreachable]: "If it's private, clone it yourself and open the folder.",
-  [NoticeReason.PathBlocked]: 'Mount that folder and it can.',
+  [NoticeReason.PathBlocked]: 'Local folders have to be mounted when codecity starts.',
 };
 
 export function UnreachableSource({ allowLocal, reason, src, id }: UnreachableSourceProps) {
