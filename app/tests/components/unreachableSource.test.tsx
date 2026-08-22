@@ -10,7 +10,7 @@ const SRC = 'https://github.com/owner/private';
 
 const PREAMBLE: Record<NoticeReason, RegExp> = {
   [NoticeReason.Unreachable]: /couldn't reach that repo/i,
-  [NoticeReason.PathBlocked]: /can't open that path/i,
+  [NoticeReason.PathBlocked]: /couldn't open that path/i,
 };
 
 const REMEDY: Record<NoticeReason, RegExp> = {

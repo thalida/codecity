@@ -40,7 +40,7 @@ const RUN_COMMAND = `docker run --rm --init --pull=always \\
 
 const PREAMBLE: Record<NoticeReason, string> = {
   [NoticeReason.Unreachable]: "Couldn't reach that repo.",
-  [NoticeReason.PathBlocked]: "codecity can't open that path.",
+  [NoticeReason.PathBlocked]: "Couldn't open that path.",
 };
 
 // The rule, not an instruction: nothing on this screen can mount anything, so an
