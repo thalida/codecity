@@ -85,7 +85,8 @@ export interface CityTimelineBinding {
 export interface CityBindings {
   /** Camera behaviour: what this city is for. */
   cameraMode?: CameraMode;
-  /** Where its build status goes. Left out, it reports to nobody. */
+  /** Where this city announces its build, for whoever mounted it. Left out, it
+   *  reports to nobody. Questions go the other way, through the handle. */
   report?: BuildReporter;
   /** What it is a picture OF, as one comparable string. The camera refits when
    *  it changes, so skeleton→heights→history frames once, not three times. */
@@ -106,8 +107,8 @@ export interface City {
   /** Re-pack what this city is already showing: the settings path, where the
    *  manifest has not moved and only the packer's inputs have. */
   repack(): Promise<void>;
-  /** Resolves once a frame carrying the latest build has been presented. There
-   *  is no such callback in WebGL, so the composer keeps this one. */
+  /** Resolves once a frame carrying the latest build has been presented, which
+   *  WebGL will not tell you. `report.markIdle`'s moment, asked instead of told. */
   whenOnScreen(): Promise<void>;
   world: CityWorld;
   /** Timeline-mode install surface (see hooks/useTimelineMode). The controller

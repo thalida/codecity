@@ -383,23 +383,24 @@ const URL_SOURCE = computed(() => {
 /** Load whatever project the URL names, whenever that changes: the boot read
  *  and every Back/Forward between cities are the same event. Returns a dispose. */
 export function attachRouteLoad(): () => void {
-  // Whether this visit to the city route has already asked the server. Leaving
-  // clears it: only the server can say whether an hour-old scan still holds.
-  let askedThisVisit = false;
+  // Whether the URL named a city on the last run, so this one can tell arriving
+  // at one from moving around inside it.
+  let onCityRoute = false;
   return effect(() => {
     if (!URL_SOURCE.value) {
-      askedThisVisit = false;
+      onCityRoute = false;
       return;
     }
+    const arriving = !onCityRoute;
+    onCityRoute = true;
     // Peeked: the identity above is the trigger, and re-reading the params here
     // must not subscribe this to the view ones alongside it.
     const boot = readUrlView(ROUTE_PARAMS.peek());
     // Out of the tracking scope: the load writes signals this effect reads.
     queueMicrotask(() => {
-      // Already asked, and the URL still names what came back: committing a
-      // remote puts a branch in the URL, moving the identity above by itself.
-      if (askedThisVisit && isOpenedSource(boot.src, boot.branch)) return;
-      askedThisVisit = true;
+      // Arriving always asks: only the server knows if its scan still holds.
+      // Once here, that project again is the branch a commit put in the URL.
+      if (!arriving && isOpenedSource(boot.src, boot.branch)) return;
       void bootLoad(boot);
     });
   });
