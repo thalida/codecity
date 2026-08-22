@@ -45,25 +45,19 @@ const BUNDLE = {
   note: null,
 } as unknown as TimelineBundle;
 
-// The composer marks Idle a frame after the pack returns, and the reveal waits
-// for that. Tracked, so an unfired frame can't settle the NEXT test's build.
-let pendingSettle = 0;
-function settleNextFrame(): void {
-  cancelPendingSettle();
-  pendingSettle = requestAnimationFrame(() => {
-    pendingSettle = 0;
-    markIdle();
-  });
-}
-function cancelPendingSettle(): void {
-  if (pendingSettle) cancelAnimationFrame(pendingSettle);
-  pendingSettle = 0;
-}
-
 function fakeHandle() {
-  const applyManifest = vi.fn().mockImplementation(async () => {
-    settleNextFrame();
-  });
+  const applyManifest = vi.fn().mockResolvedValue(undefined);
+  // The real one resolves on the frame that carries the build, which is what
+  // the reveal waits for: one that resolves early would prove nothing.
+  const whenOnScreen = vi.fn().mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          markIdle();
+          resolve();
+        });
+      })
+  );
   // The hook opens the build's readout on the stages the apply will run, so a
   // handle without this can't be driven through a load.
   const buildStagesFor = vi.fn().mockReturnValue([BuildStage.Layout, BuildStage.Assemble]);
@@ -73,6 +67,7 @@ function fakeHandle() {
   const setFootprintsTransparent = vi.fn();
   const handle = {
     applyManifest,
+    whenOnScreen,
     buildStagesFor,
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
@@ -87,6 +82,7 @@ function fakeHandle() {
   return {
     handle,
     applyManifest,
+    whenOnScreen,
     buildStagesFor,
     installScrubController,
     uninstallScrubController,
@@ -109,7 +105,6 @@ describe('loadTimelineScene', () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    cancelPendingSettle();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
   });
@@ -182,15 +177,19 @@ describe('loadTimelineScene', () => {
   it('holds the reveal until the packed city has a frame on screen', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
     const f = fakeHandle();
-    // The pack resolves a frame before the city is presented. Sample the overlay
+    // The pack returns a frame before the city is presented. Sample the overlay
     // in that gap: lifting there is the bug this waits out.
     let visibleBeforeIdle: boolean | null = null;
-    f.applyManifest.mockImplementation(async () => {
-      requestAnimationFrame(() => {
-        visibleBeforeIdle = LOADING_OVERLAY.value.visible;
-        markIdle();
-      });
-    });
+    f.whenOnScreen.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            visibleBeforeIdle = LOADING_OVERLAY.value.visible;
+            markIdle();
+            resolve();
+          });
+        })
+    );
     SCENE_HANDLE.value = f.handle as never;
 
     await loadTimelineScene();
@@ -417,7 +416,6 @@ describe('loadTimelineScene inPlace refetch', () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    cancelPendingSettle();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
   });

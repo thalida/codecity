@@ -10,7 +10,7 @@ import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
-import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { commits } from './commits';
 
 // A no-op layout client, for tests that never call applyManifest and so never
@@ -31,7 +31,7 @@ export function makeCityState(): CityState {
   return createCityState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
-    WORLD_BUILD_REPORTER
+    OPENED_PROJECT_REPORTER
   );
 }
 

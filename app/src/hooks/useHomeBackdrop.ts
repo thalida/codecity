@@ -3,16 +3,22 @@
 // had cached for it, then the featured repo. Neither scans, and every failure
 // is silent, since the hero image underneath is already a complete answer.
 
-// Applies the manifest STRAIGHT TO THE SCENE, never writing MANIFEST: that
-// signal means "the project you opened", which a backdrop is not.
+// Its own source signal and its own reporter, never MANIFEST and never the
+// app's status: those mean "the project you opened", which a backdrop is not.
 
-import { useEffect } from 'preact/hooks';
-import { effect } from '@preact/signals';
+import { useEffect, useMemo } from 'preact/hooks';
+import { effect, signal, type ReadonlySignal } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { BACKDROP_HANDLE, type SceneHandle } from '@/city/sceneHandle';
+import { SILENT_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
 import { MANIFEST } from '@/state/stores/manifest';
-import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
+import {
+  RECENTS,
+  CURRENT_SOURCE,
+  BACKDROP_CITY,
+  BackdropKind,
+  type BackdropCity,
+} from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import type { Manifest } from '@/types';
 
@@ -83,7 +89,34 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
   return out;
 }
 
-export function useHomeBackdrop(): void {
+/** What the landing hands its city: the repo it picked, and a status channel
+ *  nobody else reads. */
+export interface HomeBackdrop {
+  source: ReadonlySignal<Manifest | null>;
+  report: BuildReporter;
+}
+
+export function useHomeBackdrop(): HomeBackdrop {
+  // Per landing visit, like the city it feeds: a second one would be a second
+  // wallpaper, showing whatever IT picked.
+  const backdrop = useMemo(() => {
+    const source = signal<Manifest | null>(null);
+    // Named only once it lands: BACKDROP_CITY fades the canvas in, and a fade
+    // that starts on the manifest fades in an empty canvas.
+    let painting: BackdropCity | null = null;
+    const report: BuildReporter = {
+      ...SILENT_BUILD_REPORTER,
+      markIdle: () => {
+        BACKDROP_CITY.value = painting;
+      },
+    };
+    const show = (manifest: Manifest, city: BackdropCity): void => {
+      painting = city;
+      source.value = manifest;
+    };
+    return { source: source as ReadonlySignal<Manifest | null>, report, show };
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     // One go each, so a re-run cannot re-fetch a failure: this is what lets
@@ -91,7 +124,7 @@ export function useHomeBackdrop(): void {
     const tried = new Set<string>();
     let inFlight = false;
 
-    async function tryNext(handle: SceneHandle, featuredRepo?: string): Promise<void> {
+    async function tryNext(featuredRepo?: string): Promise<void> {
       const signal = controller.signal;
       const next = candidates(featuredRepo).find((c) => !tried.has(`${c.kind}:${c.src}`));
       if (!next) return;
@@ -103,31 +136,26 @@ export function useHomeBackdrop(): void {
         // Too big to build without freezing the page, or nothing there at all:
         // either way this candidate is out and the next one gets its turn.
         if (!manifest || !fitsBehindTheLanding(manifest)) {
-          void tryNext(handle, featuredRepo);
+          void tryNext(featuredRepo);
           return;
         }
-        await handle.applyManifest(manifest);
-        if (signal.aborted) return;
-        BACKDROP_CITY.value = {
+        backdrop.show(manifest, {
           src: next.src,
           label: manifest.tree?.name ?? next.src,
           // Normalised the way commitSource does: identity includes the
           // branch, or the repo won't match its own row in recents.
           branch: identityBranch(next.src, resolveBranch(manifest, next.branch)),
           kind: next.kind,
-        };
+        });
       } finally {
         inFlight = false;
       }
     }
 
+    // Re-runs when the server config lands, which gives featured its turn.
     const stop = effect(() => {
-      // The landing's own canvas, which mounts with the view: leaving the route
-      // takes it (and the scene) with it, so there is nothing to hand back.
-      const handle = BACKDROP_HANDLE.value;
-      // Re-runs when the server config lands, which gives featured its turn.
       const featured = SERVER_CONFIG.value.featuredRepo;
-      if (handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);
+      if (!inFlight && !BACKDROP_CITY.peek()) void tryNext(featured);
     });
 
     return () => {
@@ -136,4 +164,6 @@ export function useHomeBackdrop(): void {
       BACKDROP_CITY.value = null;
     };
   }, []);
+
+  return backdrop;
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { signal } from '@preact/signals';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus, WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { REBUILD_STATUS, RebuildStatus, OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
@@ -21,12 +22,14 @@ describe('attachSettingsReactions routing', () => {
     const manifest = { tree: {} } as unknown as Manifest;
     setManifest(manifest);
     detach = attachSettingsReactions({
-      rebuildScene: async () => {
-        rebuildCalls++;
+      city: {
+        manifest: signal(manifest),
+        repack: async () => {
+          rebuildCalls++;
+        },
+        invalidateLayoutCache: () => {},
       },
-      invalidateLayoutCache: () => {},
-      currentManifest: () => manifest,
-      report: WORLD_BUILD_REPORTER,
+      report: OPENED_PROJECT_REPORTER,
     });
   });
 

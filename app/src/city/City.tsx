@@ -1,124 +1,90 @@
-// city/City.tsx — the <canvas> and its Three.js lifecycle: this folder's mount
-// point, beside the createCity API it drives. Mount applies MANIFEST on every
-// change, unmount tears the scene down so a remount cannot stack a second
-// renderer on it, and the variant is all a view says about what it is FOR.
+// city/City.tsx — a city on a <canvas>, and its Three.js lifecycle. Every city
+// is a whole city; two of them differ only in the configuration passed here
+// (see CityBindings), so there is one code path and no main one. Unmount tears
+// the scene down, or a remount stacks a second renderer on the same canvas.
 
 import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
-import { effect } from '@preact/signals';
+import { effect, type ReadonlySignal, type Signal } from '@preact/signals';
 import { createCity } from '@/city';
-import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
-import { MANIFEST } from '@/state/stores/manifest';
-import {
-  markSceneGone,
-  WORLD_BUILD_REPORTER,
-  SILENT_BUILD_REPORTER,
-} from '@/state/stores/progress';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { WORLD_BINDINGS, SCENERY_BINDINGS } from '@/city/bindings';
-import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
+import { SILENT_BUILD_REPORTER } from '@/state/stores/progress';
+import type { City as CityHandle, CityBindings } from '@/city/types';
 import type { Manifest } from '@/types';
 
-export enum CityVariant {
-  /** The app's main view: opaque, so a sub-frame gap during resize blends into
-   *  the page instead of flashing through. */
-  Scene = 'scene',
-  /** Wallpaper: transparent, so whatever the view puts behind it (the hero
-   *  image) shows until the city has something to paint. */
-  Backdrop = 'backdrop',
+export interface CityProps extends CityBindings {
+  /** What this city shows. Applied on every change, so whoever owns the signal
+   *  owns the city's contents; null leaves the canvas empty. */
+  source: ReadonlySignal<Manifest | null>;
+  /** Published here while mounted, for whatever drives this instance. */
+  handle?: Signal<CityHandle | null>;
+  /** Paint the canvas: a sub-frame gap during a resize flashes through an
+   *  unpainted one, which only matters where nothing sits behind it. */
+  opaque?: boolean;
+  /** What a screen reader is told this canvas is. */
+  label?: string;
 }
 
-export interface CityProps {
-  variant?: CityVariant;
-}
+const DEFAULT_LABEL =
+  '3D city map of the repository. Files are buildings, directories are streets, commits are trees. Browse it with the file tree and search panels.';
 
-export function City({ variant = CityVariant.Scene }: CityProps = {}) {
+export function City({
+  source,
+  handle,
+  opaque = false,
+  label = DEFAULT_LABEL,
+  report = SILENT_BUILD_REPORTER,
+  ...bindings
+}: CityProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let disposed = false;
-    let city: Awaited<ReturnType<typeof createCity>> | null = null;
+    let city: CityHandle | null = null;
     let unsubApply: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
-    // Start empty; the apply-effect below paints the first manifest. The variant
-    // is also what the camera is FOR, so the rig opens on the right pose itself.
-    const isWorld = variant === CityVariant.Scene;
-    createCity(canvas, {
-      cameraMode: isWorld ? CameraMode.Project : CameraMode.Backdrop,
-      ...(isWorld ? WORLD_BINDINGS : SCENERY_BINDINGS),
-    })
-      .then((handle) => {
+    // Starts empty; the apply below paints the first manifest.
+    createCity(canvas, { report, ...bindings })
+      .then((made) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).
         if (disposed) {
-          handle.dispose();
+          made.dispose();
           return;
         }
-        city = handle;
-        // Published to its own slot: the two variants are independent cities.
-        if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
-        else BACKDROP_HANDLE.value = handle;
-        // Each city rebuilds from what IT is showing: the wallpaper is a
-        // different repo, and the opened project's manifest is not its own.
-        disposeReactions = attachSettingsReactions({
-          rebuildScene: isWorld
-            ? // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
-              () =>
-                TIMELINE_MODE.peek()
-                  ? reapplyTimelineScene()
-                  : handle.applyManifest(MANIFEST.peek() as Manifest)
-            : () => {
-                const showing = handle.manifest.peek();
-                return showing ? handle.applyManifest(showing) : Promise.resolve();
-              },
-          invalidateLayoutCache: handle.invalidateLayoutCache,
-          currentManifest: () =>
-            isWorld ? (MANIFEST.peek() as Manifest | null) : handle.manifest.peek(),
-          report: isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER,
-        });
+        city = made;
+        if (handle) handle.value = made;
+        // The city knows what it is showing and how to re-pack it, so a Save
+        // needs to be told neither.
+        disposeReactions = attachSettingsReactions({ city: made, report });
 
-        // A backdrop shows what its view decided to show, which is not the
-        // opened project: useHomeBackdrop drives that canvas itself.
-        if (variant !== CityVariant.Scene) return;
-
-        // Only kicks off the apply and surfaces its error: reaching Idle belongs
-        // to the decoration pass, and reframing to the city composer.
+        // Only kicks the apply off and surfaces its error: reaching Idle is the
+        // decoration pass's, and framing the composer's.
         unsubApply = effect(() => {
-          const m = MANIFEST.value as Manifest;
-          if (!m) return; // nothing to build yet
-          // Live's bridge from manifest to scene; Timeline packs its own union
-          // city. Peeked, so leaving the mode doesn't repack what it committed.
-          if (TIMELINE_MODE.peek()) return;
-          WORLD_BUILD_REPORTER.markRebuilding();
-          void handle.applyManifest(m).catch(WORLD_BUILD_REPORTER.markError);
+          const m = source.value;
+          if (!m) return; // nothing to show yet
+          // Scrubbing owns the contents while it runs. Peeked, so leaving the
+          // mode doesn't repack what it committed (the teardown owns that).
+          if (bindings.timeline?.mode.peek()) return;
+          report.markRebuilding();
+          void made.applyManifest(m).catch(report.markError);
         });
       })
-      .catch((err) => {
-        // No WebGL, or a context the driver refused. The landing has its hero
-        // image to fall back on, which is what its silent reporter says.
-        (isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER).markError(err);
-      });
+      .catch(report.markError); // no WebGL, or a context the driver refused
 
     return () => {
       disposed = true;
       unsubApply?.();
       disposeReactions?.();
-      // Tear the city down so a remount doesn't stack a second renderer +
-      // frame loop on the same canvas (old city keeps rendering as a ghost).
       city?.dispose();
       city = null;
-      // Only its own slot: clearing the other would strand the city still up.
-      if (variant === CityVariant.Scene) {
-        SCENE_HANDLE.value = null;
-        // Nothing is on screen any more, so the remount's rebuild is a load
-        // with a world to wait for, not a repaint under one.
-        markSceneGone();
-      } else BACKDROP_HANDLE.value = null;
+      if (handle) handle.value = null;
+      // The canvas is gone, so nothing it had on it is on screen: a remount
+      // rebuilds from scratch, and that build is a load with a world to wait for.
+      report.markGone();
     };
   }, []);
 
@@ -126,11 +92,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
   // browse the same data through Explore and Search.
   return (
     <canvas
-      id="city"
-      class={`city-canvas city-canvas--${variant}`}
+      class={`city-canvas${opaque ? ' city-canvas--opaque' : ''}`}
       ref={canvasRef}
       role="img"
-      aria-label="3D city map of the repository. Files are buildings, directories are streets, commits are trees. Browse it with the file tree and search panels."
+      aria-label={label}
     />
   );
 }

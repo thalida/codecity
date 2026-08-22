@@ -21,6 +21,7 @@ import {
   SOURCE_ERROR,
   commitSource,
   CURRENT_SOURCE,
+  isOpenedSource,
   activeExcludePathsFor,
   ACTIVE_EXCLUDES,
 } from '@/state/stores/source';
@@ -34,14 +35,7 @@ import {
   CITY_ON_SCREEN,
 } from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import {
-  srcKind,
-  SourceKind,
-  identityBranch,
-  sourceKey,
-  sameSourceIdentity,
-  sourceIdentity,
-} from '@/utils/sources';
+import { srcKind, SourceKind, identityBranch, sourceKey, sourceIdentity } from '@/utils/sources';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -163,11 +157,10 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   // What a cancel rolls back to, captured before the clear below: otherwise the
   // canceled repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
-  // A DIFFERENT project retires the one on screen, and so does a re-open with
-  // none up: the manifest in hand builds a city this load is about to replace.
-  const opened = CURRENT_SOURCE.peek();
-  const sameProject = !!opened && sameSourceIdentity(opened, { src: payload.src, branch });
-  if (!sameProject || !CITY_ON_SCREEN.peek()) setManifest(null);
+  // What is on screen stays only while re-scanning the very project it shows:
+  // otherwise the manifest in hand builds a city this load is about to replace.
+  const keepCityUp = isOpenedSource(payload.src, branch) && CITY_ON_SCREEN.peek();
+  if (!keepCityUp) setManifest(null);
 
   try {
     const url = manifestUrlFor({
@@ -390,32 +383,23 @@ const URL_SOURCE = computed(() => {
 /** Load whatever project the URL names, whenever that changes: the boot read
  *  and every Back/Forward between cities are the same event. Returns a dispose. */
 export function attachRouteLoad(): () => void {
-  // Whether the last thing this saw was a page with no city on it: opening one
-  // from there is a fresh ask, and only the server knows if its scan holds.
-  let away = true;
+  // Whether this visit to the city route has already asked the server. Leaving
+  // clears it: only the server can say whether an hour-old scan still holds.
+  let askedThisVisit = false;
   return effect(() => {
     if (!URL_SOURCE.value) {
-      away = true;
+      askedThisVisit = false;
       return;
     }
-    const reopened = away;
-    away = false;
     // Peeked: the identity above is the trigger, and re-reading the params here
     // must not subscribe this to the view ones alongside it.
     const boot = readUrlView(ROUTE_PARAMS.peek());
     // Out of the tracking scope: the load writes signals this effect reads.
     queueMicrotask(() => {
-      // Never left, same project: committing a remote puts the branch the
-      // server resolved in the URL, which moves the identity above by itself.
-      const cur = CURRENT_SOURCE.peek();
-      if (
-        !reopened &&
-        cur &&
-        boot.src &&
-        sameSourceIdentity(cur, { src: boot.src, branch: boot.branch })
-      ) {
-        return;
-      }
+      // Already asked, and the URL still names what came back: committing a
+      // remote puts a branch in the URL, moving the identity above by itself.
+      if (askedThisVisit && isOpenedSource(boot.src, boot.branch)) return;
+      askedThisVisit = true;
       void bootLoad(boot);
     });
   });

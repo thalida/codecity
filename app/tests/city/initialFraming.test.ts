@@ -29,7 +29,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { WORLD_BINDINGS } from '@/city/bindings';
+import { OPENED_PROJECT } from '@/city/openedProject';
 import type { City } from '@/city/types';
 
 describe('initial-load framing (issue #62)', () => {
@@ -90,7 +90,7 @@ describe('initial-load framing (issue #62)', () => {
   }
 
   it('frames the city on initial load, not the empty boot', async () => {
-    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
+    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
     try {
       // firstFrame framed the empty boot (no source committed yet → no snap).
       const bootPos = handle.rig.camera.position.clone();
@@ -117,7 +117,7 @@ describe('initial-load framing (issue #62)', () => {
     // The route split made this the normal order: the landing commits the
     // source, THEN the city view mounts a scene onto it.
     CURRENT_SOURCE.value = { src: 'test://repo' };
-    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
+    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
     try {
       const bootPos = handle.rig.camera.position.clone();
       await build(handle, makeManifest());
@@ -135,7 +135,7 @@ describe('initial-load framing (issue #62)', () => {
 
   it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
     setRootWidth(100);
-    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
+    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();

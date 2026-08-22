@@ -121,32 +121,11 @@ export function markIdle(): void {
 
 /** The canvas went away (leaving `/city` unmounts it), so nothing is on screen:
  *  the remount's rebuild is a load with a world to wait for. */
-export function markSceneGone(): void {
+function markGone(): void {
   REBUILD_STATUS.value = RebuildStatus.Pending;
   BUILT_MANIFEST.value = null;
   REBUILD_DETAIL.value = null;
   BUILD_PROGRESS.value = null;
-}
-
-/** Resolves once the build in flight has a frame on screen, or has failed: a
- *  city that will never paint must not strand the caller waiting for it. */
-export function whenCityOnScreen(): Promise<void> {
-  return new Promise((resolve) => {
-    let stop: (() => void) | null = null;
-    let settled = false;
-    stop = effect(() => {
-      const status = REBUILD_STATUS.value;
-      if (status !== RebuildStatus.Idle && status !== RebuildStatus.Error) return;
-      if (settled) return;
-      settled = true;
-      // Out of the effect's own run: `stop` is still being assigned when this
-      // resolves on the first pass.
-      queueMicrotask(() => {
-        stop?.();
-        resolve();
-      });
-    });
-  });
 }
 
 export function markError(err: unknown): void {
@@ -203,12 +182,14 @@ export interface BuildReporter {
   markDecorating(): void;
   markIdle(): void;
   markError(err: unknown): void;
+  /** The canvas went away, so whatever it had on it is not on screen. */
+  markGone(): void;
   /** Read back, for a caller checking whether its own flash still stands. */
   status(): RebuildStatus;
 }
 
 /** The project you opened: its build is the wait every readout is about. */
-export const WORLD_BUILD_REPORTER: BuildReporter = {
+export const OPENED_PROJECT_REPORTER: BuildReporter = {
   beginBuild,
   enterBuildStage,
   setBuildStagePercent,
@@ -216,6 +197,7 @@ export const WORLD_BUILD_REPORTER: BuildReporter = {
   markDecorating,
   markIdle,
   markError,
+  markGone,
   status: () => REBUILD_STATUS.peek(),
 };
 
@@ -228,6 +210,7 @@ export const SILENT_BUILD_REPORTER: BuildReporter = {
   markRebuilding: () => {},
   markDecorating: () => {},
   markIdle: () => {},
+  markGone: () => {},
   // Logged, never surfaced: a city nobody is waiting for has no readout to
   // fail in, and a silent throw is how a broken wallpaper goes unnoticed.
   markError: (err) => console.error('[codecity] scenery build failed', err),

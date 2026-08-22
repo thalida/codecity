@@ -7,6 +7,6 @@
 }
 
 /* Opaque so a sub-frame gap during resize blends in instead of flashing. */
-.city-canvas--scene {
+.city-canvas--opaque {
   background: var(--cc-bg-app);
 }

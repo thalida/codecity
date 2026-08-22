@@ -10,12 +10,9 @@ import { IS_PHONE } from '@/state/stores/viewport';
 
 export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
-/** The city on the /city route. Only the Scene variant publishes here. */
+/** The city the app's chrome drives: sidebars, selection chip, capture. One
+ *  published nowhere (the landing's wallpaper) is nobody's to command. */
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
-
-/** The landing's wallpaper city: a different city on a different canvas, so
- *  sharing a slot made whichever mounted last the other's applyManifest target. */
-export const BACKDROP_HANDLE = signal<SceneHandle | null>(null);
 
 /** Resolves once the city exists. A boot load can outrun createCity, and a load
  *  that finds no handle has nowhere to put its city. */

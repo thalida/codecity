@@ -4,7 +4,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import { createCityState } from '@/city/state';
-import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
@@ -74,7 +74,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     const cityState = createCityState(
       layoutClient as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());

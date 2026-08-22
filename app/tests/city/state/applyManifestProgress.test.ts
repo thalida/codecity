@@ -6,7 +6,7 @@ import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createCityState } from '@/city/state';
-import { BUILD_PROGRESS, WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { BUILD_PROGRESS, OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
@@ -78,7 +78,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -91,7 +91,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
@@ -105,7 +105,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient([7, 61]) as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -132,7 +132,7 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       client as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
 
     void state.applyManifest(manifest('sig-1'));

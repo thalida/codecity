@@ -6,7 +6,7 @@
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
 import { createCityState } from '@/city/state';
-import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
 
@@ -68,7 +68,7 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -82,7 +82,7 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      WORLD_BUILD_REPORTER
+      OPENED_PROJECT_REPORTER
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;

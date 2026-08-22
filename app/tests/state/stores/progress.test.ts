@@ -11,12 +11,12 @@ import {
   setBuildStagePercent,
   markDecorating,
   markIdle,
-  markSceneGone,
   BUILT_MANIFEST,
   CITY_ON_SCREEN,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
   showLoadingOverlay,
+  OPENED_PROJECT_REPORTER,
 } from '@/state/stores/progress';
 
 import { SourceKind } from '@/utils/sources';
@@ -296,7 +296,7 @@ describe('loadingReactions', () => {
     BUILT_MANIFEST.value = EMPTY_MANIFEST; // markIdle copies MANIFEST, empty here
     expect(CITY_ON_SCREEN.value).toBe(true);
 
-    markSceneGone();
+    OPENED_PROJECT_REPORTER.markGone();
     expect(CITY_ON_SCREEN.value).toBe(false);
     expect(REBUILD_STATUS.value).toBe(RebuildStatus.Pending);
   });

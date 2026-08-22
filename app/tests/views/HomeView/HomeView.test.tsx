@@ -7,10 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 
 // The backdrop canvas: jsdom has no WebGL, and none of this is about the scene.
-vi.mock('@/city/City', () => ({
-  City: () => null,
-  CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
-}));
+vi.mock('@/city/City', () => ({ City: () => null }));
 
 // Typing a remote URL mounts BranchSelect, which asks the API for branches: left
 // real, that rejects "fetch failed" into whichever LATER test is running by then.

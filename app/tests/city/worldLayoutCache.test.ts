@@ -3,9 +3,10 @@
 // is the fix: invalidate before applying, so a Save always re-packs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { signal } from '@preact/signals';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
-import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
+import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 
@@ -39,14 +40,16 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     setManifest(stubManifest as unknown as Manifest);
 
     detach = attachSettingsReactions({
-      async rebuildScene() {
-        calls.push('rebuildScene');
+      city: {
+        manifest: signal(stubManifest as unknown as Manifest),
+        async repack() {
+          calls.push('rebuildScene');
+        },
+        invalidateLayoutCache() {
+          calls.push('invalidateLayoutCache');
+        },
       },
-      invalidateLayoutCache() {
-        calls.push('invalidateLayoutCache');
-      },
-      currentManifest: () => stubManifest as unknown as Manifest,
-      report: WORLD_BUILD_REPORTER,
+      report: OPENED_PROJECT_REPORTER,
     });
 
     // What Save does: commit() fires setKey on the real store, which is what

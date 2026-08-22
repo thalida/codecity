@@ -20,7 +20,7 @@ vi.mock('@/city/render/postFx', async () =>
 );
 
 import { createCity } from '@/city/index';
-import { WORLD_BINDINGS } from '@/city/bindings';
+import { OPENED_PROJECT } from '@/city/openedProject';
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -52,7 +52,7 @@ describe('scene keydown handler — modal suppression', () => {
   });
 
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
+    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
     cities.push(handle);
     return handle;
   }

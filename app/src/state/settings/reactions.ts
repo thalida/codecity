@@ -6,21 +6,17 @@ import { computed, effect, untracked } from '@preact/signals';
 
 import { RebuildStatus, type BuildReporter } from '@/state/stores/progress';
 import { routeSignature, ChangeRoute } from '@/state/settings/schema';
-import type { Manifest } from '@/types';
+import type { City } from '@/city/types';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface SettingsReactionsOpts {
-  /** Re-pack the current mode's scene (Live: HEAD; Timeline: union + scrub), so a
-   *  Save keeps the user in the mode they're in. */
-  rebuildScene(): Promise<void>;
-  invalidateLayoutCache(): void;
-  /** What the city being rebuilt is showing, or null when there is nothing to
-   *  rebuild. Per city: two of them are two different answers. */
-  currentManifest(): Manifest | null;
-  /** This city's status channel, so a Save to a city nobody is waiting for
-   *  cannot drive the readouts describing the one they are. */
+  /** The city to re-pack. It knows what it is showing and how to rebuild it,
+   *  which is why nothing here has to be told either. */
+  city: Pick<City, 'manifest' | 'repack' | 'invalidateLayoutCache'>;
+  /** That city's status channel, so a Save to one nobody is waiting for cannot
+   *  drive the readouts describing the one they are. */
   report: BuildReporter;
 }
 
@@ -29,12 +25,7 @@ interface SettingsReactionsOpts {
 const REBUILD_SIGNATURE = computed(() => routeSignature(ChangeRoute.Rebuild));
 const REFRESH_SIGNATURE = computed(() => routeSignature(ChangeRoute.Refresh));
 
-export function attachSettingsReactions({
-  rebuildScene,
-  invalidateLayoutCache,
-  currentManifest,
-  report,
-}: SettingsReactionsOpts): () => void {
+export function attachSettingsReactions({ city, report }: SettingsReactionsOpts): () => void {
   // Effects fire synchronously on first call. Suppress reactions until all
   // subscriptions are wired so the initial fire doesn't trigger a rebuild.
   let armed = false;
@@ -47,12 +38,12 @@ export function attachSettingsReactions({
     try {
       // Always invalidate: the manifest is unchanged, so reuseLayoutFrom would
       // skip the recompute and the setting would do nothing visible.
-      invalidateLayoutCache();
-      if (!currentManifest()) {
-        report.markIdle(); // no world to rebuild — settle immediately
+      city.invalidateLayoutCache();
+      if (!city.manifest.peek()) {
+        report.markIdle(); // nothing on it to rebuild — settle immediately
         return;
       }
-      await rebuildScene();
+      await city.repack();
       // Idle is owned by the trees decoration pass (markIdle), the last stage of
       // applyManifest — setting it here would stomp its Decorating state.
     } catch (err) {

@@ -3,7 +3,7 @@
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
-import type { CameraRig } from '../render/cameraRig';
+import type { CameraMode, CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -64,8 +64,8 @@ export interface CityTimeline {
 }
 
 /** The top-level city object returned by the city composer (createCity). */
-/** Timeline scrub, for a city something is scrubbing. Absent from a city's
- *  bindings, the mode does not exist for it and nothing prunes its selection. */
+/** Scrubbing, for a city something scrubs through time. Left out, this city
+ *  has no timeline: nothing gates its contents and nothing prunes its picks. */
 export interface CityTimelineBinding {
   /** Tracked: leaving the mode tears this city's scrub controller down. */
   mode: ReadonlySignal<boolean>;
@@ -75,15 +75,20 @@ export interface CityTimelineBinding {
   /** What to rebuild from on exit: a union city holds buildings that do not
    *  exist at HEAD. A call, not a signal, so no store's type leaks in here. */
   liveManifest(): Manifest | null;
+  /** Re-pack while the mode is on, for a setting that moved the packer's
+   *  inputs: the union city is assembled, not applied from one manifest. */
+  repack(): Promise<void>;
 }
 
-/** Everything a city is wired to outside itself. Given none of it, a city
- *  touches no app state: mount two, and neither can hear the other. */
+/** How a city is configured: what the one mounting it decides. Leave a field
+ *  out and that part is off, which is what makes two of them independent. */
 export interface CityBindings {
-  /** Where this city's build status goes. Silent unless something is waiting. */
+  /** Camera behaviour: what this city is for. */
+  cameraMode?: CameraMode;
+  /** Where its build status goes. Left out, it reports to nobody. */
   report?: BuildReporter;
-  /** What this city is a picture OF, as one comparable string. The camera
-   *  refits when it changes, so skeleton→heights→history frames once. */
+  /** What it is a picture OF, as one comparable string. The camera refits when
+   *  it changes, so skeleton→heights→history frames once, not three times. */
   subjectKey?(): string | null;
   timeline?: CityTimelineBinding;
 }
@@ -98,6 +103,12 @@ export interface City {
   /** The stages that apply would run, for a caller whose own work comes first. */
   buildStagesFor(m: Manifest): BuildStage[];
   invalidateLayoutCache(): void;
+  /** Re-pack what this city is already showing: the settings path, where the
+   *  manifest has not moved and only the packer's inputs have. */
+  repack(): Promise<void>;
+  /** Resolves once a frame carrying the latest build has been presented. There
+   *  is no such callback in WebGL, so the composer keeps this one. */
+  whenOnScreen(): Promise<void>;
   world: CityWorld;
   /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
    *  is built here because it needs the components' mesh/attr resolvers. */

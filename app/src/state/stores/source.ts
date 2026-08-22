@@ -41,6 +41,13 @@ export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>((
   return backdrop ? { src: backdrop.src, branch: backdrop.branch } : null;
 });
 
+/** Whether these name the project already committed: the one question three
+ *  call sites were each asking of CURRENT_SOURCE by hand. */
+export function isOpenedSource(src?: string | null, branch?: string | null): boolean {
+  const cur = CURRENT_SOURCE.peek();
+  return !!cur && !!src && sameSourceIdentity(cur, { src, branch: branch ?? undefined });
+}
+
 /** The loaded source's stable hash, or null. Namespaces per-source storage. */
 export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
@@ -67,10 +74,7 @@ effect(() => {
   // A different project than the URL was describing: its mode, scrub commit
   // and selection belong to the one that just left.
   const had = params.get(URL_PARAMS.SRC);
-  if (
-    had &&
-    !sameSourceIdentity({ src: had, branch: params.get(URL_PARAMS.BRANCH) ?? undefined }, cur)
-  ) {
+  if (had && !isOpenedSource(had, params.get(URL_PARAMS.BRANCH) ?? undefined)) {
     for (const key of Object.values(VIEW_PARAMS)) params.delete(key);
   }
   params.set(URL_PARAMS.SRC, cur.src);

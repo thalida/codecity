@@ -24,7 +24,6 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
-  whenCityOnScreen,
   setLoadingCancel,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
@@ -180,7 +179,7 @@ export async function loadTimelineSource({
     if (overlay) {
       // The pack returns before its meshes are drawn: wait for the frame that
       // carries them, or the reveal lands on a half-built city.
-      await whenCityOnScreen();
+      await handle.whenOnScreen();
       hideLoadingOverlay();
     }
   } catch (err) {

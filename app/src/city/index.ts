@@ -160,18 +160,36 @@ export async function createCity(
   });
 
   // The build is over when the city is ON SCREEN, not when applyStructure
-  // returns: it starts the rebuilds without holding them (see render/LOADING.md).
+  // returns: it starts the rebuilds without holding them (render/LOADING.md).
+  let presentedRevision = -1;
+  let awaitingFrame: (() => void)[] = [];
   const stopOnScreen = effect(() => {
-    void cityState.cityRevision.value;
+    const revision = cityState.cityRevision.value;
     if (cityState.manifest.peek() === null) return;
     untracked(() => {
       void buildings.whenSettled().then(() => {
         // Two frames: render() only issues the GL commands, and the pixels land
         // a compositor pass later.
-        requestAnimationFrame(() => requestAnimationFrame(() => report.markIdle()));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            // max, not assign: a newer build's frame may already have landed.
+            presentedRevision = Math.max(presentedRevision, revision);
+            report.markIdle();
+            const waiting = awaitingFrame;
+            awaitingFrame = [];
+            for (const resolve of waiting) resolve();
+          })
+        );
       });
     });
   });
+
+  /** Resolves once a frame carrying the latest build has been presented, or
+   *  immediately when one already has. WebGL offers no such callback. */
+  function whenOnScreen(): Promise<void> {
+    if (presentedRevision === cityState.cityRevision.peek()) return Promise.resolve();
+    return new Promise((resolve) => awaitingFrame.push(resolve));
+  }
 
   const postFx = createPostFx(renderer, scene, rig.camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
@@ -313,8 +331,18 @@ export async function createCity(
       })
     : () => {};
 
+  /** Re-pack what is already on screen: the settings path. A union city under
+   *  a scrubber was not built from one manifest, so it reassembles instead. */
+  async function repack(): Promise<void> {
+    if (timeline?.mode.peek()) return timeline.repack();
+    const showing = cityState.manifest.peek();
+    if (showing) await applyManifest(showing);
+  }
+
   return {
     manifest: cityState.manifest,
+    whenOnScreen,
+    repack,
     scene,
     picker,
     rig,
@@ -334,6 +362,11 @@ export async function createCity(
     /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a
      *  ghost city whose picker still answers raycasts. */
     dispose(): void {
+      // Nothing more will be presented, so anything waiting for a frame is
+      // waiting for one that is not coming.
+      const waiting = awaitingFrame;
+      awaitingFrame = [];
+      for (const resolve of waiting) resolve();
       stopFrameLoop();
       stopReframe();
       stopOnScreen();

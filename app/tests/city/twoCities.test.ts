@@ -34,7 +34,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { WORLD_BINDINGS } from '@/city/bindings';
+import { OPENED_PROJECT } from '@/city/openedProject';
 
 const W = 800;
 const H = 600;
@@ -99,7 +99,7 @@ describe('two cities at once', () => {
   });
 
   it('holds the bound one’s "on screen" while the unbound one builds beside it', async () => {
-    const world = await createCity(makeCanvas(), WORLD_BINDINGS);
+    const world = await createCity(makeCanvas(), OPENED_PROJECT);
     const scenery = await createCity(makeCanvas());
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
