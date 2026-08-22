@@ -15,7 +15,7 @@ import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function CitySidebarLeft() {
-  const { manifest, source, timeline, commands, city } = useProject();
+  const { manifest, source, timeline, commands, scene } = useCity();
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
   const activeTab = SIDEBAR_TAB;
@@ -93,7 +93,7 @@ export function CitySidebarLeft() {
   // Mirror picker.selection.value → selectedPath. Re-runs on every
   // SCENE_HANDLE swap and every picker change.
   useSignalEffect(() => {
-    const handle = city.value;
+    const handle = scene.value;
     if (!handle) {
       selectedPath.value = null;
       return;
@@ -102,7 +102,7 @@ export function CitySidebarLeft() {
   });
 
   useSignalEffect(() => {
-    const handle = city.value;
+    const handle = scene.value;
     if (!handle) {
       hoveredPath.value = null;
       return;

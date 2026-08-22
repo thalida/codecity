@@ -20,13 +20,13 @@ import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectFo
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/sources/DiscoverList/DiscoverList';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
-  const { source } = useProject();
+  const { source } = useCity();
   const backdrop = useHomeBackdrop();
   // Navigate, don't load: the URL carrying a src IS the load trigger, the same
   // one a deep link uses. Loading here waited for the scan before routing.

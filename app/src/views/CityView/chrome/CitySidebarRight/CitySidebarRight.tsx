@@ -5,7 +5,7 @@
 import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
 import { NodeKind } from '@/types';
-import type { City } from '@/city/types';
+import type { CityScene } from '@/city/types';
 import type { ManifestValue } from '@/state/stores/manifest';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
@@ -18,7 +18,7 @@ import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -31,7 +31,7 @@ enum SidebarPaneKind {
 // derive them from the city and the manifest it was built from.
 
 function commitStateFor(
-  handle: City,
+  handle: CityScene,
   manifest: ManifestValue,
   commit: CommitEntry
 ): CommitPaneState {
@@ -49,11 +49,11 @@ function commitStateFor(
 // ── Main component ───────────────────────────────────────────────────
 
 export function CitySidebarRight() {
-  const { manifest, source, timeline, timelineMode, commands, city } = useProject();
+  const { manifest, source, timeline, timelineMode, commands, scene } = useCity();
   // Computeds read during render: no effect writing signals, no bridge, and a
   // live-update poll re-derives every pane on its own.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
-    const sel = city.value?.picker.selection.value ?? null;
+    const sel = scene.value?.picker.selection.value ?? null;
     // Every selection opens the panel: the sidebar is the only place one is
     // shown. The panes handle the union-city caveat themselves.
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
@@ -65,7 +65,7 @@ export function CitySidebarRight() {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
     const m = timeline.paneManifest.value as Manifest | DirNode | null;
-    const sel = city.value?.picker.selection.value ?? null;
+    const sel = scene.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
     // Excludes never reach here: they're filtered out of the timeline union too,
@@ -85,7 +85,7 @@ export function CitySidebarRight() {
   const commitState = useComputed<CommitPaneState>(() => {
     void manifest.current.value; // re-derive on live-update rebuilds
     const inTimeline = timeline.mode.value; // re-derive so the button label tracks the mode
-    const handle = city.value;
+    const handle = scene.value;
     const sel = handle?.picker.selection.value ?? null;
     return handle && sel?.kind === NodeKind.Commit
       ? {
@@ -97,7 +97,7 @@ export function CitySidebarRight() {
   });
   const streetState = useComputed<StreetPaneState>(() => {
     const m = manifest.current.value as Manifest | DirNode | null;
-    const sel = city.value?.picker.selection.value ?? null;
+    const sel = scene.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     // In Timeline the rollups are re-added at the settled commit from the same
     // per-blob numbers the buildings use, so the pane cannot disagree with them.

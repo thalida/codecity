@@ -3,9 +3,9 @@ import { render } from 'preact';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { flush } from '../_helpers/preact';
 
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself. The toggle
+// One city for this file, the way the app makes one for itself. The toggle
 // drives ITS controller, so the spies go on the session rather than the module.
 const session = makeSession();
 const loadScene = vi.spyOn(session.timelineMode, 'loadScene').mockResolvedValue(undefined);
@@ -38,7 +38,7 @@ describe('TimelineToggle', () => {
   });
 
   it('does not render before a source is loaded', async () => {
-    renderInProject(<TimelineToggle />, session, container);
+    renderInCity(<TimelineToggle />, session, container);
     await flush();
     expect(container.querySelector('.timeline-toggle')).toBeNull();
   });
@@ -46,7 +46,7 @@ describe('TimelineToggle', () => {
   it('renders once a source is loaded, Live active by default', async () => {
     session.source.current.value = { src: '/repo' };
     session.manifest.set(TEST_MANIFEST as never);
-    renderInProject(<TimelineToggle />, session, container);
+    renderInCity(<TimelineToggle />, session, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -59,7 +59,7 @@ describe('TimelineToggle', () => {
     session.source.current.value = { src: '/repo' };
     session.manifest.set(TEST_MANIFEST as never);
     session.timeline.mode.value = true;
-    renderInProject(<TimelineToggle />, session, container);
+    renderInCity(<TimelineToggle />, session, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -70,7 +70,7 @@ describe('TimelineToggle', () => {
   it('clicking Timeline while live calls loadTimelineScene, not exit', async () => {
     session.source.current.value = { src: '/repo' };
     session.manifest.set(TEST_MANIFEST as never);
-    renderInProject(<TimelineToggle />, session, container);
+    renderInCity(<TimelineToggle />, session, container);
     await flush();
 
     btns(container)[1].click(); // Timeline
@@ -82,7 +82,7 @@ describe('TimelineToggle', () => {
     session.source.current.value = { src: '/repo' };
     session.manifest.set(TEST_MANIFEST as never);
     session.timeline.mode.value = true;
-    renderInProject(<TimelineToggle />, session, container);
+    renderInCity(<TimelineToggle />, session, container);
     await flush();
 
     btns(container)[0].click(); // Live

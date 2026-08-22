@@ -5,9 +5,9 @@ import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import type { Manifest } from '@/types';
 import { flush } from '../../../_helpers/preact';
 import { popoverPanel } from '../../../_helpers/popover';
-import { makeSession, renderInProject } from '../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const LOADED: Manifest = {
@@ -37,7 +37,7 @@ describe('CityHeader', () => {
 
   it('renders the gem inside the project chip', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -49,7 +49,7 @@ describe('CityHeader', () => {
   it('opens the switcher when the chip is clicked', async () => {
     const onSwitchSource = vi.fn();
     loadProject();
-    renderInProject(<CityHeader onSwitchSource={onSwitchSource} />, session, container);
+    renderInCity(<CityHeader onSwitchSource={onSwitchSource} />, session, container);
     await flush();
 
     container.querySelector<HTMLButtonElement>('.project-switcher')!.click();
@@ -59,7 +59,7 @@ describe('CityHeader', () => {
   });
 
   it('still renders the gem before a project loads', async () => {
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -71,7 +71,7 @@ describe('CityHeader', () => {
   // the repo you have open.
   it('holds neither the about link nor the shortcuts button', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
@@ -80,7 +80,7 @@ describe('CityHeader', () => {
 
   it('puts the freshness readout opposite the project, with nothing beside it', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const freshness = container.querySelector('.city-header-freshness')!;
@@ -97,7 +97,7 @@ describe('CityHeader', () => {
   // wrapper around the trigger would break both.
   it('makes the readout a direct child of the cluster, not a wrapped one', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const cluster = container.querySelector('.city-header-freshness')!;
@@ -108,19 +108,19 @@ describe('CityHeader', () => {
   // The gem says which app this is; this says which kind of repo the name
   // beside it belongs to, the way every row in the switcher already does.
   it('marks the chip with the repo kind, and drops it before a project loads', async () => {
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
     expect(container.querySelector('.project-switcher-kind')).toBeNull();
 
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
     expect(container.querySelector('.project-switcher-kind .icon')).not.toBeNull();
   });
 
   it('groups the project controls in one outlined cluster', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const cluster = container.querySelector('.chrome-cluster')!;
@@ -131,7 +131,7 @@ describe('CityHeader', () => {
   it('holds both ways to re-open the source in the panel, and none in the bar', async () => {
     loadProject();
     const onRefresh = vi.fn();
-    renderInProject(<CityHeader onRefresh={onRefresh} />, session, container);
+    renderInCity(<CityHeader onRefresh={onRefresh} />, session, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
@@ -155,7 +155,7 @@ describe('CityHeader', () => {
   // panel to the bar and laid it out inside it. The panel belongs on <body>.
   it('opens the panel outside the cluster, leaving its one item behind', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     const freshness = container.querySelector('.city-header-freshness')!;
@@ -172,14 +172,14 @@ describe('CityHeader', () => {
   });
 
   it('shows nothing to refresh before a project is loaded', async () => {
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
     expect(container.querySelector('.city-header-freshness')).toBeNull();
   });
 
   it('has no reset-view control', async () => {
     loadProject();
-    renderInProject(<CityHeader />, session, container);
+    renderInCity(<CityHeader />, session, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Reset view"]')).toBeNull();

@@ -67,7 +67,7 @@ export interface CityTimeline {
   setFootprintsTransparent(on: boolean): void;
 }
 
-/** The top-level city object returned by the city composer (createCity). */
+/** The top-level city object returned by the city composer (createCityScene). */
 /** Scrubbing, for a city something scrubs through time. Left out, this city
  *  has no timeline: nothing gates its contents and nothing prunes its picks. */
 export interface CityTimelineBinding {
@@ -95,7 +95,9 @@ export interface CityBindings {
   timeline?: CityTimelineBinding;
 }
 
-export interface City {
+/** The machinery drawing one city: its canvas, renderer, camera and picker,
+ *  and the verbs that swap what it is showing. The city itself is the session. */
+export interface CityScene {
   /** What this city is showing: the manifest its last apply landed. */
   manifest: ReadonlySignal<Manifest | null>;
   scene: THREE.Scene;

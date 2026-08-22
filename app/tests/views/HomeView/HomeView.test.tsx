@@ -28,7 +28,7 @@ import { ROUTES } from '@/router/paths';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
 import { flush } from '../../_helpers/preact';
-import { makeSession, renderInProject } from '../../_helpers/project';
+import { makeSession, renderInCity } from '../../_helpers/city';
 
 // The landing starts no load of its own, so this session's loader is spied.
 const session = makeSession();
@@ -72,7 +72,7 @@ describe('HomeView', () => {
 
   it('renders the new-project form when open and idle', async () => {
     loadedCity();
-    renderInProject(<HomeView />, session, container);
+    renderInCity(<HomeView />, session, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
@@ -84,7 +84,7 @@ describe('HomeView', () => {
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     };
-    renderInProject(<HomeView />, session, container);
+    renderInCity(<HomeView />, session, container);
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
 
@@ -108,7 +108,7 @@ describe('HomeView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
     };
 
@@ -223,7 +223,7 @@ describe('HomeView', () => {
     it('links a Discover row straight at the project it names', async () => {
       DISCOVER.value = CURATED;
       loadedCity();
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       // A link, not a handler: the destination is visible on hover, and the row
       // cannot open a repo other than the one it is labelled with.
@@ -258,7 +258,7 @@ describe('HomeView', () => {
     const featured = () => container.querySelector('.landing-featured');
 
     it('always stages the wallpaper: it is what "no city yet" looks like', async () => {
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       expect(stage()).not.toBeNull();
       // Decoration: named for nobody, so it stays out of the a11y tree.
@@ -266,7 +266,7 @@ describe('HomeView', () => {
     });
 
     it('reveals the canvas over the wallpaper only once a backdrop has painted', async () => {
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       expect(stage()!.classList.contains('is-painted')).toBe(false);
 
@@ -281,7 +281,7 @@ describe('HomeView', () => {
 
     it('names the city on screen once it has actually painted', async () => {
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
@@ -301,7 +301,7 @@ describe('HomeView', () => {
   describe('hero column', () => {
     const hero = async () => {
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };
@@ -333,7 +333,7 @@ describe('HomeView', () => {
     const renderAt = async (allowLocalRepos: boolean) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos };
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
     };
 
@@ -350,7 +350,7 @@ describe('HomeView', () => {
       for (const hosted of [false, true]) {
         SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false, hosted };
         navigate(ROUTES.HOME);
-        renderInProject(<HomeView />, session, container);
+        renderInCity(<HomeView />, session, container);
         await flush();
         expect(band()).not.toBeNull();
         expect(container.querySelector('.unreachable')).toBeNull();
@@ -371,7 +371,7 @@ describe('HomeView', () => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, container);
+      renderInCity(<HomeView />, session, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };

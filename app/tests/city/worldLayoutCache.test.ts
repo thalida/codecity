@@ -7,9 +7,9 @@ import { signal } from '@preact/signals';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {

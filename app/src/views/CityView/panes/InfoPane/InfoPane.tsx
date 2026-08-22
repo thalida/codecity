@@ -16,7 +16,7 @@ import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseBut
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 
@@ -45,7 +45,7 @@ export interface InfoPaneProps {
 }
 
 export function InfoPane({ manifest, onClose }: InfoPaneProps) {
-  const { source } = useProject();
+  const { source } = useCity();
   const [tab, setTab] = useState<InfoTab>(InfoTab.Overview);
   const active = INFO_TABS.find((t) => t.id === tab) ?? INFO_TABS[0];
 

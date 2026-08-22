@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, useMemo } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import {
   buildSettingsFile,
   parseSettingsFile,
@@ -151,7 +151,7 @@ export interface ImportExportMenuProps {
 }
 
 export function ImportExportMenu({ groups }: ImportExportMenuProps) {
-  const { source } = useProject();
+  const { source } = useCity();
   // This project's hidden paths: whose list travels is a question about which
   // repo is open, so the part is made here rather than imported ready-made.
   const excludes = useMemo(() => excludesPart(source), [source]);

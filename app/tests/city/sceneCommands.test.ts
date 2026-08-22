@@ -9,9 +9,9 @@ import { FocusMode } from '@/city/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FILE_TARGET = {
@@ -61,12 +61,12 @@ describe('scene navigation commands', () => {
 
   beforeEach(() => {
     handle = makeHandle();
-    session.city.value = handle as never;
+    session.scene.value = handle as never;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   afterEach(() => {
-    session.city.value = null;
+    session.scene.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
@@ -138,7 +138,7 @@ describe('scene navigation commands', () => {
   });
 
   it('every command no-ops before the scene boots', () => {
-    session.city.value = null;
+    session.scene.value = null;
     session.commands.goToPath('src/a.ts');
     session.commands.goToCommit('abc1234');
     session.commands.focusPath('src/a.ts');

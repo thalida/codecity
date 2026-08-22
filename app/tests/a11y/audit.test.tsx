@@ -29,9 +29,9 @@ import { ROUTES } from '@/router/paths';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/chrome';
 import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import type { DirNode, Manifest } from '@/types';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 /** Enough of a loaded project for the chrome bars to render everything they
@@ -83,11 +83,11 @@ function resetAxe(): void {
 const SURFACES: Surface[] = [
   {
     name: 'ControlsPane',
-    mount: (c) => renderInProject(<ControlsPane />, session, c),
+    mount: (c) => renderInCity(<ControlsPane />, session, c),
     // The full panel is too slow to axe-scan under coverage; Buildings alone
     // covers every control kind. Disclosures expand: axe skips display:none.
     axeMount: (c) => {
-      renderInProject(<DynamicSection node={BUILDINGS_SECTION} />, session, c);
+      renderInCity(<DynamicSection node={BUILDINGS_SECTION} />, session, c);
       c.querySelectorAll<HTMLElement>('.controls-disclosure-toggle').forEach((t) => t.click());
     },
   },
@@ -95,7 +95,7 @@ const SURFACES: Surface[] = [
     name: 'HomeView',
     mount: (c) => {
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, c);
+      renderInCity(<HomeView />, session, c);
     },
   },
   {
@@ -108,7 +108,7 @@ const SURFACES: Surface[] = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
       navigate(ROUTES.HOME);
-      renderInProject(<HomeView />, session, c);
+      renderInCity(<HomeView />, session, c);
       openByLabel(c, 'More ways to open');
     },
   },
@@ -116,19 +116,19 @@ const SURFACES: Surface[] = [
     name: 'CityHeader (refresh menu open)',
     mount: (c) => {
       loadProject();
-      renderInProject(<CityHeader />, session, c);
+      renderInCity(<CityHeader />, session, c);
       openByLabel(c, 'More refresh options');
     },
   },
   {
     name: 'CityFooter',
-    mount: (c) => renderInProject(<CityFooter />, session, c),
+    mount: (c) => renderInCity(<CityFooter />, session, c),
   },
   {
     name: 'DebugMenu',
     mount: (c) => {
       openDebug();
-      renderInProject(
+      renderInCity(
         <DebugMenu onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />,
         session,
         c
@@ -139,20 +139,20 @@ const SURFACES: Surface[] = [
     name: 'ShortcutsMenu',
     mount: (c) => {
       openShortcuts();
-      renderInProject(<ShortcutsMenu />, session, c);
+      renderInCity(<ShortcutsMenu />, session, c);
     },
   },
   {
     name: 'AppearanceMenu',
     mount: (c) => {
-      renderInProject(<AppearanceMenu />, session, c);
+      renderInCity(<AppearanceMenu />, session, c);
       openByLabel(c, 'Appearance');
     },
   },
   {
     name: 'TreePane',
     mount: (c) =>
-      renderInProject(
+      renderInCity(
         <TreeTab
           manifest={signal(TREE as unknown as DirNode)}
           selectedPath={signal(null)}

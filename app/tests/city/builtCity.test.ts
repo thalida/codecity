@@ -30,11 +30,11 @@ vi.mock('@/city/components/buildings/atlas', async () => {
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCity } from '@/city/index';
-import { makeSession } from '../_helpers/project';
-import { cityPropsFor } from '@/city/forProject';
+import { createCityScene } from '@/city/index';
+import { makeSession } from '../_helpers/city';
+import { cityPropsFor } from '@/city/forSession';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const W = 800;
@@ -60,7 +60,7 @@ describe('a built city is pickable', () => {
   afterEach(() => {
     stopUrlBinding?.();
     stopUrlBinding = null;
-    session.city.value = null;
+    session.scene.value = null;
     rafSpy.mockRestore();
     session.source.current.value = null;
     session.manifest.current.value = null;
@@ -87,7 +87,7 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCity(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
     try {
       session.source.current.value = { src: 'test://repo' };
       await handle.applyManifest(makeManifest());
@@ -119,9 +119,9 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCity(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
     try {
-      session.city.value = handle;
+      session.scene.value = handle;
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });
       stopUrlBinding = attachViewUrlReactions(session);
 
@@ -133,7 +133,7 @@ describe('a built city is pickable', () => {
 
       const framedOffset = handle.rig.camera.position.clone().sub(handle.rig.controls.target);
       await vi.waitFor(() =>
-        expect(session.city.value!.picker.selectionKey.value).toEqual({
+        expect(session.scene.value!.picker.selectionKey.value).toEqual({
           kind: NodeKind.File,
           path: 'src/a.ts',
         })

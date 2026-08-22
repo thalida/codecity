@@ -17,9 +17,9 @@ const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(
 
 vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // repo, like the server's union manifest carries: Timeline commits this as the
@@ -101,13 +101,13 @@ describe('loadTimelineScene', () => {
   });
   afterEach(() => {
     session.timeline.mode.value = false;
-    session.city.value = null;
+    session.scene.value = null;
   });
 
   it('fetches the bundle, applies the union once, installs the controller, and enters mode at the present', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     await session.timelineMode.loadScene();
 
@@ -144,7 +144,7 @@ describe('loadTimelineScene', () => {
         })
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
     // The pack is several frames long now, so sample the overlay at the step
     // right after it instead of racing jsdom's frame clock from out here.
     let visibleAfterPack: boolean | null = null;
@@ -185,7 +185,7 @@ describe('loadTimelineScene', () => {
           });
         })
     );
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     await session.timelineMode.loadScene();
 
@@ -204,7 +204,7 @@ describe('loadTimelineScene', () => {
         })
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     const entering = session.timelineMode.loadScene();
     await flush();
@@ -245,7 +245,7 @@ describe('loadTimelineScene', () => {
   it('no-ops without a current source', async () => {
     session.source.current.value = null;
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
     await session.timelineMode.loadScene();
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
     expect(session.timeline.mode.value).toBe(false);
@@ -257,7 +257,7 @@ describe('loadTimelineScene', () => {
       new Error('boom')
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
     await session.timelineMode.loadScene();
     expect(session.timeline.mode.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe('loadTimelineScene', () => {
     f.uninstallScrubController.mockImplementation(() => {
       throw new Error('cleanup boom');
     });
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     await session.timelineMode.loadScene();
 
@@ -287,7 +287,7 @@ describe('loadTimelineScene', () => {
   // answered from the very cache it asked to ignore.
   it('asks the history read to ignore its cache for a fresh scan', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    session.city.value = fakeHandle().handle as never;
+    session.scene.value = fakeHandle().handle as never;
 
     await session.timelineMode.loadScene({ inPlace: true, noCache: true });
 
@@ -301,7 +301,7 @@ describe('loadTimelineScene', () => {
 
   it('leaves the cache alone on an ordinary refetch', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    session.city.value = fakeHandle().handle as never;
+    session.scene.value = fakeHandle().handle as never;
 
     await session.timelineMode.loadScene({ inPlace: true });
 
@@ -326,7 +326,7 @@ describe('exitTimelineMode', () => {
   afterEach(() => {
     restoreEventSource();
     session.timeline.mode.value = false;
-    session.city.value = null;
+    session.scene.value = null;
   });
 
   // The scene-side teardown belongs to the city layer's own effect; this covers
@@ -421,7 +421,7 @@ describe('loadTimelineScene inPlace refetch', () => {
   });
   afterEach(() => {
     session.timeline.mode.value = false;
-    session.city.value = null;
+    session.scene.value = null;
   });
 
   it('refetches the bundle with the current excludes, re-packs, and holds SCRUB_POS', async () => {
@@ -431,7 +431,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     } as unknown as TimelineBundle;
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     await session.timelineMode.loadScene({ inPlace: true });
 
@@ -451,7 +451,7 @@ describe('loadTimelineScene inPlace refetch', () => {
   });
 
   it('no-ops without a scene handle', async () => {
-    session.city.value = null;
+    session.scene.value = null;
     await session.timelineMode.loadScene({ inPlace: true });
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
   });
@@ -469,7 +469,7 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     const refetching = session.timelineMode.loadScene({ inPlace: true });
     await flush();
@@ -499,7 +499,7 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     const refetching = session.timelineMode.loadScene({
       inPlace: true,
@@ -541,7 +541,7 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
 
     const refetching = session.timelineMode.loadScene({
       inPlace: true,
@@ -577,13 +577,13 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
   afterEach(() => {
     restoreEventSource();
     session.timeline.mode.value = false;
-    session.city.value = null;
+    session.scene.value = null;
     EXCLUDES.value = {};
   });
 
   it('refetches the union bundle with the new exclude and opens no live stream', async () => {
     const f = fakeHandle();
-    session.city.value = f.handle as never;
+    session.scene.value = f.handle as never;
     const dispose = session.load.setupLiveUpdates();
 
     session.source.addExclude('vendor');

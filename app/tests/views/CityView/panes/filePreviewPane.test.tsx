@@ -16,9 +16,9 @@ import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeBundle } from '../../../_helpers/scrub';
 import type { TimelineBundle } from '@/types';
-import { makeSession, renderInProject } from '../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FILE_NODE: FileNode = {
@@ -40,7 +40,7 @@ describe('FilePreviewPane', () => {
 
   function mount(opts: { onClose?: () => void; onFocus?: (f: FileNode) => void } = {}): void {
     state = signal<FilePreviewPaneState>({ file: null });
-    renderInProject(
+    renderInCity(
       <FilePreviewPane state={state} onClose={opts.onClose} onFocus={opts.onFocus} />,
       session,
       container
@@ -394,7 +394,7 @@ describe('FilePreviewPane in Timeline', () => {
     session.timeline.bundle.value = BUNDLE;
     session.timeline.mode.value = true;
     state = signal<FilePreviewPaneState>({ file: null });
-    renderInProject(<FilePreviewPane state={state} />, session, container);
+    renderInCity(<FilePreviewPane state={state} />, session, container);
   });
 
   afterEach(() => {

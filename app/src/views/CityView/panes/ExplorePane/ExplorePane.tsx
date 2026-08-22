@@ -14,7 +14,7 @@ import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseBut
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.
@@ -55,7 +55,7 @@ export function ExplorePane({
   onHover,
   onHoverEnd,
 }: ExplorePaneProps) {
-  const { source, timeline } = useProject();
+  const { source, timeline } = useCity();
   const [tab, setTab] = useState<ExploreTab>(ExploreTab.Tree);
 
   // A new world resets to the tree; keyed on CURRENT_SOURCE, not the manifest,

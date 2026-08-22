@@ -10,20 +10,20 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
-import { createProjectSession } from '@/state/project/session';
-import { ProjectProvider } from '@/state/project/context';
+import { createCitySession } from '@/state/city/session';
+import { CityProvider } from '@/state/city/context';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { attachUrlBinding } from '@/router/urlBinding';
 import { isDebugMode } from '@/utils/debugMode';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 
 export function App() {
   // One project, for as long as the app is up. Everything below reads it
   // through the provider; nothing reads it from a module.
-  const session = useMemo(() => createProjectSession(), []);
+  const session = useMemo(() => createCitySession(), []);
   useEffect(() => () => session.dispose(), [session]);
 
   // Before anything that reads the URL, so back/forward is never missed.
@@ -32,17 +32,17 @@ export function App() {
   useEffect(() => attachUrlBinding(session), [session]);
 
   return (
-    <ProjectProvider session={session}>
+    <CityProvider session={session}>
       <Router hook={useRouteLocation} searchHook={useRouteSearch}>
         <AppRoutes session={session} />
       </Router>
-    </ProjectProvider>
+    </CityProvider>
   );
 }
 
 // Inside the provider, so everything it mounts can read the session it belongs
 // to rather than being handed pieces of it.
-function AppRoutes({ session }: { session: ProjectSession }) {
+function AppRoutes({ session }: { session: CitySession }) {
   useDocumentTitle();
   useManifestSource(session);
 

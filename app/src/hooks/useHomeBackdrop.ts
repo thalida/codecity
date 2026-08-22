@@ -11,8 +11,8 @@ import { effect, signal, type ReadonlySignal } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { SILENT_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
-import { useProject } from '@/state/project/context';
-import type { ProjectSession } from '@/state/project/session';
+import { useCity } from '@/state/city/context';
+import type { CitySession } from '@/state/city/session';
 import { RECENTS, BACKDROP_CITY, BackdropKind, type BackdropCity } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import type { Manifest } from '@/types';
@@ -50,7 +50,7 @@ function fitsBehindTheLanding(manifest: Manifest): boolean {
 }
 
 /** Who gets to be the backdrop, best first. */
-function candidates(featuredRepo: string | undefined, session: ProjectSession): Candidate[] {
+function candidates(featuredRepo: string | undefined, session: CitySession): Candidate[] {
   const out: Candidate[] = [];
   // The project you just left, still in that session: no round trip, and it is
   // the city you were looking at a moment ago.
@@ -93,7 +93,7 @@ export interface HomeBackdrop {
 
 export function useHomeBackdrop(): HomeBackdrop {
   // The landing's wallpaper opens on the project the focused session last had.
-  const session = useProject();
+  const session = useCity();
   // Per landing visit, like the city it feeds: a second one would be a second
   // wallpaper, showing whatever IT picked.
   const backdrop = useMemo(() => {

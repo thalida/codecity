@@ -18,10 +18,10 @@ import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { clearSourceUrl } from '@/router/urlBinding';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 export function CityView() {
-  const session = useProject();
+  const session = useCity();
   const { source, progress, commands, load } = session;
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();

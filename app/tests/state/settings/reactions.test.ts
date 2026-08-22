@@ -5,9 +5,9 @@ import { RebuildStatus } from '@/state/stores/progress';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // The routing contract: rebuild keys call rebuildScene, refresh keys only flash

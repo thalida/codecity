@@ -1,4 +1,4 @@
-// createCity builds trees before the picker exists, so the picker-driven
+// createCityScene builds trees before the picker exists, so the picker-driven
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 
@@ -21,9 +21,9 @@ import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { NodeKind, StreetAxis } from '@/types';
-import { makeSession } from '../../../_helpers/project';
+import { makeSession } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const SHA_A = 'a'.repeat(40);

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { ACCENT_THEME } from '@/state/settings/fields/theme';
 import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import {
   buildScrubberScale,
   commitFraction,
@@ -18,7 +18,7 @@ import {
 } from './scrubberScale';
 
 export function TimelineScrubber() {
-  const { timeline, commands } = useProject();
+  const { timeline, commands } = useCity();
   const inTimeline = timeline.mode.value;
   const bundle = timeline.bundle.value;
   const commits = bundle?.commits ?? [];

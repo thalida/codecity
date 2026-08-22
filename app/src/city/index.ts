@@ -1,4 +1,4 @@
-// city/index.ts — the city composer. createCity(canvas, manifest) folds the
+// city/index.ts — the city composer. createCityScene(canvas, manifest) folds the
 // scene and component construction and the rendering pipeline into one async
 // factory, then drives the frame loop via startFrameLoop. Returns the handle
 // App.tsx / the City component consume.
@@ -34,7 +34,7 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, CityBindings, SceneComponent, SceneContext } from './types';
+import type { CityScene, CityBindings, SceneComponent, SceneContext } from './types';
 import { createCameraRig, CameraMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -47,7 +47,7 @@ import { registerRenderer as registerFacadePanelRenderer } from './components/bu
 // only refines the same city (skeleton → heights → history) holds the camera.
 const ONE_CITY = 'city';
 
-export async function createCity(
+export async function createCityScene(
   canvas: HTMLCanvasElement,
   {
     cameraMode = CameraMode.Project,
@@ -57,7 +57,7 @@ export async function createCity(
     subjectKey = () => ONE_CITY,
     timeline,
   }: { cameraMode?: CameraMode } & CityBindings = {}
-): Promise<City> {
+): Promise<CityScene> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
 

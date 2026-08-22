@@ -10,9 +10,9 @@ import {
   TIMELINE_LOADING_STEPS,
 } from '@/constants/progress';
 import { EMPTY_MANIFEST } from '../../_helpers/manifestFixtures';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('loadingReactions', () => {

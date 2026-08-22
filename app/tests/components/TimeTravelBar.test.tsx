@@ -8,9 +8,9 @@ import { parseDateMs } from '@/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
 import type { TimelineBundle } from '@/types';
 import { commits as buildCommits } from '../_helpers/commits';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const [old, mid, head] = buildCommits(
@@ -63,7 +63,7 @@ describe('TimelineScrubber', () => {
     it('ends the axis at today and scrubs into the stretch since the last commit', async () => {
       aged();
       session.timeline.setScrubPos(3);
-      renderInProject(<TimelineScrubber />, session, container);
+      renderInCity(<TimelineScrubber />, session, container);
       await flush();
       // Both ends name a date; the handle is the one that says where you are.
       const edges = container.querySelectorAll('.timeline-scrubber-edge');
@@ -78,13 +78,13 @@ describe('TimelineScrubber', () => {
     it('names the day, not today, once scrubbed back off it', async () => {
       aged();
       session.timeline.setScrubPos(2);
-      renderInProject(<TimelineScrubber />, session, container);
+      renderInCity(<TimelineScrubber />, session, container);
       await flush();
       expect(container.querySelector('.timeline-scrubber-date')!.textContent).toBe('Mar 1, 2026');
     });
 
     it('keeps the last commit as the end when nothing has aged since', async () => {
-      renderInProject(<TimelineScrubber />, session, container);
+      renderInCity(<TimelineScrubber />, session, container);
       await flush();
       const edges = container.querySelectorAll('.timeline-scrubber-edge');
       expect(edges[1].textContent).toBe('Mar 1, 2026');
@@ -94,13 +94,13 @@ describe('TimelineScrubber', () => {
 
   it('renders nothing when timeline mode is off', async () => {
     session.timeline.mode.value = false;
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     expect(container.querySelector('.timeline-scrubber')).toBeNull();
   });
 
   it('exposes a role=slider track spanning the commit range', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const t = track(container);
     expect(t.getAttribute('role')).toBe('slider');
@@ -111,7 +111,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('labels the axis ends with the first and last commit dates', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const edges = container.querySelectorAll('.timeline-scrubber-edge');
     expect(edges).toHaveLength(2);
@@ -123,7 +123,7 @@ describe('TimelineScrubber', () => {
   // Three rows: the track, the dates it lands between, then the commit. The
   // track has its row to itself so it runs the bar's full width.
   it('stacks the track, the axis and the commit in that order', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const rows = Array.from(container.querySelector('.timeline-scrubber')!.children).map(
       (c) => c.className
@@ -149,7 +149,7 @@ describe('TimelineScrubber', () => {
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
     session.timeline.setScrubPos(1);
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const edges = container.querySelectorAll<HTMLButtonElement>('button.timeline-scrubber-edge');
 
@@ -161,7 +161,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('renders a tick canvas + a handle positioned by date fraction', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     expect(track(container).querySelector('canvas.timeline-scrubber-ticks')).not.toBeNull();
     // At HEAD the handle sits at the far right (100%).
@@ -170,7 +170,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('drives SCRUB_POS from a pointer press by DATE, not by index', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const t = track(container);
     // jsdom returns a zero rect; pin a 100px-wide track at x=0.
@@ -192,7 +192,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('steps one commit per arrow key and jumps with Home/End', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const t = track(container);
 
@@ -209,7 +209,7 @@ describe('TimelineScrubber', () => {
   // The scrubbed date sits on the axis with the two it falls between; the
   // commit it belongs to reads sha then subject on the row underneath.
   it('puts the scrubbed date on the axis and the commit below it', async () => {
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const axis = container.querySelector('.timeline-scrubber-axis')!;
     expect(axis.querySelector('.timeline-scrubber-date')).not.toBeNull();
@@ -228,7 +228,7 @@ describe('TimelineScrubber', () => {
   // between commits while the date moved smoothly, and named undrawn trees.
   it('shows the commit only on the day it happened', async () => {
     session.timeline.setScrubPos(1); // parked on the Feb 1 commit
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     expect(container.querySelector('.timeline-scrubber-sha')!.textContent).toBe(
       mid.sha.slice(0, 7)
@@ -238,7 +238,7 @@ describe('TimelineScrubber', () => {
 
   it('says so on a day with no commit, rather than carrying the last one along', async () => {
     session.timeline.setScrubPos(0.9); // late January, weeks past the Jan 1 commit
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     expect(container.querySelector('.timeline-scrubber-sha')).toBeNull();
     expect(container.querySelector('.timeline-scrubber-nocommit')).not.toBeNull();
@@ -248,7 +248,7 @@ describe('TimelineScrubber', () => {
   // dragging through a quiet stretch reads as days passing.
   it('shows the day the handle sits on, even alongside a commit', async () => {
     session.timeline.setScrubPos(0.5); // midway between Jan 1 and Feb 1
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const shown = container.querySelector('.timeline-scrubber-date')!.textContent;
     expect(shown).not.toBe('Jan 1, 2026');
@@ -257,7 +257,7 @@ describe('TimelineScrubber', () => {
 
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
     session.timeline.setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
     const nocommit = container.querySelector('.timeline-scrubber-nocommit');
     expect(nocommit).not.toBeNull();
@@ -279,7 +279,7 @@ describe('TimelineScrubber', () => {
       note: null,
     } as unknown as TimelineBundle;
     session.timeline.setScrubPos(0);
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
 
     const t = track(container);
@@ -320,7 +320,7 @@ describe('TimelineScrubber', () => {
       note: null,
     } as unknown as TimelineBundle;
     session.timeline.setScrubPos(2);
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
 
     const t = track(container);
@@ -346,7 +346,7 @@ describe('TimelineScrubber', () => {
 
   it('tracks SCRUB_POS updates from outside the component', async () => {
     session.timeline.setScrubPos(0);
-    renderInProject(<TimelineScrubber />, session, container);
+    renderInCity(<TimelineScrubber />, session, container);
     await flush();
 
     session.timeline.setScrubPos(1);
@@ -372,7 +372,7 @@ describe('TimelineScrubber', () => {
     const ticks = () =>
       container.querySelector<HTMLCanvasElement>('canvas.timeline-scrubber-ticks');
     try {
-      renderInProject(<TimelineScrubber />, session, container);
+      renderInCity(<TimelineScrubber />, session, container);
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       const first = ticks()!;
       expect(first.width).toBe(200);

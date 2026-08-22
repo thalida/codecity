@@ -4,9 +4,9 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 import type { Manifest } from '@/types';
 import { drainAsync } from '../_helpers/preact';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // The single owner of document.title, driven by MANIFEST alone. drainAsync()
@@ -35,13 +35,13 @@ describe('useDocumentTitle', () => {
   });
 
   it('shows plain codecity with no source', async () => {
-    renderInProject(<Harness />, session, container);
+    renderInCity(<Harness />, session, container);
     await drainAsync();
     expect(document.title).toBe('codecity');
   });
 
   it('shows the manifest name once loaded', async () => {
-    renderInProject(<Harness />, session, container);
+    renderInCity(<Harness />, session, container);
     await drainAsync();
     session.manifest.set({ tree: { name: 'repo' } } as unknown as Manifest);
     await drainAsync();
@@ -51,7 +51,7 @@ describe('useDocumentTitle', () => {
   it('ignores PENDING_SOURCE_LABEL, which entering Timeline also sets', async () => {
     // It outlived a load and stranded the tab at "(pending)".
     session.manifest.set({ tree: { name: 'repo' } } as unknown as Manifest);
-    renderInProject(<Harness />, session, container);
+    renderInCity(<Harness />, session, container);
     await drainAsync();
     session.progress.pendingLabel.value = 'owner/repo';
     await drainAsync();

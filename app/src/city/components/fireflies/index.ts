@@ -42,7 +42,7 @@ export interface FirefliesComponent extends SceneComponent {
 }
 
 export function createFireflies(ctx: SceneContext): FirefliesComponent {
-  // Persistent outer group — added to the scene once by createCity. rebuild()
+  // Persistent outer group — added to the scene once by createCityScene. rebuild()
   // swaps the inner assembly's group in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-fireflies';

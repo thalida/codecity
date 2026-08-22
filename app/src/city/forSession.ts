@@ -5,12 +5,12 @@
 
 import { computed } from '@preact/signals';
 import { CameraMode } from '@/city/render/cameraRig';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import type { CityProps } from '@/city/City';
 import type { Manifest } from '@/types';
 
 /** Render `session` as a city: pass the result straight to <City>. */
-export function cityPropsFor(session: ProjectSession): CityProps {
+export function cityPropsFor(session: CitySession): CityProps {
   const { manifest, source, progress, timeline } = session;
   return {
     // The store's value spans the skeleton the stream emits before it is fully
@@ -24,6 +24,6 @@ export function cityPropsFor(session: ProjectSession): CityProps {
       liveManifest: () => manifest.current.peek() as Manifest | null,
       repack: () => session.timelineMode.reapply(),
     },
-    handle: session.city,
+    handle: session.scene,
   };
 }

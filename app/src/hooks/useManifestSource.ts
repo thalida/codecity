@@ -19,7 +19,7 @@ import { LIVE_UPDATES, liveUpdatesActive } from '@/state/settings/fields/updates
 import { RECENTS, activeExcludePathsFor } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import type { ProgressStore } from '@/state/stores/progress';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import { srcKind, SourceKind, identityBranch, sourceKey, sourceIdentity } from '@/utils/sources';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
@@ -102,7 +102,7 @@ export interface ProjectLoader {
   dispose(): void;
 }
 
-export function createProjectLoader(session: ProjectSession): ProjectLoader {
+export function createProjectLoader(session: CitySession): ProjectLoader {
   const { source, manifest, progress, timeline } = session;
 
   // ── Single-writer generation guard ───────────────────────────────────
@@ -417,7 +417,7 @@ export function createProjectLoader(session: ProjectSession): ProjectLoader {
 
 /** Boot the fetch pipeline on mount. Nothing to hand back: loadSource and
  *  friends are module functions, so each view calls the one it needs. */
-export function useManifestSource(session: ProjectSession): void {
+export function useManifestSource(session: CitySession): void {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;

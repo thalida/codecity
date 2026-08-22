@@ -9,9 +9,9 @@ import { createCityState } from '@/city/state';
 import { buildStageTail } from '@/constants/progress';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const EMPTY_DATE_RANGES: DateRanges = {

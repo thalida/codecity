@@ -15,9 +15,9 @@ import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;

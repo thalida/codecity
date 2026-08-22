@@ -26,11 +26,11 @@ vi.mock('@/city/components/buildings/atlas', async () => {
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCity } from '@/city/index';
-import { makeSession } from '../_helpers/project';
-import { cityPropsFor } from '@/city/forProject';
+import { createCityScene } from '@/city/index';
+import { makeSession } from '../_helpers/city';
+import { cityPropsFor } from '@/city/forSession';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const W = 800;
@@ -82,7 +82,7 @@ describe('two cities at once', () => {
   }
 
   it('builds the unbound one without touching the status the bound one owns', async () => {
-    const scenery = await createCity(makeCanvas());
+    const scenery = await createCityScene(makeCanvas());
     try {
       await scenery.applyManifest(makeManifest('wallpaper'));
 
@@ -96,8 +96,8 @@ describe('two cities at once', () => {
   });
 
   it('holds the bound one’s "on screen" while the unbound one builds beside it', async () => {
-    const world = await createCity(makeCanvas(), cityPropsFor(session));
-    const scenery = await createCity(makeCanvas());
+    const world = await createCityScene(makeCanvas(), cityPropsFor(session));
+    const scenery = await createCityScene(makeCanvas());
     try {
       session.source.current.value = { src: 'test://repo' };
       session.manifest.current.value = makeManifest('repo');
@@ -122,7 +122,7 @@ describe('two cities at once', () => {
   });
 
   it('leaves the unbound one alone when Timeline mode exits', async () => {
-    const scenery = await createCity(makeCanvas());
+    const scenery = await createCityScene(makeCanvas());
     try {
       await scenery.applyManifest(makeManifest('wallpaper'));
       scenery.timeline.installScrubController(new Map(), []);
@@ -173,7 +173,7 @@ describe('two cities at once', () => {
   });
 
   it('holds the unbound one’s camera when the opened project changes', async () => {
-    const scenery = await createCity(makeCanvas());
+    const scenery = await createCityScene(makeCanvas());
     try {
       session.source.current.value = { src: 'test://one' };
       await scenery.applyManifest(makeManifest('wallpaper'));

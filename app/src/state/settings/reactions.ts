@@ -6,7 +6,7 @@ import { computed, effect, untracked } from '@preact/signals';
 
 import { RebuildStatus, type BuildReporter } from '@/state/stores/progress';
 import { routeSignature, ChangeRoute } from '@/state/settings/schema';
-import type { City } from '@/city/types';
+import type { CityScene } from '@/city/types';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
@@ -14,7 +14,7 @@ const HOT_REBUILD_MIN_DWELL_MS = 220;
 interface SettingsReactionsOpts {
   /** The city to re-pack. It knows what it is showing and how to rebuild it,
    *  which is why nothing here has to be told either. */
-  city: Pick<City, 'manifest' | 'repack' | 'invalidateLayoutCache'>;
+  city: Pick<CityScene, 'manifest' | 'repack' | 'invalidateLayoutCache'>;
   /** That city's status channel, so a Save to one nobody is waiting for cannot
    *  drive the readouts describing the one they are. */
   report: BuildReporter;

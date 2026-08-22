@@ -6,9 +6,9 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { EXCLUDES } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settings/schema';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 beforeEach(() => {

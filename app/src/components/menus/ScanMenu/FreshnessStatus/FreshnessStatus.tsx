@@ -9,7 +9,7 @@ import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { liveUpdatesActive } from '@/state/settings/fields/updates';
 import { RebuildStatus } from '@/state/stores/progress';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.
@@ -58,7 +58,7 @@ export function useFreshness(): Freshness {
   }, []);
   void tick.value;
 
-  const { progress, source } = useProject();
+  const { progress, source } = useCity();
   const liveEnabled = liveUpdatesActive(source);
   const rebuildStatus = progress.rebuildStatus.value;
   const lastUpdatedAt = progress.lastUpdatedAt.value;

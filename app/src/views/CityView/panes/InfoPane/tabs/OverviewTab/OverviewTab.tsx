@@ -12,7 +12,7 @@ import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import type { CityCommands } from '@/city/sceneHandle';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
@@ -53,7 +53,7 @@ function PrimaryValue({ fact }: { fact: AlmanacFact }) {
 /** One fact row. A landmark is the whole row as a button; a summary fact is a
  *  plain row with nothing to press. */
 function FactRow({ fact }: { fact: AlmanacFact }) {
-  const { commands } = useProject();
+  const { commands } = useCity();
   const landmark = fact.landmark;
   const inner = (
     <>

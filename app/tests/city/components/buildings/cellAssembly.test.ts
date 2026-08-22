@@ -15,9 +15,9 @@ import { NodeKind } from '@/types/index';
 import type { FileNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
-import { makeSession } from '../../../_helpers/project';
+import { makeSession } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // BuildingIndex reads only file.path; the rest satisfies the type.

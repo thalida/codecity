@@ -12,9 +12,9 @@ import { createBuildingTweens } from '@/city/components/buildings/tween';
 import { building } from '../../../_helpers/buildingFixture';
 import type { Building } from '@/types';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
-import { makeSession } from '../../../_helpers/project';
+import { makeSession } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const BOUNDS = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };

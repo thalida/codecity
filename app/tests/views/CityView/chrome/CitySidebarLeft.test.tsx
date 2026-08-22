@@ -4,9 +4,9 @@ import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySid
 import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/state/stores/chrome';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { flush, drainAsync } from '../../../_helpers/preact';
-import { makeSession, renderInProject } from '../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const TEST_TREE = {
@@ -47,15 +47,15 @@ describe('CitySidebarLeft', () => {
     // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is
     // still seeded for the picker the panes read.
     session.manifest.set({ tree: TEST_TREE } as never);
-    session.city.value = makeSceneHandle() as never;
-    renderInProject(<CitySidebarLeft />, session, container);
+    session.scene.value = makeSceneHandle() as never;
+    renderInCity(<CitySidebarLeft />, session, container);
     await flush();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    session.city.value = null;
+    session.scene.value = null;
     session.manifest.set(null);
     session.source.current.value = null;
   });

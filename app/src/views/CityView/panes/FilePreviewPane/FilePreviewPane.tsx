@@ -47,7 +47,7 @@ import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/fileKind';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.
@@ -119,7 +119,7 @@ interface FileTextPreviewProps {
 /** Fetches the bytes, then renders the editor or an error. Built this way so
  *  the gutter and <pre> never linger empty beside an error message. */
 function FileTextPreview({ file, source }: FileTextPreviewProps) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   const [textState, setTextState] = useState<TextState>({ kind: TextStateKind.Loading });
 
   useEffect(() => {
@@ -307,7 +307,7 @@ interface FontPreviewProps {
 /** Renders a live specimen through the FontFace API. The face is removed on
  *  unmount and on a file change, so switching never orphans one. */
 function FontPreview({ file, source }: FontPreviewProps) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   const [family] = useState(() => `cc-font-specimen-${(fontFamilySeq += 1)}`);
   const [fontState, setFontState] = useState<FontState>({ kind: FontStateKind.Loading });
 
@@ -421,7 +421,7 @@ type FpState =
 /** A data card instead of garbled bytes: type, size, dates, and the same
  *  fingerprint the building wears. Raw bytes never reach the client. */
 function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef }) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   const [fp, setFp] = useState<FpState>({ kind: FpStateKind.Loading });
 
   useEffect(() => {
@@ -482,7 +482,7 @@ function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef })
 // ── Body content ─────────────────────────────────────────────────────────────
 
 function _previewBody(file: FileNode | null, source: SourceRef | null) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   if (!file) {
     return (
       <PaneEmpty
@@ -549,7 +549,7 @@ function _previewBody(file: FileNode | null, source: SourceRef | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   const {
     file,
     source = null,

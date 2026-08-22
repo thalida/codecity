@@ -5,9 +5,9 @@ import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/Selectio
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('SelectionAnnouncer', () => {
@@ -19,18 +19,18 @@ describe('SelectionAnnouncer', () => {
     document.body.appendChild(container);
     selection.value = null;
     // Minimal fake handle exposing just the picker.selection signal.
-    session.city.value = { picker: { selection } } as unknown as typeof session.city.value;
+    session.scene.value = { picker: { selection } } as unknown as typeof session.scene.value;
   });
   afterEach(() => {
     render(null, container);
     container.remove();
-    session.city.value = null;
+    session.scene.value = null;
   });
 
   const region = () => container.querySelector('[role="status"]') as HTMLElement;
 
   it('is a polite, atomic, visually-hidden live region', async () => {
-    renderInProject(<SelectionAnnouncer />, session, container);
+    renderInCity(<SelectionAnnouncer />, session, container);
     await flush();
     expect(region().getAttribute('aria-live')).toBe('polite');
     expect(region().getAttribute('aria-atomic')).toBe('true');
@@ -39,7 +39,7 @@ describe('SelectionAnnouncer', () => {
   });
 
   it('announces a selected file by path', async () => {
-    renderInProject(<SelectionAnnouncer />, session, container);
+    renderInCity(<SelectionAnnouncer />, session, container);
     await flush();
     selection.value = { kind: NodeKind.File, file: { path: 'src/a.ts' } } as unknown as PickTarget;
     await flush();
@@ -47,7 +47,7 @@ describe('SelectionAnnouncer', () => {
   });
 
   it('announces a selected directory and clears on deselect', async () => {
-    renderInProject(<SelectionAnnouncer />, session, container);
+    renderInCity(<SelectionAnnouncer />, session, container);
     await flush();
     selection.value = { kind: NodeKind.Directory, dir: { path: 'src' } } as unknown as PickTarget;
     await flush();

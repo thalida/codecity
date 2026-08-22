@@ -1,4 +1,4 @@
-// createCity builds buildings before the picker exists, so the picker-driven
+// createCityScene builds buildings before the picker exists, so the picker-driven
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 
@@ -17,9 +17,9 @@ import type { Building, CityLayout, DateRanges, FileTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
-import { makeSession } from '../../../_helpers/project';
+import { makeSession } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const _origBuildings = BUILDINGS.value;

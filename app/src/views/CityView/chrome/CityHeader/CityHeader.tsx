@@ -13,7 +13,7 @@ import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeClust
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */
@@ -24,7 +24,7 @@ export interface AppHeaderProps {
 }
 
 export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
-  const { source, manifest } = useProject();
+  const { source, manifest } = useCity();
   const si = source.info.value;
   const remoteUrl = (manifest.current.value as Manifest)?.repo?.remote_url ?? null;
   // Nothing loaded: the freshness cluster would be reporting on a project that

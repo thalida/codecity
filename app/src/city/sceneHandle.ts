@@ -4,22 +4,22 @@
 // works on the session it was made for.
 
 import { effect, type Signal } from '@preact/signals';
-import type { City } from './types';
+import type { CityScene } from './types';
 import type { FocusMode } from './render/cameraRig';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
-export type SceneHandle = City;
+export type SceneHandle = CityScene;
 
-/** Resolves once this project's city exists. A boot load can outrun createCity,
- *  and a load that finds no city has nowhere to put its manifest. */
-export function whenCity(city: Signal<City | null>): Promise<City> {
-  const ready = city.peek();
+/** Resolves once this city's scene exists. A boot load can outrun the scene,
+ *  and a load that finds none has nowhere to put its manifest. */
+export function whenScene(scene: Signal<CityScene | null>): Promise<CityScene> {
+  const ready = scene.peek();
   if (ready) return Promise.resolve(ready);
   return new Promise((resolve) => {
     const stop = effect(() => {
-      const made = city.value;
+      const made = scene.value;
       if (!made) return;
       resolve(made);
       queueMicrotask(() => stop());
@@ -65,8 +65,8 @@ export interface CityCommands {
   runTreeGroundingCheck(): void;
 }
 
-export function createCityCommands(session: ProjectSession): CityCommands {
-  const city = session.city;
+export function createCityCommands(session: CitySession): CityCommands {
+  const city = session.scene;
 
   /** What a command points the camera at: a node by path, a commit by sha, or
    *  whatever is already selected. */

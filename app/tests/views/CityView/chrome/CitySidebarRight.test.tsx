@@ -8,9 +8,9 @@ import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';
 import { flush, drainAsync } from '../../../_helpers/preact';
-import { makeSession, renderInProject } from '../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FILE_NODE: FileNode = {
@@ -106,21 +106,21 @@ describe('CitySidebarRight', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
-    session.city.value = makeSceneHandle() as never;
-    renderInProject(<CitySidebarRight />, session, container);
+    session.scene.value = makeSceneHandle() as never;
+    renderInCity(<CitySidebarRight />, session, container);
     await flush();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    session.city.value = null;
+    session.scene.value = null;
     session.timeline.mode.value = false;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   const selectFile = async (file: FileNode) => {
-    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file,
@@ -139,7 +139,7 @@ describe('CitySidebarRight', () => {
   });
 
   it('opens with the file preview pane when a file is selected', async () => {
-    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file: FILE_NODE,
@@ -156,7 +156,7 @@ describe('CitySidebarRight', () => {
 
   it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
     session.timeline.mode.value = true;
-    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
 
     // File selection while scrubbing → panel opens (the sidebar is now the only
@@ -185,7 +185,7 @@ describe('CitySidebarRight', () => {
   // offered there too (previously hidden as a would-be no-op).
   it('Timeline mode: the exclude button is available for a selected file', async () => {
     session.timeline.mode.value = true;
-    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     handle.picker.setSelection({
       kind: NodeKind.File,
@@ -220,7 +220,7 @@ describe('CitySidebarRight', () => {
 
     it('file pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       session.manifest.set(manifestWithFile(FILE_NODE));
-      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       handle.picker.setSelection({
         kind: NodeKind.File,
         file: FILE_NODE, // the picker's snapshot — becomes stale below
@@ -244,7 +244,7 @@ describe('CitySidebarRight', () => {
 
     it('street pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       session.manifest.set(manifestWithDir(DIR_NODE));
-      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       handle.picker.setSelection({
         kind: NodeKind.Directory,
         dir: DIR_NODE, // the picker's snapshot — becomes stale below
@@ -283,7 +283,7 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 
@@ -328,7 +328,7 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 

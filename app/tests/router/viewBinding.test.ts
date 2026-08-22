@@ -9,10 +9,10 @@ import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
 import type { Manifest, PickerSelectionKey } from '@/types';
-import type { City } from '@/city/types';
+import type { CityScene } from '@/city/types';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
 // Spies on THIS session's commands and timeline: what matters is the URL's
 // selection going back, not the bundle fetch and repack behind it.
@@ -20,7 +20,7 @@ const session = makeSession();
 // The selection lives on the city's picker, so this session gets one: a fake,
 // since what is under test is the URL either side of it.
 const selectionKey = signal<PickerSelectionKey | null>(null);
-session.city.value = { picker: { selectionKey } } as unknown as City;
+session.scene.value = { picker: { selectionKey } } as unknown as CityScene;
 const goToPath = vi.spyOn(session.commands, 'goToPath').mockImplementation(() => {});
 const goToCommit = vi.spyOn(session.commands, 'goToCommit').mockImplementation(() => {});
 const clearSelection = vi.spyOn(session.commands, 'clearSelection').mockImplementation(() => {});

@@ -4,7 +4,7 @@
 // attachLoadReaction), so this renders and nothing more.
 
 import './LoadingOverlay.css';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import { LoadingProgress } from '@/components/loading/LoadingProgress/LoadingProgress';
 
 export interface LoadingOverlayProps {
@@ -13,7 +13,7 @@ export interface LoadingOverlayProps {
 }
 
 export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
-  const { progress } = useProject();
+  const { progress } = useCity();
   const lo = progress.overlay.value;
   if (!lo.visible || !lo.activeStep) return null;
 

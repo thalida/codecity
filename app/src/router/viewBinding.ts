@@ -9,7 +9,7 @@ import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
 import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
 import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import { FocusMode } from '@/city/render/cameraRig';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
@@ -18,8 +18,8 @@ const REPLACE: NavigateOptions = { replace: true };
 
 /** Bind one project's view (mode, scrubbed commit, selection) to the URL, both
  *  ways. Attached for the session the address bar describes; others are not. */
-export function attachViewUrlReactions(session: ProjectSession): () => void {
-  const { source, progress, timeline, commands, city } = session;
+export function attachViewUrlReactions(session: CitySession): () => void {
+  const { source, progress, timeline, commands, scene } = session;
 
   // ── Encoding ─────────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export function attachViewUrlReactions(session: ProjectSession): () => void {
 
   function reflectViewToUrl(): void {
     const scrubbing = timeline.mode.value;
-    const selection = selectionParam(city.value?.picker.selectionKey.value ?? null);
+    const selection = selectionParam(scene.value?.picker.selectionKey.value ?? null);
     const commit = scrubbing ? settledCommitSha() : null;
     // Replace, always: none of these is a place the user asked to go, and a drag
     // would otherwise bury their own history under a hundred entries.
@@ -86,7 +86,7 @@ export function attachViewUrlReactions(session: ProjectSession): () => void {
       const [modeOff, commitOff, selectionOff] = untracked(() => [
         wantTimeline !== timeline.mode.peek(),
         wantTimeline && !!wantCommit && wantCommit !== settledCommitSha(),
-        wantSelection !== selectionParam(city.peek()?.picker.selectionKey.peek() ?? null),
+        wantSelection !== selectionParam(scene.peek()?.picker.selectionKey.peek() ?? null),
       ]);
 
       // A dimension is acted on when the view is off it AND the URL is asking for

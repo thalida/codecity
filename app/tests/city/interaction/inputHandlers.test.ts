@@ -1,5 +1,5 @@
 // inputHandlers.test.ts — the scene's keybindings must not fire while a modal
-// owns the keyboard. Driven through the real createCity path, so it covers the
+// owns the keyboard. Driven through the real createCityScene path, so it covers the
 // actual listener wiring rather than a stand-in for it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,18 +18,18 @@ vi.mock('@/city/render/postFx', async () =>
   (await import('../../_helpers/threeMock')).postFxMock()
 );
 
-import { createCity } from '@/city/index';
-import { makeSession } from '../../_helpers/project';
-import { cityPropsFor } from '@/city/forProject';
+import { createCityScene } from '@/city/index';
+import { makeSession } from '../../_helpers/city';
+import { cityPropsFor } from '@/city/forSession';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
   // Every city binds its own document keydown listener, so one left standing
   // answers the next test's keystroke too.
-  let cities: Array<Awaited<ReturnType<typeof createCity>>> = [];
+  let cities: Array<Awaited<ReturnType<typeof createCityScene>>> = [];
 
   beforeEach(() => {
     // Over a city: home IS the switcher, which owns the keyboard.
@@ -50,12 +50,12 @@ describe('scene keydown handler — modal suppression', () => {
     vi.clearAllMocks();
     closeShortcuts();
     navigate(ROUTES.HOME, { replace: true });
-    session.city.value = null;
+    session.scene.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
     cities.push(handle);
     return handle;
   }
@@ -86,7 +86,7 @@ describe('scene keydown handler — modal suppression', () => {
   // the same command — including putting the panel away to uncover the city.
   it("focuses the selection on F and leaves the chip in the panel's place", async () => {
     const handle = await mountCity();
-    session.city.value = handle;
+    session.scene.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
     handle.picker.selection.value = {
       kind: NodeKind.Commit,
@@ -106,7 +106,7 @@ describe('scene keydown handler — modal suppression', () => {
 
   it('ignores F with nothing selected, panel included', async () => {
     const handle = await mountCity();
-    session.city.value = handle;
+    session.scene.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));

@@ -8,9 +8,9 @@ import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData'
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('RecentsList', () => {
@@ -46,7 +46,7 @@ describe('RecentsList', () => {
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
-    renderInProject(<RecentsList />, session, container);
+    renderInCity(<RecentsList />, session, container);
     await flush();
 
     const activeRow = container.querySelector('.source-row--active');
@@ -61,7 +61,7 @@ describe('RecentsList', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
     ];
-    renderInProject(<RecentsList />, session, container);
+    renderInCity(<RecentsList />, session, container);
     await flush();
     const note = container.querySelector('.source-row--active .source-row-note');
     expect(note?.textContent).toBe('Active');
@@ -70,7 +70,7 @@ describe('RecentsList', () => {
   it('every row is a link to the project it names', async () => {
     // A real href, so the destination shows on hover, cmd-click opens a tab,
     // and a row can never open a repo other than the one it is labelled with.
-    renderInProject(<RecentsList />, session, container);
+    renderInCity(<RecentsList />, session, container);
     await flush();
 
     const active = container.querySelector<HTMLAnchorElement>('.source-row--active')!;
@@ -92,7 +92,7 @@ describe('RecentsList', () => {
       tree: { name: 'proj' },
       repo: { branch: 'feat/x' },
     } as unknown as Manifest);
-    renderInProject(<RecentsList />, session, container);
+    renderInCity(<RecentsList />, session, container);
     await flush();
 
     const rows = container.querySelectorAll('.source-list-item');
@@ -102,7 +102,7 @@ describe('RecentsList', () => {
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
-    renderInProject(<RecentsList />, session, container);
+    renderInCity(<RecentsList />, session, container);
     await flush();
 
     const removeButtons = container.querySelectorAll<HTMLButtonElement>(

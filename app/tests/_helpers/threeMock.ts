@@ -7,7 +7,7 @@
 
 import type * as THREE from 'three';
 
-/** Keeps exactly the methods createCity and the frame loop call. `getSize`
+/** Keeps exactly the methods createCityScene and the frame loop call. `getSize`
  *  fills the passed Vector2, making the per-frame size guard a no-op. Pass a
  *  spy to assert the GL context was released, not just its resources. */
 export function fakeWebGLRenderer(onForceContextLoss: () => void = () => {}) {

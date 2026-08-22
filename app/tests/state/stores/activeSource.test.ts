@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RECENTS } from '@/state/stores/source';
 import { clearSourceUrl, attachUrlBinding } from '@/router/urlBinding';
 import { sourceKey } from '@/utils/sources';
-import { makeSession } from '../../_helpers/project';
-import type { ProjectSession } from '@/state/project/session';
+import { makeSession } from '../../_helpers/city';
+import type { CitySession } from '@/state/city/session';
 import type { Manifest } from '@/types';
 import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
 describe("a session's source, and what the URL makes of it", () => {
-  let session: ProjectSession;
+  let session: CitySession;
   let stopUrl: () => void;
 
   beforeEach(() => {
@@ -48,7 +48,7 @@ describe("a session's source, and what the URL makes of it", () => {
 });
 
 describe("a session's source info, derived from its manifest and source", () => {
-  let session: ProjectSession;
+  let session: CitySession;
 
   beforeEach(() => {
     session = makeSession();
@@ -105,7 +105,7 @@ describe('clearSourceUrl', () => {
 });
 
 describe('committing a source', () => {
-  let session: ProjectSession;
+  let session: CitySession;
   let stopUrl: () => void;
 
   beforeEach(() => {

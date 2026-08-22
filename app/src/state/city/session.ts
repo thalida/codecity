@@ -1,4 +1,4 @@
-// state/project/session.ts — one open project, whole: which repo, its manifest,
+// state/city/session.ts — one open project, whole: which repo, its manifest,
 // how far its load and build have got, the history it is scrubbed through, and
 // the city rendering it. Nothing here is app-wide, so a second session shares
 // nothing — which is what lets two cities sit side by side.
@@ -11,18 +11,18 @@ import { createTimelineStore, type TimelineStore } from '@/state/stores/timeline
 import { createCityCommands, type CityCommands } from '@/city/sceneHandle';
 import { createProjectLoader, type ProjectLoader } from '@/hooks/useManifestSource';
 import { createTimelineController, type TimelineController } from '@/hooks/useTimelineMode';
-import type { City } from '@/city/types';
+import type { CityScene } from '@/city/types';
 
 /** The project open in one place. Loading a new source swaps its contents
  *  rather than making a second one; the city rendering it stays put. */
-export interface ProjectSession {
+export interface CitySession {
   source: SourceStore;
   manifest: ManifestStore;
   progress: ProgressStore;
   timeline: TimelineStore;
-  /** The city rendering this project, while one is mounted. The chrome reaches
-   *  through here to command it; a session with no city is still a session. */
-  city: Signal<City | null>;
+  /** The scene drawing this city, while one is mounted. The chrome reaches
+   *  through here to command it; a city with no scene is still a city. */
+  scene: Signal<CityScene | null>;
   /** The verbs the chrome sends that city. */
   commands: CityCommands;
   /** Fetching this project: the scan, its cancel, and the live-update poll. */
@@ -32,7 +32,7 @@ export interface ProjectSession {
   dispose(): void;
 }
 
-export function createProjectSession(): ProjectSession {
+export function createCitySession(): CitySession {
   // Order is the dependency graph: the manifest is what a source describes,
   // and both are what progress and history are measured against.
   const manifest = createManifestStore();
@@ -47,8 +47,8 @@ export function createProjectSession(): ProjectSession {
     manifest,
     progress,
     timeline,
-    city: signal<City | null>(null),
-  } as ProjectSession;
+    scene: signal<CityScene | null>(null),
+  } as CitySession;
 
   session.commands = createCityCommands(session);
   session.load = createProjectLoader(session);

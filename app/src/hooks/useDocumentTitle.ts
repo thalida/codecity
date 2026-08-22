@@ -4,10 +4,10 @@
 // so a stale one stranded the tab at "(pending)". The overlay still shows it.
 
 import { useSignalEffect } from '@preact/signals';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 export function useDocumentTitle(): void {
-  const { manifest } = useProject();
+  const { manifest } = useCity();
   useSignalEffect(() => {
     const m = manifest.current.value;
     // tree.name is the server-normalized display name (owner/repo or basename).

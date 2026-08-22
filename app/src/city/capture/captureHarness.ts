@@ -7,7 +7,7 @@ import { effect } from '@preact/signals';
 
 import { isDebugMode } from '@/utils/debugMode';
 import { RebuildStatus } from '@/state/stores/progress';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import type { Manifest } from '@/types';
 
 import { SHOTS, type ShotOverrides } from './shots';
@@ -19,7 +19,7 @@ const SETTLE_MS = 2200;
 const POSE_RETRY_MS = 400;
 const MAX_POSE_ATTEMPTS = 120;
 
-export function initCaptureHarness(session: ProjectSession): void {
+export function initCaptureHarness(session: CitySession): void {
   const params = new URLSearchParams(window.location.search);
   const shot = params.get('shot');
   if (!shot || !isDebugMode()) return;
@@ -45,7 +45,7 @@ export function initCaptureHarness(session: ProjectSession): void {
 
   let posed = false;
   const stop = effect(() => {
-    const handle = session.city.value;
+    const handle = session.scene.value;
     const manifest = session.manifest.current.value as Manifest;
     if (posed || !handle || !manifest) return;
     if (session.progress.rebuildStatus.value !== RebuildStatus.Idle) return;

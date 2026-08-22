@@ -24,7 +24,7 @@ import {
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.
@@ -55,7 +55,7 @@ export function NewProjectForm({
   prefill,
   onSubmit,
 }: NewProjectFormProps) {
-  const { progress } = useProject();
+  const { progress } = useCity();
   // Editing the source retires the last attempt's banner. Local, not a write
   // back to SOURCE_ERROR: that failure is still the reason this route is open.
   const [retired, setRetired] = useState(false);

@@ -7,7 +7,7 @@ import type { SceneHandle } from '@/city/sceneHandle';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
@@ -29,7 +29,7 @@ export type ShotPose = (
   manifest: Manifest,
   o: ShotOverrides,
   /** The project being shot: its history, for a shot that scrubs. */
-  session: ProjectSession
+  session: CitySession
 ) => boolean | void;
 
 /** A placed tree's bounds. A named commit often has no tree, so this walks

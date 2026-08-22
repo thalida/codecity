@@ -7,9 +7,9 @@ import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // The overlay is signal-driven, so these tests render the component and poke
@@ -28,7 +28,7 @@ beforeEach(() => {
   session.progress.pendingLabel.value = null;
   container = document.createElement('div');
   document.body.appendChild(container);
-  renderInProject(<LoadingOverlay onCancel={() => {}} />, session, container);
+  renderInCity(<LoadingOverlay onCancel={() => {}} />, session, container);
 });
 
 afterEach(() => {

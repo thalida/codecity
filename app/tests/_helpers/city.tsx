@@ -3,25 +3,25 @@
 // the shape: no reset-the-globals dance between cases.
 
 import { render } from 'preact';
-import { ProjectProvider } from '@/state/project/context';
-import { createProjectSession, type ProjectSession } from '@/state/project/session';
+import { CityProvider } from '@/state/city/context';
+import { createCitySession, type CitySession } from '@/state/city/session';
 import type { ComponentChildren, VNode } from 'preact';
 
 /** A fresh session, isolated from every other test's. */
-export function makeSession(): ProjectSession {
-  return createProjectSession();
+export function makeSession(): CitySession {
+  return createCitySession();
 }
 
 /** Render `ui` inside `session`, the way the app mounts its views. */
-export function renderInProject(
+export function renderInCity(
   ui: ComponentChildren,
-  session: ProjectSession,
+  session: CitySession,
   container: HTMLElement
 ): void {
-  render(<ProjectProvider session={session}>{ui}</ProjectProvider>, container);
+  render(<CityProvider session={session}>{ui}</CityProvider>, container);
 }
 
 /** The provider as a wrapper, for a test that renders through another helper. */
-export function inProject(ui: ComponentChildren, session: ProjectSession): VNode {
-  return <ProjectProvider session={session}>{ui}</ProjectProvider>;
+export function inCity(ui: ComponentChildren, session: CitySession): VNode {
+  return <CityProvider session={session}>{ui}</CityProvider>;
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EXCLUDES, activeExcludePathsFor } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
-import { makeSession } from '../../_helpers/project';
-import type { ProjectSession } from '@/state/project/session';
+import { makeSession } from '../../_helpers/city';
+import type { CitySession } from '@/state/city/session';
 
-let session: ProjectSession;
+let session: CitySession;
 
 beforeEach(() => {
   EXCLUDES.value = {};

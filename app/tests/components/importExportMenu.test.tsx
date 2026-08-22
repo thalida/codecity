@@ -13,9 +13,9 @@ import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
 import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FIELDS = {
@@ -47,7 +47,7 @@ describe('ImportExportMenu', () => {
   const mount = () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    act(() => renderInProject(<ImportExportMenu groups={GROUPS} />, session, container));
+    act(() => renderInCity(<ImportExportMenu groups={GROUPS} />, session, container));
     act(() => container.querySelector<HTMLButtonElement>('.popover-trigger')!.click());
   };
 

@@ -3,7 +3,7 @@
 // which rows to draw and which one is live; what those mean is the store's.
 
 import './LoadingProgress.css';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 
 import { SourceKind } from '@/utils/sources';
@@ -35,7 +35,7 @@ export function LoadingProgress({
   steps = LOADING_STEPS,
   onCancel,
 }: LoadingProgressProps) {
-  const { progress } = useProject();
+  const { progress } = useCity();
   const pendingLabel = progress.pendingLabel.value;
   const activeIdx = steps.indexOf(activeStep);
 

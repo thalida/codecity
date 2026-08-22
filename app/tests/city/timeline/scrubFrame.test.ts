@@ -11,9 +11,9 @@ import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const _ruins = RUINS.peek();

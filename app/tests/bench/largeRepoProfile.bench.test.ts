@@ -15,9 +15,9 @@ import type { Building, CityLayout } from '@/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 function countFiles(node: any): number {

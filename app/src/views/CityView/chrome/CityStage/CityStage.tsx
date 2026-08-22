@@ -3,14 +3,14 @@
 
 import './CityStage.css';
 import { City } from '@/city/City';
-import { cityPropsFor } from '@/city/forProject';
-import { useProject } from '@/state/project/context';
+import { cityPropsFor } from '@/city/forSession';
+import { useCity } from '@/state/city/context';
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 
 export function CityStage() {
-  const session = useProject();
+  const session = useCity();
   return (
     <div id="city-stage">
       {/* Opaque: nothing sits behind this canvas, so a resize gap would flash

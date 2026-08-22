@@ -3,9 +3,9 @@ import { render } from 'preact';
 import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { flush } from '../../../_helpers/preact';
-import { makeSession, renderInProject } from '../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('CityFooter', () => {
@@ -24,7 +24,7 @@ describe('CityFooter', () => {
   });
 
   it('shows the running build version in the app line, on the right', async () => {
-    renderInProject(<CityFooter />, session, container);
+    renderInCity(<CityFooter />, session, container);
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -33,14 +33,14 @@ describe('CityFooter', () => {
 
   // The header is the project, the footer is the app.
   it('holds no project state: the freshness readout lives in the header', async () => {
-    renderInProject(<CityFooter />, session, container);
+    renderInCity(<CityFooter />, session, container);
     await flush();
 
     expect(container.querySelector('.freshness-status')).toBeNull();
   });
 
   it('credits the creator on the right, linked to thalida.com', async () => {
-    renderInProject(<CityFooter />, session, container);
+    renderInCity(<CityFooter />, session, container);
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -55,7 +55,7 @@ describe('CityFooter', () => {
   });
 
   it('no longer reads as a code comment', async () => {
-    renderInProject(<CityFooter />, session, container);
+    renderInCity(<CityFooter />, session, container);
     await flush();
 
     expect(container.querySelector('#city-footer')!.textContent).not.toContain('//');
@@ -63,7 +63,7 @@ describe('CityFooter', () => {
 
   // Both are app-level, so both belong here rather than in the project header.
   it('holds the shortcuts button and the about link', async () => {
-    renderInProject(<CityFooter />, session, container);
+    renderInCity(<CityFooter />, session, container);
     await flush();
 
     // Prefix match: jsdom's selector engine will not match an `&` inside a

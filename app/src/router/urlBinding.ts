@@ -9,7 +9,7 @@ import { ROUTES } from '@/router/paths';
 import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/router/location';
 import { effect } from '@preact/signals';
 import { attachViewUrlReactions } from '@/router/viewBinding';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 
 /** Drop the load from the URL and go home: a cancel with nothing to fall back
  *  to must not leave a reload re-running what it called off. */
@@ -25,7 +25,7 @@ export function clearSourceUrl(): void {
 
 /** Reflect the applied source so reload/share reopens it, moving to /city if
  *  the load began at home. Exported for the view-params tests beside it. */
-export function attachSourceReflection(session: ProjectSession): () => void {
+export function attachSourceReflection(session: CitySession): () => void {
   return effect(() => {
     const cur = session.source.current.value;
     if (!cur) return;
@@ -47,7 +47,7 @@ export function attachSourceReflection(session: ProjectSession): () => void {
 }
 
 /** Point the address bar at `session`, both ways. Returns a dispose. */
-export function attachUrlBinding(session: ProjectSession): () => void {
+export function attachUrlBinding(session: CitySession): () => void {
   const stops = [
     attachSourceReflection(session),
     session.load.attachRouteLoad(),

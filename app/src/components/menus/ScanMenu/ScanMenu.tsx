@@ -16,7 +16,7 @@ import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EXCLUDES_DOCS_URL } from '@/constants/ui';
 import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 
 const PANEL_LABEL = 'Scan Settings';
 
@@ -49,7 +49,7 @@ function ExcludePath({ path }: { path: string }) {
 }
 
 function ExcludesGroup() {
-  const { source } = useProject();
+  const { source } = useCity();
   const paths = source.excludes.value;
   return (
     <section class="popover-group">
@@ -125,7 +125,7 @@ export interface ScanMenuProps {
 }
 
 export function ScanMenu({ onRefresh }: ScanMenuProps) {
-  const { source } = useProject();
+  const { source } = useCity();
   const freshness = useFreshness();
   // Excluding is the one act whose result is an absence: the pane closes, the
   // building goes, and nothing else in the app says where it went.

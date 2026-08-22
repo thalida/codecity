@@ -6,7 +6,7 @@
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { RECENTS, activeExcludePathsFor } from '@/state/stores/source';
-import { whenCity } from '@/city/sceneHandle';
+import { whenScene } from '@/city/sceneHandle';
 import {
   BuildStage,
   PACK_STAGES,
@@ -18,7 +18,7 @@ import {
 import { nextPaint } from '@/city/utils/nextPaint';
 import { srcKind } from '@/utils/sources';
 import { TimelineStage } from '@/types';
-import type { ProjectSession } from '@/state/project/session';
+import type { CitySession } from '@/state/city/session';
 import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 
 /** How far the current stage has got. Written beside its own step row, and
@@ -66,8 +66,8 @@ export interface TimelineController {
   exit(): void;
 }
 
-export function createTimelineController(session: ProjectSession): TimelineController {
-  const { source, progress, timeline, city } = session;
+export function createTimelineController(session: CitySession): TimelineController {
+  const { source, progress, timeline, scene } = session;
   const report = progress.reporter;
 
   async function loadTimelineSource({
@@ -105,10 +105,10 @@ export function createTimelineController(session: ProjectSession): TimelineContr
       });
     }
 
-    // A cold boot can outrun the city it packs into; a refetch can't, so no handle
-    // there means nothing to refetch and waiting would hang the overlay.
-    if (inPlace && !city.peek()) return;
-    const handle = await whenCity(city);
+    // A cold boot can outrun the scene it packs into; a refetch can't, so no
+    // scene there means nothing to refetch and waiting would hang the overlay.
+    if (inPlace && !scene.peek()) return;
+    const handle = await whenScene(scene);
     if (cancelled) return;
 
     // The plan the whole Building row counts over, opened when the server starts
@@ -245,7 +245,7 @@ export function createTimelineController(session: ProjectSession): TimelineContr
   // Re-pack from the warm bundle, holding SCRUB_POS, so a settings Save in
   // Timeline stays in Timeline instead of dropping to live HEAD.
   async function reapplyTimelineScene(): Promise<void> {
-    const handle = city.peek();
+    const handle = scene.peek();
     const bundle = timeline.bundle.peek();
     if (!handle || !bundle) return;
     const timelines = buildPathTimelines(bundle);

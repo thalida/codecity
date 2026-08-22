@@ -13,9 +13,9 @@ import type { Trees } from '@/city/components/trees/treeRenderer';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
 import type { PickerWorld, CommitTarget } from '@/types';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;

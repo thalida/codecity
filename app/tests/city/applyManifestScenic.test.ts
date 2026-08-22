@@ -8,9 +8,9 @@ import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
 import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 function makeRootStreet(): Street {

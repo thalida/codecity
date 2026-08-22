@@ -8,9 +8,9 @@ import * as branchesApi from '@/api/branches';
 import { ScanError } from '@/api/manifest';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
-import { makeSession, renderInProject } from '../_helpers/project';
+import { makeSession, renderInCity } from '../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // Label-independent: the source field's label switches on allowLocalRepos.
@@ -52,7 +52,7 @@ describe('NewProjectForm', () => {
       branches: ['main', 'dev'],
       default: 'main',
     });
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     // No Repo URL / Local Path tabs — a single unified field.
     expect(container.querySelectorAll('.pane-tab').length).toBe(0);
@@ -72,7 +72,7 @@ describe('NewProjectForm', () => {
     const resolve = vi
       .spyOn(branchesApi, 'fetchBranches')
       .mockResolvedValue({ branches: ['main'], default: 'main' });
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
 
     const url = 'https://github.com/o/repo';
@@ -94,7 +94,7 @@ describe('NewProjectForm', () => {
     resolve.mockResolvedValueOnce({ branches: ['main', 'feat'], default: 'main' });
     const onSubmit = vi.fn();
 
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
     await flush();
 
     setInput(field(container), 'https://github.com/o/first');
@@ -129,7 +129,7 @@ describe('NewProjectForm', () => {
     );
     const onSubmit = vi.fn();
 
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
     await flush();
 
     setInput(field(container), 'https://github.com/o/nope');
@@ -150,7 +150,7 @@ describe('NewProjectForm', () => {
     const resolve = vi
       .spyOn(branchesApi, 'fetchBranches')
       .mockResolvedValue({ branches: [], default: null });
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
 
     setInput(field(container), 'https://github.com/thalida/codecity#local-directories');
@@ -165,7 +165,7 @@ describe('NewProjectForm', () => {
 
   it('opens without skipCache by default', async () => {
     const onSubmit = vi.fn();
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
     await flush();
     setInput(field(container), '/Users/thalida/repo');
     await flush();
@@ -176,7 +176,7 @@ describe('NewProjectForm', () => {
 
   it('the fresh-scan menu item opens with skipCache', async () => {
     const onSubmit = vi.fn();
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, session, container);
     await flush();
     setInput(field(container), '/Users/thalida/repo');
     await flush();
@@ -194,7 +194,7 @@ describe('NewProjectForm', () => {
   it('the fresh-scan item never submits the form itself', async () => {
     // It lives inside the real <form>, so a stray type="submit" would fire an
     // extra plain open alongside the fresh one.
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
     await flush();
@@ -204,7 +204,7 @@ describe('NewProjectForm', () => {
   });
 
   it('drops the Advanced disclosure and its checkbox', async () => {
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     expect(container.querySelector('.new-project-advanced-toggle')).toBeNull();
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
@@ -216,7 +216,7 @@ describe('NewProjectForm', () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
     );
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
     await drainDebounced();
@@ -236,7 +236,7 @@ describe('NewProjectForm', () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
     );
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
     await drainDebounced();
@@ -256,7 +256,7 @@ describe('NewProjectForm', () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockImplementation((url: string) =>
       url.includes('/private') ? Promise.reject(new ScanError('nope', 'repo-not-found')) : other
     );
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
     await drainDebounced();
@@ -277,7 +277,7 @@ describe('NewProjectForm', () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
       new ScanError('nope', 'repo-not-found')
     );
-    renderInProject(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
+    renderInCity(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, session, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
     await drainDebounced();
@@ -289,7 +289,7 @@ describe('NewProjectForm', () => {
   });
 
   it('answers a remote not-found with the error remedy, keyed on the code', async () => {
-    renderInProject(
+    renderInCity(
       <NewProjectForm
         allowLocalRepos
         errorCode="repo-not-found"
@@ -309,7 +309,7 @@ describe('NewProjectForm', () => {
 
   it('does not offer the not-found remedy for a failure without that code', async () => {
     // The message is the server's to reword, so nothing may key on its text.
-    renderInProject(
+    renderInCity(
       <NewProjectForm
         allowLocalRepos
         prefill={{ src: 'https://github.com/owner/repo' }}
@@ -323,7 +323,7 @@ describe('NewProjectForm', () => {
   });
 
   it('when local repos are off: URL-only label, and a path blocks submit', async () => {
-    renderInProject(
+    renderInCity(
       <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />,
       session,
       container
@@ -347,7 +347,7 @@ describe('NewProjectForm', () => {
   // A blocked path left the notice standing under an already-red field with
   // aria-describedby unset, so the invalid field pointed at nothing.
   it('answers a blocked path where the field is, with the command that fixes it', async () => {
-    renderInProject(
+    renderInCity(
       <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />,
       session,
       container
@@ -376,7 +376,7 @@ describe('NewProjectForm', () => {
       branches: ['main'],
       default: 'main',
     });
-    renderInProject(
+    renderInCity(
       <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />,
       session,
       container
@@ -391,7 +391,7 @@ describe('NewProjectForm', () => {
 
   // The whole slot, not just the notice: the validation strings share it.
   it('never uses an em-dash in anything the field slot says', async () => {
-    renderInProject(
+    renderInCity(
       <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />,
       session,
       container
@@ -409,7 +409,7 @@ describe('NewProjectForm', () => {
   it('keeps the field mounted (and shows no path error) while typing a git URL char-by-char when local repos are off', async () => {
     // srcKind() reads anything without "://" as Local, so a URL's first
     // keystrokes look like a path: the field must not unmount or flash.
-    renderInProject(
+    renderInCity(
       <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />,
       session,
       container

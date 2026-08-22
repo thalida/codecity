@@ -4,9 +4,9 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { flush } from '../../../../_helpers/preact';
-import { makeSession, renderInProject } from '../../../../_helpers/project';
+import { makeSession, renderInCity } from '../../../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const TREE = {
@@ -41,7 +41,7 @@ describe('ExplorePane', () => {
     const hoveredPath = signal<string | null>(null);
     const expanded = signal<Set<string>>(new Set(['.']));
     act(() => {
-      renderInProject(
+      renderInCity(
         <ExplorePane
           manifest={manifest as never}
           selectedPath={selectedPath}

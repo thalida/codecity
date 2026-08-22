@@ -7,9 +7,9 @@ import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 function paths(m: unknown): Set<string> {

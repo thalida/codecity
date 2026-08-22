@@ -23,10 +23,10 @@ import {
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
 import { sourceKey } from '@/utils/sources';
-import { makeSession } from '../../_helpers/project';
+import { makeSession } from '../../_helpers/city';
 import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 const FIELDS = {

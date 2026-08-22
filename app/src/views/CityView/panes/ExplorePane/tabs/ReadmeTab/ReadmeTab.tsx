@@ -13,7 +13,7 @@ import DOMPurify from 'dompurify';
 import type { DirNode, Manifest, SourceRef } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { sourceOf } from '@/utils/manifest';
-import { useProject } from '@/state/project/context';
+import { useCity } from '@/state/city/context';
 import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
@@ -65,7 +65,7 @@ export interface ReadmeTabProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function ReadmeTab({ manifest }: ReadmeTabProps) {
-  const { timeline } = useProject();
+  const { timeline } = useCity();
   const [body, setBody] = useState<InfoBodyState>({ kind: InfoBodyKind.NoProject });
 
   useEffect(() => {

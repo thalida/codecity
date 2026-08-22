@@ -11,9 +11,9 @@ import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
-import { makeSession } from './project';
+import { makeSession } from './city';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 // A no-op layout client, for tests that never call applyManifest and so never

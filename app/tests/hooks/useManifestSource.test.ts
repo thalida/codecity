@@ -7,10 +7,10 @@ import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { makeSession } from '../_helpers/project';
+import { makeSession } from '../_helpers/city';
 import { attachUrlBinding } from '@/router/urlBinding';
 
-// One project for this file, the way the app makes one for itself.
+// One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
 describe('useManifestSource loadSource cancellation', () => {
