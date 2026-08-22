@@ -42,8 +42,9 @@ docker run --rm --init --pull=always \
 2. Enter a repo URL or a local path
 3. Explore your city!
 
-- Same path on both sides of the `-v` is easiest: that is the path you type in
+- Same path on both sides of the `-v` is easiest
 - Use multiple `-v` flags to mount more than one directory
+- Private repos: clone it yourself, and make sure the folder is volume mounted
 - codecity only renders git working trees: `git init` first to render a non-git directory
 
 ### Public repos only
