@@ -4,9 +4,9 @@
 // blames the user for a property of this server.
 import './UnreachableSource.css';
 import { useState } from 'preact/hooks';
-import { AlertCircle, ChevronDown } from 'lucide-preact';
+import { ChevronDown } from 'lucide-preact';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
-import { RUN_DOCS_URL } from '@/constants/ui';
+import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
 
 /** What failed. The resting state is not here: the landing's own band says what
  *  this instance can open, so this component only ever answers a failure. */
@@ -47,20 +47,16 @@ const PREAMBLE: Record<NoticeReason, string> = {
 // don't have has to be cloned, a folder you already have only has to be mounted.
 const REMEDY: Record<NoticeReason, string> = {
   [NoticeReason.Unreachable]: "If it's private, clone it yourself and open the folder.",
-  [NoticeReason.PathBlocked]: 'Mount that folder and codecity can open it.',
+  [NoticeReason.PathBlocked]: 'Mount that folder and it can.',
 };
 
 export function UnreachableSource({ allowLocal, reason, src, id }: UnreachableSourceProps) {
   return (
     <div id={id} class="unreachable" role="alert">
-      <span class="unreachable-glyph-slot">
-        <AlertCircle class="icon unreachable-glyph" aria-hidden="true" />
-      </span>
-      <div class="unreachable-text">
-        <p class="unreachable-preamble">{PREAMBLE[reason]}</p>
-        <p class="unreachable-remedy">{REMEDY[reason]}</p>
-        <Remedy allowLocal={allowLocal} src={src} />
-      </div>
+      <p class="unreachable-remedy">
+        <strong class="unreachable-preamble">{PREAMBLE[reason]}</strong> {REMEDY[reason]}
+      </p>
+      <Remedy allowLocal={allowLocal} src={src} />
     </div>
   );
 }
@@ -73,7 +69,7 @@ function Remedy({ allowLocal, src }: Pick<UnreachableSourceProps, 'allowLocal' |
       <>
         <CloneCommand src={src} />
         <p class="unreachable-actions">
-          <DocsLink />
+          <SetupGuideLink />
         </p>
       </>
     );
@@ -97,7 +93,7 @@ function RunItYourself({ src }: { src?: string }) {
           Run it yourself
           <ChevronDown class={`icon unreachable-chevron${open ? ' is-open' : ''}`} />
         </button>
-        <DocsLink />
+        <SetupGuideLink />
       </div>
       {open && (
         <div class="unreachable-detail">
@@ -123,14 +119,5 @@ function CloneCommand({ src }: { src?: string }) {
       <code>{command}</code>
       <CopyButton text={command} label="Copy clone command" />
     </div>
-  );
-}
-
-/** One label, because both states point at the same README section. */
-function DocsLink() {
-  return (
-    <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-      Setup&nbsp;guide
-    </a>
   );
 }

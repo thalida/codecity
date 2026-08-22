@@ -15,7 +15,7 @@ const PREAMBLE: Record<NoticeReason, RegExp> = {
 
 const REMEDY: Record<NoticeReason, RegExp> = {
   [NoticeReason.Unreachable]: /clone it yourself and open the folder/i,
-  [NoticeReason.PathBlocked]: /mount that folder and codecity can open it/i,
+  [NoticeReason.PathBlocked]: /mount that folder and it can/i,
 };
 
 // Three states, not eight. `allowLocal` is the only thing that changes the
@@ -131,12 +131,17 @@ describe('UnreachableSource', () => {
     expect(text()).not.toContain('git clone');
   });
 
-  it('always points somewhere to read more', async () => {
+  // Every state sends people to the same README section, so every state calls it
+  // the same thing. It used to be "See docs" here and "Full setup" next door.
+  it('always points somewhere to read more, by one name', async () => {
     for (const { reason, allowLocal } of STATES) {
       await show(reason, allowLocal);
       const links = [...container.querySelectorAll('a[href]')];
       expect(links.length).toBeGreaterThan(0);
-      for (const link of links) expect(link.getAttribute('href')).toMatch(/#run-it-yourself$/);
+      for (const link of links) {
+        expect(link.getAttribute('href')).toMatch(/#run-it-yourself$/);
+        expect(link.textContent?.replace(/\s+/g, ' ')).toMatch(/setup guide/i);
+      }
       render(null, container);
     }
   });

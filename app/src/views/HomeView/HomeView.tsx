@@ -110,7 +110,7 @@ export function HomeView() {
               <p class="landing-local-body">
                 Clone one yourself, then{' '}
                 <a class="link" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-                  run codecity with that folder mounted
+                  run codecity
                 </a>
                 .
               </p>
