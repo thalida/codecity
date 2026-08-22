@@ -4,7 +4,7 @@ that the client replays to reconstruct any commit's file set."""
 import os
 import subprocess
 from pathlib import Path
-from api.models.manifest import DateRangeMs, RangeStat
+from api.models.manifest import RangeStat
 
 from api.scan.timeline import walk_deltas
 from api.git import SourceRef
@@ -348,69 +348,6 @@ def test_head_line_range_matches_live_scan(tmp_path: Path) -> None:
 
     assert live_range == RangeStat(min=1, max=100)  # b=1, big=100; binary excluded
     assert ranges[-1] == live_range  # Timeline HEAD == Live
-
-
-def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
-    """The date analog of the line-range contract: commitDateRanges[-1] (HEAD)
-    equals the live scan's dateRanges for the same repo, so weathering at HEAD
-    normalizes identically. Compared as epoch ms, which is what the client
-    consumes."""
-    from api.scan.timeline import compute_commit_date_ranges, walk_deltas
-    from api.utils.dates import iso_to_ms
-    from api.git.meta import collect_git_history
-    from api.scan.scanner import scan_tree
-
-    _init(tmp_path)
-    (tmp_path / "a.txt").write_text("one\n")
-    _commit(tmp_path, "c1")
-    (tmp_path / "b.txt").write_text("two\n")
-    _commit(tmp_path, "c2")
-    (tmp_path / "a.txt").write_text("one\nmore\n")
-    _commit(tmp_path, "c3")
-
-    live = None
-    for ev in scan_tree(str(tmp_path), SourceRef(str(tmp_path)), use_cache=False):
-        if ev.phase == "manifest-complete":
-            live = ev.manifest
-    assert live is not None
-    live_dates = live.dateRanges
-
-    deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
-    ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
-
-    assert ranges[-1] == DateRangeMs(
-        minCreated=iso_to_ms(live_dates.minCreated),
-        maxCreated=iso_to_ms(live_dates.maxCreated),
-        minModified=iso_to_ms(live_dates.minModified),
-        maxModified=iso_to_ms(live_dates.maxModified),
-    )
-    # One range per commit, and the created span never runs backwards.
-    assert len(ranges) == len(deltas)
-    assert all(r.minCreated <= r.maxCreated for r in ranges)
-
-
-def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
-    """A deleted file drops out of the range at the commit that removed it."""
-    from api.scan.timeline import compute_commit_date_ranges, walk_deltas
-    from api.git.meta import collect_git_history
-
-    _init(tmp_path)
-    (tmp_path / "old.txt").write_text("x\n")
-    _commit(tmp_path, "c1")
-    (tmp_path / "new.txt").write_text("y\n")
-    _commit(tmp_path, "c2")
-    (tmp_path / "old.txt").unlink()
-    _commit(tmp_path, "c3")
-
-    deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
-    ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
-
-    # At c1 only old.txt exists, so the span is a single instant.
-    assert ranges[0].minCreated == ranges[0].maxCreated
-    # At HEAD only new.txt survives, so its creation is both ends again.
-    assert ranges[-1].minCreated == ranges[-1].maxCreated
 
 
 def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:

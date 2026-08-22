@@ -33,7 +33,6 @@ export type RangeStat = Schemas['RangeStat'];
 export type FileLeader = Schemas['FileLeader'];
 export type DirLeader = Schemas['DirLeader'];
 export type CommitLeader = Schemas['CommitLeader'];
-export type CommitDateRange = Schemas['CommitDateRange'];
 export type DayLeader = Schemas['DayLeader'];
 export type AuthorStat = Schemas['AuthorStat'];
 export type RepoStats = Schemas['RepoStats'];

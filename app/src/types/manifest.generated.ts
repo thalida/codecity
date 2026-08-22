@@ -353,17 +353,6 @@ export interface components {
             /** Message */
             message: string;
         };
-        /** DateRangeMs */
-        DateRangeMs: {
-            /** Mincreated */
-            minCreated: number;
-            /** Maxcreated */
-            maxCreated: number;
-            /** Minmodified */
-            minModified: number;
-            /** Maxmodified */
-            maxModified: number;
-        };
         /** DateRanges */
         DateRanges: {
             /**
@@ -753,8 +742,6 @@ export interface components {
             };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
-            /** Commitdateranges */
-            commitDateRanges: components["schemas"]["DateRangeMs"][];
             /** Notes */
             notes: string[];
         };

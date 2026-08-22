@@ -306,13 +306,6 @@ class SignatureResponse(BaseModel):
     content_signature: str
 
 
-class DateRangeMs(BaseModel):
-    minCreated: int
-    maxCreated: int
-    minModified: int
-    maxModified: int
-
-
 class TimelineChange(BaseModel):
     path: str
     sha: Optional[str] = Field(description="New blob sha, or null when deleted")
@@ -340,7 +333,6 @@ class TimelineBundle(BaseModel):
     blobLines: dict[str, Optional[int]]
     blobSizes: dict[str, Optional[int]]
     commitLineRanges: list[RangeStat]
-    commitDateRanges: list[DateRangeMs]
     notes: list[str]
 
 

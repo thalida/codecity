@@ -565,7 +565,6 @@ def make_timeline_bundle(**overrides: Any) -> TimelineBundle:
         "blobLines": {},
         "blobSizes": {},
         "commitLineRanges": [],
-        "commitDateRanges": [],
         "notes": [],
     }
     return TimelineBundle.model_validate({**fields, **overrides})

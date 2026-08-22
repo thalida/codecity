@@ -20,7 +20,6 @@ from api.git import (
 from api.core.constants import TimelineStage
 from api.models.manifest import (
     CommitEntry,
-    DateRangeMs,
     FileNode,
     Manifest,
     RangeStat,
@@ -31,7 +30,6 @@ from api.models.manifest import (
 from api.scan.blobmeta import MISSING_BLOB, blob_file_node, resolve_blob_stats
 from api.scan.manifest import wrap_manifest
 from api.core.progress import Throttle, log
-from api.utils.dates import iso_to_ms
 from api.core.exceptions import NotAGitRepoError
 from api.scan.signatures import derive_tree_signals, new_signature
 from api.scan.skiprules import SkipRules
@@ -45,9 +43,9 @@ OnTimelineProgress = Callable[[dict[str, object]], None]
 
 _HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
 
-# Four steps, a quarter of the percent each. The last is the router's:
+# Three steps, a third of the percent each. The last is the router's:
 # serialising the bundle is the step nothing else can report.
-ASSEMBLE_STEPS = 4
+ASSEMBLE_STEPS = 3
 # Commits between ticks inside a step that reports its own progress.
 _ASSEMBLE_HEARTBEAT_EVERY = 200
 
@@ -290,81 +288,6 @@ def compute_commit_line_ranges(
     return ranges
 
 
-def compute_commit_date_ranges(
-    deltas: list[CommitDelta],
-    commits: list[CommitEntry],
-    git_created: dict[str, str],
-    git_modified: dict[str, str],
-    *,
-    on_commit: Callable[[int, int], None] | None = None,
-) -> list[DateRangeMs]:
-    """Per-commit created/modified ms ranges over the files present at each
-    commit; range[HEAD] equals the live manifest's dateRanges (weathering
-    normalizes against these). replay.ts walks the same deltas for a different
-    output (per-frame scrub index) — neither is a copy of the other."""
-    commit_ms = [iso_to_ms(c.date) or 0 for c in commits]
-    # Parsed once per path, not per (commit, path): the loop below runs ~98M
-    # times on a big repo, and re-parsing there is what made this the slow step.
-    created_ms = {p: iso_to_ms(v) for p, v in git_created.items()}
-    modified_ms = {p: iso_to_ms(v) for p, v in git_modified.items()}
-
-    final_idx: dict[str, int] = {}
-    genesis_idx: dict[str, int] = {}
-    for i, delta in enumerate(deltas):
-        for path, sha in delta.changes:
-            final_idx[path] = i
-            if sha is not None and path not in genesis_idx:
-                genesis_idx[path] = i
-
-    present: set[str] = set()
-    last_change: dict[str, int] = {}
-    ranges: list[DateRangeMs] = []
-    for i, delta in enumerate(deltas):
-        for path, sha in delta.changes:
-            last_change[path] = i
-            if sha is None:
-                present.discard(path)
-            else:
-                present.add(path)
-
-        min_created = min_modified = None
-        max_created = max_modified = None
-        for path in present:
-            lm = last_change.get(path, 0)
-            modified = None
-            if lm >= final_idx.get(path, 0):
-                modified = modified_ms.get(path)
-            if modified is None:
-                modified = commit_ms[lm] if lm < len(commit_ms) else 0
-            created = created_ms.get(path)
-            if created is None:
-                gi = genesis_idx.get(path, 0)
-                created = commit_ms[gi] if gi < len(commit_ms) else 0
-
-            if min_created is None or created < min_created:
-                min_created = created
-            if max_created is None or created > max_created:
-                max_created = created
-            if min_modified is None or modified < min_modified:
-                min_modified = modified
-            if max_modified is None or modified > max_modified:
-                max_modified = modified
-
-        # An empty present set collapses to a zero span, which the client already
-        # treats as "no spread" (freshest / newest).
-        ranges.append(
-            DateRangeMs(
-                minCreated=min_created or 0,
-                maxCreated=max_created or 0,
-                minModified=min_modified or 0,
-                maxModified=max_modified or 0,
-            )
-        )
-        if on_commit is not None and i % _ASSEMBLE_HEARTBEAT_EVERY == 0:
-            on_commit(i, len(deltas))
-    return ranges
-
-
 def build_timeline_bundle(
     root: str,
     source: SourceRef,
@@ -450,16 +373,6 @@ def build_timeline_bundle(
     )
     assemble_tick(on_progress, 2)  # per-commit line ranges
     commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
-    # The long one: it walks every file present at every commit, so it reports
-    # from inside rather than sitting on its own step for minutes.
-    assemble_tick(on_progress, 3)
-    commit_date_ranges = compute_commit_date_ranges(
-        deltas,
-        commits,
-        history.created,
-        history.modified,
-        on_commit=lambda i, total: assemble_tick(on_progress, 3, i / max(total, 1)),
-    )
     log("timeline bundle complete")
 
     return TimelineBundle(
@@ -475,6 +388,5 @@ def build_timeline_bundle(
         blobLines=blob_lines,
         blobSizes=blob_sizes,
         commitLineRanges=commit_line_ranges,
-        commitDateRanges=commit_date_ranges,
         notes=notes,
     )

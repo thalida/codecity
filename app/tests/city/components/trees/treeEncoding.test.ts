@@ -7,13 +7,11 @@ import { describe, it, expect } from 'vitest';
 import {
   computeAgeRange,
   computeSizeRange,
-  ageT,
   sizeT,
   dailyCountT,
   dailyCountTByIndex,
   treeHeight,
   treeRadius,
-  type AgeRange,
   type SizeRange,
 } from '@/city/components/trees/treeEncoding';
 import type { TreesConfig } from '@/state/settings/fields/trees';
@@ -27,27 +25,6 @@ const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-11', files: 5 },
   { date: '2026-01-21', files: 9 }
 );
-
-describe('computeAgeRange()', () => {
-  it('returns oldest and newest epoch days', () => {
-    const r = computeAgeRange(commitStats(commits));
-    expect(r.span).toBeGreaterThan(0);
-    expect(r.oldest).toBeLessThan(r.newest);
-  });
-
-  it('span = 0 when stats is null', () => {
-    expect(computeAgeRange(null).span).toBe(0);
-  });
-
-  it('span = 0 when there are no commits', () => {
-    expect(computeAgeRange(commitStats([])).span).toBe(0);
-  });
-
-  it('span = 0 when all commits share a date', () => {
-    const same = buildCommits({ date: '2026-01-01', files: 1 }, { date: '2026-01-01', files: 5 });
-    expect(computeAgeRange(commitStats(same)).span).toBe(0);
-  });
-});
 
 describe('computeAgeRange() scanned', () => {
   // What "now" means to every commit. Newest commit in this fixture is 2026-01-21.
@@ -102,34 +79,6 @@ describe('computeSizeRange()', () => {
   it('span = 0 when all commits have equal file counts', () => {
     const same = buildCommits({ date: '2026-01-01', files: 4 }, { date: '2026-01-02', files: 4 });
     expect(computeSizeRange(commitStats(same)).span).toBe(0);
-  });
-});
-
-describe('ageT()', () => {
-  it('returns 0 for the oldest commit', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[0], range)).toBe(0);
-  });
-
-  it('returns 1 for the newest commit', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[2], range)).toBe(1);
-  });
-
-  it('returns 0.5 for the middle commit (commits are 10 days apart)', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[1], range)).toBeCloseTo(0.5, 5);
-  });
-
-  it('returns 0.5 when the range has zero span', () => {
-    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, scanned: 0 };
-    expect(ageT(buildCommits({ date: '2026-01-01', files: 1 })[0], zero)).toBe(0.5);
-  });
-
-  it('clamps out-of-range dates to [0,1]', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(buildCommits({ date: '2025-01-01', files: 1 })[0], range)).toBe(0);
-    expect(ageT(buildCommits({ date: '2027-01-01', files: 1 })[0], range)).toBe(1);
   });
 });
 
@@ -281,12 +230,6 @@ describe('treeHeight() / treeRadius()', () => {
     it('null commit collapses to the height midpoint', () => {
       expect(treeHeight(null, fresh, cfg)).toBe(52);
       expect(treeHeight(undefined, fresh, cfg)).toBe(52);
-    });
-
-    it('is unaffected by the repo span, depending only on each commit age', () => {
-      // A wider range around the same commit must not move it.
-      const wider = { ...fresh, oldest: fresh.oldest - 5000, span: fresh.span + 5000 };
-      expect(treeHeight(sizing[1], wider, cfg)).toBe(treeHeight(sizing[1], fresh, cfg));
     });
   });
 

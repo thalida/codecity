@@ -8,15 +8,10 @@ import type { TreesConfig } from '@/state/settings/fields/trees';
 import { recencyT } from '@/city/utils/recency';
 import { epochDay } from '@/utils/dates';
 
+/** What every commit is aged against. Not Date.now(): a live clock would drift
+ *  tree heights and break the goldens. */
 export interface AgeRange {
-  /** Epoch days of the oldest commit. */
-  oldest: number;
-  /** Epoch days of the newest commit. */
-  newest: number;
-  /** newest - oldest. 0 when there is no meaningful range. */
-  span: number;
-  /** What "now" means to every commit. Not Date.now(): a live clock would
-   *  drift tree heights and break the goldens. */
+  /** Epoch days. The scrub swaps it for the moment under the scrubber. */
   scanned: number;
 }
 
@@ -53,20 +48,18 @@ function clamp01(t: number): number {
   return t;
 }
 
-/** The commit-date range and the scan date measured against it. Omitting the
- *  scan date treats the newest commit as now, so it can't look abandoned. */
+/** What "now" is for a tree, in epoch days. Without a scan date the newest
+ *  commit stands in, so a repo can't look abandoned the moment it is read. */
 export function computeAgeRange(
   stats: RepoStats | null | undefined,
   scannedAt?: string | null
 ): AgeRange {
-  const cd = stats?.commitDates;
-  if (!cd || cd.oldest === null || cd.newest === null) {
-    return { oldest: 0, newest: 0, span: 0, scanned: 0 };
-  }
-  const oldest = dateToDays(cd.oldest);
-  const newest = dateToDays(cd.newest);
-  const scanned = scannedAt == null ? newest : Math.max(newest, dateToDays(scannedAt));
-  return { oldest, newest, span: newest - oldest, scanned };
+  // No commits, no trees: there is nothing for a moment to age, so it stays 0
+  // however recently the repo was read.
+  const newest = stats?.commitDates?.newest;
+  if (!newest) return { scanned: 0 };
+  const newestDay = dateToDays(newest);
+  return { scanned: scannedAt == null ? newestDay : Math.max(newestDay, dateToDays(scannedAt)) };
 }
 
 /** The files-changed range, from the backend's leaders. Zeroes with no stats,
@@ -75,12 +68,6 @@ export function computeSizeRange(stats: RepoStats | null | undefined): SizeRange
   const min = stats?.minFilesPerCommit?.files ?? 0;
   const max = stats?.maxFilesPerCommit?.files ?? 0;
   return { min, max, span: max - min };
-}
-
-export function ageT(commit: CommitEntry, range: AgeRange): number {
-  if (range.span <= 0) return 0.5;
-  const d = dateToDays(commit.date);
-  return clamp01((d - range.oldest) / range.span);
 }
 
 export function sizeT(commit: CommitEntry, range: SizeRange): number {
