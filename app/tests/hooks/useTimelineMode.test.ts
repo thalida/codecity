@@ -1,25 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { signal } from '@preact/signals';
 
-import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
-import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { MANIFEST } from '@/state/stores/manifest';
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  REBUILD_DETAIL,
-  BUILD_PROGRESS,
-  LOADING_OVERLAY,
-  LOADING_CANCEL,
-  SCAN_PROGRESS,
-  markIdle,
-} from '@/state/stores/progress';
+import { EXCLUDES } from '@/state/stores/source';
+import { RebuildStatus } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
-import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
@@ -31,6 +17,10 @@ const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(
 
 vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
+import { makeSession } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // repo, like the server's union manifest carries: Timeline commits this as the
 // manifest the header and panes read, so a bare tree is not a fixture of one.
@@ -53,7 +43,7 @@ function fakeHandle() {
     () =>
       new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
-          markIdle();
+          session.progress.reporter.markIdle();
           resolve();
         });
       })
@@ -93,28 +83,33 @@ function fakeHandle() {
 
 describe('loadTimelineScene', () => {
   beforeEach(() => {
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
+    session.source.current.value = { src: 's', branch: undefined };
     // Reset: SOURCE_INFO reads it, so a manifest left by a neighbour decides
     // whether this test throws.
-    MANIFEST.value = null;
-    TIMELINE_MODE.value = false;
-    setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
-    LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    session.manifest.current.value = null;
+    session.timeline.mode.value = false;
+    session.timeline.setScrubPos(0);
+    session.timeline.bundle.value = null;
+    session.progress.overlay.value = {
+      visible: false,
+      showOpts: null,
+      activeStep: null,
+      stepTails: {},
+    };
+    session.progress.rebuildStatus.value = RebuildStatus.Idle;
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    TIMELINE_MODE.value = false;
-    SCENE_HANDLE.value = null;
+    session.timeline.mode.value = false;
+    session.city.value = null;
   });
 
   it('fetches the bundle, applies the union once, installs the controller, and enters mode at the present', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    await loadTimelineScene();
+    await session.timelineMode.loadScene();
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -131,13 +126,13 @@ describe('loadTimelineScene', () => {
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
     expect(f.setFootprintsTransparent).toHaveBeenCalledWith(true);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
-    expect(TIMELINE_BUNDLE.value).toBe(BUNDLE);
-    expect(TIMELINE_MODE.value).toBe(true);
-    expect(SCRUB_POS.value).toBe(2); // commits.length - 1 → start at present
+    expect(session.timeline.bundle.value).toBe(BUNDLE);
+    expect(session.timeline.mode.value).toBe(true);
+    expect(session.timeline.scrubPos.value).toBe(2); // commits.length - 1 → start at present
 
     // Overlay held through the first painted frame, then hidden.
     await nextFrame();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   it('shows the full loading overlay (not just the footer) and drives it through the stages then Building', async () => {
@@ -149,29 +144,29 @@ describe('loadTimelineScene', () => {
         })
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
     // The pack is several frames long now, so sample the overlay at the step
     // right after it instead of racing jsdom's frame clock from out here.
     let visibleAfterPack: boolean | null = null;
     f.installScrubController.mockImplementation(() => {
-      visibleAfterPack = LOADING_OVERLAY.value.visible;
+      visibleAfterPack = session.progress.overlay.value.visible;
     });
 
-    const entering = loadTimelineScene();
+    const entering = session.timelineMode.loadScene();
     await flush();
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
+    expect(session.progress.overlay.value.visible).toBe(true);
+    expect(session.progress.overlay.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
     // 's' is a path, not a URL: there is nothing to fetch, so the list opens on
     // the walk (the fetch row is covered by loadingOverlay.test.tsx).
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.TimelineHistory);
 
     resolveFetch(BUNDLE);
     await entering;
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.Building);
     expect(visibleAfterPack, 'reveal waits for the first painted frame').toBe(true);
 
     await nextFrame();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   it('holds the reveal until the packed city has a frame on screen', async () => {
@@ -184,18 +179,18 @@ describe('loadTimelineScene', () => {
       () =>
         new Promise<void>((resolve) => {
           requestAnimationFrame(() => {
-            visibleBeforeIdle = LOADING_OVERLAY.value.visible;
-            markIdle();
+            visibleBeforeIdle = session.progress.overlay.value.visible;
+            session.progress.reporter.markIdle();
             resolve();
           });
         })
     );
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    await loadTimelineScene();
+    await session.timelineMode.loadScene();
 
     expect(visibleBeforeIdle, 'still up while the meshes are undrawn').toBe(true);
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   it('walks the overlay one row per server stage, each carrying its own tail', async () => {
@@ -209,48 +204,52 @@ describe('loadTimelineScene', () => {
         })
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    const entering = loadTimelineScene();
+    const entering = session.timelineMode.loadScene();
     await flush();
 
     onProgress({ stage: TimelineStage.Fetch, percent: 40 });
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineFetch);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineFetch]).toBe('40%');
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.TimelineFetch);
+    expect(session.progress.overlay.value.stepTails[LoadingStep.TimelineFetch]).toBe('40%');
 
     onProgress({ stage: TimelineStage.History, commits: 12000 });
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.TimelineHistory);
+    expect(session.progress.overlay.value.stepTails[LoadingStep.TimelineHistory]).toBe(
+      '12,000 commits'
+    );
 
     onProgress({ stage: TimelineStage.Blobs, blobsDone: 5, blobsTotal: 10 });
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineBlobs);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineBlobs]).toBe('5/10 files');
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.TimelineBlobs);
+    expect(session.progress.overlay.value.stepTails[LoadingStep.TimelineBlobs]).toBe('5/10 files');
     // Each stage keeps its own tail, so a finished row still says what it found.
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
+    expect(session.progress.overlay.value.stepTails[LoadingStep.TimelineHistory]).toBe(
+      '12,000 commits'
+    );
 
     // Union assembly opens the build's own readout rather than a tail beside it,
     // so the row counts one percent from here through to the painted city.
     onProgress({ stage: TimelineStage.Assemble, percent: 62 });
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    expect(BUILD_PROGRESS.value?.stages[0]).toBe(BuildStage.Assembling);
-    expect(BUILD_PROGRESS.value?.percent).toBe(62);
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.Building);
+    expect(session.progress.buildProgress.value?.stages[0]).toBe(BuildStage.Assembling);
+    expect(session.progress.buildProgress.value?.percent).toBe(62);
 
     resolveFetch(BUNDLE);
     await entering;
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.Building);
     // Let the reveal frame run here: a leaked rAF hides the overlay out of a
     // later test instead.
     await nextFrame();
   });
 
   it('no-ops without a current source', async () => {
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
-    await loadTimelineScene();
+    session.city.value = f.handle as never;
+    await session.timelineMode.loadScene();
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.timeline.mode.value).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   it('surfaces a fetch error, leaves mode unset, and hides the overlay', async () => {
@@ -258,12 +257,12 @@ describe('loadTimelineScene', () => {
       new Error('boom')
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
-    await loadTimelineScene();
-    expect(TIMELINE_MODE.value).toBe(false);
+    session.city.value = f.handle as never;
+    await session.timelineMode.loadScene();
+    expect(session.timeline.mode.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
+    expect(session.progress.overlay.value.visible).toBe(false);
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Error);
   });
 
   it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
@@ -275,22 +274,22 @@ describe('loadTimelineScene', () => {
     f.uninstallScrubController.mockImplementation(() => {
       throw new Error('cleanup boom');
     });
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    await loadTimelineScene();
+    await session.timelineMode.loadScene();
 
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
+    expect(session.timeline.mode.value).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Error);
   });
 
   // The bundle caches per HEAD, so a Fresh scan that did not say so would be
   // answered from the very cache it asked to ignore.
   it('asks the history read to ignore its cache for a fresh scan', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    SCENE_HANDLE.value = fakeHandle().handle as never;
+    session.city.value = fakeHandle().handle as never;
 
-    await loadTimelineScene({ inPlace: true, noCache: true });
+    await session.timelineMode.loadScene({ inPlace: true, noCache: true });
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -302,9 +301,9 @@ describe('loadTimelineScene', () => {
 
   it('leaves the cache alone on an ordinary refetch', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    SCENE_HANDLE.value = fakeHandle().handle as never;
+    session.city.value = fakeHandle().handle as never;
 
-    await loadTimelineScene({ inPlace: true });
+    await session.timelineMode.loadScene({ inPlace: true });
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -319,25 +318,25 @@ describe('exitTimelineMode', () => {
   let restoreEventSource: () => void;
   beforeEach(() => {
     restoreEventSource = installEventSource();
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    TIMELINE_MODE.value = true;
-    setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    session.source.current.value = { src: 's', branch: undefined };
+    session.timeline.mode.value = true;
+    session.timeline.setScrubPos(2);
+    session.timeline.bundle.value = BUNDLE;
   });
   afterEach(() => {
     restoreEventSource();
-    TIMELINE_MODE.value = false;
-    SCENE_HANDLE.value = null;
+    session.timeline.mode.value = false;
+    session.city.value = null;
   });
 
   // The scene-side teardown belongs to the city layer's own effect; this covers
   // the hook's half of the contract.
   it('flips TIMELINE_MODE, clears the scrub store, and reloads live HEAD', async () => {
-    exitTimelineMode();
+    session.timelineMode.exit();
 
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(SCRUB_POS.value).toBe(0);
-    expect(TIMELINE_BUNDLE.value).toBeNull();
+    expect(session.timeline.mode.value).toBe(false);
+    expect(session.timeline.scrubPos.value).toBe(0);
+    expect(session.timeline.bundle.value).toBeNull();
     await flush();
     expect(StubEventSource.instances.length).toBeGreaterThan(0); // live HEAD reload started
     expect(new URL(StubEventSource.instances[0].url).searchParams.get('ref')).toBeNull();
@@ -346,19 +345,19 @@ describe('exitTimelineMode', () => {
 
 describe('teardownTimelineMode', () => {
   afterEach(() => {
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
   });
 
   it('is a pure signal flip — no source reload, scene-free', () => {
-    TIMELINE_MODE.value = true;
-    setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    session.timeline.mode.value = true;
+    session.timeline.setScrubPos(2);
+    session.timeline.bundle.value = BUNDLE;
 
-    teardownTimelineMode();
+    session.timelineMode.teardown();
 
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(SCRUB_POS.value).toBe(0);
-    expect(TIMELINE_BUNDLE.value).toBeNull();
+    expect(session.timeline.mode.value).toBe(false);
+    expect(session.timeline.scrubPos.value).toBe(0);
+    expect(session.timeline.bundle.value).toBeNull();
   });
 });
 
@@ -367,14 +366,14 @@ describe('live poll suspends in Timeline mode', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn> | undefined;
   beforeEach(() => {
     restoreEventSource = installEventSource();
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    SCAN_PROGRESS.value = null;
-    TIMELINE_MODE.value = false;
+    session.source.current.value = { src: 's', branch: undefined };
+    session.manifest.current.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
+    session.progress.scan.value = null;
+    session.timeline.mode.value = false;
   });
   afterEach(() => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
     fetchSpy?.mockRestore();
     restoreEventSource();
     vi.useRealTimers();
@@ -388,13 +387,13 @@ describe('live poll suspends in Timeline mode', () => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: true, POLL_SECONDS: 1 };
     vi.useFakeTimers();
 
-    const dispose = setupLiveUpdates();
-    TIMELINE_MODE.value = true;
+    const dispose = session.load.setupLiveUpdates();
+    session.timeline.mode.value = true;
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchSpy).toHaveBeenCalled();
 
@@ -404,20 +403,25 @@ describe('live poll suspends in Timeline mode', () => {
 
 describe('loadTimelineScene inPlace refetch', () => {
   beforeEach(() => {
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
+    session.source.current.value = { src: 's', branch: undefined };
     // SOURCE_INFO reads the loaded manifest for the overlay's repo label.
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    TIMELINE_MODE.value = true;
-    setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
-    REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
-    REBUILD_DETAIL.value = null;
-    LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
+    session.manifest.current.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
+    session.timeline.mode.value = true;
+    session.timeline.setScrubPos(2);
+    session.timeline.bundle.value = BUNDLE;
+    session.progress.rebuildStatus.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
+    session.progress.detail.value = null;
+    session.progress.overlay.value = {
+      visible: false,
+      showOpts: null,
+      activeStep: null,
+      stepTails: {},
+    };
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    TIMELINE_MODE.value = false;
-    SCENE_HANDLE.value = null;
+    session.timeline.mode.value = false;
+    session.city.value = null;
   });
 
   it('refetches the bundle with the current excludes, re-packs, and holds SCRUB_POS', async () => {
@@ -427,9 +431,9 @@ describe('loadTimelineScene inPlace refetch', () => {
     } as unknown as TimelineBundle;
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    await loadTimelineScene({ inPlace: true });
+    await session.timelineMode.loadScene({ inPlace: true });
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -437,18 +441,18 @@ describe('loadTimelineScene inPlace refetch', () => {
       expect.any(Function),
       expect.objectContaining({ exclude: expect.any(Array) })
     );
-    expect(TIMELINE_BUNDLE.value).toBe(NEXT);
+    expect(session.timeline.bundle.value).toBe(NEXT);
     expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest, [
       BuildStage.Assembling,
       BuildStage.Replay,
     ]);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
-    expect(SCRUB_POS.value).toBe(2); // held at present, not reset
+    expect(session.timeline.scrubPos.value).toBe(2); // held at present, not reset
   });
 
   it('no-ops without a scene handle', async () => {
-    SCENE_HANDLE.value = null;
-    await loadTimelineScene({ inPlace: true });
+    session.city.value = null;
+    await session.timelineMode.loadScene({ inPlace: true });
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
   });
 
@@ -465,21 +469,21 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    const refetching = loadTimelineScene({ inPlace: true });
+    const refetching = session.timelineMode.loadScene({ inPlace: true });
     await flush();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
+    expect(session.progress.overlay.value.visible).toBe(false);
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Rebuilding);
 
     onProgress({ stage: TimelineStage.History, commits: 12000 });
-    expect(REBUILD_DETAIL.value).toBe('12,000 commits');
+    expect(session.progress.detail.value).toBe('12,000 commits');
     onProgress({ stage: TimelineStage.Blobs, blobsDone: 5, blobsTotal: 10 });
-    expect(REBUILD_DETAIL.value).toBe('5/10 files');
+    expect(session.progress.detail.value).toBe('5/10 files');
 
     resolveFetch(BUNDLE);
     await refetching;
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   // A Fresh scan in Timeline is a deliberate cacheless walk: minutes of work
@@ -495,23 +499,29 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
+    const refetching = session.timelineMode.loadScene({
+      inPlace: true,
+      noCache: true,
+      overlay: true,
+    });
     await flush();
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
+    expect(session.progress.overlay.value.visible).toBe(true);
+    expect(session.progress.overlay.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
 
     onProgress({ stage: TimelineStage.History, commits: 12000 });
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineHistory]).toBe('12,000 commits');
-    expect(REBUILD_DETAIL.value).toBeNull(); // the overlay is saying it; the readout is behind it
+    expect(session.progress.overlay.value.activeStep).toBe(LoadingStep.TimelineHistory);
+    expect(session.progress.overlay.value.stepTails[LoadingStep.TimelineHistory]).toBe(
+      '12,000 commits'
+    );
+    expect(session.progress.detail.value).toBeNull(); // the overlay is saying it; the readout is behind it
 
     resolveFetch(BUNDLE);
     await refetching;
-    expect(SCRUB_POS.value).toBe(2); // held, not reset to the present
+    expect(session.timeline.scrubPos.value).toBe(2); // held, not reset to the present
     await nextFrame();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(session.progress.overlay.value.visible).toBe(false);
   });
 
   it('a cancel on that overlay leaves the timeline it is already showing alone', async () => {
@@ -531,18 +541,22 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
+    session.city.value = f.handle as never;
 
-    const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
+    const refetching = session.timelineMode.loadScene({
+      inPlace: true,
+      noCache: true,
+      overlay: true,
+    });
     await flush();
-    LOADING_CANCEL.value?.();
+    session.progress.cancel.value?.();
     await refetching;
 
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(TIMELINE_MODE.value).toBe(true); // still in Timeline
-    expect(TIMELINE_BUNDLE.value).toBe(BUNDLE); // on the bundle it already had
+    expect(session.progress.overlay.value.visible).toBe(false);
+    expect(session.timeline.mode.value).toBe(true); // still in Timeline
+    expect(session.timeline.bundle.value).toBe(BUNDLE); // on the bundle it already had
     expect(f.applyManifest).not.toHaveBeenCalled();
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle); // nothing to unwind
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Idle); // nothing to unwind
   });
 });
 
@@ -550,29 +564,29 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
   let restoreEventSource: () => void;
   beforeEach(() => {
     restoreEventSource = installEventSource();
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    SCAN_PROGRESS.value = null;
-    TIMELINE_MODE.value = true;
-    setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    session.source.current.value = { src: 's', branch: undefined };
+    session.manifest.current.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
+    session.progress.scan.value = null;
+    session.timeline.mode.value = true;
+    session.timeline.setScrubPos(2);
+    session.timeline.bundle.value = BUNDLE;
     EXCLUDES.value = {};
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
     restoreEventSource();
-    TIMELINE_MODE.value = false;
-    SCENE_HANDLE.value = null;
+    session.timeline.mode.value = false;
+    session.city.value = null;
     EXCLUDES.value = {};
   });
 
   it('refetches the union bundle with the new exclude and opens no live stream', async () => {
     const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
-    const dispose = setupLiveUpdates();
+    session.city.value = f.handle as never;
+    const dispose = session.load.setupLiveUpdates();
 
-    addExclude('vendor');
+    session.source.addExclude('vendor');
     await flush();
 
     expect(fetchTimelineBundle).toHaveBeenCalledTimes(1);

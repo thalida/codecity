@@ -5,18 +5,14 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
-import {
-  SCENE_HANDLE,
-  focusPath,
-  focusCommit,
-  focusSelection,
-  goToPath,
-  goToCommit,
-} from '@/city/sceneHandle';
 import { FocusMode } from '@/city/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
+import { makeSession } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FILE_TARGET = {
   kind: NodeKind.File,
@@ -65,17 +61,17 @@ describe('scene navigation commands', () => {
 
   beforeEach(() => {
     handle = makeHandle();
-    SCENE_HANDLE.value = handle as never;
+    session.city.value = handle as never;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   afterEach(() => {
-    SCENE_HANDLE.value = null;
+    session.city.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   it('goToPath selects, moves the camera, and shows the details', () => {
-    goToPath('src/a.ts');
+    session.commands.goToPath('src/a.ts');
     expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
@@ -83,23 +79,23 @@ describe('scene navigation commands', () => {
   // The details are what you asked for by clicking the name, so an earlier
   // dismissal of this same node doesn't get to withhold them.
   it('goToPath reopens details you had put away for that node', () => {
-    goToPath('src/a.ts');
+    session.commands.goToPath('src/a.ts');
     dismissSelectionPane();
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
 
-    goToPath('src/a.ts');
+    session.commands.goToPath('src/a.ts');
 
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
   it('focusPath selects, moves the camera, and clears the panel away', () => {
-    focusPath('src/a.ts');
+    session.commands.focusPath('src/a.ts');
     expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
   it('focusCommit does the same for a commit', () => {
-    focusCommit('abc1234');
+    session.commands.focusCommit('abc1234');
     expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusSelection:commit:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
@@ -107,9 +103,9 @@ describe('scene navigation commands', () => {
   // What the URL restore asks for: the same commands, framed so the camera
   // keeps the angle it loaded at instead of swinging overhead.
   it('passes a focus mode through to the scene, whichever command carries it', () => {
-    goToPath('src/a.ts', FocusMode.Recenter);
-    goToCommit('abc1234', FocusMode.Recenter);
-    focusSelection(FocusMode.Recenter);
+    session.commands.goToPath('src/a.ts', FocusMode.Recenter);
+    session.commands.goToCommit('abc1234', FocusMode.Recenter);
+    session.commands.focusSelection(FocusMode.Recenter);
 
     expect(handle.calls).toEqual([
       'selectByPath:src/a.ts',
@@ -123,9 +119,9 @@ describe('scene navigation commands', () => {
   // Nothing to look at means nothing happens: the chrome does not move for a
   // node the picker could not resolve.
   it('leaves the camera and the chrome alone for a ref that resolves to nothing', () => {
-    goToPath(UNRESOLVED);
-    focusPath(UNRESOLVED);
-    focusCommit(UNRESOLVED);
+    session.commands.goToPath(UNRESOLVED);
+    session.commands.focusPath(UNRESOLVED);
+    session.commands.focusCommit(UNRESOLVED);
 
     expect(handle.calls).toEqual([
       `selectByPath:${UNRESOLVED}`,
@@ -136,18 +132,18 @@ describe('scene navigation commands', () => {
   });
 
   it('focusSelection no-ops when nothing is selected', () => {
-    focusSelection();
+    session.commands.focusSelection();
     expect(handle.calls).toEqual([]);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
   it('every command no-ops before the scene boots', () => {
-    SCENE_HANDLE.value = null;
-    goToPath('src/a.ts');
-    goToCommit('abc1234');
-    focusPath('src/a.ts');
-    focusCommit('abc1234');
-    focusSelection();
+    session.city.value = null;
+    session.commands.goToPath('src/a.ts');
+    session.commands.goToCommit('abc1234');
+    session.commands.focusPath('src/a.ts');
+    session.commands.focusCommit('abc1234');
+    session.commands.focusSelection();
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 });

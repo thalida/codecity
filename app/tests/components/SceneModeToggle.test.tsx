@@ -1,16 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { setManifest } from '@/state/stores/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 
-vi.mock('@/hooks/useTimelineMode', () => ({
-  loadTimelineScene: vi.fn().mockResolvedValue(undefined),
-  exitTimelineMode: vi.fn(),
-}));
-import { loadTimelineScene, exitTimelineMode } from '@/hooks/useTimelineMode';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself. The toggle
+// drives ITS controller, so the spies go on the session rather than the module.
+const session = makeSession();
+const loadScene = vi.spyOn(session.timelineMode, 'loadScene').mockResolvedValue(undefined);
+const exit = vi.spyOn(session.timelineMode, 'exit').mockImplementation(() => {});
 
 const TEST_MANIFEST = {
   tree: { name: 'project', type: 'directory', path: '.', children: [] },
@@ -32,22 +31,22 @@ describe('TimelineToggle', () => {
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    CURRENT_SOURCE.value = null;
-    setManifest(null);
-    TIMELINE_MODE.value = false;
+    session.source.current.value = null;
+    session.manifest.set(null);
+    session.timeline.mode.value = false;
     vi.clearAllMocks();
   });
 
   it('does not render before a source is loaded', async () => {
-    render(<TimelineToggle />, container);
+    renderInProject(<TimelineToggle />, session, container);
     await flush();
     expect(container.querySelector('.timeline-toggle')).toBeNull();
   });
 
   it('renders once a source is loaded, Live active by default', async () => {
-    CURRENT_SOURCE.value = { src: '/repo' };
-    setManifest(TEST_MANIFEST as never);
-    render(<TimelineToggle />, container);
+    session.source.current.value = { src: '/repo' };
+    session.manifest.set(TEST_MANIFEST as never);
+    renderInProject(<TimelineToggle />, session, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -57,10 +56,10 @@ describe('TimelineToggle', () => {
   });
 
   it('Timeline is active when TIMELINE_MODE is on', async () => {
-    CURRENT_SOURCE.value = { src: '/repo' };
-    setManifest(TEST_MANIFEST as never);
-    TIMELINE_MODE.value = true;
-    render(<TimelineToggle />, container);
+    session.source.current.value = { src: '/repo' };
+    session.manifest.set(TEST_MANIFEST as never);
+    session.timeline.mode.value = true;
+    renderInProject(<TimelineToggle />, session, container);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -69,25 +68,25 @@ describe('TimelineToggle', () => {
   });
 
   it('clicking Timeline while live calls loadTimelineScene, not exit', async () => {
-    CURRENT_SOURCE.value = { src: '/repo' };
-    setManifest(TEST_MANIFEST as never);
-    render(<TimelineToggle />, container);
+    session.source.current.value = { src: '/repo' };
+    session.manifest.set(TEST_MANIFEST as never);
+    renderInProject(<TimelineToggle />, session, container);
     await flush();
 
     btns(container)[1].click(); // Timeline
-    expect(loadTimelineScene).toHaveBeenCalledTimes(1);
-    expect(exitTimelineMode).not.toHaveBeenCalled();
+    expect(loadScene).toHaveBeenCalledTimes(1);
+    expect(exit).not.toHaveBeenCalled();
   });
 
   it('clicking Live while in timeline calls exitTimelineMode, not enter', async () => {
-    CURRENT_SOURCE.value = { src: '/repo' };
-    setManifest(TEST_MANIFEST as never);
-    TIMELINE_MODE.value = true;
-    render(<TimelineToggle />, container);
+    session.source.current.value = { src: '/repo' };
+    session.manifest.set(TEST_MANIFEST as never);
+    session.timeline.mode.value = true;
+    renderInProject(<TimelineToggle />, session, container);
     await flush();
 
     btns(container)[0].click(); // Live
-    expect(exitTimelineMode).toHaveBeenCalledTimes(1);
-    expect(loadTimelineScene).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledTimes(1);
+    expect(loadScene).not.toHaveBeenCalled();
   });
 });

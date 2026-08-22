@@ -27,16 +27,18 @@ import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/chrome';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
-import { setManifest } from '@/state/stores/manifest';
 import type { DirNode, Manifest } from '@/types';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 /** Enough of a loaded project for the chrome bars to render everything they
  *  have: the project cluster, the freshness readout and the refresh control. */
 function loadProject(): void {
-  CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
-  setManifest({
+  session.source.current.value = { src: 'https://github.com/o/r', branch: 'main' };
+  session.manifest.set({
     tree: { name: 'o/r', type: 'directory', path: '.', children: [] },
     repo: { remote_url: 'https://github.com/o/r' },
   } as unknown as Manifest);
@@ -81,11 +83,11 @@ function resetAxe(): void {
 const SURFACES: Surface[] = [
   {
     name: 'ControlsPane',
-    mount: (c) => render(<ControlsPane />, c),
+    mount: (c) => renderInProject(<ControlsPane />, session, c),
     // The full panel is too slow to axe-scan under coverage; Buildings alone
     // covers every control kind. Disclosures expand: axe skips display:none.
     axeMount: (c) => {
-      render(<DynamicSection node={BUILDINGS_SECTION} />, c);
+      renderInProject(<DynamicSection node={BUILDINGS_SECTION} />, session, c);
       c.querySelectorAll<HTMLElement>('.controls-disclosure-toggle').forEach((t) => t.click());
     },
   },
@@ -93,7 +95,7 @@ const SURFACES: Surface[] = [
     name: 'HomeView',
     mount: (c) => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, c);
+      renderInProject(<HomeView />, session, c);
     },
   },
   {
@@ -106,7 +108,7 @@ const SURFACES: Surface[] = [
         { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
       ];
       navigate(ROUTES.HOME);
-      render(<HomeView />, c);
+      renderInProject(<HomeView />, session, c);
       openByLabel(c, 'More ways to open');
     },
   },
@@ -114,39 +116,43 @@ const SURFACES: Surface[] = [
     name: 'CityHeader (refresh menu open)',
     mount: (c) => {
       loadProject();
-      render(<CityHeader />, c);
+      renderInProject(<CityHeader />, session, c);
       openByLabel(c, 'More refresh options');
     },
   },
   {
     name: 'CityFooter',
-    mount: (c) => render(<CityFooter />, c),
+    mount: (c) => renderInProject(<CityFooter />, session, c),
   },
   {
     name: 'DebugMenu',
     mount: (c) => {
       openDebug();
-      render(<DebugMenu onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />, c);
+      renderInProject(
+        <DebugMenu onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />,
+        session,
+        c
+      );
     },
   },
   {
     name: 'ShortcutsMenu',
     mount: (c) => {
       openShortcuts();
-      render(<ShortcutsMenu />, c);
+      renderInProject(<ShortcutsMenu />, session, c);
     },
   },
   {
     name: 'AppearanceMenu',
     mount: (c) => {
-      render(<AppearanceMenu />, c);
+      renderInProject(<AppearanceMenu />, session, c);
       openByLabel(c, 'Appearance');
     },
   },
   {
     name: 'TreePane',
     mount: (c) =>
-      render(
+      renderInProject(
         <TreeTab
           manifest={signal(TREE as unknown as DirNode)}
           selectedPath={signal(null)}
@@ -154,6 +160,7 @@ const SURFACES: Surface[] = [
           expanded={signal(new Set(['.']))}
           rootPath="."
         />,
+        session,
         c
       ),
   },
@@ -169,7 +176,7 @@ describe('accessibility audit (issue #79)', () => {
     }
     closeDebug();
     closeShortcuts();
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     DISCOVER.value = [];
     SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
     resetAxe();

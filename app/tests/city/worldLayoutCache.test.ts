@@ -5,10 +5,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { setManifest } from '@/state/stores/manifest';
-import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
+import { makeSession } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];
@@ -26,7 +28,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     detach = null;
     // Restore so other tests don't see a drifted BUILDING_GAP.
     STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap };
-    setManifest(null);
+    session.manifest.set(null);
   });
 
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {
@@ -37,7 +39,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
       dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
     };
     // Seed the source of truth: scheduleRebuild skips a city showing nothing.
-    setManifest(stubManifest as unknown as Manifest);
+    session.manifest.set(stubManifest as unknown as Manifest);
 
     detach = attachSettingsReactions({
       city: {
@@ -49,7 +51,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
           calls.push('invalidateLayoutCache');
         },
       },
-      report: OPENED_PROJECT_REPORTER,
+      report: session.progress.reporter,
     });
 
     // What Save does: commit() fires setKey on the real store, which is what

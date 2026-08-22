@@ -2,10 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('SelectionAnnouncer', () => {
   let container: HTMLDivElement;
@@ -16,18 +19,18 @@ describe('SelectionAnnouncer', () => {
     document.body.appendChild(container);
     selection.value = null;
     // Minimal fake handle exposing just the picker.selection signal.
-    SCENE_HANDLE.value = { picker: { selection } } as unknown as typeof SCENE_HANDLE.value;
+    session.city.value = { picker: { selection } } as unknown as typeof session.city.value;
   });
   afterEach(() => {
     render(null, container);
     container.remove();
-    SCENE_HANDLE.value = null;
+    session.city.value = null;
   });
 
   const region = () => container.querySelector('[role="status"]') as HTMLElement;
 
   it('is a polite, atomic, visually-hidden live region', async () => {
-    render(<SelectionAnnouncer />, container);
+    renderInProject(<SelectionAnnouncer />, session, container);
     await flush();
     expect(region().getAttribute('aria-live')).toBe('polite');
     expect(region().getAttribute('aria-atomic')).toBe('true');
@@ -36,7 +39,7 @@ describe('SelectionAnnouncer', () => {
   });
 
   it('announces a selected file by path', async () => {
-    render(<SelectionAnnouncer />, container);
+    renderInProject(<SelectionAnnouncer />, session, container);
     await flush();
     selection.value = { kind: NodeKind.File, file: { path: 'src/a.ts' } } as unknown as PickTarget;
     await flush();
@@ -44,7 +47,7 @@ describe('SelectionAnnouncer', () => {
   });
 
   it('announces a selected directory and clears on deselect', async () => {
-    render(<SelectionAnnouncer />, container);
+    renderInProject(<SelectionAnnouncer />, session, container);
     await flush();
     selection.value = { kind: NodeKind.Directory, dir: { path: 'src' } } as unknown as PickTarget;
     await flush();

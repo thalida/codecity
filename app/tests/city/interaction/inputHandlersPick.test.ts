@@ -12,6 +12,10 @@ import {
 } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,
@@ -62,6 +66,7 @@ describe('canvas pick → selection pane', () => {
 
     handlers = createInputHandlers({
       canvas,
+      timeline: session.timeline,
       picker: picker as never,
       rig: {
         controls: { addEventListener() {}, removeEventListener() {} },

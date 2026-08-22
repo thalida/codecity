@@ -285,9 +285,12 @@ export async function createCity(
       timelines: Map<string, PathTimeline>,
       commitLineRanges: RangeStat[]
     ): void {
+      // Nothing scrubs this city, so there is no position to gate it on: a
+      // scrubber handed to one is a caller pointing at the wrong instance.
+      if (!timeline) return;
       _scrubController?.dispose();
       _scrubController = createScrubController({
-        timeline: timeline!.store,
+        timeline: timeline.store,
         buildings: {
           getBuildingIndex: () => buildings.getBuildingIndex(),
           applyScrub: (states) => buildings.applyScrub(states),

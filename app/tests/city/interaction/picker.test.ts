@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind } from '@/types';
 import type {
@@ -16,6 +16,10 @@ import type {
   PickerWorld,
   Street,
 } from '@/types';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // Minimal building / street fixture shapes for the fake scene.
 interface FakeBuildingFixture {
@@ -135,9 +139,6 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  // Reset the module-level persistable signal between tests so a leftover
-  // value from one test can't leak into the next.
-  PICKER_SELECTION_KEY.value = null;
 });
 
 // Helper: build a fake hit object for interpretHit. Real callers pass
@@ -154,8 +155,9 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
-    expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
+    expect(p.selectionKey.value).toBeNull();
     p.dispose();
   });
 
@@ -166,6 +168,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.setSelection(makeFileTarget({ path: 'src/index.js' }));
     expect(p.selectionKey.value).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
@@ -179,6 +182,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.setSelection(makeDirTarget({ path: 'src/lib' }));
     expect(p.selectionKey.value).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
@@ -192,6 +196,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.setSelection(makeFileTarget({ path: 'a.js' }));
     p.setSelection(null);
@@ -207,6 +212,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.selectByPath('a.js');
     const sel = p.selection.value;
@@ -225,6 +231,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.selectByPath('a.js');
     p.selectByPath('does-not-exist.js');
@@ -243,6 +250,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.selectByPath('a.js');
     const before = p.selection.value;
@@ -264,6 +272,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.selectByPath('a.js');
     expect(p.selection.value).not.toBeNull();
@@ -282,6 +291,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
     expect(p.hover.value).not.toBeNull();
@@ -298,6 +308,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     const target = p.interpretHit(fakeHit({ type: NodeKind.Gem }));
     expect(target?.kind).toBe(NodeKind.Gem);
@@ -311,6 +322,7 @@ describe('createPicker', () => {
       camera: FAKE_CAMERA,
       world: fakeScene,
       cityState: fakeScene.cityState,
+      timeline: session.timeline,
     });
     expect(p.interpretHit(fakeHit({}))).toBeNull();
     expect(p.interpretHit(null)).toBeNull();

@@ -10,9 +10,13 @@ import {
   type FieldMap,
 } from '@/state/settings/schema';
 import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
-import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
+import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FIELDS = {
   A: {
@@ -43,7 +47,7 @@ describe('ImportExportMenu', () => {
   const mount = () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    act(() => render(<ImportExportMenu groups={GROUPS} />, container));
+    act(() => renderInProject(<ImportExportMenu groups={GROUPS} />, session, container));
     act(() => container.querySelector<HTMLButtonElement>('.popover-trigger')!.click());
   };
 
@@ -78,7 +82,7 @@ describe('ImportExportMenu', () => {
     LOOK.value = { A: 5 };
     SCAN.value = { A: 5 };
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: REPO };
+    session.source.current.value = { src: REPO };
     downloaded = '';
     vi.stubGlobal('URL', {
       ...URL,
@@ -144,7 +148,7 @@ describe('ImportExportMenu', () => {
 
   // Naming the repo beats warning about it, since the city on screen may be it.
   it('names the repo an imported exclude list will be filed under', async () => {
-    CURRENT_SOURCE.value = { src: REPO, branch: 'main' };
+    session.source.current.value = { src: REPO, branch: 'main' };
     setExcludesFor(REPO, ['vendor']);
     mount();
     act(() => button('Export').click());

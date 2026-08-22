@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { setManifest } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus, OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
+import { RebuildStatus } from '@/state/stores/progress';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // The routing contract: rebuild keys call rebuildScene, refresh keys only flash
 // the status (the refresh itself is reactive), live keys do neither.
@@ -16,11 +19,11 @@ describe('attachSettingsReactions routing', () => {
 
   beforeEach(() => {
     rebuildCalls = 0;
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    session.progress.rebuildStatus.value = RebuildStatus.Idle;
     // scheduleRebuild gates on the city's own manifest; seed one so the rebuild
     // path actually calls rebuildScene.
     const manifest = { tree: {} } as unknown as Manifest;
-    setManifest(manifest);
+    session.manifest.set(manifest);
     detach = attachSettingsReactions({
       city: {
         manifest: signal(manifest),
@@ -29,13 +32,13 @@ describe('attachSettingsReactions routing', () => {
         },
         invalidateLayoutCache: () => {},
       },
-      report: OPENED_PROJECT_REPORTER,
+      report: session.progress.reporter,
     });
   });
 
   afterEach(() => {
     detach();
-    setManifest(null);
+    session.manifest.set(null);
   });
 
   const flush = async () => {
@@ -54,16 +57,16 @@ describe('attachSettingsReactions routing', () => {
     TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#123456' };
     await flush();
     // The flash is synchronous; the min-dwell timer hasn't fired yet.
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
+    expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Rebuilding);
     expect(rebuildCalls).toBe(m0);
   });
 
   it('live-route key change triggers neither', async () => {
     const m0 = rebuildCalls;
-    const s0 = REBUILD_STATUS.value;
+    const s0 = session.progress.rebuildStatus.value;
     GEM.value = { ...GEM.value, ROTATION_SPEED: 2.5 };
     await flush();
     expect(rebuildCalls).toBe(m0);
-    expect(REBUILD_STATUS.value).toBe(s0);
+    expect(session.progress.rebuildStatus.value).toBe(s0);
   });
 });

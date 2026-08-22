@@ -4,7 +4,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { NodeKind } from '@/types';
@@ -20,7 +19,11 @@ vi.mock('@/city/render/postFx', async () =>
 );
 
 import { createCity } from '@/city/index';
-import { OPENED_PROJECT } from '@/city/openedProject';
+import { makeSession } from '../../_helpers/project';
+import { cityPropsFor } from '@/city/forProject';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -47,12 +50,12 @@ describe('scene keydown handler — modal suppression', () => {
     vi.clearAllMocks();
     closeShortcuts();
     navigate(ROUTES.HOME, { replace: true });
-    SCENE_HANDLE.value = null;
+    session.city.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     cities.push(handle);
     return handle;
   }
@@ -83,7 +86,7 @@ describe('scene keydown handler — modal suppression', () => {
   // the same command — including putting the panel away to uncover the city.
   it("focuses the selection on F and leaves the chip in the panel's place", async () => {
     const handle = await mountCity();
-    SCENE_HANDLE.value = handle;
+    session.city.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
     handle.picker.selection.value = {
       kind: NodeKind.Commit,
@@ -103,7 +106,7 @@ describe('scene keydown handler — modal suppression', () => {
 
   it('ignores F with nothing selected, panel included', async () => {
     const handle = await mountCity();
-    SCENE_HANDLE.value = handle;
+    session.city.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));

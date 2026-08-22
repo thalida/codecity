@@ -2,7 +2,6 @@
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
 
@@ -15,7 +14,11 @@ vi.mock('three', async () => {
 vi.mock('@/city/render/postFx', async () => (await import('../_helpers/threeMock')).postFxMock());
 
 import { createCity } from '@/city/index';
-import { OPENED_PROJECT } from '@/city/openedProject';
+import { makeSession } from '../_helpers/project';
+import { cityPropsFor } from '@/city/forProject';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('createCity', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -35,7 +38,7 @@ describe('createCity', () => {
   afterEach(() => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
   });
 
   function makeCanvas(): HTMLCanvasElement {
@@ -48,7 +51,7 @@ describe('createCity', () => {
   }
 
   it('builds with no manifest and returns the expected handle shape', async () => {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
 
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
@@ -56,7 +59,7 @@ describe('createCity', () => {
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
@@ -68,25 +71,25 @@ describe('createCity', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.
     it('reacts to TIMELINE_MODE going true→false by uninstalling the controller', async () => {
-      const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+      const handle = await createCity(makeCanvas(), cityPropsFor(session));
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
-      TIMELINE_MODE.value = true; // entering must not trip the teardown
+      session.timeline.mode.value = true; // entering must not trip the teardown
       expect(uninstallSpy).not.toHaveBeenCalled();
 
-      TIMELINE_MODE.value = false; // same flip a source switch performs
+      session.timeline.mode.value = false; // same flip a source switch performs
       expect(uninstallSpy).toHaveBeenCalledTimes(1);
 
       handle.dispose();
     });
 
     it('no-ops when no controller was ever installed', async () => {
-      const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+      const handle = await createCity(makeCanvas(), cityPropsFor(session));
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
-      TIMELINE_MODE.value = true;
-      TIMELINE_MODE.value = false;
+      session.timeline.mode.value = true;
+      session.timeline.mode.value = false;
 
       expect(uninstallSpy).not.toHaveBeenCalled();
       handle.dispose();

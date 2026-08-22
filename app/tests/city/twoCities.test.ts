@@ -6,15 +6,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  BUILT_MANIFEST,
-  BUILD_PROGRESS,
-} from '@/state/stores/progress';
+import { RebuildStatus } from '@/state/stores/progress';
+import { SourceKind } from '@/utils/sources';
 import type { Manifest } from '@/types';
 
 vi.mock('three', async () => {
@@ -34,7 +27,11 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { OPENED_PROJECT } from '@/city/openedProject';
+import { makeSession } from '../_helpers/project';
+import { cityPropsFor } from '@/city/forProject';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const W = 800;
 const H = 600;
@@ -43,11 +40,11 @@ describe('two cities at once', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    TIMELINE_MODE.value = false;
-    REBUILD_STATUS.value = RebuildStatus.Pending;
-    BUILT_MANIFEST.value = null;
+    session.source.current.value = null;
+    session.manifest.current.value = null;
+    session.timeline.mode.value = false;
+    session.progress.rebuildStatus.value = RebuildStatus.Pending;
+    session.progress.builtManifest.value = null;
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
       .mockImplementation((cb: FrameRequestCallback) => {
@@ -58,11 +55,11 @@ describe('two cities at once', () => {
 
   afterEach(() => {
     rafSpy.mockRestore();
-    CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    TIMELINE_MODE.value = false;
-    REBUILD_STATUS.value = RebuildStatus.Pending;
-    BUILT_MANIFEST.value = null;
+    session.source.current.value = null;
+    session.manifest.current.value = null;
+    session.timeline.mode.value = false;
+    session.progress.rebuildStatus.value = RebuildStatus.Pending;
+    session.progress.builtManifest.value = null;
   });
 
   function makeCanvas(): HTMLCanvasElement {
@@ -90,28 +87,30 @@ describe('two cities at once', () => {
       await scenery.applyManifest(makeManifest('wallpaper'));
 
       expect(scenery.manifest.value, 'it did build').not.toBeNull();
-      expect(REBUILD_STATUS.value, 'nobody was told').toBe(RebuildStatus.Pending);
-      expect(BUILT_MANIFEST.value).toBeNull();
-      expect(BUILD_PROGRESS.value).toBeNull();
+      expect(session.progress.rebuildStatus.value, 'nobody was told').toBe(RebuildStatus.Pending);
+      expect(session.progress.builtManifest.value).toBeNull();
+      expect(session.progress.buildProgress.value).toBeNull();
     } finally {
       scenery.dispose();
     }
   });
 
   it('holds the bound one’s "on screen" while the unbound one builds beside it', async () => {
-    const world = await createCity(makeCanvas(), OPENED_PROJECT);
+    const world = await createCity(makeCanvas(), cityPropsFor(session));
     const scenery = await createCity(makeCanvas());
     try {
-      CURRENT_SOURCE.value = { src: 'test://repo' };
-      MANIFEST.value = makeManifest('repo');
+      session.source.current.value = { src: 'test://repo' };
+      session.manifest.current.value = makeManifest('repo');
       await world.applyManifest(makeManifest('repo'));
-      await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+      await vi.waitFor(() => expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Idle));
 
       // Sampled DURING the wallpaper's build: a build opens its readout before
       // it yields, so a coupled one is visible here and nowhere later.
       const scenic = scenery.applyManifest(makeManifest('wallpaper'));
-      expect(REBUILD_STATUS.value, 'the world is still what is on screen').toBe(RebuildStatus.Idle);
-      expect(BUILD_PROGRESS.value, 'and nothing claims to be building').toBeNull();
+      expect(session.progress.rebuildStatus.value, 'the world is still what is on screen').toBe(
+        RebuildStatus.Idle
+      );
+      expect(session.progress.buildProgress.value, 'and nothing claims to be building').toBeNull();
       await scenic;
 
       expect(scenery.manifest.value?.tree?.name).toBe('wallpaper');
@@ -130,10 +129,10 @@ describe('two cities at once', () => {
       const uninstall = vi.spyOn(scenery.timeline, 'uninstallScrubController');
       // The live manifest a Timeline exit would rebuild from: a DIFFERENT repo,
       // which is what used to land on the landing's wallpaper.
-      MANIFEST.value = makeManifest('repo');
+      session.manifest.current.value = makeManifest('repo');
 
-      TIMELINE_MODE.value = true;
-      TIMELINE_MODE.value = false;
+      session.timeline.mode.value = true;
+      session.timeline.mode.value = false;
 
       expect(uninstall).not.toHaveBeenCalled();
       expect(scenery.manifest.value?.tree?.name).toBe('wallpaper');
@@ -142,17 +141,48 @@ describe('two cities at once', () => {
     }
   });
 
+  // The point of a session: two projects loading and scrubbing at once. One
+  // MANIFEST and one scan meant the second repo overwrote the first.
+  it('runs two projects at once without either seeing the other', async () => {
+    const left = makeSession();
+    const right = makeSession();
+    try {
+      left.source.current.value = { src: 'test://left' };
+      right.source.current.value = { src: 'test://right' };
+      left.manifest.set(makeManifest('left'));
+      right.manifest.set(makeManifest('right'));
+
+      // One scans while the other is idle, one scrubs while the other is live.
+      left.progress.scan.value = { kind: SourceKind.Local, phase: null };
+      right.progress.reporter.markIdle();
+      right.timeline.mode.value = true;
+      right.timeline.setScrubPos(3);
+
+      expect(left.progress.scan.value, 'left is still loading').not.toBeNull();
+      expect(right.progress.scan.value, 'and right never started').toBeNull();
+      expect(left.progress.rebuildStatus.value).toBe(RebuildStatus.Pending);
+      expect(right.progress.rebuildStatus.value).toBe(RebuildStatus.Idle);
+      expect(left.timeline.mode.value, 'only one of them is scrubbing').toBe(false);
+      expect(left.timeline.scrubPos.value).toBe(0);
+      expect(left.manifest.current.value).not.toBe(right.manifest.current.value);
+      expect(left.source.isOpen('test://right')).toBe(false);
+    } finally {
+      left.dispose();
+      right.dispose();
+    }
+  });
+
   it('holds the unbound one’s camera when the opened project changes', async () => {
     const scenery = await createCity(makeCanvas());
     try {
-      CURRENT_SOURCE.value = { src: 'test://one' };
+      session.source.current.value = { src: 'test://one' };
       await scenery.applyManifest(makeManifest('wallpaper'));
       // Spied after the first apply: framing the city it just got IS its job.
       const refit = vi.spyOn(scenery.rig, 'reset');
 
       // A source switch refits the city that IS that source. This one is a
       // picture of something else, and its camera is not the app's to move.
-      CURRENT_SOURCE.value = { src: 'test://two' };
+      session.source.current.value = { src: 'test://two' };
       await scenery.applyManifest(makeManifest('wallpaper'));
 
       expect(refit).not.toHaveBeenCalled();

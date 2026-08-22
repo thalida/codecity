@@ -5,13 +5,17 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 function mkBuilding(path: string, x: number, y: number): Building {
   return {
@@ -29,7 +33,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE);
+  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {
@@ -53,7 +57,6 @@ beforeEach(() => {
   // jsdom returns a zero rect; give pickAt a real viewport so NDC math is sane.
   canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect;
-  PICKER_SELECTION_KEY.value = null;
 });
 
 describe('picker BVH raycast', () => {
@@ -72,7 +75,13 @@ describe('picker BVH raycast', () => {
     camera.lookAt(target.x, 0, target.y);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
 
     // Screen center → the target building.
     const hit = picker.pickAt(400, 300);
@@ -109,7 +118,13 @@ describe('picker BVH raycast', () => {
     camera.position.set(2000, 400, 2000);
     camera.lookAt(2000, 0, 2000);
     camera.updateMatrixWorld(true);
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
     expect(picker.pickAt(400, 300)).toBeNull();
     picker.dispose();
   });
@@ -154,7 +169,7 @@ describe('picker BVH raycast', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState });
+    const picker = createPicker({ canvas, camera, world, cityState, timeline: session.timeline });
     const hit = picker.pickAt(400, 300);
     expect(hit).not.toBeNull();
     const t = picker.interpretHit(hit);
@@ -167,7 +182,13 @@ describe('picker BVH raycast', () => {
     const world = makeCellWorld([]);
     const camera = new THREE.PerspectiveCamera(50, 800 / 600, 1, 100000);
     camera.updateMatrixWorld(true);
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
     expect(picker.pickAt(400, 300)).toBeNull();
     picker.dispose();
   });

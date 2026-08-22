@@ -13,7 +13,6 @@ import type { BuildingScrubState } from '@/city/components/buildings/scrubState'
 import type { StreetScrubState } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { PickTarget, RangeStat, Street } from '@/types';
 import {
   BYTE_STATS,
@@ -22,10 +21,14 @@ import {
   makeBuilding,
   makeFile,
 } from '../../_helpers/scrub';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 afterEach(() => {
-  TIMELINE_BUNDLE.value = null;
-  setScrubPos(0);
+  session.timeline.bundle.value = null;
+  session.timeline.setScrubPos(0);
 });
 
 const file = makeFile({ path: 'f.txt' });
@@ -40,13 +43,14 @@ function makeFakeGate(): { gate: ScrubGate; calls: (number | null)[] } {
 function setup(scrubGates: ScrubGate[] = []) {
   const index = new BuildingIndex();
   index.insert(makeBuilding(file));
-  TIMELINE_BUNDLE.value = SUBJECT_BUNDLE;
+  session.timeline.bundle.value = SUBJECT_BUNDLE;
 
   const buildingSlices: ReadonlyMap<string, BuildingScrubState>[] = [];
   const streetSlices: ReadonlyMap<Street, StreetScrubState>[] = [];
   const footprintSlices: ScrubStates[] = [];
 
   const controller = createScrubController({
+    timeline: session.timeline,
     buildings: {
       getBuildingIndex: () => index,
       applyScrub: (s) => void buildingSlices.push(s),
@@ -70,7 +74,7 @@ function setup(scrubGates: ScrubGate[] = []) {
 describe('one update', () => {
   it('hands every component its slice of the same frame', () => {
     const { controller, buildingSlices, streetSlices, footprintSlices } = setup();
-    setScrubPos(2);
+    session.timeline.setScrubPos(2);
     controller.update();
 
     expect(buildingSlices).toHaveLength(1);
@@ -83,11 +87,11 @@ describe('one update', () => {
 
   it('resolves against the position the scrubber is actually at', () => {
     const { controller, buildingSlices } = setup();
-    setScrubPos(0);
+    session.timeline.setScrubPos(0);
     controller.update();
     expect(buildingSlices[0].get('f.txt')!.lane).toBe(BuildingLane.Absent);
 
-    setScrubPos(2);
+    session.timeline.setScrubPos(2);
     controller.update();
     expect(buildingSlices[1].get('f.txt')!.lane).toBe(BuildingLane.Present);
   });
@@ -97,7 +101,7 @@ describe('the scrub gates', () => {
   it('floors the position, so a gate opens on whole commits only', () => {
     const a = makeFakeGate();
     const { controller } = setup([a.gate]);
-    setScrubPos(1.9);
+    session.timeline.setScrubPos(1.9);
     controller.update();
     expect(a.calls.at(-1)).toBe(1);
   });
@@ -108,7 +112,7 @@ describe('the scrub gates', () => {
     const a = makeFakeGate();
     const b = makeFakeGate();
     const { controller } = setup([a.gate, b.gate]);
-    setScrubPos(1.9);
+    session.timeline.setScrubPos(1.9);
     controller.update();
     expect(a.calls).toEqual(b.calls);
     expect(a.calls).toHaveLength(1);
@@ -119,7 +123,7 @@ describe('dispose', () => {
   it('drops the model, so a superseded controller stops resolving a dead city', () => {
     const { controller, buildingSlices } = setup();
     controller.dispose();
-    setScrubPos(2);
+    session.timeline.setScrubPos(2);
     controller.update();
     expect(buildingSlices[0].size).toBe(0);
   });

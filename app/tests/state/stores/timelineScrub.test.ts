@@ -5,18 +5,12 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
-import {
-  TIMELINE_MODE,
-  TIMELINE_BUNDLE,
-  setScrubPos,
-  PRESENT_PATHS,
-  PANE_MANIFEST,
-  scrubbedBlobShaFor,
-  scrubbedStatsFor,
-  scrubbedDirFor,
-} from '@/state/stores/timeline';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 function paths(m: unknown): Set<string> {
   const out = new Set<string>();
@@ -30,21 +24,21 @@ function paths(m: unknown): Set<string> {
 }
 
 function atCommitTwo(): void {
-  TIMELINE_BUNDLE.value = PRESENCE_BUNDLE;
-  TIMELINE_MODE.value = true;
-  setScrubPos(2);
+  session.timeline.bundle.value = PRESENCE_BUNDLE;
+  session.timeline.mode.value = true;
+  session.timeline.setScrubPos(2);
 }
 
 afterEach(() => {
-  TIMELINE_MODE.value = false;
-  TIMELINE_BUNDLE.value = null;
-  setScrubPos(0);
+  session.timeline.mode.value = false;
+  session.timeline.bundle.value = null;
+  session.timeline.setScrubPos(0);
 });
 
 test('present files + their ancestor dirs are in the set; deleted/future are not', () => {
   atCommitTwo();
 
-  const p = PRESENT_PATHS.value;
+  const p = session.timeline.presentPaths.value;
   expect(p.has('src/present.txt')).toBe(true);
   expect(p.has('src')).toBe(true); // ancestor of a live file
   expect(p.has('')).toBe(true); // root
@@ -54,15 +48,15 @@ test('present files + their ancestor dirs are in the set; deleted/future are not
 });
 
 test('empty outside Timeline mode', () => {
-  TIMELINE_BUNDLE.value = PRESENCE_BUNDLE;
-  TIMELINE_MODE.value = false;
-  expect(PRESENT_PATHS.value.size).toBe(0);
+  session.timeline.bundle.value = PRESENCE_BUNDLE;
+  session.timeline.mode.value = false;
+  expect(session.timeline.presentPaths.value.size).toBe(0);
 });
 
 test('the pane tree carries exactly the present set (empty dirs pruned)', () => {
   atCommitTwo();
 
-  const p = paths(PANE_MANIFEST.value);
+  const p = paths(session.timeline.paneManifest.value);
   expect(p.has('src/present.txt')).toBe(true);
   expect(p.has('src/gone.txt')).toBe(false); // deleted at commit 2
   expect(p.has('future/y.txt')).toBe(false); // not created until commit 3
@@ -73,7 +67,7 @@ test('the pane tree is present-only regardless of the ruins toggle', () => {
   atCommitTwo();
   RUINS.value = { ...RUINS.value, ENABLED: true };
 
-  const p = paths(PANE_MANIFEST.value);
+  const p = paths(session.timeline.paneManifest.value);
   expect(p.has('src/gone.txt')).toBe(false);
   expect(p.has('future/y.txt')).toBe(false);
   expect(p.has('src/present.txt')).toBe(true);
@@ -95,22 +89,22 @@ const growing = makeBundle({
 } as unknown as Partial<TimelineBundle>);
 
 test('displayed stats describe the blob being served, across unchanged commits', () => {
-  TIMELINE_BUNDLE.value = growing;
-  TIMELINE_MODE.value = true;
+  session.timeline.bundle.value = growing;
+  session.timeline.mode.value = true;
 
   // Each of these still serves the commit-0 blob, so each must report its
   // numbers: the drift is what put "42 lines" over a 36-line body.
   for (const pos of [0, 0.7, 1, 2, 2.9]) {
-    setScrubPos(pos);
-    expect(scrubbedBlobShaFor('f.txt')).toBe('small');
-    expect(scrubbedStatsFor('f.txt')?.lines).toBe(36);
-    expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
+    session.timeline.setScrubPos(pos);
+    expect(session.timeline.scrubbedBlobShaFor('f.txt')).toBe('small');
+    expect(session.timeline.scrubbedStatsFor('f.txt')?.lines).toBe(36);
+    expect(session.timeline.scrubbedStatsFor('f.txt')?.bytes).toBe(100);
   }
 
-  setScrubPos(3);
-  expect(scrubbedBlobShaFor('f.txt')).toBe('big');
-  expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
-  expect(scrubbedStatsFor('f.txt')?.bytes).toBe(200);
+  session.timeline.setScrubPos(3);
+  expect(session.timeline.scrubbedBlobShaFor('f.txt')).toBe('big');
+  expect(session.timeline.scrubbedStatsFor('f.txt')?.lines).toBe(46);
+  expect(session.timeline.scrubbedStatsFor('f.txt')?.bytes).toBe(200);
 });
 
 // ── Folder rollups ───────────────────────────────────────────────────
@@ -196,44 +190,44 @@ function rollups(d: unknown): Record<string, unknown> {
 }
 
 test('at HEAD the derived rollups equal the ones the backend authored', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
-  setScrubPos(2);
+  session.timeline.bundle.value = steady;
+  session.timeline.mode.value = true;
+  session.timeline.setScrubPos(2);
 
-  expect(rollups(scrubbedDirFor('src'))).toEqual(HEAD_SRC_ROLLUPS);
+  expect(rollups(session.timeline.scrubbedDirFor('src'))).toEqual(HEAD_SRC_ROLLUPS);
 });
 
 test('earlier commits count only what existed, at the size it was then', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
-  setScrubPos(0);
+  session.timeline.bundle.value = steady;
+  session.timeline.mode.value = true;
+  session.timeline.setScrubPos(0);
 
-  const d = scrubbedDirFor('src')!;
+  const d = session.timeline.scrubbedDirFor('src')!;
   expect(d.descendants_file_count).toBe(1); // b.md does not exist yet
   expect(d.descendants_size).toBe(100); // a.txt before its rewrite, not 300
   expect(d.descendants_ext_breakdown).toEqual([{ ext: 'txt', count: 1, size: 100 }]);
 });
 
 test('the newest change never runs ahead of the scrub', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
-  setScrubPos(1);
+  session.timeline.bundle.value = steady;
+  session.timeline.mode.value = true;
+  session.timeline.setScrubPos(1);
 
   // The union says a.txt was last touched at C2. Reading that here is what put
   // a future date on a folder you scrubbed into the past.
-  expect(scrubbedDirFor('src')!.descendants_modified_max).toBe(C1);
+  expect(session.timeline.scrubbedDirFor('src')!.descendants_modified_max).toBe(C1);
 });
 
 test('a deleted file leaves the folder totals, and an emptied folder is gone', () => {
   atCommitTwo();
 
-  const src = scrubbedDirFor('src')!;
+  const src = session.timeline.scrubbedDirFor('src')!;
   expect(src.descendants_file_count).toBe(1); // gone.txt deleted at this commit
-  expect(scrubbedDirFor('future')).toBeNull(); // nothing in it exists yet
+  expect(session.timeline.scrubbedDirFor('future')).toBeNull(); // nothing in it exists yet
 });
 
 test('null in Live, where MANIFEST is already the answer', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = false;
-  expect(scrubbedDirFor('src')).toBeNull();
+  session.timeline.bundle.value = steady;
+  session.timeline.mode.value = false;
+  expect(session.timeline.scrubbedDirFor('src')).toBeNull();
 });

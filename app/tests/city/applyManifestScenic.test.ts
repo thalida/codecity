@@ -4,11 +4,14 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import { createCityState } from '@/city/state';
-import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
 import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
+import { makeSession } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 function makeRootStreet(): Street {
   return {
@@ -74,7 +77,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     const cityState = createCityState(
       layoutClient as never,
       stubPlacementClient() as never,
-      OPENED_PROJECT_REPORTER
+      session.progress.reporter
     );
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());

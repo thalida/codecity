@@ -15,6 +15,10 @@ import type { Building, CityLayout } from '@/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
+import { makeSession } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 function countFiles(node: any): number {
   let n = 0;
@@ -156,7 +160,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const bounds = bboxToBounds(box);
   const plainBuildings = stripMedia(layout.buildings);
   const ta0 = performance.now();
-  const cellOut = buildCellsFromLayout(bounds, plainBuildings, TEST_SOURCE);
+  const cellOut = buildCellsFromLayout(bounds, plainBuildings, TEST_SOURCE, session.timeline);
   const ta1 = performance.now();
 
   // ── 5. media ad-panel registration ──
@@ -170,7 +174,9 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     const tm0 = performance.now();
     // No-op loader: profile registration + LOD without firing real image loads.
-    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, { onStartLoad: () => {} });
+    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, session.timeline, {
+      onStartLoad: () => {},
+    });
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
     const tm1 = performance.now();
     mediaRegMs = tm1 - tm0;

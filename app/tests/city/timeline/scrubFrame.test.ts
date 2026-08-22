@@ -7,11 +7,14 @@ import { signal } from '@preact/signals';
 
 import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
-import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const _ruins = RUINS.peek();
 
@@ -21,15 +24,15 @@ const SCANNED_AT = Date.UTC(2024, 5, 1);
 // SCRUB_POS clamps against the bundle, so a position past 0 needs one loaded,
 // with dates: the clamp runs a stop past the last commit.
 beforeEach(() => {
-  TIMELINE_BUNDLE.value = {
+  session.timeline.bundle.value = {
     commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
     unionManifest: { scanned_at: new Date(SCANNED_AT).toISOString() },
   } as unknown as TimelineBundle;
 });
 afterEach(() => {
   RUINS.value = _ruins;
-  setScrubPos(0);
-  TIMELINE_BUNDLE.value = null;
+  session.timeline.setScrubPos(0);
+  session.timeline.bundle.value = null;
 });
 
 const RANGES: RangeStat[] = [
@@ -48,6 +51,7 @@ const pick = (t: unknown) => t as PickTarget;
 
 function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
   return {
+    scrubPos: session.timeline.scrubPos.peek(),
     commitLineRanges: RANGES,
     commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
@@ -60,7 +64,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
 }
 
 const at = (pos: number, over: Partial<ScrubFrameDeps> = {}) => {
-  setScrubPos(pos);
+  session.timeline.setScrubPos(pos);
   return readScrubFrame(deps(over));
 };
 

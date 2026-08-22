@@ -7,11 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
-import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { RebuildStatus } from '@/state/stores/progress';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -35,7 +31,11 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { OPENED_PROJECT } from '@/city/openedProject';
+import { makeSession } from '../_helpers/project';
+import { cityPropsFor } from '@/city/forProject';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const W = 800;
 const H = 600;
@@ -46,9 +46,8 @@ describe('a built city is pickable', () => {
   let stopUrlBinding: (() => void) | null = null;
 
   beforeEach(() => {
-    CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    PICKER_SELECTION_KEY.value = null;
+    session.source.current.value = null;
+    session.manifest.current.value = null;
     navigate(ROUTES.HOME, { replace: true });
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
@@ -61,11 +60,10 @@ describe('a built city is pickable', () => {
   afterEach(() => {
     stopUrlBinding?.();
     stopUrlBinding = null;
-    SCENE_HANDLE.value = null;
+    session.city.value = null;
     rafSpy.mockRestore();
-    CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    PICKER_SELECTION_KEY.value = null;
+    session.source.current.value = null;
+    session.manifest.current.value = null;
     vi.clearAllMocks();
   });
 
@@ -89,11 +87,11 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
-      CURRENT_SOURCE.value = { src: 'test://repo' };
+      session.source.current.value = { src: 'test://repo' };
       await handle.applyManifest(makeManifest());
-      await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+      await vi.waitFor(() => expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Idle));
 
       // Where the city put that file, so the ray has something to aim at. The
       // pick itself goes through the meshes, which is what is under test.
@@ -121,21 +119,24 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
-      SCENE_HANDLE.value = handle;
+      session.city.value = handle;
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });
-      stopUrlBinding = attachViewUrlReactions();
+      stopUrlBinding = attachViewUrlReactions(session);
 
       const manifest = makeManifest();
-      commitSource('test://repo', undefined, manifest);
-      MANIFEST.value = manifest;
+      session.source.commit('test://repo', undefined, manifest);
+      session.manifest.current.value = manifest;
       await handle.applyManifest(manifest);
-      await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+      await vi.waitFor(() => expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Idle));
 
       const framedOffset = handle.rig.camera.position.clone().sub(handle.rig.controls.target);
       await vi.waitFor(() =>
-        expect(PICKER_SELECTION_KEY.value).toEqual({ kind: NodeKind.File, path: 'src/a.ts' })
+        expect(session.city.value!.picker.selectionKey.value).toEqual({
+          kind: NodeKind.File,
+          path: 'src/a.ts',
+        })
       );
 
       const placed = handle.picker.targetForPath('src/a.ts');

@@ -6,11 +6,14 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FILE: FileNode = {
   name: 'index.ts',
@@ -42,7 +45,7 @@ describe('SelectionChip', () => {
   const chip = () => container.querySelector('.selection-chip');
 
   const select = async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeHandle>;
     handle.picker.selection.value = {
       kind: NodeKind.File,
       file: FILE,
@@ -60,15 +63,15 @@ describe('SelectionChip', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
-    SCENE_HANDLE.value = makeHandle() as never;
-    render(<SelectionChip />, container);
+    session.city.value = makeHandle() as never;
+    renderInProject(<SelectionChip />, session, container);
     await flush();
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    SCENE_HANDLE.value = null;
+    session.city.value = null;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
@@ -101,7 +104,7 @@ describe('SelectionChip', () => {
   });
 
   it('carries the dir badge for a directory', async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeHandle>;
     handle.picker.selection.value = {
       kind: NodeKind.Directory,
       dir: { name: 'styles', type: NodeKind.Directory, path: 'src/styles' } as never,
@@ -118,7 +121,7 @@ describe('SelectionChip', () => {
   });
 
   it('names the kind for a commit, whose label is only a hash', async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeHandle>;
     handle.picker.selection.value = {
       kind: NodeKind.Commit,
       commit: { sha: 'abc1234def5678' } as never,
@@ -139,7 +142,7 @@ describe('SelectionChip', () => {
     act(() => container.querySelector<HTMLButtonElement>('.selection-chip-clear')!.click());
     await flush();
 
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeHandle>;
     expect(handle.picker.selection.value).toBeNull();
     expect(chip()).toBeNull();
   });

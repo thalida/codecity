@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
+import { EXCLUDES } from '@/state/stores/source';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // Preact schedules useEffect on rAF, which jsdom fires around 16ms, so the open
 // effect (registering the dismiss listeners) needs a real timer yield.
@@ -17,13 +21,13 @@ describe('ScanMenu', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: '/repos/codecity', branch: undefined };
+    session.source.current.value = { src: '/repos/codecity', branch: undefined };
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
   });
 
   const trigger = () => container.querySelector('.scan-menu-trigger') as HTMLButtonElement;
@@ -34,7 +38,7 @@ describe('ScanMenu', () => {
   };
 
   it('makes the freshness readout the trigger, not a label beside one', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
 
     // The complaint this resolves: the dot and its age used to look pressable
@@ -46,7 +50,7 @@ describe('ScanMenu', () => {
   });
 
   it('announces status from a live region outside the button', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
 
     // A button's contents are only read on focus, so the status has to live in
@@ -59,35 +63,35 @@ describe('ScanMenu', () => {
   // Hiding a building closes the pane and removes the building, so without this
   // the only trace of what you did is missing geometry.
   it('marks the trigger with how many paths are hidden, and drops the mark at none', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     expect(trigger().querySelector('.scan-menu-count')).toBeNull();
 
-    addExclude('vendor');
+    session.source.addExclude('vendor');
     await flush();
     expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('1');
 
-    addExclude('a.md');
+    session.source.addExclude('a.md');
     await flush();
     expect(trigger().querySelector('.scan-menu-count')!.textContent).toBe('2');
 
-    clearExcludes();
+    session.source.clearExcludes();
     await flush();
     expect(trigger().querySelector('.scan-menu-count')).toBeNull();
   });
 
   it('carries the hidden count into the name and the live region, singular and plural', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     const live = () => container.querySelector('[role="status"]')!;
     expect(live().textContent).not.toMatch(/hidden/);
 
-    addExclude('vendor');
+    session.source.addExclude('vendor');
     await flush();
     expect(live().textContent).toMatch(/1 path hidden$/);
     expect(trigger().getAttribute('aria-label')).toMatch(/1 path hidden$/);
 
-    addExclude('a.md');
+    session.source.addExclude('a.md');
     await flush();
     expect(live().textContent).toMatch(/2 paths hidden$/);
   });
@@ -95,8 +99,8 @@ describe('ScanMenu', () => {
   // The chip is already on screen when the second path is hidden, so the ring
   // only replays if something restarts it (useReplayAnimation).
   it('replays the pulse when the count changes', async () => {
-    addExclude('vendor');
-    render(<ScanMenu />, container);
+    session.source.addExclude('vendor');
+    renderInProject(<ScanMenu />, session, container);
     await flush();
 
     const chip = trigger().querySelector('.scan-menu-count') as HTMLElement;
@@ -112,7 +116,7 @@ describe('ScanMenu', () => {
       attributeOldValue: true,
     });
 
-    addExclude('a.md');
+    session.source.addExclude('a.md');
     await flush();
     observer.disconnect();
 
@@ -122,7 +126,7 @@ describe('ScanMenu', () => {
   });
 
   it('opens the panel and marks itself expanded', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -133,7 +137,7 @@ describe('ScanMenu', () => {
   // Mixed content: a role="menu" takes only menuitems, so a form control in
   // here would be unreachable for a screen reader following menu semantics.
   it('is a dialog rather than a menu, and carries no menuitems', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -149,7 +153,7 @@ describe('ScanMenu', () => {
   ];
   it.each(ACTION_CASES)('runs %s and closes the panel', async (label, index, skipCache) => {
     const onRefresh = vi.fn();
-    render(<ScanMenu onRefresh={onRefresh} />, container);
+    renderInProject(<ScanMenu onRefresh={onRefresh} />, session, container);
     await flush();
     await open();
 
@@ -165,7 +169,7 @@ describe('ScanMenu', () => {
   });
 
   it('holds the auto-refresh settings that used to live in the Scan tab', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -178,7 +182,7 @@ describe('ScanMenu', () => {
   // A paragraph under every control outweighs the controls in a panel this
   // size, so the tip survives as the row's hover title and for AT only.
   it('keeps field tips off the surface but reachable', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -189,7 +193,7 @@ describe('ScanMenu', () => {
 
   it('writes an auto-refresh change straight through, with no Save step', async () => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: true };
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -200,8 +204,11 @@ describe('ScanMenu', () => {
   });
 
   it('says the poll only applies to local projects when the source is a clone', async () => {
-    CURRENT_SOURCE.value = { src: 'https://github.com/thalida/codecity', branch: undefined };
-    render(<ScanMenu />, container);
+    session.source.current.value = {
+      src: 'https://github.com/thalida/codecity',
+      branch: undefined,
+    };
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -209,9 +216,9 @@ describe('ScanMenu', () => {
   });
 
   it('lists active excludes and restores one on click', async () => {
-    addExclude('vendor');
-    addExclude('a.md');
-    render(<ScanMenu />, container);
+    session.source.addExclude('vendor');
+    session.source.addExclude('a.md');
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -224,9 +231,9 @@ describe('ScanMenu', () => {
   });
 
   it('restores every exclude at once', async () => {
-    addExclude('vendor');
-    addExclude('a.md');
-    render(<ScanMenu />, container);
+    session.source.addExclude('vendor');
+    session.source.addExclude('a.md');
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -238,7 +245,7 @@ describe('ScanMenu', () => {
   });
 
   it('drops the restore-all control when there is nothing to restore', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
 
@@ -249,7 +256,7 @@ describe('ScanMenu', () => {
   });
 
   it('Escape closes it and returns focus to the trigger', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
     await settleEffects();
@@ -261,7 +268,7 @@ describe('ScanMenu', () => {
   });
 
   it('a pointer press outside closes it', async () => {
-    render(<ScanMenu />, container);
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
     await settleEffects();
@@ -274,8 +281,8 @@ describe('ScanMenu', () => {
   // The panel is portaled out of the trigger's tree, so a containment check
   // against one root would treat a press inside the panel as an outside press.
   it('a press inside the panel leaves it open', async () => {
-    addExclude('vendor');
-    render(<ScanMenu />, container);
+    session.source.addExclude('vendor');
+    renderInProject(<ScanMenu />, session, container);
     await flush();
     await open();
     await settleEffects();

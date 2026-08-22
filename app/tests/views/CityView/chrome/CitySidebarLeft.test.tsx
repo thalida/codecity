@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySidebarLeft';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { setManifest } from '@/state/stores/manifest';
-import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/state/stores/chrome';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { flush, drainAsync } from '../../../_helpers/preact';
+import { makeSession, renderInProject } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const TEST_TREE = {
   name: 'project',
@@ -45,18 +46,18 @@ describe('CitySidebarLeft', () => {
     document.body.appendChild(container);
     // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is
     // still seeded for the picker the panes read.
-    setManifest({ tree: TEST_TREE } as never);
-    SCENE_HANDLE.value = makeSceneHandle() as never;
-    render(<CitySidebarLeft />, container);
+    session.manifest.set({ tree: TEST_TREE } as never);
+    session.city.value = makeSceneHandle() as never;
+    renderInProject(<CitySidebarLeft />, session, container);
     await flush();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    SCENE_HANDLE.value = null;
-    setManifest(null);
-    CURRENT_SOURCE.value = null;
+    session.city.value = null;
+    session.manifest.set(null);
+    session.source.current.value = null;
   });
 
   it('mounts an activity bar with one icon per tab', () => {
@@ -117,7 +118,7 @@ describe('CitySidebarLeft', () => {
     expect(container.querySelector('.explore-pane')).not.toBeNull();
     // A world commits (cold-boot ?src= or a user switch both write CURRENT_SOURCE)
     // → force closed and reset to Info; the open state is not carried over.
-    CURRENT_SOURCE.value = { src: 'github.com/o/r' };
+    session.source.current.value = { src: 'github.com/o/r' };
     // Two-hop settle: CURRENT_SOURCE → effect → activeTab/collapsed → re-render.
     await drainAsync();
     expect(container.querySelector('#city-sidebar-left')!.classList.contains('is-collapsed')).toBe(

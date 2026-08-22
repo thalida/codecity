@@ -16,13 +16,18 @@ import {
   SETTINGS_FILE_KIND,
   SETTINGS_FILE_VERSION,
   storePart,
-  EXCLUDES_PART,
+  excludesPart,
+  EXCLUDES_KEY,
   TransferFamily,
   type TransferPart,
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
-import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
+import { makeSession } from '../../_helpers/project';
+import { EXCLUDES, setExcludesFor } from '@/state/stores/source';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FIELDS = {
   A: {
@@ -52,7 +57,7 @@ beforeEach(() => {
   STORE.value = { ...DEFAULTS };
   SCALAR.value = 'stock';
   EXCLUDES.value = {};
-  CURRENT_SOURCE.value = { src: SRC };
+  session.source.current.value = { src: SRC };
 });
 
 afterAll(() => {
@@ -65,10 +70,10 @@ const SCALAR_PART = storePart(SCALAR, TransferFamily.Appearance)!;
 
 // The catalogue: everything these tests allow to travel. Anything outside it is
 // not resolvable by a file, which is the point of passing it to the parser.
-const CATALOGUE: TransferPart[] = [STORE_PART, SCALAR_PART, EXCLUDES_PART];
+const CATALOGUE: TransferPart[] = [STORE_PART, SCALAR_PART, excludesPart(session.source)];
 
 const renderOnly = [STORE_PART];
-const excludesOnly = [EXCLUDES_PART];
+const excludesOnly = [excludesPart(session.source)];
 
 describe('buildSettingsFile', () => {
   it('stamps the kind and version every reader checks first', () => {
@@ -102,7 +107,7 @@ describe('buildSettingsFile', () => {
   });
 
   it("sends the open repo's hidden paths, and the repo they were tuned against", () => {
-    CURRENT_SOURCE.value = { src: SRC, branch: 'main' };
+    session.source.current.value = { src: SRC, branch: 'main' };
     setExcludesFor(SRC, ['vendor', 'dist']);
     expect(buildSettingsFile(excludesOnly).scan).toEqual({
       EXCLUDES: { src: SRC, branch: 'main', paths: ['dist', 'vendor'] },
@@ -168,7 +173,7 @@ describe('parseSettingsFile', () => {
   it('reads the exclude list back out of the scan family', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parseSettingsFile(text(buildSettingsFile(excludesOnly)), CATALOGUE);
-    expect(parsed.parts).toEqual([EXCLUDES_PART]);
+    expect(parsed.parts.map((part) => part.key)).toEqual([EXCLUDES_KEY]);
     expect(parsed.file.scan?.EXCLUDES).toEqual({ src: SRC, paths: ['vendor'] });
   });
 });
@@ -215,7 +220,7 @@ describe('applySettingsFile', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({ [sourceKey(SRC)]: ['vendor'] });
   });
@@ -226,19 +231,19 @@ describe('applySettingsFile', () => {
     setExcludesFor(SRC, ['vendor', 'dist']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
-    expect(ACTIVE_EXCLUDES.value).toEqual([]);
+    expect(session.source.excludes.value).toEqual([]);
 
-    CURRENT_SOURCE.value = { src: SRC };
-    expect(ACTIVE_EXCLUDES.value).toEqual(['dist', 'vendor']);
+    session.source.current.value = { src: SRC };
+    expect(session.source.excludes.value).toEqual(['dist', 'vendor']);
   });
 
   it('leaves the open repo untouched when the file names a different one', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value[sourceKey(OTHER_SRC)]).toBeUndefined();
   });
@@ -249,7 +254,7 @@ describe('applySettingsFile', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
     EXCLUDES.value = { [sourceKey(THIRD_SRC)]: ['keep-me'] };
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({
       [sourceKey(THIRD_SRC)]: ['keep-me'],
@@ -260,16 +265,16 @@ describe('applySettingsFile', () => {
   it('never moves you to the repo the file names', () => {
     setExcludesFor(SRC, ['vendor']);
     const parsed = parse(excludesOnly);
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
-    expect(CURRENT_SOURCE.value).toEqual({ src: OTHER_SRC });
+    expect(session.source.current.value).toEqual({ src: OTHER_SRC });
   });
 
   // Exported with nothing open, so the list names no repo to be filed under.
   it('files nothing when the file names no repo', () => {
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     const parsed = parse(excludesOnly);
-    CURRENT_SOURCE.value = { src: OTHER_SRC };
+    session.source.current.value = { src: OTHER_SRC };
     applySettingsFile(parsed, excludesOnly);
     expect(EXCLUDES.value).toEqual({});
   });

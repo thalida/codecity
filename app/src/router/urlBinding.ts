@@ -1,8 +1,7 @@
 // router/urlBinding.ts — the URL as an adapter over ONE project: it reflects
 // that session's source into ?src/?branch, loads whatever the address bar
 // names, and binds the view params on top. Attached to the session the address
-// bar is describing, which is exactly one of them — a side-by-side view would
-// attach it to the focused column, or to none and say where it is another way.
+// bar describes, which is one of them: a column view attaches it to none.
 
 import { URL_PARAMS } from '@/constants/urlParams';
 import { VIEW_PARAMS } from '@/router/params';
@@ -25,8 +24,8 @@ export function clearSourceUrl(): void {
 }
 
 /** Reflect the applied source so reload/share reopens it, moving to /city if
- *  the load began at home. */
-function attachSourceReflection(session: ProjectSession): () => void {
+ *  the load began at home. Exported for the view-params tests beside it. */
+export function attachSourceReflection(session: ProjectSession): () => void {
   return effect(() => {
     const cur = session.source.current.value;
     if (!cur) return;

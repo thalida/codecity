@@ -1,96 +1,89 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  SCRUB_POS,
-  SCRUB_MAX,
-  SCRUB_DRAGGING,
-  SETTLED_COMMIT,
-  SETTLED_POS,
-  TIMELINE_BUNDLE,
-  setScrubPos,
-  setTodayMs,
-  resetTimelineMode,
-} from '@/state/stores/timeline';
 import { makeCommitBundle } from '../../_helpers/scrub';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('SCRUB_POS range', () => {
   beforeEach(() => {
-    resetTimelineMode();
+    session.timeline.reset();
   });
 
   it('is 0 with no bundle loaded', () => {
-    expect(SCRUB_MAX.value).toBe(0);
-    setScrubPos(5);
-    expect(SCRUB_POS.value).toBe(0);
+    expect(session.timeline.scrubMax.value).toBe(0);
+    session.timeline.setScrubPos(5);
+    expect(session.timeline.scrubPos.value).toBe(0);
   });
 
   it('clamps both ends to the loaded bundle', () => {
-    TIMELINE_BUNDLE.value = makeCommitBundle(4);
-    expect(SCRUB_MAX.value).toBe(3);
+    session.timeline.bundle.value = makeCommitBundle(4);
+    expect(session.timeline.scrubMax.value).toBe(3);
 
-    setScrubPos(-2);
-    expect(SCRUB_POS.value).toBe(0);
-    setScrubPos(99);
-    expect(SCRUB_POS.value).toBe(3);
-    setScrubPos(1.5); // float index: scrubbing interpolates between commits
-    expect(SCRUB_POS.value).toBe(1.5);
+    session.timeline.setScrubPos(-2);
+    expect(session.timeline.scrubPos.value).toBe(0);
+    session.timeline.setScrubPos(99);
+    expect(session.timeline.scrubPos.value).toBe(3);
+    session.timeline.setScrubPos(1.5); // float index: scrubbing interpolates between commits
+    expect(session.timeline.scrubPos.value).toBe(1.5);
   });
 
   // Restore paths replay a saved position, so a shorter bundle left it out of
   // range until the next write; clamping against the CURRENT bundle fixes that.
   it('re-clamps when the bundle shrinks, with no new write', () => {
-    TIMELINE_BUNDLE.value = makeCommitBundle(10);
-    setScrubPos(9);
-    expect(SCRUB_POS.value).toBe(9);
+    session.timeline.bundle.value = makeCommitBundle(10);
+    session.timeline.setScrubPos(9);
+    expect(session.timeline.scrubPos.value).toBe(9);
 
-    TIMELINE_BUNDLE.value = makeCommitBundle(3);
-    expect(SCRUB_POS.value).toBe(2);
+    session.timeline.bundle.value = makeCommitBundle(3);
+    expect(session.timeline.scrubPos.value).toBe(2);
   });
 
   it('restores the saved position when the bundle grows back', () => {
-    TIMELINE_BUNDLE.value = makeCommitBundle(10);
-    setScrubPos(9);
-    TIMELINE_BUNDLE.value = makeCommitBundle(3);
-    TIMELINE_BUNDLE.value = makeCommitBundle(10);
-    expect(SCRUB_POS.value).toBe(9);
+    session.timeline.bundle.value = makeCommitBundle(10);
+    session.timeline.setScrubPos(9);
+    session.timeline.bundle.value = makeCommitBundle(3);
+    session.timeline.bundle.value = makeCommitBundle(10);
+    expect(session.timeline.scrubPos.value).toBe(9);
   });
 });
 
 describe('the settled scrub position', () => {
   beforeEach(() => {
-    SCRUB_DRAGGING.value = false;
-    resetTimelineMode();
-    TIMELINE_BUNDLE.value = makeCommitBundle(10);
+    session.timeline.dragging.value = false;
+    session.timeline.reset();
+    session.timeline.bundle.value = makeCommitBundle(10);
   });
 
   it('holds still through a drag and lands where it comes to rest', () => {
-    setScrubPos(2);
-    expect(SETTLED_POS.value).toBe(2);
-    expect(SETTLED_COMMIT.value).toBe(2);
+    session.timeline.setScrubPos(2);
+    expect(session.timeline.settledPos.value).toBe(2);
+    expect(session.timeline.settledCommit.value).toBe(2);
 
-    SCRUB_DRAGGING.value = true;
-    setScrubPos(5);
-    setScrubPos(8);
-    expect(SETTLED_POS.value).toBe(2);
-    expect(SETTLED_COMMIT.value).toBe(2);
+    session.timeline.dragging.value = true;
+    session.timeline.setScrubPos(5);
+    session.timeline.setScrubPos(8);
+    expect(session.timeline.settledPos.value).toBe(2);
+    expect(session.timeline.settledCommit.value).toBe(2);
 
-    SCRUB_DRAGGING.value = false;
-    expect(SETTLED_POS.value).toBe(8);
-    expect(SETTLED_COMMIT.value).toBe(8);
+    session.timeline.dragging.value = false;
+    expect(session.timeline.settledPos.value).toBe(8);
+    expect(session.timeline.settledCommit.value).toBe(8);
   });
 
   // SETTLED_COMMIT caps at the newest commit, so it reads the same at the today
   // stop past it — the position is the only one of the two that says "the present".
   it('separates the last commit from the today stop past it', () => {
-    TIMELINE_BUNDLE.value = makeCommitBundle(10, '2020-01-01T00:00:00Z');
-    setTodayMs(Date.parse('2024-01-01T00:00:00Z'));
-    expect(SCRUB_MAX.value).toBe(10);
+    session.timeline.bundle.value = makeCommitBundle(10, '2020-01-01T00:00:00Z');
+    session.timeline.setTodayMs(Date.parse('2024-01-01T00:00:00Z'));
+    expect(session.timeline.scrubMax.value).toBe(10);
 
-    setScrubPos(9);
-    expect(SETTLED_COMMIT.value).toBe(9);
-    expect(SETTLED_POS.value).toBe(9);
+    session.timeline.setScrubPos(9);
+    expect(session.timeline.settledCommit.value).toBe(9);
+    expect(session.timeline.settledPos.value).toBe(9);
 
-    setScrubPos(10);
-    expect(SETTLED_COMMIT.value).toBe(9);
-    expect(SETTLED_POS.value).toBe(10);
+    session.timeline.setScrubPos(10);
+    expect(session.timeline.settledCommit.value).toBe(9);
+    expect(session.timeline.settledPos.value).toBe(10);
   });
 });

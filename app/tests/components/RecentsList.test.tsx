@@ -3,12 +3,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
+import { RECENTS } from '@/state/stores/source';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
-import { setManifest } from '@/state/stores/manifest';
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('RecentsList', () => {
   let container: HTMLDivElement;
@@ -25,22 +28,25 @@ describe('RecentsList', () => {
       },
       { src: 'https://github.com/o/beta', branch: 'dev', label: 'o/beta', lastOpenedAt: 1 },
     ];
-    CURRENT_SOURCE.value = { src: 'https://github.com/o/alpha', branch: 'main' };
+    session.source.current.value = { src: 'https://github.com/o/alpha', branch: 'main' };
     // SOURCE_INFO (which active detection reads) derives from a loaded manifest.
-    setManifest({ tree: { name: 'o/alpha' }, repo: { branch: 'main' } } as unknown as Manifest);
+    session.manifest.set({
+      tree: { name: 'o/alpha' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
     RECENTS.value = [];
-    CURRENT_SOURCE.value = null;
-    setManifest(null);
+    session.source.current.value = null;
+    session.manifest.set(null);
     SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false };
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
-    render(<RecentsList />, container);
+    renderInProject(<RecentsList />, session, container);
     await flush();
 
     const activeRow = container.querySelector('.source-row--active');
@@ -51,11 +57,11 @@ describe('RecentsList', () => {
   it('notes the current project as Active', async () => {
     // Asserted because the note is passed down through SourceRow and a broken
     // hand-off is invisible until someone looks at a screenshot.
-    CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
+    session.source.current.value = { src: 'https://github.com/o/r', branch: 'main' };
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
     ];
-    render(<RecentsList />, container);
+    renderInProject(<RecentsList />, session, container);
     await flush();
     const note = container.querySelector('.source-row--active .source-row-note');
     expect(note?.textContent).toBe('Active');
@@ -64,7 +70,7 @@ describe('RecentsList', () => {
   it('every row is a link to the project it names', async () => {
     // A real href, so the destination shows on hover, cmd-click opens a tab,
     // and a row can never open a repo other than the one it is labelled with.
-    render(<RecentsList />, container);
+    renderInProject(<RecentsList />, session, container);
     await flush();
 
     const active = container.querySelector<HTMLAnchorElement>('.source-row--active')!;
@@ -81,9 +87,12 @@ describe('RecentsList', () => {
     // A local recent is branch-less; CURRENT_SOURCE is too, so they match by src
     // even though the loaded manifest reports a checkout branch (display only).
     RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
-    CURRENT_SOURCE.value = { src: '/Users/me/proj' };
-    setManifest({ tree: { name: 'proj' }, repo: { branch: 'feat/x' } } as unknown as Manifest);
-    render(<RecentsList />, container);
+    session.source.current.value = { src: '/Users/me/proj' };
+    session.manifest.set({
+      tree: { name: 'proj' },
+      repo: { branch: 'feat/x' },
+    } as unknown as Manifest);
+    renderInProject(<RecentsList />, session, container);
     await flush();
 
     const rows = container.querySelectorAll('.source-list-item');
@@ -93,7 +102,7 @@ describe('RecentsList', () => {
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
-    render(<RecentsList />, container);
+    renderInProject(<RecentsList />, session, container);
     await flush();
 
     const removeButtons = container.querySelectorAll<HTMLButtonElement>(

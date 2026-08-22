@@ -5,13 +5,16 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
-import type { SceneContext } from '@/city/types';
+import type { CityTimelineBinding, SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
-import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import { commits } from './commits';
+import { makeSession } from './project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.
@@ -31,7 +34,7 @@ export function makeCityState(): CityState {
   return createCityState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
-    OPENED_PROJECT_REPORTER
+    session.progress.reporter
   );
 }
 
@@ -60,7 +63,10 @@ export function makeSceneContext(cityState: CityState = makeCityState()): SceneC
 
 /** SceneContext whose picker carries real signals, returned alongside them so a
  *  test can drive hover/selection and assert what the component does. */
-export function makePickableSceneContext(cityState: CityState = makeCityState()): {
+export function makePickableSceneContext(
+  cityState: CityState = makeCityState(),
+  timeline: CityTimelineBinding | null = null
+): {
   ctx: SceneContext;
   selection: ReturnType<typeof signal<PickTarget | null>>;
   hover: ReturnType<typeof signal<PickTarget | null>>;
@@ -74,6 +80,7 @@ export function makePickableSceneContext(cityState: CityState = makeCityState())
     canvas,
     picker: { selection, hover } as unknown as Picker,
     cityState,
+    timeline,
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }

@@ -15,13 +15,11 @@ import type { FileNode } from '@/types';
 import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeBundle } from '../../../_helpers/scrub';
-import {
-  SETTLED_COMMIT,
-  TIMELINE_BUNDLE,
-  TIMELINE_MODE,
-  setScrubPos,
-} from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
+import { makeSession, renderInProject } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -42,8 +40,9 @@ describe('FilePreviewPane', () => {
 
   function mount(opts: { onClose?: () => void; onFocus?: (f: FileNode) => void } = {}): void {
     state = signal<FilePreviewPaneState>({ file: null });
-    render(
+    renderInProject(
       <FilePreviewPane state={state} onClose={opts.onClose} onFocus={opts.onFocus} />,
+      session,
       container
     );
   }
@@ -382,8 +381,8 @@ describe('FilePreviewPane in Timeline', () => {
 
   async function showAt(commit: number): Promise<void> {
     await act(async () => {
-      setScrubPos(commit);
-      SETTLED_COMMIT.value = commit;
+      session.timeline.setScrubPos(commit);
+      session.timeline.settledCommit.value = commit;
       state.value = { file: IMAGE_NODE, source: TEST_SOURCE };
     });
     await drainAsync();
@@ -392,19 +391,19 @@ describe('FilePreviewPane in Timeline', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    TIMELINE_BUNDLE.value = BUNDLE;
-    TIMELINE_MODE.value = true;
+    session.timeline.bundle.value = BUNDLE;
+    session.timeline.mode.value = true;
     state = signal<FilePreviewPaneState>({ file: null });
-    render(<FilePreviewPane state={state} />, container);
+    renderInProject(<FilePreviewPane state={state} />, session, container);
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    TIMELINE_MODE.value = false;
-    TIMELINE_BUNDLE.value = null;
-    setScrubPos(0);
-    SETTLED_COMMIT.value = 0;
+    session.timeline.mode.value = false;
+    session.timeline.bundle.value = null;
+    session.timeline.setScrubPos(0);
+    session.timeline.settledCommit.value = 0;
   });
 
   it('asks for the blob at this commit, not for whatever HEAD has', async () => {

@@ -15,13 +15,6 @@ vi.mock('@/api/branches', () => ({
   fetchBranches: vi.fn(async () => ({ branches: [], default: null })),
 }));
 
-// The view calls these directly now, so they are what "it opened a project" and
-// "it cancelled the load" mean.
-vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/useManifestSource')>()),
-  loadSource: vi.fn(),
-  cancelLoad: vi.fn(),
-}));
 // Opening anything from here is a navigation, so this is what the assertions
 // watch: the landing starts no load of its own.
 vi.mock('@/router/location', async (importOriginal) => ({
@@ -29,29 +22,21 @@ vi.mock('@/router/location', async (importOriginal) => ({
   navigate: vi.fn(),
 }));
 import { HomeView } from '@/views/HomeView/HomeView';
-import {
-  attachOverlayDriver,
-  hideLoadingOverlay,
-  PENDING_SOURCE_LABEL,
-  SCAN_PROGRESS,
-} from '@/state/stores/progress';
-import {
-  BACKDROP_CITY,
-  BackdropKind,
-  RECENTS,
-  CURRENT_SOURCE,
-  SOURCE_ERROR,
-} from '@/state/stores/source';
-import { loadSource } from '@/hooks/useManifestSource';
+import { BACKDROP_CITY, BackdropKind, RECENTS } from '@/state/stores/source';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
 import { flush } from '../../_helpers/preact';
+import { makeSession, renderInProject } from '../../_helpers/project';
+
+// The landing starts no load of its own, so this session's loader is spied.
+const session = makeSession();
+const loadSource = vi.spyOn(session.load, 'loadSource').mockResolvedValue(undefined);
 
 /** A project already loaded, which the landing names as its backdrop. */
 function loadedCity(): void {
-  CURRENT_SOURCE.value = { src: 'https://github.com/o/loaded', branch: 'main' };
+  session.source.current.value = { src: 'https://github.com/o/loaded', branch: 'main' };
 }
 
 describe('HomeView', () => {
@@ -65,19 +50,19 @@ describe('HomeView', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
-    stopDriver = attachOverlayDriver();
+    stopDriver = session.progress.attachOverlayDriver();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
     navigate(ROUTES.HOME, { replace: true });
-    SOURCE_ERROR.value = null;
-    CURRENT_SOURCE.value = null;
+    session.source.error.value = null;
+    session.source.current.value = null;
     stopDriver();
-    SCAN_PROGRESS.value = null;
-    hideLoadingOverlay();
-    PENDING_SOURCE_LABEL.value = null;
+    session.progress.scan.value = null;
+    session.progress.hideOverlay();
+    session.progress.pendingLabel.value = null;
     RECENTS.value = [];
     DISCOVER.value = [];
     BACKDROP_CITY.value = null;
@@ -87,7 +72,7 @@ describe('HomeView', () => {
 
   it('renders the new-project form when open and idle', async () => {
     loadedCity();
-    render(<HomeView />, container);
+    renderInProject(<HomeView />, session, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
@@ -95,11 +80,11 @@ describe('HomeView', () => {
 
   it('drops a stale error banner as soon as the user edits the source', async () => {
     loadedCity();
-    SOURCE_ERROR.value = {
+    session.source.error.value = {
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     };
-    render(<HomeView />, container);
+    renderInProject(<HomeView />, session, container);
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
 
@@ -123,7 +108,7 @@ describe('HomeView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
     };
 
@@ -177,7 +162,7 @@ describe('HomeView', () => {
       // Regression: recents stores @main while Discover names the repo
       // alone, so one comparison shape always missed a list.
       const src = 'https://github.com/preactjs/preact';
-      CURRENT_SOURCE.value = { src, branch: 'main' };
+      session.source.current.value = { src, branch: 'main' };
       RECENTS.value = [{ src, branch: 'main', label: 'preactjs/preact', lastOpenedAt: 1 }];
       DISCOVER.value = [{ url: src, label: 'preact', featured: false }];
       await open();
@@ -193,7 +178,7 @@ describe('HomeView', () => {
       await flush();
       expect(noteIn('[data-list="discover"]')).toBe('Active');
 
-      CURRENT_SOURCE.value = null;
+      session.source.current.value = null;
     });
 
     it('marks the featured repo Active in recents, which stores a branch', async () => {
@@ -238,7 +223,7 @@ describe('HomeView', () => {
     it('links a Discover row straight at the project it names', async () => {
       DISCOVER.value = CURATED;
       loadedCity();
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       // A link, not a handler: the destination is visible on hover, and the row
       // cannot open a repo other than the one it is labelled with.
@@ -273,7 +258,7 @@ describe('HomeView', () => {
     const featured = () => container.querySelector('.landing-featured');
 
     it('always stages the wallpaper: it is what "no city yet" looks like', async () => {
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       expect(stage()).not.toBeNull();
       // Decoration: named for nobody, so it stays out of the a11y tree.
@@ -281,7 +266,7 @@ describe('HomeView', () => {
     });
 
     it('reveals the canvas over the wallpaper only once a backdrop has painted', async () => {
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       expect(stage()!.classList.contains('is-painted')).toBe(false);
 
@@ -296,7 +281,7 @@ describe('HomeView', () => {
 
     it('names the city on screen once it has actually painted', async () => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
@@ -316,7 +301,7 @@ describe('HomeView', () => {
   describe('hero column', () => {
     const hero = async () => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };
@@ -348,7 +333,7 @@ describe('HomeView', () => {
     const renderAt = async (allowLocalRepos: boolean) => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos };
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
     };
 
@@ -365,7 +350,7 @@ describe('HomeView', () => {
       for (const hosted of [false, true]) {
         SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false, hosted };
         navigate(ROUTES.HOME);
-        render(<HomeView />, container);
+        renderInProject(<HomeView />, session, container);
         await flush();
         expect(band()).not.toBeNull();
         expect(container.querySelector('.unreachable')).toBeNull();
@@ -386,7 +371,7 @@ describe('HomeView', () => {
       SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderInProject(<HomeView />, session, container);
       await flush();
       return container.querySelector('.landing-hero')!;
     };

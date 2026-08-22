@@ -3,16 +3,20 @@ import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/fields/theme';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
+import { EXCLUDES } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settings/schema';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 beforeEach(() => {
   LIVE_UPDATES.value = getDefault(LIVE_UPDATES);
   ACCENT_THEME.value = ACCENT_THEME_DEFAULT;
   BUILDINGS.value = getDefault(BUILDINGS);
   EXCLUDES.value = {};
-  CURRENT_SOURCE.value = { src: 's', branch: undefined };
+  session.source.current.value = { src: 's', branch: undefined };
 });
 
 describe('CHANGED_SETTINGS_COUNT', () => {
@@ -21,9 +25,9 @@ describe('CHANGED_SETTINGS_COUNT', () => {
   it('ignores excludes and scan settings, which live in the header menu', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
 
-    addExclude('vendor');
+    session.source.addExclude('vendor');
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
-    clearExcludes();
+    session.source.clearExcludes();
 
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, POLL_SECONDS: 42 };
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base);

@@ -8,7 +8,6 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
 import { createCityState } from '@/city/state';
-import { OPENED_PROJECT_REPORTER } from '@/state/stores/progress';
 import {
   commitTarget,
   makeCityState,
@@ -22,6 +21,10 @@ import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { NodeKind, StreetAxis } from '@/types';
+import { makeSession } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const SHA_A = 'a'.repeat(40);
 
@@ -120,7 +123,7 @@ describe('createTrees() component door', () => {
     const cityState = createCityState(
       layoutClientFor(TREE_LAYOUT) as never,
       stubPlacementClient(PLACEMENTS) as never,
-      OPENED_PROJECT_REPORTER
+      session.progress.reporter
     );
     const { ctx } = makePickableSceneContext(cityState);
     trees = createTrees(ctx);

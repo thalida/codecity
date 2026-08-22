@@ -5,6 +5,10 @@ import { LegendTab } from '@/views/CityView/panes/InfoPane/tabs/LegendTab/Legend
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { LAYER_LEGEND } from '@/views/CityView/panes/InfoPane/almanac';
 import { flush } from '../../../../_helpers/preact';
+import { makeSession, renderInProject } from '../../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('LegendTab', () => {
   let container: HTMLDivElement;
@@ -18,7 +22,7 @@ describe('LegendTab', () => {
   });
 
   it('renders every layer + its cue rows from the single source, keyed by section accent', () => {
-    render(<LegendTab />, container);
+    renderInProject(<LegendTab />, session, container);
     for (const layer of LAYER_LEGEND) {
       const block = container.querySelector(`.legend-layer[data-section="${layer.key}"]`);
       expect(block, `block for ${layer.key}`).toBeTruthy();
@@ -33,13 +37,13 @@ describe('LegendTab', () => {
   });
 
   it('keeps all visible copy free of em-dashes (house style: colons/commas)', () => {
-    render(<LegendTab />, container);
+    renderInProject(<LegendTab />, session, container);
     expect(container.querySelector('.legend')!.textContent).not.toContain('—');
   });
 
   it('is reachable as the Legend subtab', async () => {
     const sig = signal(null);
-    render(<InfoPane manifest={sig as never} />, container);
+    renderInProject(<InfoPane manifest={sig as never} />, session, container);
     await flush();
     const legendTab = Array.from(container.querySelectorAll('[role="tab"]')).find(
       (el) => el.textContent === 'Legend'

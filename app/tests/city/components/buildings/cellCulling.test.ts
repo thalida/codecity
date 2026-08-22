@@ -12,6 +12,10 @@ import { createBuildingTweens } from '@/city/components/buildings/tween';
 import { building } from '../../../_helpers/buildingFixture';
 import type { Building } from '@/types';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
+import { makeSession } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const BOUNDS = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
 
@@ -30,7 +34,7 @@ const topOf = (b: Building) => new THREE.Vector3(b.x, b.h, b.y);
 
 describe('cell cull sphere', () => {
   it('is the cell’s own, not one three.js derived from a single frame', () => {
-    const out = buildCellsFromLayout(BOUNDS, layout(), TEST_SOURCE);
+    const out = buildCellsFromLayout(BOUNDS, layout(), TEST_SOURCE, session.timeline);
 
     for (const cell of out.cells.values()) {
       expect(cell.detailMesh.boundingSphere).toBe(cell.boundsSphere);
@@ -39,7 +43,7 @@ describe('cell cull sphere', () => {
 
   it('covers the tallest building it holds, not the 20-unit default', () => {
     const buildings = layout();
-    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE);
+    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE, session.timeline);
 
     const tall = buildings[0];
     const cell = out.cells.get(out.grid.worldToCell(tall.x, tall.y).cellId)!;
@@ -53,7 +57,7 @@ describe('cell cull sphere', () => {
     const grid = new SpatialGrid(BOUNDS);
     const edge = grid.cellSize - 0.1; // centre hard against the boundary
     const wide = building({ x: edge, y: edge, w: 6, d: 6, h: 10, file: fileAt('w.ts') as never });
-    const out = buildCellsFromLayout(BOUNDS, [wide], TEST_SOURCE);
+    const out = buildCellsFromLayout(BOUNDS, [wide], TEST_SOURCE, session.timeline);
     const cell = out.cells.get(out.grid.worldToCell(wide.x, wide.y).cellId)!;
 
     const corner = new THREE.Vector3(wide.x + wide.w / 2, wide.h, wide.y + wide.d / 2);
@@ -64,7 +68,7 @@ describe('cell cull sphere', () => {
   // later write culls against where the buildings used to be.
   it('survives a frustum test, so a later matrix write is not culled against a stale sphere', () => {
     const buildings = layout();
-    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE);
+    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE, session.timeline);
     const tall = buildings[0];
     const cell = out.cells.get(out.grid.worldToCell(tall.x, tall.y).cellId)!;
     const mesh = cell.detailMesh;

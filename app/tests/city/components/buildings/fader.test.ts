@@ -12,6 +12,10 @@ import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
+import { makeSession } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const _originalFade = BUILDINGS.value;
 
@@ -102,7 +106,7 @@ function makeFader(opts: {
     cityState.structureRevision.value++;
   }
 
-  const fader = createBuildingFader({ world, cityState, picker });
+  const fader = createBuildingFader({ world, cityState, picker, timeline: session.timeline });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);

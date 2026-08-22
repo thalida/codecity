@@ -1,31 +1,24 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  loadSource,
-  cancelLoad,
-  setupLiveUpdates,
-  refreshCurrentSource,
-  setTimelineRefreshHandler,
-  setTimelineBootHandler,
-  bootLoad,
-  attachRouteLoad,
-} from '@/hooks/useManifestSource';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import { readUrlView } from '@/router/viewParams';
-import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS, EXCLUDES, addExclude } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import { RECENTS, EXCLUDES } from '@/state/stores/source';
 import type { TimelineBundle } from '@/types';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
+import { makeSession } from '../_helpers/project';
+import { attachUrlBinding } from '@/router/urlBinding';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;
 
   beforeEach(() => {
     restoreEventSource = installEventSource();
-    SOURCE_ERROR.value = null;
+    session.source.error.value = null;
   });
 
   afterEach(() => {
@@ -37,19 +30,21 @@ describe('useManifestSource loadSource cancellation', () => {
       RECENTS.value = [
         { src: 'https://github.com/o/r', label: 'o/r', lastOpenedAt: 1 },
       ] as typeof RECENTS.value;
-      PENDING_SOURCE_LABEL.value = null;
+      session.progress.pendingLabel.value = null;
 
-      const p = loadSource({ src: 'https://github.com/o/r' });
+      const p = session.load.loadSource({ src: 'https://github.com/o/r' });
       // No event has arrived yet: the overlay is already on screen.
-      expect(PENDING_SOURCE_LABEL.value, 'header must not be blank while resolving').toBe('o/r');
+      expect(session.progress.pendingLabel.value, 'header must not be blank while resolving').toBe(
+        'o/r'
+      );
 
-      cancelLoad();
+      session.load.cancel();
       await p;
     });
 
     it('survives the stream ending, since the city is still being built', async () => {
       RECENTS.value = [];
-      const p = loadSource({ src: 'https://github.com/o/r' });
+      const p = session.load.loadSource({ src: 'https://github.com/o/r' });
       StubEventSource.instances[0]!.emit(
         'manifest-complete',
         JSON.stringify({ manifest: { tree: { name: 'o/r' } } })
@@ -58,40 +53,45 @@ describe('useManifestSource loadSource cancellation', () => {
 
       // loadSource is done; the overlay lives on through Building, and the
       // header has to live exactly as long as the overlay.
-      expect(PENDING_SOURCE_LABEL.value, 'cleared with the stream, not the overlay').toBe('o/r');
+      expect(session.progress.pendingLabel.value, 'cleared with the stream, not the overlay').toBe(
+        'o/r'
+      );
     });
   });
 
   it('a new attempt retires the last failure, so it cannot outlive what explained it', async () => {
-    SOURCE_ERROR.value = {
+    session.source.error.value = {
       error: 'repository not found',
       prefill: { src: 'https://github.com/o/gone' },
     };
 
-    const p = loadSource({ src: 'https://github.com/o/r' });
-    expect(SOURCE_ERROR.value, 'cleared as the attempt starts, not when it lands').toBeNull();
+    const p = session.load.loadSource({ src: 'https://github.com/o/r' });
+    expect(
+      session.source.error.value,
+      'cleared as the attempt starts, not when it lands'
+    ).toBeNull();
 
-    cancelLoad();
+    session.load.cancel();
     await p;
   });
 
   it('canceling a load leaves SOURCE_ERROR null and CURRENT_SOURCE unchanged', async () => {
-    const before = CURRENT_SOURCE.value;
+    const before = session.source.current.value;
 
-    const p = loadSource({ src: 'https://github.com/o/r' }); // starts the load
-    cancelLoad(); // aborts via loadController before any event arrives
+    const p = session.load.loadSource({ src: 'https://github.com/o/r' }); // starts the load
+    session.load.cancel(); // aborts via loadController before any event arrives
 
     await p;
 
-    expect(SOURCE_ERROR.value).toBeNull();
-    expect(CURRENT_SOURCE.value).toBe(before);
+    expect(session.source.error.value).toBeNull();
+    expect(session.source.current.value).toBe(before);
     expect(StubEventSource.instances[0]?.closed).toBe(true);
   });
 
   it('canceling AFTER a skeleton manifest does not commit it as CURRENT_SOURCE', async () => {
-    const before = CURRENT_SOURCE.value;
+    const before = session.source.current.value;
 
-    const p = loadSource({ src: 'https://github.com/o/r' });
+    const p = session.load.loadSource({ src: 'https://github.com/o/r' });
     await flush(); // let the for-await attach its event listeners
 
     // An aborted stream ends done, not a throw, so the success path receives
@@ -103,22 +103,22 @@ describe('useManifestSource loadSource cancellation', () => {
       })
     );
     await flush();
-    cancelLoad();
+    session.load.cancel();
 
     await p;
 
-    expect(CURRENT_SOURCE.value).toBe(before); // NOT committed
-    expect(SOURCE_ERROR.value).toBeNull(); // cancel is not an error
+    expect(session.source.current.value).toBe(before); // NOT committed
+    expect(session.source.error.value).toBeNull(); // cancel is not an error
     expect(StubEventSource.instances[0]?.closed).toBe(true);
   });
 
   it('canceling AFTER a skeleton rolls MANIFEST back to the prior city', async () => {
     // City A is already applied (source unchanged throughout this load of B).
     const cityA = { root: '/a', tree: { type: 'directory' }, content_signature: 'sig-a' };
-    MANIFEST.value = cityA;
-    const before = CURRENT_SOURCE.value;
+    session.manifest.current.value = cityA;
+    const before = session.source.current.value;
 
-    const p = loadSource({ src: 'https://github.com/o/b' });
+    const p = session.load.loadSource({ src: 'https://github.com/o/b' });
     await flush(); // let the for-await attach its event listeners
 
     // B's skeleton streams into MANIFEST (behind the overlay)...
@@ -129,14 +129,14 @@ describe('useManifestSource loadSource cancellation', () => {
       })
     );
     await flush();
-    expect(MANIFEST.value).not.toBe(cityA); // sanity: B's skeleton IS applied mid-load
+    expect(session.manifest.current.value).not.toBe(cityA); // sanity: B's skeleton IS applied mid-load
 
-    cancelLoad(); // ...then the user cancels before B's final arrives
+    session.load.cancel(); // ...then the user cancels before B's final arrives
     await p;
 
-    expect(MANIFEST.value).toBe(cityA); // rolled back to city A
-    expect(CURRENT_SOURCE.value).toBe(before); // never committed B
-    expect(SOURCE_ERROR.value).toBeNull(); // cancel is not an error
+    expect(session.manifest.current.value).toBe(cityA); // rolled back to city A
+    expect(session.source.current.value).toBe(before); // never committed B
+    expect(session.source.error.value).toBeNull(); // cancel is not an error
   });
 });
 
@@ -149,39 +149,39 @@ describe('loadSource exits Timeline mode', () => {
     originalEventSource = globalThis.EventSource;
     StubEventSource.instances = [];
     (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
-    SOURCE_ERROR.value = null;
+    session.source.error.value = null;
   });
 
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
-    TIMELINE_MODE.value = false;
-    setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
+    session.timeline.mode.value = false;
+    session.timeline.setScrubPos(0);
+    session.timeline.bundle.value = null;
   });
 
   it('flips TIMELINE_MODE off and clears the scrub store before the fetch starts', async () => {
-    TIMELINE_MODE.value = true;
-    setScrubPos(3);
-    TIMELINE_BUNDLE.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
+    session.timeline.mode.value = true;
+    session.timeline.setScrubPos(3);
+    session.timeline.bundle.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
 
-    const p = loadSource({ src: 'https://github.com/o/r' });
+    const p = session.load.loadSource({ src: 'https://github.com/o/r' });
 
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(SCRUB_POS.value).toBe(0);
-    expect(TIMELINE_BUNDLE.value).toBeNull();
+    expect(session.timeline.mode.value).toBe(false);
+    expect(session.timeline.scrubPos.value).toBe(0);
+    expect(session.timeline.bundle.value).toBeNull();
 
-    cancelLoad();
+    session.load.cancel();
     await p;
   });
 
   it('a normal switch when NOT in Timeline mode leaves it untouched', async () => {
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
 
-    const p = loadSource({ src: 'https://github.com/o/r' });
+    const p = session.load.loadSource({ src: 'https://github.com/o/r' });
 
-    expect(TIMELINE_MODE.value).toBe(false);
+    expect(session.timeline.mode.value).toBe(false);
 
-    cancelLoad();
+    session.load.cancel();
     await p;
   });
 });
@@ -195,71 +195,72 @@ describe('refreshCurrentSource', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     timelineRefreshes = [];
-    setTimelineRefreshHandler((opts) => {
-      timelineRefreshes.push(opts);
+    // A refresh in Timeline goes to this session's controller, not to a
+    // module-level handler someone injected earlier.
+    vi.spyOn(session.timelineMode, 'loadScene').mockImplementation((opts) => {
+      timelineRefreshes.push(opts && { noCache: opts.noCache, overlay: opts.overlay });
       return Promise.resolve();
     });
-    CURRENT_SOURCE.value = { src: 'https://github.com/o/r' };
-    SOURCE_ERROR.value = null;
+    session.source.current.value = { src: 'https://github.com/o/r' };
+    session.source.error.value = null;
   });
 
   afterEach(() => {
     restoreEventSource();
-    setTimelineRefreshHandler(null);
-    TIMELINE_MODE.value = false;
-    CURRENT_SOURCE.value = null;
+    session.timeline.mode.value = false;
+    session.source.current.value = null;
   });
 
   it('re-reads the history bundle in place, staying in Timeline', () => {
-    TIMELINE_MODE.value = true;
+    session.timeline.mode.value = true;
 
-    refreshCurrentSource(false);
+    session.load.refresh(false);
 
     // overlay: asked for by hand, so it reports its stages like a Live refresh.
     expect(timelineRefreshes).toEqual([{ noCache: false, overlay: true }]);
-    expect(TIMELINE_MODE.value).toBe(true);
+    expect(session.timeline.mode.value).toBe(true);
     expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
   });
 
   it('re-scans live when that is the mode', async () => {
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
 
-    refreshCurrentSource(false);
+    session.load.refresh(false);
     await flush();
 
     expect(timelineRefreshes).toEqual([]);
     expect(StubEventSource.instances.length).toBe(1);
 
-    cancelLoad();
+    session.load.cancel();
   });
 
   // Fresh scan is "ignore the cache", not "leave Timeline": the bundle caches
   // per HEAD like the live scan does, so the flag rides the history read.
   it('carries a fresh scan into the history read, staying in Timeline', () => {
-    TIMELINE_MODE.value = true;
+    session.timeline.mode.value = true;
 
-    refreshCurrentSource(true);
+    session.load.refresh(true);
 
     expect(timelineRefreshes).toEqual([{ noCache: true, overlay: true }]);
-    expect(TIMELINE_MODE.value).toBe(true);
+    expect(session.timeline.mode.value).toBe(true);
     expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
   });
 
   it('sends no_cache on a live fresh scan', async () => {
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
 
-    refreshCurrentSource(true);
+    session.load.refresh(true);
     await flush();
 
     expect(StubEventSource.instances[0]!.url).toContain('no_cache=true');
 
-    cancelLoad();
+    session.load.cancel();
   });
 
   it('does nothing with no source open', () => {
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
 
-    refreshCurrentSource(false);
+    session.load.refresh(false);
 
     expect(timelineRefreshes).toEqual([]);
     expect(StubEventSource.instances.length).toBe(0);
@@ -283,23 +284,23 @@ describe('exclude-driven re-fetch', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     EXCLUDES.value = {};
-    CURRENT_SOURCE.value = null;
-    MANIFEST.value = { tree: {} } as never;
+    session.source.current.value = null;
+    session.manifest.current.value = { tree: {} } as never;
   });
   afterEach(() => {
     restoreEventSource();
   });
 
   it('re-fetches the loaded source with the exclude param when an exclude is added', async () => {
-    const load = loadSource({ src: 's', branch: undefined });
+    const load = session.load.loadSource({ src: 's', branch: undefined });
     await flush();
     StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);
     await load;
-    expect(CURRENT_SOURCE.value?.src).toBe('s');
+    expect(session.source.current.value?.src).toBe('s');
 
-    const dispose = setupLiveUpdates();
+    const dispose = session.load.setupLiveUpdates();
     const before = StubEventSource.instances.length;
-    addExclude('vendor');
+    session.source.addExclude('vendor');
     await flush();
     const fresh = StubEventSource.instances.slice(before);
     expect(fresh.length).toBeGreaterThan(0);
@@ -310,15 +311,15 @@ describe('exclude-driven re-fetch', () => {
   it('does not re-fetch merely because the source switched', async () => {
     // Without a first load the reaction exits on `prev === null` and the
     // switch guard it is here to exercise never runs.
-    const load = loadSource({ src: 's1', branch: undefined });
+    const load = session.load.loadSource({ src: 's1', branch: undefined });
     await flush();
     StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);
     await load;
-    expect(CURRENT_SOURCE.value?.src).toBe('s1');
+    expect(session.source.current.value?.src).toBe('s1');
 
-    const dispose = setupLiveUpdates();
+    const dispose = session.load.setupLiveUpdates();
     const before = StubEventSource.instances.length;
-    CURRENT_SOURCE.value = { src: 's2', branch: undefined }; // real repo-key change, no exclude edit
+    session.source.current.value = { src: 's2', branch: undefined }; // real repo-key change, no exclude edit
     await flush();
     // The switch alone must NOT refetch — the load owns sending s2's excludes.
     expect(StubEventSource.instances.length).toBe(before);
@@ -334,28 +335,28 @@ describe('the boot load runs the mode the URL asks for', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     StubEventSource.instances = [];
-    SOURCE_ERROR.value = null;
-    TIMELINE_MODE.value = false;
+    session.source.error.value = null;
+    session.timeline.mode.value = false;
     navigate(ROUTES.HOME, { replace: true });
   });
 
   afterEach(() => {
     restoreEventSource();
-    setTimelineBootHandler(null);
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
     navigate(ROUTES.HOME, { replace: true });
   });
 
   const boot = (search: string): Promise<void> => {
     navigate(`/city${search}`, { replace: true });
-    return bootLoad(readUrlView(ROUTE_PARAMS.peek()));
+    return session.load.boot(readUrlView(ROUTE_PARAMS.peek()));
   };
 
   it('hands a ?mode=timeline boot the bundle load, with no live scan', async () => {
     const loads: unknown[] = [];
-    setTimelineBootHandler(async (payload) => {
+    vi.spyOn(session.timelineMode, 'loadSource').mockImplementation((payload) => {
       loads.push(payload);
-      TIMELINE_MODE.value = true;
+      session.timeline.mode.value = true;
+      return Promise.resolve();
     });
 
     await boot('?src=%2Frepos%2Fcodecity&mode=timeline&commit=abc123');
@@ -366,28 +367,30 @@ describe('the boot load runs the mode the URL asks for', () => {
 
   it('scans HEAD when the URL names no mode', async () => {
     let timelineLoads = 0;
-    setTimelineBootHandler(async () => {
+    vi.spyOn(session.timelineMode, 'loadSource').mockImplementation(() => {
       timelineLoads++;
+      return Promise.resolve();
     });
 
     const p = boot('?src=%2Frepos%2Fcodecity');
     expect(StubEventSource.instances).toHaveLength(1);
     expect(timelineLoads).toBe(0);
-    cancelLoad();
+    session.load.cancel();
     await p;
   });
 
   // A history bundle that won't load leaves you on a working city, not an
   // empty one: the other mode still has a city to show.
   it('falls back to a live load when the timeline boot fails to engage', async () => {
-    setTimelineBootHandler(async () => {
+    vi.spyOn(session.timelineMode, 'loadSource').mockImplementation(() => {
       /* fetch failed; mode never turned on */
+      return Promise.resolve();
     });
 
     const p = boot('?src=%2Frepos%2Fcodecity&mode=timeline');
     await flush();
     expect(StubEventSource.instances).toHaveLength(1);
-    cancelLoad();
+    session.load.cancel();
     await p;
   });
 });
@@ -416,27 +419,27 @@ describe('the URL drives what is loaded', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     StubEventSource.instances = [];
-    CURRENT_SOURCE.value = null;
-    SOURCE_ERROR.value = null;
+    session.source.current.value = null;
+    session.source.error.value = null;
     navigate(ROUTES.HOME, { replace: true });
   });
 
   afterEach(() => {
     detach?.();
     restoreEventSource();
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     navigate(ROUTES.HOME, { replace: true });
   });
 
   it('loads nothing while the URL names no project', async () => {
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     expect(StubEventSource.instances).toHaveLength(0);
   });
 
   it('loads the project the URL already names when it attaches', async () => {
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
 
     expect(StubEventSource.instances).toHaveLength(1);
@@ -447,7 +450,7 @@ describe('the URL drives what is loaded', () => {
     // The reported bug: Back to a different ?src moved the address bar and
     // left the old city on screen, because the URL was read once at mount.
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     await complete('a');
 
@@ -462,7 +465,7 @@ describe('the URL drives what is loaded', () => {
   // ?branch into the URL and moves the identity this effect watches.
   it('does not reload a fresh clone when its resolved branch lands in the URL', async () => {
     navigate('/city?src=https%3A%2F%2Fgithub.com%2Fo%2Fr', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
 
     const es = StubEventSource.instances[StubEventSource.instances.length - 1]!;
@@ -481,7 +484,7 @@ describe('the URL drives what is loaded', () => {
   it('reloads when the URL asks for a different branch of the same repo', async () => {
     const REMOTE = '/city?src=https%3A%2F%2Fgithub.com%2Fo%2Fr';
     navigate(REMOTE, { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     StubEventSource.instances[0]!.emit(
       'manifest-complete',
@@ -499,7 +502,7 @@ describe('the URL drives what is loaded', () => {
 
   it('does not reload the project already on screen', async () => {
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     await complete('a');
 
@@ -514,7 +517,7 @@ describe('the URL drives what is loaded', () => {
   // holds. The server decides that, per open, off its own cache.
   it('re-asks the server for the project you just left and came back to', async () => {
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     await complete('a');
     expect(StubEventSource.instances).toHaveLength(1);
@@ -532,16 +535,16 @@ describe('the URL drives what is loaded', () => {
     // The claim stops a re-run restarting an in-flight load. Held past one that
     // never committed, it leaves the URL naming a repo the city never loads.
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     await complete('a');
 
     navigate('/city?src=%2Frepos%2Fb');
     await flush();
     expect(StubEventSource.instances).toHaveLength(2);
-    cancelLoad();
+    session.load.cancel();
     await flush();
-    expect(CURRENT_SOURCE.value?.src, 'cancel did not commit b').toBe('/repos/a');
+    expect(session.source.current.value?.src, 'cancel did not commit b').toBe('/repos/a');
 
     // Asking for b again has to actually ask again.
     navigate(ROUTES.HOME, { replace: true });
@@ -553,7 +556,7 @@ describe('the URL drives what is loaded', () => {
 
   it('stops following the URL once detached', async () => {
     navigate('/city?src=%2Frepos%2Fa', { replace: true });
-    detach = attachRouteLoad();
+    detach = attachUrlBinding(session);
     await flush();
     await complete('a');
 

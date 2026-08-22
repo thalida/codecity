@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
 import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
@@ -13,6 +13,10 @@ import type { Trees } from '@/city/components/trees/treeRenderer';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/types';
 import type { PickerWorld, CommitTarget } from '@/types';
+import { makeSession } from '../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 const BUSY = { avg: 1, busy: 1 };
@@ -68,14 +72,19 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  PICKER_SELECTION_KEY.value = null;
 });
 
 describe('picker: tree commit picking', () => {
   it('interpretHit on a tree chunk returns the commit that grew that tree', () => {
     const { trees, commits } = makeTrees();
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
 
     const target = p.interpretHit(treeHit(trees, 1)) as CommitTarget | null;
     expect(target).not.toBeNull();
@@ -90,7 +99,13 @@ describe('picker: tree commit picking', () => {
   it('interpretHit returns null when the trees handle is null', () => {
     const { trees } = makeTrees();
     const world = makeWorld(null);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
     expect(p.interpretHit(treeHit(trees, 0))).toBeNull();
     trees.dispose();
     p.dispose();
@@ -100,7 +115,13 @@ describe('picker: tree commit picking', () => {
     const BEYOND_LAST_TREE = 99; // tree slots this test never renders
     const { trees } = makeTrees();
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
 
     const { mesh } = treeSlot(trees, 0);
     const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
@@ -118,11 +139,17 @@ describe('picker: tree commit picking', () => {
   it('setSelection on a CommitTarget writes a Commit selection key', () => {
     const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
 
     p.setSelection(p.interpretHit(treeHit(trees, 1)));
 
-    expect(PICKER_SELECTION_KEY.value).toEqual({
+    expect(p.selectionKey.value).toEqual({
       kind: NodeKind.Commit,
       sha: commits[1].sha,
     });
@@ -134,8 +161,17 @@ describe('picker: tree commit picking', () => {
     const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
+    // The key is the picker's own now, so hydration is setting it on the one
+    // that will resolve it, and letting a rebuild do the resolving.
+    p.selectionKey.value = { kind: NodeKind.Commit, sha: commits[1].sha };
+    world.triggerRebuild();
 
     const sel = p.selection.value as CommitTarget | null;
     expect(sel).not.toBeNull();
@@ -149,7 +185,13 @@ describe('picker: tree commit picking', () => {
   it('world rebuild re-resolves a Commit selection onto the fresh meshes', () => {
     const { trees: treesA, commits } = makeTrees(2);
     const world = makeWorld(treesA);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
     p.setSelection(p.interpretHit(treeHit(treesA, 1)));
 
     // Same commits, freshly rendered: the sha still resolves, to new meshes.
@@ -171,11 +213,18 @@ describe('picker: tree commit picking', () => {
     const { trees } = makeTrees(1);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    const p = createPicker({
+      canvas,
+      camera: FAKE_CAMERA,
+      world,
+      cityState: world.cityState,
+      timeline: session.timeline,
+    });
+    p.selectionKey.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
+    world.triggerRebuild();
 
     expect(p.selection.value).toBeNull();
-    expect(PICKER_SELECTION_KEY.value).toBeNull();
+    expect(p.selectionKey.value).toBeNull();
     trees.dispose();
     p.dispose();
   });

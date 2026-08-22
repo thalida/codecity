@@ -5,8 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { RebuildStatus } from '@/state/stores/progress';
 import { STREET_TIERS } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 import { mkDir } from '../_helpers/cityFixtures';
@@ -29,15 +28,19 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { OPENED_PROJECT } from '@/city/openedProject';
 import type { City } from '@/city/types';
+import { makeSession } from '../_helpers/project';
+import { cityPropsFor } from '@/city/forProject';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
   const DEFAULT_TIERS = STREET_TIERS.peek();
 
   beforeEach(() => {
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
       .mockImplementation((cb: FrameRequestCallback) => {
@@ -48,7 +51,7 @@ describe('initial-load framing (issue #62)', () => {
 
   afterEach(() => {
     rafSpy.mockRestore();
-    CURRENT_SOURCE.value = null;
+    session.source.current.value = null;
     STREET_TIERS.value = DEFAULT_TIERS;
     vi.clearAllMocks();
   });
@@ -86,17 +89,17 @@ describe('initial-load framing (issue #62)', () => {
    *  rides the finished city, and the tree placement lands a few ticks later. */
   async function build(handle: City, m: Manifest): Promise<void> {
     await handle.applyManifest(m);
-    await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+    await vi.waitFor(() => expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Idle));
   }
 
   it('frames the city on initial load, not the empty boot', async () => {
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
       // firstFrame framed the empty boot (no source committed yet → no snap).
       const bootPos = handle.rig.camera.position.clone();
 
       // The fetch layer commits the source, then the real manifest applies.
-      CURRENT_SOURCE.value = { src: 'test://repo' };
+      session.source.current.value = { src: 'test://repo' };
       await build(handle, makeManifest());
       const loadPos = handle.rig.camera.position.clone();
 
@@ -116,8 +119,8 @@ describe('initial-load framing (issue #62)', () => {
   it('frames the city when the source was committed BEFORE the scene existed', async () => {
     // The route split made this the normal order: the landing commits the
     // source, THEN the city view mounts a scene onto it.
-    CURRENT_SOURCE.value = { src: 'test://repo' };
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    session.source.current.value = { src: 'test://repo' };
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
       const bootPos = handle.rig.camera.position.clone();
       await build(handle, makeManifest());
@@ -135,9 +138,9 @@ describe('initial-load framing (issue #62)', () => {
 
   it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
     setRootWidth(100);
-    const handle = await createCity(makeCanvas(), OPENED_PROJECT);
+    const handle = await createCity(makeCanvas(), cityPropsFor(session));
     try {
-      CURRENT_SOURCE.value = { src: 'test://repo' };
+      session.source.current.value = { src: 'test://repo' };
       const m = makeManifest();
       await build(handle, m);
       const posLoaded = handle.rig.camera.position.clone();

@@ -12,12 +12,15 @@ import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw'
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
+import { makeSession } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const _origBuildings = BUILDINGS.value;
 const _origScene = SCENE.value;
@@ -94,7 +97,7 @@ describe('createBuildings()', () => {
 
   afterEach(() => {
     buildings?.dispose();
-    TIMELINE_MODE.value = false;
+    session.timeline.mode.value = false;
   });
 
   // Construction
@@ -150,9 +153,13 @@ describe('createBuildings()', () => {
   it('rebuild() drops a scrub controller installed for the previous city', async () => {
     // Same hazard the tween queue already guards: the controller holds the old
     // manifest's Buildings, whose cellId/slotId resolve into the NEW cells.
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, {
+      store: session.timeline,
+      liveManifest: () => null,
+      repack: () => Promise.resolve(),
+    });
     buildings = createBuildings(ctx);
-    TIMELINE_MODE.value = true;
+    session.timeline.mode.value = true;
 
     const oldA = building({ x: 10, y: 10, h: 4, file: fileOf('old/a.ts') as never });
     await buildings.rebuild(buildingLayout([oldA]), EMPTY_DATE_RANGES);

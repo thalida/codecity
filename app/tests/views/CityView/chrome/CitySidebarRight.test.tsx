@@ -3,14 +3,15 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { MANIFEST, setManifest } from '@/state/stores/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';
 import { flush, drainAsync } from '../../../_helpers/preact';
+import { makeSession, renderInProject } from '../../../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -105,21 +106,21 @@ describe('CitySidebarRight', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
-    SCENE_HANDLE.value = makeSceneHandle() as never;
-    render(<CitySidebarRight />, container);
+    session.city.value = makeSceneHandle() as never;
+    renderInProject(<CitySidebarRight />, session, container);
     await flush();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    SCENE_HANDLE.value = null;
-    TIMELINE_MODE.value = false;
+    session.city.value = null;
+    session.timeline.mode.value = false;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
   const selectFile = async (file: FileNode) => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file,
@@ -138,7 +139,7 @@ describe('CitySidebarRight', () => {
   });
 
   it('opens with the file preview pane when a file is selected', async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file: FILE_NODE,
@@ -154,8 +155,8 @@ describe('CitySidebarRight', () => {
   });
 
   it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
-    TIMELINE_MODE.value = true;
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    session.timeline.mode.value = true;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
 
     // File selection while scrubbing → panel opens (the sidebar is now the only
@@ -183,8 +184,8 @@ describe('CitySidebarRight', () => {
   // #128: excludes now re-fetch the union in Timeline, so the exclude button is
   // offered there too (previously hidden as a would-be no-op).
   it('Timeline mode: the exclude button is available for a selected file', async () => {
-    TIMELINE_MODE.value = true;
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    session.timeline.mode.value = true;
+    const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     handle.picker.setSelection({
       kind: NodeKind.File,
@@ -204,7 +205,7 @@ describe('CitySidebarRight', () => {
   // The pane states re-derive from MANIFEST on every read, so a live update
   // refreshes them even though the selection snapshot is stale.
   describe('live MANIFEST re-derive', () => {
-    const originalManifest = MANIFEST.peek();
+    const originalManifest = session.manifest.current.peek();
 
     beforeEach(() => {
       // FileTextPreview fetches on mount; stub a small text body so the
@@ -214,12 +215,12 @@ describe('CitySidebarRight', () => {
     });
 
     afterEach(() => {
-      MANIFEST.value = originalManifest;
+      session.manifest.current.value = originalManifest;
     });
 
     it('file pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
-      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      session.manifest.set(manifestWithFile(FILE_NODE));
+      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       handle.picker.setSelection({
         kind: NodeKind.File,
         file: FILE_NODE, // the picker's snapshot — becomes stale below
@@ -234,7 +235,7 @@ describe('CitySidebarRight', () => {
       // Live update: same path, but now dirty and past the preview size cap.
       // The picker's selection signal is untouched — only MANIFEST changes.
       const updated: FileNode = { ...FILE_NODE, size: 200 * 1024 * 1024, lines: 99, dirty: true };
-      setManifest(manifestWithFile(updated));
+      session.manifest.set(manifestWithFile(updated));
       await drainAsync();
 
       expect(container.querySelector('.preview-shell')).toBeNull();
@@ -242,8 +243,8 @@ describe('CitySidebarRight', () => {
     });
 
     it('street pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
-      setManifest(manifestWithDir(DIR_NODE));
-      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      session.manifest.set(manifestWithDir(DIR_NODE));
+      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       handle.picker.setSelection({
         kind: NodeKind.Directory,
         dir: DIR_NODE, // the picker's snapshot — becomes stale below
@@ -260,7 +261,7 @@ describe('CitySidebarRight', () => {
         ...DIR_NODE,
         descendants_ext_breakdown: [{ ext: '.ts', count: 9, size: 900 }],
       };
-      setManifest(manifestWithDir(updated));
+      session.manifest.set(manifestWithDir(updated));
       await flush();
 
       expect(container.querySelector('.street-ext-meta')!.textContent).toContain('9');
@@ -274,7 +275,7 @@ describe('CitySidebarRight', () => {
       act(() => container.querySelector<HTMLButtonElement>('[aria-label="Hide sidebar"]')!.click());
 
     it('closing hides the pane and leaves the selection standing', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
+      session.manifest.set(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);
       expect(isOpen()).toBe(true);
 
@@ -282,12 +283,12 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 
     it('re-asking for the selected node reopens it', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
+      session.manifest.set(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);
       close();
       await flush();
@@ -303,7 +304,7 @@ describe('CitySidebarRight', () => {
     // Reopening is the picking side's call (covered in inputHandlersPick).
     // Here: a selection landing on its own must move nothing.
     it('stays shut when a rebuild re-resolves the same node to a fresh target', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
+      session.manifest.set(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);
       close();
       await flush();
@@ -317,7 +318,7 @@ describe('CitySidebarRight', () => {
     // Focusing is asking to look at the thing, which the pane is in front of.
     // Desktop too: this used to clear the way only on a phone.
     it('the Focus button puts the pane away and keeps the selection', async () => {
-      setManifest(manifestWithFile(FILE_NODE));
+      session.manifest.set(manifestWithFile(FILE_NODE));
       await selectFile(FILE_NODE);
       expect(isOpen()).toBe(true);
 
@@ -327,7 +328,7 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.city.peek() as unknown as ReturnType<typeof makeSceneHandle>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 

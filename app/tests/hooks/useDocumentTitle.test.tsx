@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { setManifest } from '@/state/stores/manifest';
 
 import type { Manifest } from '@/types';
 import { drainAsync } from '../_helpers/preact';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
+import { makeSession, renderInProject } from '../_helpers/project';
+
+// One project for this file, the way the app makes one for itself.
+const session = makeSession();
 
 // The single owner of document.title, driven by MANIFEST alone. drainAsync()
 // settles useSignalEffect's deferred run; a single flush() is not enough.
@@ -19,8 +21,8 @@ let container: HTMLDivElement;
 
 describe('useDocumentTitle', () => {
   beforeEach(() => {
-    PENDING_SOURCE_LABEL.value = null;
-    setManifest(null);
+    session.progress.pendingLabel.value = null;
+    session.manifest.set(null);
     document.title = 'codecity';
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -28,30 +30,30 @@ describe('useDocumentTitle', () => {
   afterEach(() => {
     render(null, container);
     container.remove();
-    PENDING_SOURCE_LABEL.value = null;
-    setManifest(null);
+    session.progress.pendingLabel.value = null;
+    session.manifest.set(null);
   });
 
   it('shows plain codecity with no source', async () => {
-    render(<Harness />, container);
+    renderInProject(<Harness />, session, container);
     await drainAsync();
     expect(document.title).toBe('codecity');
   });
 
   it('shows the manifest name once loaded', async () => {
-    render(<Harness />, container);
+    renderInProject(<Harness />, session, container);
     await drainAsync();
-    setManifest({ tree: { name: 'repo' } } as unknown as Manifest);
+    session.manifest.set({ tree: { name: 'repo' } } as unknown as Manifest);
     await drainAsync();
     expect(document.title).toBe('repo — codecity');
   });
 
   it('ignores PENDING_SOURCE_LABEL, which entering Timeline also sets', async () => {
     // It outlived a load and stranded the tab at "(pending)".
-    setManifest({ tree: { name: 'repo' } } as unknown as Manifest);
-    render(<Harness />, container);
+    session.manifest.set({ tree: { name: 'repo' } } as unknown as Manifest);
+    renderInProject(<Harness />, session, container);
     await drainAsync();
-    PENDING_SOURCE_LABEL.value = 'owner/repo';
+    session.progress.pendingLabel.value = 'owner/repo';
     await drainAsync();
     expect(document.title).toBe('repo — codecity');
   });
