@@ -1,13 +1,7 @@
-// city/render/frameLoop.ts — generic requestAnimationFrame driver. Wired by
-// createCity (city/index.ts) as the scene's live loop:
-// perFrame.before → rig.update → world-matrix refresh → each
-// component.tick(dt, frame) in array order → perFrame.after → postFx.render.
-//
-// dt/time contract: one performance.now()
-// sample per frame; time = seconds since start; dt = 0 on the first frame,
-// else clamped non-negative delta. Tick order is the caller's components-array
-// order (sky must be passed LAST — its camera-follow must run immediately
-// before postFx.render).
+// city/render/frameLoop.ts — the requestAnimationFrame driver: before → rig →
+// world matrices → each component.tick in the caller's order → after → render.
+// One now() per frame; dt is 0 on the first. Sky must be passed LAST, since its
+// camera-follow has to run immediately before postFx.render.
 
 import type * as THREE from 'three';
 
@@ -48,9 +42,8 @@ export function startFrameLoop(
 
     perFrame.before?.(f);
     perFrame.rig.update(0);
-    // controls.update() moves the camera but matrixWorldInverse is stale until
-    // a render runs; ticks below project mesh positions and need fresh world
-    // matrices.
+    // The camera moved, but its inverse is stale until a render: the ticks
+    // below project mesh positions and need the matrices fresh.
     perFrame.rig.camera.updateMatrixWorld();
     ctx.scene.updateMatrixWorld();
     for (const c of components) c.tick?.(dt, f);

@@ -1,60 +1,18 @@
-// city/components/buildings/facadePanelTextureArray.ts — Paged DataArrayTexture manager
-// for instanced ad panels. Each media file (image or video) gets one
-// "flat layer" index in the caller's view; internally that flat index is
-// split into (page, localLayer) so we can use multiple smaller
-// DataArrayTextures when a repo's media count exceeds the hardware's
-// MAX_ARRAY_TEXTURE_LAYERS limit (typical desktop: 2048; spec minimum:
-// 256). The fragment shader is given all page textures as a sampler
-// array uniform plus a `uPageSize` float, and reconstructs (page,
-// localLayer) from the per-instance iLayerIndex value.
-//
-// Why paged instead of a single bigger texture: a DataArrayTexture's
-// depth is bounded by MAX_ARRAY_TEXTURE_LAYERS regardless of how small
-// each layer is. Infisical (2.6k media files → adCapacity ≈ 3.9k) is
-// past the typical 2048 cap; one DataArrayTexture refused to allocate
-// via texStorage3D, leaving every per-layer upload writing into nothing.
-// Paging into N <= MAX_PAGES separate texture arrays gives unlimited
-// effective depth at the cost of one sampler-array lookup branch per
-// fragment.
-//
-// WebGL2 requirement: sampler2DArray + texture() are GLSL ES 3.00
-// features. The ad-panel material must set glslVersion: THREE.GLSL3.
-//
-// Storage model: each page DataArrayTexture is constructed with
-// `data: null` and `source.dataReady = false` so three.js's first-frame
-// upload runs only texStorage3D to allocate GPU storage and skips the
-// otherwise-broken texSubImage3D(..., null) (which WebGL2 reads as
-// `offset=0 into PIXEL_UNPACK_BUFFER` → `INVALID_OPERATION`). Per-layer
-// uploads then go straight to the right page's GPU texture via
-// renderer.copyTextureToTexture, fed from a tiny per-call scratch canvas
-// that's garbage-collected after the copy. There is no CPU-side mirror
-// of the texture data.
+// city/components/buildings/facadePanelTextureArray.ts — paged
+// DataArrayTexture manager for the instanced facade panels. Why it pages, how
+// it stores, and what races the renderer: FACADE_PANELS.md.
 
 import * as THREE from 'three';
 
-// Why 128, not 512: ad panels render on small building faces and almost
-// never occupy more than a few hundred screen pixels. 128² × 4 = 64 KiB
-// per layer keeps GPU memory bounded — at 2048 layers per page that's
-// 128 MiB per page, comfortably under any modern integrated GPU's budget.
+// Small faces, few hundred screen pixels: see FACADE_PANELS.md.
 export const PANEL_TEX_SIZE = 128;
 
-// Maximum number of texture-array pages the fragment shader can dispatch
-// into. Single source of truth for the shader side too: it's injected as
-// the FACADE_PANEL_MAX_PAGES #define (facadePanels.ts), which sizes the
-// `uPanelArrays` sampler array AND gates the sampleLayer dispatch branches
-// (each `#if FACADE_PANEL_MAX_PAGES > N`), so the page count can't drift. At
-// MAX_PAGES = 8 with a typical pageSize of 2048 layers, this supports
-// 16,384 media files per repo — well beyond any realistic codebase.
+// Pages the shader can dispatch into, and the one source of truth for its
+// #define: sizing and drift are FACADE_PANELS.md's "Shader page count".
 export const MAX_PAGES = 8;
 
-// Renderer reference for per-layer GPU uploads. Set once by createCity
-// after the WebGLRenderer is constructed (registerRenderer below). Uploads
-// that fire BEFORE this point (e.g., a cached <img>.onload that races
-// renderer construction) park on `_rendererWaiters` and resume the moment
-// registerRenderer lands. In test environments where the renderer never
-// arrives, uploads time out and the upload promise resolves to `false`
-// so the caller can leave the placeholder visible instead of advancing
-// the fade attribute onto an empty texture layer.
+// Set once the renderer exists; uploads that beat it park here.
+// FACADE_PANELS.md, "Uploads race the renderer".
 let _renderer: THREE.WebGLRenderer | null = null;
 const _rendererWaiters: Array<(r: THREE.WebGLRenderer | null) => void> = [];
 const _RENDERER_WAIT_TIMEOUT_MS = 5000;
@@ -81,10 +39,8 @@ function _whenRendererReady(): Promise<THREE.WebGLRenderer | null> {
   });
 }
 
-// WebGL2 caps texture-array depth at MAX_ARRAY_TEXTURE_LAYERS. We probe
-// the actual hardware limit once via a throwaway WebGL2 context and use
-// it as the per-page depth. In a non-browser test environment the probe
-// falls back to the WebGL2 spec minimum (256).
+// The hardware's MAX_ARRAY_TEXTURE_LAYERS, probed once; the spec minimum
+// stands in where there is no browser.
 let _maxArrayLayersCache: number | null = null;
 const _MAX_ARRAY_LAYERS_FALLBACK = 256;
 
@@ -111,24 +67,15 @@ function _detectMaxArrayLayers(): number {
 }
 
 export class FacadePanelTextureArray {
-  /** One DataArrayTexture per used page; length is in [1, MAX_PAGES].
-   *  `shaderTextures` pads this to exactly MAX_PAGES for the shader's
-   *  fixed-size sampler array. */
+  /** One per used page, in [1, MAX_PAGES]; `shaderTextures` pads it out. */
   readonly textures: THREE.DataArrayTexture[];
-  /** Layers per page. Reported by the GPU's MAX_ARRAY_TEXTURE_LAYERS and
-   *  exposed as a `uPageSize` shader uniform so the shader can decompose
-   *  the flat iLayerIndex into (page, localLayer) regardless of which
-   *  hardware it runs on. */
+  /** Layers per page, and the `uPageSize` uniform the shader decomposes
+   *  iLayerIndex with, so the split follows whatever hardware reports. */
   readonly pageSize: number;
   private readonly _capacity: number;
   private _next = 0;
-  // Set by dispose() so any in-flight uploads parked in
-  // _whenRendererReady — or already past it but still doing
-  // copyTextureToTexture — bail out instead of writing to deleted
-  // textures. The skeleton→final manifest sequence (live updates too)
-  // disposes the old FacadePanelTextureArray before the new one's loads
-  // have all drained; without this guard the old loads can still hit
-  // the GPU and silently mutate state we no longer own.
+  // Makes in-flight uploads bail rather than write to deleted textures: a
+  // skeleton→final sequence disposes this while its loads are still draining.
   private _disposed = false;
 
   constructor(capacity = 256) {
@@ -158,15 +105,9 @@ export class FacadePanelTextureArray {
       tex.type = THREE.UnsignedByteType;
       tex.minFilter = THREE.LinearFilter;
       tex.magFilter = THREE.LinearFilter;
-      // WebGL2 forbids UNPACK_FLIP_Y / PREMULTIPLY_ALPHA for 3D/array texture
-      // uploads — left at the Texture default (flipY = true) three.js logs
-      // "texImage3D: FLIP_Y ... isn't allowed" on every page alloc. Our UVs
-      // don't assume a flip (same as the icon atlas), so disable it.
+      // The 3D upload path forbids UNPACK_FLIP_Y; the UVs assume none anyway.
       tex.flipY = false;
-      // dataReady = false → three.js skips the broken
-      // texSubImage3D(..., null) on init and only runs texStorage3D
-      // to allocate GPU storage. See the file header for the WebGL
-      // error it otherwise produces.
+      // Allocate only: skips the texSubImage3D(..., null) WebGL2 rejects.
       tex.source.dataReady = false;
       tex.needsUpdate = true;
       this.textures.push(tex);
@@ -174,11 +115,8 @@ export class FacadePanelTextureArray {
     }
   }
 
-  /** Padded MAX_PAGES-long array suitable for binding to the shader's
-   *  fixed-size `sampler2DArray uPanelArrays[MAX_PAGES]` uniform. Empty
-   *  slots reuse the first page texture — the shader's per-fragment
-   *  branch never selects them (iLayerIndex is bounded by capacity), so
-   *  the binding is just a "must be valid sampler" formality. */
+  /** The shader's fixed-size sampler array. Padding reuses page 0, which
+   *  iLayerIndex can never select, so it is a valid-binding formality. */
   get shaderTextures(): THREE.DataArrayTexture[] {
     const padded = this.textures.slice();
     while (padded.length < MAX_PAGES) {
@@ -187,23 +125,15 @@ export class FacadePanelTextureArray {
     return padded;
   }
 
-  /** Reserve the next available flat layer index in [0, capacity).
-   *  Returns -1 when capacity is exhausted (caller should skip ad-panel
-   *  creation for the overflow building). The returned index is what
-   *  goes into the per-instance iLayerIndex attribute; the shader maps
-   *  it back to (page, localLayer) using uPageSize. */
+  /** The next flat layer, or -1 when capacity is spent and the caller
+   *  should skip that building's panels. Becomes its iLayerIndex. */
   allocate(): number {
     if (this._next >= this._capacity) return -1;
     return this._next++;
   }
 
-  /** Blit `img` into the layer at `flatLayer`, scaled to PANEL_TEX_SIZE².
-   *  Resolves to `true` when the GPU upload succeeded, `false` if the
-   *  renderer never became available (timeout) or this texture array
-   *  was disposed before the upload could run. Callers should NOT
-   *  advance their iTextureFade attribute on a `false` return — the
-   *  destination layer is still unwritten and sampling it produces
-   *  black/transparent pixels. */
+  /** Blit `img` into `flatLayer`. False means the layer is still unwritten,
+   *  so the caller must not advance iTextureFade onto it. */
   async uploadImage(flatLayer: number, img: HTMLImageElement): Promise<boolean> {
     return this._uploadFromCanvas(flatLayer, _scaleToScratch(img));
   }
@@ -228,18 +158,12 @@ export class FacadePanelTextureArray {
     tempTex.type = THREE.UnsignedByteType;
     tempTex.minFilter = THREE.LinearFilter;
     tempTex.magFilter = THREE.LinearFilter;
-    // copyTextureToTexture applies the SOURCE texture's unpack flags, and the
-    // 3D-destination copy path (texSubImage3D) forbids UNPACK_FLIP_Y /
-    // PREMULTIPLY_ALPHA. CanvasTexture defaults flipY = true, so leaving it on
-    // logs "texImage3D: FLIP_Y ... isn't allowed" on every upload (the driver
-    // drops the flip; the array is flipY = false and its UVs assume no flip, so
-    // the result is already correct — this just silences the error).
+    // The copy applies the SOURCE's unpack flags, and the 3D path forbids
+    // both of these: on by default they log on every upload.
     tempTex.flipY = false;
     tempTex.premultiplyAlpha = false;
-    // three@0.184 unified API. srcRegion bounds are EXCLUSIVE
-    // (width = max.x - min.x), so the full PANEL_TEX_SIZE slice runs from
-    // 0 to PANEL_TEX_SIZE on each axis. dstPosition.z selects the
-    // destination layer WITHIN this page.
+    // srcRegion bounds are EXCLUSIVE, and dstPosition.z picks the layer
+    // within this page.
     renderer.copyTextureToTexture(
       tempTex,
       dstTex,

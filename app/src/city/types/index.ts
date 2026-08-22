@@ -67,7 +67,7 @@ export interface CityTimeline {
   setFootprintsTransparent(on: boolean): void;
 }
 
-/** The top-level city object returned by the city composer (createCity). */
+/** The top-level city object returned by the city composer (createCityScene). */
 /** Scrubbing, for a city something scrubs through time. Left out, this city
  *  has no timeline: nothing gates its contents and nothing prunes its picks. */
 export interface CityTimelineBinding {

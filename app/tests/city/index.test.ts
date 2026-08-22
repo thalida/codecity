@@ -1,4 +1,4 @@
-// The composer: what createCity returns, and that dispose releases the WebGL
+// The composer: what createCityScene returns, and that dispose releases the WebGL
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -13,14 +13,14 @@ vi.mock('three', async () => {
 
 vi.mock('@/city/render/postFx', async () => (await import('../_helpers/threeMock')).postFxMock());
 
-import { createCity } from '@/city/index';
+import { createCityScene } from '@/city/index';
 import { makeSession } from '../_helpers/city';
 import { cityPropsFor } from '@/city/forSession';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
-describe('createCity', () => {
+describe('createCityScene', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe('createCity', () => {
   }
 
   it('builds with no manifest and returns the expected handle shape', async () => {
-    const handle = await createCity(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
 
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
@@ -59,7 +59,7 @@ describe('createCity', () => {
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
-    const handle = await createCity(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
@@ -71,7 +71,7 @@ describe('createCity', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.
     it('reacts to TIMELINE_MODE going true→false by uninstalling the controller', async () => {
-      const handle = await createCity(makeCanvas(), cityPropsFor(session));
+      const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
@@ -85,7 +85,7 @@ describe('createCity', () => {
     });
 
     it('no-ops when no controller was ever installed', async () => {
-      const handle = await createCity(makeCanvas(), cityPropsFor(session));
+      const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
       session.timeline.mode.value = true;

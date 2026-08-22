@@ -1,4 +1,4 @@
-// city/index.ts — the city composer. createCity(canvas, manifest) folds the
+// city/index.ts — the city composer. createCityScene(canvas, manifest) folds the
 // scene and component construction and the rendering pipeline into one async
 // factory, then drives the frame loop via startFrameLoop. Returns the handle
 // App.tsx / the City component consume.
@@ -47,7 +47,7 @@ import { registerRenderer as registerFacadePanelRenderer } from './components/bu
 // only refines the same city (skeleton → heights → history) holds the camera.
 const ONE_CITY = 'city';
 
-export async function createCity(
+export async function createCityScene(
   canvas: HTMLCanvasElement,
   {
     cameraMode = CameraMode.Project,

@@ -119,3 +119,55 @@ sampler array and gates the `sampleLayer` dispatch branches, so the page count
 lives in one constant. The sampler array is padded to that size so every
 declared slot is bound; unused slots reuse page 0 and are never sampled, since
 `iLayerIndex` stays within capacity.
+
+## The texture array is paged
+
+Each media file gets one **flat layer** index in the caller's view. Internally
+that splits into `(page, localLayer)`, so several smaller `DataArrayTexture`s
+cover a repo whose media count exceeds the hardware's
+`MAX_ARRAY_TEXTURE_LAYERS` (typical desktop 2048; spec minimum 256). The
+fragment shader takes every page as a sampler-array uniform plus a `uPageSize`
+float and reconstructs the pair from the per-instance `iLayerIndex`.
+
+A single bigger texture is not an option: a `DataArrayTexture`'s depth is capped
+by that same limit no matter how small each layer is. One repo with ~2.6k media
+files (capacity ≈ 3.9k) went past 2048, and the single array refused to allocate
+via `texStorage3D` — leaving every per-layer upload writing into nothing. Paging
+into at most `MAX_PAGES` arrays buys unlimited effective depth for the cost of
+one sampler-array branch per fragment.
+
+The real limit is probed once from a throwaway WebGL2 context, and falls back to
+the spec minimum where there is no browser (tests).
+
+`sampler2DArray` and `texture()` are GLSL ES 3.00, so the panel material must set
+`glslVersion: THREE.GLSL3`.
+
+## Storage model
+
+Each page is constructed with `data: null` and `source.dataReady = false`, so
+three.js's first-frame upload runs `texStorage3D` to allocate and skips the
+otherwise-broken `texSubImage3D(..., null)` — which WebGL2 reads as "offset 0
+into PIXEL_UNPACK_BUFFER" and rejects with `INVALID_OPERATION`. Per-layer
+uploads then go straight to the page's GPU texture through
+`renderer.copyTextureToTexture`, fed by a per-call scratch canvas that is
+collected after the copy. There is no CPU-side mirror.
+
+`flipY` is off on both the array and the scratch texture: the 3D upload path
+forbids `UNPACK_FLIP_Y` / `PREMULTIPLY_ALPHA`, and leaving three.js's default on
+logs "texImage3D: FLIP_Y … isn't allowed" on every allocation and every upload.
+The UVs assume no flip, so the result is the same either way — this only
+silences the error.
+
+`PANEL_TEX_SIZE` is 128 because panels sit on small building faces and rarely
+cover more than a few hundred screen pixels: 128² × 4 = 64 KiB per layer, so a
+2048-layer page is 128 MiB.
+
+## Uploads race the renderer
+
+The renderer is registered once, after `createCityScene` constructs it. An upload
+that fires before that — a cached `<img>.onload` beating renderer construction —
+parks until it lands. Where the renderer never arrives (tests), the wait times
+out and the upload resolves `false`, and the caller must leave the placeholder
+up rather than fade in an empty layer. `dispose()` makes in-flight uploads bail
+the same way, since a skeleton→final sequence disposes the old array while the
+old loads are still draining.

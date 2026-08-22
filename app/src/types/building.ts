@@ -1,6 +1,6 @@
 // types/building.ts — pairs with state/stores/settings/buildings.ts (the tunables).
 // Defines the Building shape the layout step produces; the city renderer
-// (city/index.ts createCity) reads it to instantiate three.js meshes.
+// (city/index.ts createCityScene) reads it to instantiate three.js meshes.
 
 import type { FileNode } from './manifest';
 
@@ -12,60 +12,31 @@ export enum BuildingOrient {
   West = 'w',
 }
 
-/**
- * One building in the laid-out city.
- *   x, y  — center on the ground plane (world units, y is along the second axis)
- *   w, d  — footprint width (x-axis) and depth (z-axis)
- *   h     — height (y-axis, world coords)
- *   color — HSL string computed by colors.ts
- *   file  — the manifest file node this building represents
- *   floors — stamped during layout for label/tooltip use
- */
+/** One building in the laid-out city. */
 export interface Building {
+  /** Center on the ground plane, in world units. */
   x: number;
   y: number;
+  /** Footprint width (x) and depth (z), and height (y). */
   w: number;
   d: number;
   h: number;
+  /** HSL, from colors.ts. Keys on last-modified, unlike createdAge below. */
   color: string;
-  /**
-   * 0..1 weathering signal — 0 = file created most recently in the repo,
-   * 1 = file created earliest. Normalized against the repo's
-   * minCreated/maxCreated so the scale rescales as the codebase ages.
-   * Independent of `color` (which keys on last-modified): a bright,
-   * recently-edited file can still be highly weathered if it was
-   * originally created long ago.
-   *
-   * Optional because layout produces buildings without it; the
-   * world post-layout step fills it in after the manifest's
-   * date ranges are known. Buffer-builder defaults to 0 when absent.
-   */
+  /** 0..1 weathering, oldest-created at 1, normalised against the repo so it
+   *  rescales as the codebase ages. Filled in after layout, so optional. */
   createdAge?: number;
 
-  /**
-   * 0..1 staleness signal — 0 = file modified most recently in the repo,
-   * 1 = file modified earliest. Normalized against the repo's
-   * minModified/maxModified so the scale rescales as the codebase ages.
-   * Mirror of `createdAge` but on the modified-date axis.
-   *
-   * Optional because layout produces buildings without it; the
-   * world post-layout step fills it in after the manifest's
-   * date ranges are known. Buffer-builder defaults to 0 when absent.
-   */
+  /** createdAge's mirror on the modified axis: 1 is longest untouched. */
   modifiedAge?: number;
   file: FileNode;
   orient: BuildingOrient;
   floors?: number;
 
-  /**
-   * Cell ID for spatial grid bucketing. Set by CellTile insertion.
-   * Used by BuildingIndex for reverse lookup (raycaster hit → building).
-   */
+  /** Spatial-grid bucket, set on CellTile insertion; BuildingIndex reverses
+   *  a raycaster hit back to a building through it. */
   cellId?: number;
 
-  /**
-   * Slot ID within a cell's InstancedMesh. Set by CellTile insertion.
-   * Combined with cellId as "cellId:slotId" key for byCellSlot index.
-   */
+  /** Slot within that cell's InstancedMesh; "cellId:slotId" keys the index. */
   slotId?: number;
 }

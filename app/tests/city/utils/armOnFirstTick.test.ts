@@ -7,9 +7,8 @@ import { armOnFirstTick } from '@/city/utils/armOnFirstTick';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 
-// Mutable fake: picker starts null (the construction window) and is flipped live
-// to simulate createCity backfilling ctx before the first tick. The helper reads
-// only ctx.picker, so nothing else is needed.
+// Picker starts null (the construction window) and is flipped live, the way the
+// composer backfills ctx before the first tick.
 function makeCtx(): SceneContext {
   return { picker: null as unknown as Picker } as unknown as SceneContext;
 }
@@ -26,7 +25,7 @@ describe('armOnFirstTick', () => {
     arm.arm();
     expect(setup).not.toHaveBeenCalled();
 
-    // createCity populates the picker; the first arm() now runs setup.
+    // createCityScene populates the picker; the first arm() now runs setup.
     ctx.picker = livePicker;
     arm.arm();
     expect(setup).toHaveBeenCalledTimes(1);
