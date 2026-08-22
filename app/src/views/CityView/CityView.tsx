@@ -4,7 +4,6 @@
 // and the syntax theme the file preview reads.
 
 import './CityView.css';
-import { useEffect } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 
 import { CityHeader } from './chrome/CityHeader/CityHeader';

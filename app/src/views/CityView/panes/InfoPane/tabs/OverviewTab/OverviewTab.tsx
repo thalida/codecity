@@ -109,7 +109,6 @@ export interface OverviewTabProps {
 }
 
 export function OverviewTab({ manifest }: OverviewTabProps) {
-  const { commands } = useProject();
   const current = manifest.value;
   // The Forest section's contents depend on whether the Trees layer is on, so
   // it's a compute input — the section's notice comes back as an empty state.
