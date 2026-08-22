@@ -20,7 +20,7 @@ import {
   removeExclude,
   clearExcludes,
 } from '@/state/stores/source';
-import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
+import { RUN_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
 
 const PANEL_LABEL = 'Scan Settings';
 
@@ -190,7 +190,7 @@ export function ScanMenu({ onRefresh }: ScanMenuProps) {
                   Local projects only.{' '}
                   <a
                     class="link--chrome"
-                    href={LOCAL_DOCS_URL}
+                    href={RUN_DOCS_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

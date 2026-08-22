@@ -15,7 +15,8 @@
 
 **Open any public repo at [codecity.io](https://codecity.io).**
 
-To view private and local repos, follow the steps below.
+codecity.io clones anonymously and cannot see your filesystem, so private repos and
+local folders need codecity running on your own machine. That is the next section.
 
 ## Run it yourself
 
@@ -27,18 +28,37 @@ You need:
   - Linux: `docker`
 - A modern browser with WebGL2 (Chrome, Safari, Firefox, Edge)
 
+codecity carries no git credentials of its own, so a private repo is one you clone
+yourself and then open as a folder. Set `CODECITY_ALLOW_LOCAL_REPOS=1` _and_ mount each
+directory read-only into the container at the same absolute path:
+
+```sh
+docker run --rm --init --pull=always \
+    -e CODECITY_ALLOW_LOCAL_REPOS=1 \
+    -v "$HOME/Documents/Repos:$HOME/Documents/Repos:ro" \
+    -v codecity-cache:/cache \
+    -p 8080:8080 \
+    ghcr.io/thalida/codecity
+```
+
+1. Point `-v` at the folder your repos live in, the same absolute path on both sides
+2. Open <http://localhost:8080/> to reach the Projects page
+3. Paste a repo URL and pick a branch, or type the path to a mounted folder
+4. Explore your city!
+
+- Use multiple `-v` flags to mount more than one directory
+- codecity only renders git working trees: `git init` first to render a non-git directory
+
+### Public repos only
+
+Nothing to mount, and local paths stay off:
+
 ```sh
 docker run --rm --init --pull=always \
     -v codecity-cache:/cache \
     -p 8080:8080 \
     ghcr.io/thalida/codecity
 ```
-
-1. Open <http://localhost:8080/> to reach the Projects page
-2. Paste a repo URL and pick a branch, or open one from Discover
-3. Explore your city!
-
-Local folders take one more step, see [Local directories](#local-directories) below.
 
 **Tips**
 
@@ -56,7 +76,7 @@ Everything codecity reads is an env var, passed with `-e`:
 
 | Variable                     | Default             | What it does                                                                                                           |
 | ---------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `CODECITY_ALLOW_LOCAL_REPOS` | off                 | Render local folders. Needs a matching mount, see [Local directories](#local-directories)                              |
+| `CODECITY_ALLOW_LOCAL_REPOS` | off                 | Render local folders. Needs a matching mount, see [Run it yourself](#run-it-yourself)                                  |
 | `CODECITY_HOSTED`            | off                 | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
 | `CODECITY_FEATURED_REPO`     | none                | The repo the landing renders behind itself, and flags in Discover. Empty means no backdrop                             |
 | `CODECITY_DISCOVER`          | on                  | The Discover tab of repos worth rendering. Set `off` to hide it                                                        |
@@ -66,22 +86,6 @@ Everything codecity reads is an env var, passed with `-e`:
 | `CODECITY_QUIET`             | off                 | Silence disconnect and scan logs                                                                                       |
 
 Booleans take `1`/`true`/`yes`/`on`.
-
-### Local directories
-
-Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` _and_ mount the directory read-only into the container at the same absolute path:
-
-```sh
-docker run --rm --init --pull=always \
-    -e CODECITY_ALLOW_LOCAL_REPOS=1 \
-    -v "$HOME/Documents/Repos:$HOME/Documents/Repos:ro" \
-    -v codecity-cache:/cache \
-    -p 8080:8080 \
-    ghcr.io/thalida/codecity
-```
-
-- Use multiple `-v` flags to mount more than one directory
-- codecity only renders git working trees: `git init` first to render a non-git directory
 
 ### `.codecityignore`
 
