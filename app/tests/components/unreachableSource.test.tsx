@@ -13,17 +13,22 @@ const PREAMBLE: Record<NoticeReason, RegExp> = {
   [NoticeReason.PathBlocked]: /couldn't open that path/i,
 };
 
-const REMEDY: Record<NoticeReason, RegExp> = {
-  [NoticeReason.Unreachable]: /clone it yourself and open the folder/i,
-  [NoticeReason.PathBlocked]: /local folders have to be mounted/i,
-};
+const OPEN_IT_HERE = /clone it yourself and open the folder/i;
+const RUN_ONE = /clone it yourself, then run codecity locally/i;
+const MOUNT_RULE = /local folders have to be mounted/i;
+const ALL_REMEDIES = [OPEN_IT_HERE, RUN_ONE, MOUNT_RULE];
 
 // Three states, not eight. `allowLocal` is the only thing that changes the
 // remedy, and a blocked path can only arise while it is false.
-const STATES: { reason: NoticeReason; allowLocal: boolean; mounts: boolean }[] = [
-  { reason: NoticeReason.Unreachable, allowLocal: true, mounts: false },
-  { reason: NoticeReason.Unreachable, allowLocal: false, mounts: true },
-  { reason: NoticeReason.PathBlocked, allowLocal: false, mounts: true },
+const STATES: {
+  reason: NoticeReason;
+  allowLocal: boolean;
+  mounts: boolean;
+  remedy: RegExp;
+}[] = [
+  { reason: NoticeReason.Unreachable, allowLocal: true, mounts: false, remedy: OPEN_IT_HERE },
+  { reason: NoticeReason.Unreachable, allowLocal: false, mounts: true, remedy: RUN_ONE },
+  { reason: NoticeReason.PathBlocked, allowLocal: false, mounts: true, remedy: MOUNT_RULE },
 ];
 
 describe('UnreachableSource', () => {
@@ -58,16 +63,19 @@ describe('UnreachableSource', () => {
     await flush();
   };
 
-  for (const { reason, allowLocal, mounts } of STATES) {
-    it(`${reason} allowLocal=${allowLocal} -> ${mounts ? 'mount it' : 'open the folder'}`, async () => {
+  for (const { reason, allowLocal, mounts, remedy } of STATES) {
+    it(`${reason} allowLocal=${allowLocal} -> ${mounts ? 'run one that can' : 'open the folder'}`, async () => {
       await show(reason, allowLocal);
 
       expect(text()).toMatch(PREAMBLE[reason]);
-      expect(text()).toMatch(REMEDY[reason]);
-      // Neither the other failure's name nor its remedy may leak in.
+      expect(text()).toMatch(remedy);
+      // No other state's name or remedy may leak into this one. Telling someone
+      // who can already open folders to go run codecity is the failure here.
       for (const other of Object.values(NoticeReason).filter((r) => r !== reason)) {
         expect(text()).not.toMatch(PREAMBLE[other]);
-        expect(text()).not.toMatch(REMEDY[other]);
+      }
+      for (const other of ALL_REMEDIES.filter((r) => r !== remedy)) {
+        expect(text()).not.toMatch(other);
       }
     });
   }

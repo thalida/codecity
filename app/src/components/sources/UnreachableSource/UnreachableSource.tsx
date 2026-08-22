@@ -43,18 +43,23 @@ const PREAMBLE: Record<NoticeReason, string> = {
   [NoticeReason.PathBlocked]: "Couldn't open that path.",
 };
 
-// The rule, not an instruction: nothing on this screen can mount anything, so an
-// imperative here would be an affordance the notice does not have.
-const REMEDY: Record<NoticeReason, string> = {
-  [NoticeReason.Unreachable]: "If it's private, clone it yourself and open the folder.",
-  [NoticeReason.PathBlocked]: 'Local folders have to be mounted when codecity starts.',
-};
+/** What happens after you clone it: openable here, or nowhere until you have an
+ *  instance that reads folders. A blocked path states the rule instead. */
+function remedyFor(reason: NoticeReason, allowLocal: boolean): string {
+  if (reason === NoticeReason.PathBlocked) {
+    return 'Local folders have to be mounted when codecity starts.';
+  }
+  return allowLocal
+    ? "If it's private, clone it yourself and open the folder."
+    : "If it's private, clone it yourself, then run codecity locally.";
+}
 
 export function UnreachableSource({ allowLocal, reason, src, id }: UnreachableSourceProps) {
   return (
     <div id={id} class="unreachable" role="alert">
       <p class="unreachable-remedy">
-        <strong class="unreachable-preamble">{PREAMBLE[reason]}</strong> {REMEDY[reason]}
+        <strong class="unreachable-preamble">{PREAMBLE[reason]}</strong>{' '}
+        {remedyFor(reason, allowLocal)}
       </p>
       <Remedy allowLocal={allowLocal} src={src} />
     </div>
