@@ -1,6 +1,6 @@
 /* ── Loading progress ──────────────────────────────────────────────────────
-   Shared column: repo label + spinner + current-step status + stepped list.
-   Used by LoadingOverlay (cold boot) and ProjectsView (in-app switches). */
+   The loading column: repo label + spinner + current-step status + stepped
+   list. Its shell (backdrop, card) is LoadingOverlay's. */
 
 /* Repo name (+ branch pill) — the header of the loading column. Holds its row
    whether or not the label has arrived, so nothing below it moves when it does. */
