@@ -31,6 +31,7 @@ import {
   markRebuilding,
   SCAN_PROGRESS,
   PENDING_SOURCE_LABEL,
+  CITY_ON_SCREEN,
 } from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import {
@@ -162,12 +163,11 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   // What a cancel rolls back to, captured before the clear below: otherwise the
   // canceled repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
-  // A DIFFERENT project retires the one on screen: the route changes on the
-  // click now, so the last city would draw under the overlay for the load.
+  // A DIFFERENT project retires the one on screen, and so does a re-open with
+  // none up: the manifest in hand builds a city this load is about to replace.
   const opened = CURRENT_SOURCE.peek();
-  if (!opened || !sameSourceIdentity(opened, { src: payload.src, branch })) {
-    setManifest(null);
-  }
+  const sameProject = !!opened && sameSourceIdentity(opened, { src: payload.src, branch });
+  if (!sameProject || !CITY_ON_SCREEN.peek()) setManifest(null);
 
   try {
     const url = manifestUrlFor({
@@ -390,17 +390,30 @@ const URL_SOURCE = computed(() => {
 /** Load whatever project the URL names, whenever that changes: the boot read
  *  and every Back/Forward between cities are the same event. Returns a dispose. */
 export function attachRouteLoad(): () => void {
+  // Whether the last thing this saw was a page with no city on it: opening one
+  // from there is a fresh ask, and only the server knows if its scan holds.
+  let away = true;
   return effect(() => {
-    if (!URL_SOURCE.value) return;
+    if (!URL_SOURCE.value) {
+      away = true;
+      return;
+    }
+    const reopened = away;
+    away = false;
     // Peeked: the identity above is the trigger, and re-reading the params here
     // must not subscribe this to the view ones alongside it.
     const boot = readUrlView(ROUTE_PARAMS.peek());
     // Out of the tracking scope: the load writes signals this effect reads.
     queueMicrotask(() => {
-      // Committing a remote keeps the branch the server resolved, which lands in
-      // the URL and moves the identity above. The city on screen is not a new ask.
+      // Never left, same project: committing a remote puts the branch the
+      // server resolved in the URL, which moves the identity above by itself.
       const cur = CURRENT_SOURCE.peek();
-      if (cur && boot.src && sameSourceIdentity(cur, { src: boot.src, branch: boot.branch })) {
+      if (
+        !reopened &&
+        cur &&
+        boot.src &&
+        sameSourceIdentity(cur, { src: boot.src, branch: boot.branch })
+      ) {
         return;
       }
       void bootLoad(boot);

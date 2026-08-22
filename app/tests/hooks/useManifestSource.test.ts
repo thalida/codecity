@@ -510,6 +510,24 @@ describe('the URL drives what is loaded', () => {
     expect(StubEventSource.instances).toHaveLength(1);
   });
 
+  // Nothing on this machine can know whether a scan from an hour ago still
+  // holds. The server decides that, per open, off its own cache.
+  it('re-asks the server for the project you just left and came back to', async () => {
+    navigate('/city?src=%2Frepos%2Fa', { replace: true });
+    detach = attachRouteLoad();
+    await flush();
+    await complete('a');
+    expect(StubEventSource.instances).toHaveLength(1);
+
+    navigate(ROUTES.HOME);
+    await flush();
+    navigate('/city?src=%2Frepos%2Fa');
+    await flush();
+
+    expect(StubEventSource.instances, 'the same project, asked for again').toHaveLength(2);
+    expect(srcOf(1)).toBe('/repos/a');
+  });
+
   it('a canceled load leaves its URL loadable', async () => {
     // The claim stops a re-run restarting an in-flight load. Held past one that
     // never committed, it leaves the URL naming a repo the city never loads.
