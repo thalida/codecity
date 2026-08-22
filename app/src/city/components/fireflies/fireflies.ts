@@ -9,7 +9,9 @@ import { createOrbitRings } from './orbitRings';
 import { createFirefliesScrub } from './firefliesScrub';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import type { ReadonlySignal } from '@preact/signals';
+import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
+import type { TreesConfig } from '@/state/settings/fields/trees';
 
 /** createFireflyAssembly's handle: the renderer plus sha-based hover/select
  *  so callers never manage the sha→index map. */
@@ -35,7 +37,11 @@ export function createFireflyAssembly(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
-  scannedAt?: string | null,
+  scannedAt: string | null | undefined,
+  /** This city's orb and tree settings: an orb hangs on a canopy, so it is
+   *  sized against the same tree config the forest grew from. */
+  fireflies: ReadonlySignal<FirefliesConfig>,
+  trees: ReadonlySignal<TreesConfig>,
   /** Drawing-buffer canvas — the orbs' point sizes scale to its device-pixel
    *  height. Optional for tests. */
   canvas?: HTMLCanvasElement
@@ -45,8 +51,8 @@ export function createFireflyAssembly(
 
   // Master config gate. When disabled, return an empty parent group so the
   // caller's group is still safe to add/dispose.
-  if (!FIREFLIES.value.ENABLED) {
-    const stub = createFireflyRenderer([]);
+  if (!fireflies.value.ENABLED) {
+    const stub = createFireflyRenderer([], fireflies);
     return {
       group: parent,
       setTime: stub.setTime.bind(stub),
@@ -59,10 +65,17 @@ export function createFireflyAssembly(
       dispose: stub.dispose.bind(stub),
     };
   }
-  const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
-  const rings = createOrbitRings(orbs);
-  const renderer = createFireflyRenderer(orbs, canvas);
-  const scrub = createFirefliesScrub(orbs, commits, stats);
+  const orbs: FireflyPlacement[] = placeFireflies(
+    placements,
+    commits ?? [],
+    stats,
+    scannedAt,
+    fireflies.value,
+    trees.value
+  );
+  const rings = createOrbitRings(orbs, fireflies);
+  const renderer = createFireflyRenderer(orbs, fireflies, canvas);
+  const scrub = createFirefliesScrub(orbs, commits, stats, fireflies, trees);
   // Both arrive per frame, from the same controller, and both feed one resize.
   let _scrubCommit: number | null = null;
   let _scrubNow: number | null = null;

@@ -35,15 +35,15 @@ describe('tree decoration profile', () => {
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();
-    createFireflyAssembly(placements, commits, stats);
+    createFireflyAssembly(placements, commits, stats, null, FIREFLIES, TREES);
     const tf1 = performance.now();
     // Split fireflies into its three parts.
     const ts0 = performance.now();
-    const orbs = placeFireflies(placements, commits, stats);
+    const orbs = placeFireflies(placements, commits, stats, null, FIREFLIES.value, TREES.value);
     const ts1 = performance.now();
-    createOrbitRings(orbs);
+    createOrbitRings(orbs, FIREFLIES);
     const ts2 = performance.now();
-    createFireflyRenderer(orbs);
+    createFireflyRenderer(orbs, FIREFLIES);
     const ts3 = performance.now();
 
     // Simulate the worker postMessage cost: structured-clone the full layout

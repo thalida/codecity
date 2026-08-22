@@ -6,7 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { NodeKind } from '@/types';
 import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
@@ -68,14 +67,22 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     clear();
     // Deliberately does NOT push current hover/selection into the fresh
     // renderer — see the arming block's no-push rule below.
-    _inner = createFireflyAssembly(placements, commits, stats, scannedAt, ctx.canvas);
+    _inner = createFireflyAssembly(
+      placements,
+      commits,
+      stats,
+      scannedAt,
+      ctx.config.FIREFLIES,
+      ctx.config.TREES,
+      ctx.canvas
+    );
     group.add(_inner.group);
   }
 
-  // FIREFLIES Save → refresh uniforms in place; structural keys remain
-  // Rebuild-routed. Safe at construction (reads only FIREFLIES signals).
+  // An orb Save refreshes the uniforms in place; structural keys are
+  // Rebuild-routed. Safe at construction: it reads only this city's config.
   const stopTheme = effect(() => {
-    void FIREFLIES.value;
+    void ctx.config.FIREFLIES.value;
     _inner?.refresh();
   });
 

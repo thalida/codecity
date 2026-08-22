@@ -1,3 +1,4 @@
+import { TREES } from '@/state/settings/fields/trees';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
@@ -17,7 +18,7 @@ const ringMeshes = (f: { group: THREE.Object3D }) => meshesInChildGroup(f.group,
 describe('createFireflyAssembly', () => {
   it('returns a group containing one Points draw (orbs) and an empty ring group when commits is non-empty', () => {
     const stats = commitStats(COMMITS);
-    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
+    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats, null, FIREFLIES, TREES);
     expect(f.group).toBeInstanceOf(THREE.Group);
     // Two child Groups: the lazy ring group (empty until hover/select) and
     // the renderer's, holding one Points object.
@@ -30,7 +31,7 @@ describe('createFireflyAssembly', () => {
   });
 
   it('returns a group with no descendant orb draws when commits is null', () => {
-    const f = createFireflyAssembly(PLACEMENTS, null, null);
+    const f = createFireflyAssembly(PLACEMENTS, null, null, null, FIREFLIES, TREES);
     const orbs = f.group.children
       .flatMap((c) => c.children)
       .filter((c) => c instanceof THREE.Points);
@@ -39,7 +40,7 @@ describe('createFireflyAssembly', () => {
   });
 
   it('returns a group with no descendant InstancedMeshes when placements is empty', () => {
-    const f = createFireflyAssembly([], COMMITS, commitStats(COMMITS));
+    const f = createFireflyAssembly([], COMMITS, commitStats(COMMITS), null, FIREFLIES, TREES);
     const meshes = f.group.children
       .flatMap((c) => c.children)
       .filter((c) => c instanceof THREE.InstancedMesh);
@@ -49,7 +50,7 @@ describe('createFireflyAssembly', () => {
 
   it('dispose() removes all descendant InstancedMeshes and tube Meshes', () => {
     const stats = commitStats(COMMITS);
-    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
+    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats, null, FIREFLIES, TREES);
     f.dispose();
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
@@ -65,7 +66,7 @@ describe('createFireflyAssembly', () => {
     FIREFLIES.value = { ...FIREFLIES.value, ENABLED: false };
     try {
       const stats = commitStats(COMMITS);
-      const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
+      const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats, null, FIREFLIES, TREES);
       expect(f.group.children.length).toBe(0);
       f.dispose();
     } finally {
@@ -78,7 +79,7 @@ describe('createFireflyAssembly', () => {
     FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: false };
     try {
       const stats = commitStats(COMMITS);
-      const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
+      const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats, null, FIREFLIES, TREES);
       // The group is still built, it just holds no meshes.
       expect(childGroup(f.group, ORBIT_RINGS_GROUP)).not.toBeNull();
       expect(ringMeshes(f)).toHaveLength(0);
@@ -90,7 +91,7 @@ describe('createFireflyAssembly', () => {
 
   it("setHoveredCommit shows one ring mesh tinted with the author's pastel color", () => {
     const stats = commitStats(COMMITS);
-    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats);
+    const f = createFireflyAssembly(PLACEMENTS, COMMITS, stats, null, FIREFLIES, TREES);
     f.setHoveredCommit(COMMITS[0].sha);
     const ms = ringMeshes(f);
     expect(ms.length).toBe(1);

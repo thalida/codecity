@@ -3,7 +3,8 @@
 // three-co-author commit shows three orbits. Hover tints each ring with its
 // author's pastel; selected shares one vertexColors material for the chase.
 import * as THREE from 'three';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import type { ReadonlySignal } from '@preact/signals';
+import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { FireflyPlacement } from './firefliesPlacement';
 
@@ -115,11 +116,14 @@ function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
  *  graph without repeating the literal. */
 export const ORBIT_RINGS_GROUP = 'firefly-orbit-rings';
 
-export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
+export function createOrbitRings(
+  orbs: FireflyPlacement[],
+  fireflies: ReadonlySignal<FirefliesConfig>
+): OrbitRings {
   const group = new THREE.Group();
   group.name = ORBIT_RINGS_GROUP;
 
-  const cfg = FIREFLIES.value;
+  const cfg = fireflies.value;
 
   if (!cfg.ORBIT_RING_ENABLED || orbs.length === 0) {
     return {
@@ -200,7 +204,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildHoverMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
+    const thickness = fireflies.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       const mat = makeHoverMaterial(orb.lightRgb);
@@ -212,7 +216,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildSelectedMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
+    const thickness = fireflies.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       // Pre-allocate the color attribute so the renderer sees it on the
@@ -276,7 +280,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     },
 
     refresh() {
-      const next = FIREFLIES.value;
+      const next = fireflies.value;
       group.visible = next.ORBIT_RING_ENABLED;
     },
 

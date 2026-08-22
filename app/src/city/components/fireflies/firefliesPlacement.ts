@@ -5,8 +5,8 @@
 
 import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/settings/fields/trees';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
 import {
   ageMoment,
   computeSizeRange,
@@ -88,11 +88,11 @@ export function placeFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
-  scannedAt?: string | null
+  scannedAt: string | null | undefined,
+  fireflyConfig: FirefliesConfig,
+  treesConfig: TreesConfig
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
-
-  const fireflyConfig = FIREFLIES.value;
 
   // Backend-precomputed, crediting each distinct author of a commit once. The
   // list is sorted by count, so [0] is the busiest.
@@ -105,7 +105,7 @@ export function placeFireflies(
   // dot can't drift apart.
   const hueByAuthor = new Map(authors.map((a) => [a.name, a.hue]));
 
-  const cfg = TREES.value;
+  const cfg = treesConfig;
 
   // Shared with the tree renderer, scan date included, or the orbs sit at a
   // height the trees they belong to never reach.

@@ -2,6 +2,7 @@
 // effects are armed on the first tick() instead of at construction. Effects
 // armed at construction would track no signal and never fire again.
 
+import { TREES } from '@/state/settings/fields/trees';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 

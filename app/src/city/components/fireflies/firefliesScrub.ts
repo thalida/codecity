@@ -4,8 +4,9 @@
 // rings read the same numbers when one is built.
 
 import type { CommitEntry, RepoStats } from '@/types';
-import { TREES } from '@/state/settings/fields/trees';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import type { ReadonlySignal } from '@preact/signals';
+import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
 import {
   computeSizeRange,
   treeHeight,
@@ -24,7 +25,9 @@ export interface FirefliesScrub {
 export function createFirefliesScrub(
   orbs: FireflyPlacement[],
   commits: CommitEntry[] | null,
-  stats: RepoStats | null | undefined
+  stats: RepoStats | null | undefined,
+  fireflies: ReadonlySignal<FirefliesConfig>,
+  trees: ReadonlySignal<TreesConfig>
 ): FirefliesScrub {
   const history = commits ?? [];
   // The busiest author's all-time total, the fixed maximum sizes are read
@@ -76,7 +79,7 @@ export function createFirefliesScrub(
       _appliedDay = day;
 
       countTo(Math.min(maxCommitIndex, history.length - 1));
-      const cfgFireflies = FIREFLIES.value;
+      const cfgFireflies = fireflies.value;
       const scales = new Map<string, number>();
       for (const [author, n] of counts) {
         scales.set(author, scaleForCommits(n, maxCommits, cfgFireflies));
@@ -87,7 +90,7 @@ export function createFirefliesScrub(
 
       // Tree sizes at this date, from the same formulas the forest grows by, so
       // an orb keeps its place just outside the canopy.
-      const cfg = TREES.value;
+      const cfg = trees.value;
       const scrubbed: AgeMoment = day;
       const heightAt = new Map<number, number>();
       const radiusAt = new Map<number, number>();

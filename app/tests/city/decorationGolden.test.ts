@@ -2,6 +2,7 @@
 // and the tree renderer's instance buffers against the captured baseline.
 
 import * as THREE from 'three';
+import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
@@ -43,7 +44,14 @@ describe('decoration golden (bit-identical guard)', () => {
     // The scan date the manifest always carries. Explicit here because it is
     // what every tree is aged against, and the digest below moves with it.
     const scannedAt = commits[commits.length - 1].date;
-    const orbs = placeFireflies(placements, commits, stats, scannedAt);
+    const orbs = placeFireflies(
+      placements,
+      commits,
+      stats,
+      scannedAt,
+      FIREFLIES.value,
+      TREES.value
+    );
     const renderer = createTreeRenderer(placements, commits, busyness, stats, scannedAt, TREES);
 
     const hasher = makeDigestHasher();
