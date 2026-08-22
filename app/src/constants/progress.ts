@@ -4,7 +4,7 @@
 
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
-import { TimelineStage } from '@/types';
+import { TimelineStage, type Manifest } from '@/types';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 
@@ -13,6 +13,9 @@ export enum LoadingStep {
   Cloning = 'cloning',
   Scanning = 'scanning',
   Skeleton = 'skeleton',
+  /** The server walking git log, once the heights have landed: the longest
+   *  stage of a cold scan, and the one the city's trees come out of. */
+  History = 'history',
   Building = 'building',
   // Timeline-mode entry, one row per stage of the history stream: the blob
   // backfill, the commit walk, then blob resolution.
@@ -21,15 +24,20 @@ export enum LoadingStep {
   TimelineBlobs = 'timeline-blobs',
 }
 
-// Display order. 'skeleton' paints placeholders while the server resolves
-// per-file metadata; 'building' tweens in the real heights and ends every list.
+// Display order. 'history' is the git walk after the heights, and 'building'
+// raises the final city, trees and all, so it ends every list.
 export const LOADING_STEPS: readonly LoadingStep[] = [
   LoadingStep.Resolving,
   LoadingStep.Cloning,
   LoadingStep.Scanning,
   LoadingStep.Skeleton,
+  LoadingStep.History,
   LoadingStep.Building,
 ];
+
+// A rebuild with no stream behind it: a remount packs the manifest already in
+// hand, so every fetch row above would be a row for work nobody did.
+export const BUILD_ONLY_STEPS: readonly LoadingStep[] = [LoadingStep.Building];
 
 // Timeline's own list. Reuses LoadingStep.Building rather than inventing
 // a second label for the same act.
@@ -54,6 +62,7 @@ export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [LoadingStep.Cloning]: 'Cloning',
   [LoadingStep.Scanning]: 'Scanning files',
   [LoadingStep.Skeleton]: 'Sketching layout',
+  [LoadingStep.History]: 'Reading history',
   [LoadingStep.Building]: 'Building city',
   [LoadingStep.TimelineFetch]: 'Fetching history',
   [LoadingStep.TimelineHistory]: 'Walking commits',
@@ -97,16 +106,22 @@ export function firstStepFor(steps: readonly LoadingStep[], kind: SourceKind | n
   return steps.find((step) => stepRuns(step, kind)) ?? steps[0];
 }
 
-/** Scan phase to step, by source kind: local skips resolving and cloning. One
- *  definition, shared by the overlay reactions and the inline progress. */
-export function stepForPhase(phase: ScanPhase | null, kind: SourceKind): LoadingStep {
+/** Scan phase to step, by source kind. `applied` is the pending of the manifest
+ *  the event carried: the only thing telling the two partials apart. */
+export function stepForPhase(
+  phase: ScanPhase | null,
+  kind: SourceKind,
+  applied?: Manifest['pending']
+): LoadingStep {
   switch (phase) {
     case ScanPhase.CloneProgress:
       return LoadingStep.Cloning;
     case ScanPhase.ScanProgress:
       return LoadingStep.Scanning;
     case ScanPhase.PartialManifest:
-      return LoadingStep.Skeleton;
+      // The skeleton's placeholder heights are what Sketching layout draws. Once
+      // metadata has landed the only stage left on the server is the git walk.
+      return applied && !applied.includes('metadata') ? LoadingStep.History : LoadingStep.Skeleton;
     case ScanPhase.CompleteManifest:
       return LoadingStep.Building;
     default:
@@ -145,8 +160,8 @@ export enum BuildStage {
   Layout = 'layout',
   /** The batch that swaps manifest + layout, and the mesh rebuilds it fires. */
   Assemble = 'assemble',
-  /** The deferred pass: tree placement off-thread, then its meshes. Runs with
-   *  the city already up, and outlives the overlay in Live. */
+  /** The deferred pass: tree placement off-thread, then its meshes. The last
+   *  stage of every build, and the overlay waits it out. */
   Decorate = 'decorate',
 }
 

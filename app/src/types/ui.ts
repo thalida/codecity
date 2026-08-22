@@ -34,7 +34,9 @@ export interface SourceError {
 
 /** Options for showing the loading overlay. */
 export interface LoadingOverlayShowOpts {
-  kind: SourceKind;
+  /** Null when no source was fetched at all: a build-only overlay has no
+   *  clone or scan rows to decide the shape of. */
+  kind: SourceKind | null;
   branch?: string;
   /** Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS. */
   steps?: readonly LoadingStep[];

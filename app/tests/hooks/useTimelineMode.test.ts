@@ -14,6 +14,7 @@ import {
   LOADING_OVERLAY,
   LOADING_CANCEL,
   SCAN_PROGRESS,
+  markIdle,
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
@@ -44,8 +45,25 @@ const BUNDLE = {
   note: null,
 } as unknown as TimelineBundle;
 
+// The composer marks Idle a frame after the pack returns, and the reveal waits
+// for that. Tracked, so an unfired frame can't settle the NEXT test's build.
+let pendingSettle = 0;
+function settleNextFrame(): void {
+  cancelPendingSettle();
+  pendingSettle = requestAnimationFrame(() => {
+    pendingSettle = 0;
+    markIdle();
+  });
+}
+function cancelPendingSettle(): void {
+  if (pendingSettle) cancelAnimationFrame(pendingSettle);
+  pendingSettle = 0;
+}
+
 function fakeHandle() {
-  const applyManifest = vi.fn().mockResolvedValue(undefined);
+  const applyManifest = vi.fn().mockImplementation(async () => {
+    settleNextFrame();
+  });
   // The hook opens the build's readout on the stages the apply will run, so a
   // handle without this can't be driven through a load.
   const buildStagesFor = vi.fn().mockReturnValue([BuildStage.Layout, BuildStage.Assemble]);
@@ -91,6 +109,7 @@ describe('loadTimelineScene', () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
+    cancelPendingSettle();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
   });
@@ -157,6 +176,26 @@ describe('loadTimelineScene', () => {
     expect(visibleAfterPack, 'reveal waits for the first painted frame').toBe(true);
 
     await nextFrame();
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('holds the reveal until the packed city has a frame on screen', async () => {
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+    const f = fakeHandle();
+    // The pack resolves a frame before the city is presented. Sample the overlay
+    // in that gap: lifting there is the bug this waits out.
+    let visibleBeforeIdle: boolean | null = null;
+    f.applyManifest.mockImplementation(async () => {
+      requestAnimationFrame(() => {
+        visibleBeforeIdle = LOADING_OVERLAY.value.visible;
+        markIdle();
+      });
+    });
+    SCENE_HANDLE.value = f.handle as never;
+
+    await loadTimelineScene();
+
+    expect(visibleBeforeIdle, 'still up while the meshes are undrawn').toBe(true);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
@@ -378,6 +417,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
+    cancelPendingSettle();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
   });

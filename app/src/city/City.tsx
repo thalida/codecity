@@ -11,7 +11,13 @@ import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
-import { markRebuilding, markError } from '@/state/stores/progress';
+import {
+  markRebuilding,
+  markError,
+  markSceneGone,
+  WORLD_BUILD_REPORTER,
+  SILENT_BUILD_REPORTER,
+} from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 import type { Manifest } from '@/types';
@@ -42,8 +48,12 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
 
     // Start empty; the apply-effect below paints the first manifest. The variant
     // is also what the camera is FOR, so the rig opens on the right pose itself.
+    const isWorld = variant === CityVariant.Scene;
     createCity(canvas, {
-      cameraMode: variant === CityVariant.Backdrop ? CameraMode.Backdrop : CameraMode.Project,
+      cameraMode: isWorld ? CameraMode.Project : CameraMode.Backdrop,
+      // Same pipeline, but the wallpaper is not the project you opened: its
+      // finish must not read as the world being on screen.
+      report: isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER,
     })
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
@@ -96,8 +106,12 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
       city?.dispose();
       city = null;
       // Only its own slot: clearing the other would strand the city still up.
-      if (variant === CityVariant.Scene) SCENE_HANDLE.value = null;
-      else BACKDROP_HANDLE.value = null;
+      if (variant === CityVariant.Scene) {
+        SCENE_HANDLE.value = null;
+        // Nothing is on screen any more, so the remount's rebuild is a load
+        // with a world to wait for, not a repaint under one.
+        markSceneGone();
+      } else BACKDROP_HANDLE.value = null;
     };
   }, []);
 

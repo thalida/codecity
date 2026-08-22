@@ -6,6 +6,7 @@
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
 import { createCityState } from '@/city/state';
+import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
 
@@ -64,7 +65,11 @@ function fakeLayoutClient() {
 
 describe('cityState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
   it('bumps structureRevision when layout_signature changes (full re-pack)', async () => {
-    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
+    const state = createCityState(
+      fakeLayoutClient() as never,
+      stubPlacementClient() as never,
+      WORLD_BUILD_REPORTER
+    );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
     await state.applyManifest(manifest('L2')); // layout_signature changed
@@ -74,7 +79,11 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
   // The discriminating case: the file size changes but layout_signature does
   // not, so a gate recomputing it from the tree would re-pack and fail here.
   it('reuses when layout_signature is unchanged even if the tree size differs', async () => {
-    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
+    const state = createCityState(
+      fakeLayoutClient() as never,
+      stubPlacementClient() as never,
+      WORLD_BUILD_REPORTER
+    );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;
     await state.applyManifest(manifest('L1', 999)); // different tree size, SAME field

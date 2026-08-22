@@ -10,7 +10,7 @@ import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from '
 import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { BUILT_MANIFEST } from '@/state/stores/progress';
+import { CITY_ON_SCREEN } from '@/state/stores/progress';
 import { goToPath, goToCommit, clearSelection } from '@/city/sceneHandle';
 import { FocusMode } from '@/city/render/cameraRig';
 import {
@@ -79,7 +79,7 @@ function installViewFollow(followed: Signal<boolean>): () => void {
     const params = ROUTE_PARAMS.value;
     const onCity = ROUTE_PATH.value === ROUTES.CITY;
     const source = CURRENT_SOURCE.value;
-    const built = BUILT_MANIFEST.value !== null;
+    const built = CITY_ON_SCREEN.value;
     // Nothing to select in, and no bundle to scrub, until there is a city.
     if (!onCity || !source || !built) return;
 

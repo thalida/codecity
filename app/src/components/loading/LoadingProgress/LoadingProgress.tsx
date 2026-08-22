@@ -1,7 +1,6 @@
-// components/loading/LoadingProgress/LoadingProgress.tsx — the shared loading column:
-// repo label + spinner + current-step status + the stepped progress list.
-// Rendered by both the app-level LoadingOverlay (deep-link cold boot) and
-// ProjectsView's inline progress, so the phase→step mapping has one definition.
+// components/loading/LoadingProgress/LoadingProgress.tsx — the loading column:
+// repo label + spinner + current-step status + the stepped progress list. Told
+// which rows to draw and which one is live; what those mean is the store's.
 
 import './LoadingProgress.css';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
@@ -20,13 +19,11 @@ export interface LoadingProgressProps {
   activeStep: LoadingStep;
   kind: SourceKind | null;
   branch?: string | null;
-  // Trailing per-step progress text (clone %, scanned file count). Only the
-  // overlay flow supplies these; ProjectsView omits them.
+  // Trailing per-step progress text (clone %, scanned file count, build %).
   stepTails?: Partial<Record<LoadingStep, string | null>>;
   // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS.
   steps?: readonly LoadingStep[];
-  // Aborts the load and returns to the project list. Each surface wires the
-  // routing (ProjectsView is already the list; the overlay opens it).
+  // Aborts the wait and returns to the project list.
   onCancel: () => void;
 }
 

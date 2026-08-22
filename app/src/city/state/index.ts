@@ -6,12 +6,7 @@ import { signal, computed, batch, type Signal, type ReadonlySignal } from '@prea
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { TREES } from '@/state/settings/fields/trees';
-import {
-  beginBuild,
-  enterBuildStage,
-  markDecorating,
-  setBuildStagePercent,
-} from '@/state/stores/progress';
+import { type BuildReporter } from '@/state/stores/progress';
 import { BuildStage } from '@/constants/progress';
 import { StreetAxis } from '@/types';
 import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
@@ -135,7 +130,10 @@ function sceneBboxOf(b: THREE.Box3): CityBbox {
 
 export function createCityState(
   layoutClient: ReturnType<typeof createLayoutClient>,
-  treePlacementClient: TreePlacementClient
+  treePlacementClient: TreePlacementClient,
+  // Whose build this is: the world's, or a wallpaper's that nobody is waiting
+  // for (see BuildReporter).
+  report: BuildReporter
 ): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
@@ -258,8 +256,8 @@ export function createCityState(
     // The readout's denominator, decided before the first stage starts: a
     // fixed count would promise a stage this apply is not going to run.
     const own = buildStagesFor(newManifest);
-    beginBuild([...leadingStages, ...own]);
-    enterBuildStage(own[0]);
+    report.beginBuild([...leadingStages, ...own]);
+    report.enterBuildStage(own[0]);
     // The manifest fan-out and the atlas walk below run before anything can
     // repaint, so the row would name them only once they were over.
     await nextPaint();
@@ -278,7 +276,7 @@ export function createCityState(
       }
     }
 
-    enterBuildStage(BuildStage.Layout);
+    report.enterBuildStage(BuildStage.Layout);
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
     // Full envelope, not `.tree`: the worker contract stays typed against
@@ -287,7 +285,7 @@ export function createCityState(
       newLayout = await layoutClient.compute(newManifest, reusedLayout, (percent) => {
         // A superseded apply's worker keeps posting until it is told to stop;
         // its percent must not walk over the live build's readout.
-        if (myGeneration === generation) setBuildStagePercent(percent);
+        if (myGeneration === generation) report.setBuildStagePercent(percent);
       });
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
@@ -297,7 +295,7 @@ export function createCityState(
 
     // The batch below holds the main thread for seconds on a big repo: hand the
     // browser a frame first, so the row naming that work paints before it.
-    enterBuildStage(BuildStage.Assemble);
+    report.enterBuildStage(BuildStage.Assemble);
     await nextPaint();
     if (myGeneration !== generation) return;
 
@@ -305,7 +303,7 @@ export function createCityState(
     // to the component that draws them: the batch below publishes a whole city.
     let newPlacements: TreePlacement[] | null = null;
     if (TREES.peek().ENABLED) {
-      markDecorating();
+      report.markDecorating();
       const newBbox = cityBbox(newLayout, footprintHalo.peek());
       try {
         newPlacements = await treePlacementClient.compute(

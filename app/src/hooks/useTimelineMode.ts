@@ -24,6 +24,7 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
+  whenCityOnScreen,
   setLoadingCancel,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
@@ -177,10 +178,10 @@ export async function loadTimelineSource({
     // commit rests on it, and anything else opens at the present.
     setScrubPos(scrubTarget(bundle, commit, inPlace));
     if (overlay) {
-      // Hold the overlay through the union city's first painted frame, then reveal.
-      requestAnimationFrame(() => {
-        hideLoadingOverlay();
-      });
+      // The pack returns before its meshes are drawn: wait for the frame that
+      // carries them, or the reveal lands on a half-built city.
+      await whenCityOnScreen();
+      hideLoadingOverlay();
     }
   } catch (err) {
     if (cancelled) return; // user cancel already aborted the fetch + restored live

@@ -1,7 +1,7 @@
 // state/stores/manifest.ts — the manifest of the project you opened, at HEAD.
 // The one the fetch layer writes and everything else reads. Two neighbours
 // answer the same question differently: `scrub.ts` for what a Timeline position
-// implies, `build.ts` for whether the world is currently being built from this.
+// implies, `progress.ts` for how far the world built from this has got.
 
 import { signal } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';

@@ -9,7 +9,7 @@ import { effect, untracked } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { markIdle } from '@/state/stores/progress';
+import { WORLD_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -48,7 +48,10 @@ import { registerRenderer as registerFacadePanelRenderer } from './components/bu
 
 export async function createCity(
   canvas: HTMLCanvasElement,
-  { cameraMode = CameraMode.Project }: { cameraMode?: CameraMode } = {}
+  {
+    cameraMode = CameraMode.Project,
+    report = WORLD_BUILD_REPORTER,
+  }: { cameraMode?: CameraMode; report?: BuildReporter } = {}
 ): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -73,7 +76,7 @@ export async function createCity(
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const cityState = createCityState(layoutClient, treePlacementClient);
+  const cityState = createCityState(layoutClient, treePlacementClient, report);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
@@ -160,7 +163,7 @@ export async function createCity(
       void buildings.whenSettled().then(() => {
         // Two frames: render() only issues the GL commands, and the pixels land
         // a compositor pass later.
-        requestAnimationFrame(() => requestAnimationFrame(() => markIdle()));
+        requestAnimationFrame(() => requestAnimationFrame(() => report.markIdle()));
       });
     });
   });

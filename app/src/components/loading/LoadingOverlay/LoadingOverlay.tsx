@@ -1,7 +1,7 @@
-// components/loading/LoadingOverlay/LoadingOverlay.tsx — Full-viewport centered progress, mounted once
-// by App.tsx and driven by the LOADING_OVERLAY signal. Narrow role by design: a
-// load driven from <ProjectsView> renders its OWN inline progress and this
-// suppresses itself (below), so two full-viewport surfaces never stack.
+// components/loading/LoadingOverlay/LoadingOverlay.tsx — full-viewport centered
+// progress, mounted by CityView and driven entirely by the LOADING_OVERLAY
+// signal: what raises it and what takes it down is the store's call (see
+// attachLoadReaction), so this renders and nothing more.
 
 import './LoadingOverlay.css';
 import { LOADING_OVERLAY } from '@/state/stores/progress';

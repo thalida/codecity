@@ -8,6 +8,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
 import { createCityState } from '@/city/state';
+import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
 import {
   commitTarget,
   makeCityState,
@@ -118,7 +119,8 @@ describe('createTrees() component door', () => {
   it('renders the placements an apply published, in the same flush as the city', async () => {
     const cityState = createCityState(
       layoutClientFor(TREE_LAYOUT) as never,
-      stubPlacementClient(PLACEMENTS) as never
+      stubPlacementClient(PLACEMENTS) as never,
+      WORLD_BUILD_REPORTER
     );
     const { ctx } = makePickableSceneContext(cityState);
     trees = createTrees(ctx);
