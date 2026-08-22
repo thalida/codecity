@@ -12,13 +12,12 @@ import { attachSettingsReactions } from '@/state/settings/reactions';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
-  markRebuilding,
-  markError,
   markSceneGone,
   WORLD_BUILD_REPORTER,
   SILENT_BUILD_REPORTER,
 } from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { WORLD_BINDINGS, SCENERY_BINDINGS } from '@/city/bindings';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 import type { Manifest } from '@/types';
 
@@ -51,9 +50,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     const isWorld = variant === CityVariant.Scene;
     createCity(canvas, {
       cameraMode: isWorld ? CameraMode.Project : CameraMode.Backdrop,
-      // Same pipeline, but the wallpaper is not the project you opened: its
-      // finish must not read as the world being on screen.
-      report: isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER,
+      ...(isWorld ? WORLD_BINDINGS : SCENERY_BINDINGS),
     })
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
@@ -66,13 +63,23 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // Published to its own slot: the two variants are independent cities.
         if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
         else BACKDROP_HANDLE.value = handle;
+        // Each city rebuilds from what IT is showing: the wallpaper is a
+        // different repo, and the opened project's manifest is not its own.
         disposeReactions = attachSettingsReactions({
-          // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
-          rebuildScene: () =>
-            TIMELINE_MODE.peek()
-              ? reapplyTimelineScene()
-              : handle.applyManifest(MANIFEST.peek() as Manifest),
+          rebuildScene: isWorld
+            ? // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
+              () =>
+                TIMELINE_MODE.peek()
+                  ? reapplyTimelineScene()
+                  : handle.applyManifest(MANIFEST.peek() as Manifest)
+            : () => {
+                const showing = handle.manifest.peek();
+                return showing ? handle.applyManifest(showing) : Promise.resolve();
+              },
           invalidateLayoutCache: handle.invalidateLayoutCache,
+          currentManifest: () =>
+            isWorld ? (MANIFEST.peek() as Manifest | null) : handle.manifest.peek(),
+          report: isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER,
         });
 
         // A backdrop shows what its view decided to show, which is not the
@@ -87,14 +94,14 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           // Live's bridge from manifest to scene; Timeline packs its own union
           // city. Peeked, so leaving the mode doesn't repack what it committed.
           if (TIMELINE_MODE.peek()) return;
-          markRebuilding();
-          void handle.applyManifest(m).catch(markError);
+          WORLD_BUILD_REPORTER.markRebuilding();
+          void handle.applyManifest(m).catch(WORLD_BUILD_REPORTER.markError);
         });
       })
       .catch((err) => {
-        // No WebGL, or a context the driver refused. The landing has its
-        // wallpaper to fall back on; the city route has nothing to show.
-        if (variant === CityVariant.Scene) markError(err);
+        // No WebGL, or a context the driver refused. The landing has its hero
+        // image to fall back on, which is what its silent reporter says.
+        (isWorld ? WORLD_BUILD_REPORTER : SILENT_BUILD_REPORTER).markError(err);
       });
 
     return () => {

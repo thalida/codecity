@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
+import { WORLD_BUILD_REPORTER } from '@/state/stores/progress';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import type { Manifest } from '@/types';
 
@@ -34,7 +35,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
       tree: { type: 'directory', children: [] },
       dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
     };
-    // Seed the source of truth: scheduleRebuild reads MANIFEST.peek().
+    // Seed the source of truth: scheduleRebuild skips a city showing nothing.
     setManifest(stubManifest as unknown as Manifest);
 
     detach = attachSettingsReactions({
@@ -44,6 +45,8 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
       invalidateLayoutCache() {
         calls.push('invalidateLayoutCache');
       },
+      currentManifest: () => stubManifest as unknown as Manifest,
+      report: WORLD_BUILD_REPORTER,
     });
 
     // What Save does: commit() fires setKey on the real store, which is what

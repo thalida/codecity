@@ -35,6 +35,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
+import { WORLD_BINDINGS } from '@/city/bindings';
 
 const W = 800;
 const H = 600;
@@ -88,7 +89,7 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       await handle.applyManifest(makeManifest());
@@ -120,7 +121,7 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await createCity(makeCanvas(), WORLD_BINDINGS);
     try {
       SCENE_HANDLE.value = handle;
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });

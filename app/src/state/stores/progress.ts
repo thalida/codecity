@@ -199,8 +199,12 @@ export interface BuildReporter {
   beginBuild(stages: readonly BuildStage[]): void;
   enterBuildStage(stage: BuildStage): void;
   setBuildStagePercent(percent: number): void;
+  markRebuilding(): void;
   markDecorating(): void;
   markIdle(): void;
+  markError(err: unknown): void;
+  /** Read back, for a caller checking whether its own flash still stands. */
+  status(): RebuildStatus;
 }
 
 /** The project you opened: its build is the wait every readout is about. */
@@ -208,8 +212,11 @@ export const WORLD_BUILD_REPORTER: BuildReporter = {
   beginBuild,
   enterBuildStage,
   setBuildStagePercent,
+  markRebuilding,
   markDecorating,
   markIdle,
+  markError,
+  status: () => REBUILD_STATUS.peek(),
 };
 
 /** Scenery: nobody is waiting for it, and a finished wallpaper claiming the
@@ -218,8 +225,13 @@ export const SILENT_BUILD_REPORTER: BuildReporter = {
   beginBuild: () => {},
   enterBuildStage: () => {},
   setBuildStagePercent: () => {},
+  markRebuilding: () => {},
   markDecorating: () => {},
   markIdle: () => {},
+  // Logged, never surfaced: a city nobody is waiting for has no readout to
+  // fail in, and a silent throw is how a broken wallpaper goes unnoticed.
+  markError: (err) => console.error('[codecity] scenery build failed', err),
+  status: () => RebuildStatus.Pending,
 };
 
 // ── What the overlay shows ───────────────────────────────────────────

@@ -7,8 +7,10 @@ import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
+import type { ReadonlySignal } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import type { BuildStage } from '@/constants/progress';
+import type { BuildReporter } from '@/state/stores/progress';
 
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */
@@ -62,7 +64,33 @@ export interface CityTimeline {
 }
 
 /** The top-level city object returned by the city composer (createCity). */
+/** Timeline scrub, for a city something is scrubbing. Absent from a city's
+ *  bindings, the mode does not exist for it and nothing prunes its selection. */
+export interface CityTimelineBinding {
+  /** Tracked: leaving the mode tears this city's scrub controller down. */
+  mode: ReadonlySignal<boolean>;
+  /** Peeked per frame: where the scrubber is, and whether it is still held. */
+  scrubPos: ReadonlySignal<number>;
+  scrubDragging: ReadonlySignal<boolean>;
+  /** What to rebuild from on exit: a union city holds buildings that do not
+   *  exist at HEAD. A call, not a signal, so no store's type leaks in here. */
+  liveManifest(): Manifest | null;
+}
+
+/** Everything a city is wired to outside itself. Given none of it, a city
+ *  touches no app state: mount two, and neither can hear the other. */
+export interface CityBindings {
+  /** Where this city's build status goes. Silent unless something is waiting. */
+  report?: BuildReporter;
+  /** What this city is a picture OF, as one comparable string. The camera
+   *  refits when it changes, so skeleton→heights→history frames once. */
+  subjectKey?(): string | null;
+  timeline?: CityTimelineBinding;
+}
+
 export interface City {
+  /** What this city is showing: the manifest its last apply landed. */
+  manifest: ReadonlySignal<Manifest | null>;
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;

@@ -6,11 +6,8 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import type { Manifest, RangeStat } from '@/types';
-import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
-import { WORLD_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
-import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
+import type { RangeStat } from '@/types';
+import { SILENT_BUILD_REPORTER } from '@/state/stores/progress';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -37,7 +34,7 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, SceneComponent, SceneContext } from './types';
+import type { City, CityBindings, SceneComponent, SceneContext } from './types';
 import { createCameraRig, CameraMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -46,12 +43,20 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
+// One city, framed once: the default subject never changes, so an apply that
+// only refines the same city (skeleton → heights → history) holds the camera.
+const ONE_CITY = 'city';
+
 export async function createCity(
   canvas: HTMLCanvasElement,
   {
     cameraMode = CameraMode.Project,
-    report = WORLD_BUILD_REPORTER,
-  }: { cameraMode?: CameraMode; report?: BuildReporter } = {}
+    // Inert by default: a city reports nothing, frames itself once, and has no
+    // timeline until whoever mounts it says otherwise (see CityBindings).
+    report = SILENT_BUILD_REPORTER,
+    subjectKey = () => ONE_CITY,
+    timeline,
+  }: { cameraMode?: CameraMode } & CityBindings = {}
 ): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -140,17 +145,17 @@ export async function createCity(
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe only on a real source change. cityRevision bumps after the apply's
+  // Reframe only on a real subject change. cityRevision bumps after the apply's
   // batch flushed, so the camera is aimed at a built city, not half of one.
-  let lastReframedSourceKey: string | null = null;
+  let framedSubject: string | null = null;
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
-    const key = CURRENT_SOURCE_KEY.peek();
-    if (key === null || key === lastReframedSourceKey) return;
-    // No city yet: claiming the key here would make the first real one, which
-    // is what there is to frame, skip its reframe.
+    const subject = subjectKey();
+    if (subject === null || subject === framedSubject) return;
+    // No city yet: claiming the subject here would make the first real one,
+    // which is what there is to frame, skip its reframe.
     if (cityState.manifest.peek() === null) return;
-    lastReframedSourceKey = key;
+    framedSubject = subject;
     untracked(() => rig.reset());
   });
 
@@ -246,8 +251,8 @@ export async function createCity(
     after() {
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
-      if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
-      const pos = SCRUB_POS.peek();
+      if (!timeline?.mode.peek() || timeline.scrubDragging.peek()) return;
+      const pos = timeline.scrubPos.peek();
       if (pos === _lastPrunedScrubPos) return;
       _lastPrunedScrubPos = pos;
       picker.pruneScrubHiddenSelection();
@@ -296,17 +301,20 @@ export async function createCity(
   };
 
   // Every Timeline exit. The union city holds buildings that do not exist at
-  // HEAD, so only a rebuild from the live MANIFEST is a valid live city.
-  const stopTimelineTeardown = effect(() => {
-    if (TIMELINE_MODE.value || !_scrubController) return;
-    timelineApi.uninstallScrubController();
-    const live = MANIFEST.peek() as Manifest | null;
-    // Best-effort: a dispose or a newer apply can supersede this mid-flight,
-    // and neither is a failure worth surfacing from a teardown.
-    if (live) void applyManifest(live).catch(() => {});
-  });
+  // HEAD, so only a rebuild from the live manifest is a valid live city.
+  const stopTimelineTeardown = timeline
+    ? effect(() => {
+        if (timeline.mode.value || !_scrubController) return;
+        timelineApi.uninstallScrubController();
+        const live = timeline.liveManifest();
+        // Best-effort: a dispose or a newer apply can supersede this mid-flight,
+        // and neither is a failure worth surfacing from a teardown.
+        if (live) void applyManifest(live).catch(() => {});
+      })
+    : () => {};
 
   return {
+    manifest: cityState.manifest,
     scene,
     picker,
     rig,

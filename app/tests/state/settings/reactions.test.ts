@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { REBUILD_STATUS, RebuildStatus, WORLD_BUILD_REPORTER } from '@/state/stores/progress';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
 import type { Manifest } from '@/types';
@@ -16,14 +16,17 @@ describe('attachSettingsReactions routing', () => {
   beforeEach(() => {
     rebuildCalls = 0;
     REBUILD_STATUS.value = RebuildStatus.Idle;
-    // scheduleRebuild gates on MANIFEST (peek) as the "project loaded?" proxy;
-    // seed a non-empty manifest so the rebuild path actually calls rebuildScene.
-    setManifest({ tree: {} } as unknown as Manifest);
+    // scheduleRebuild gates on the city's own manifest; seed one so the rebuild
+    // path actually calls rebuildScene.
+    const manifest = { tree: {} } as unknown as Manifest;
+    setManifest(manifest);
     detach = attachSettingsReactions({
       rebuildScene: async () => {
         rebuildCalls++;
       },
       invalidateLayoutCache: () => {},
+      currentManifest: () => manifest,
+      report: WORLD_BUILD_REPORTER,
     });
   });
 
