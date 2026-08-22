@@ -20,7 +20,6 @@ vi.mock('@/city/render/postFx', async () =>
 
 import { createCityScene } from '@/city/index';
 import { makeSession } from '../../_helpers/city';
-import { cityPropsFor } from '@/city/forSession';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
@@ -55,7 +54,7 @@ describe('scene keydown handler — modal suppression', () => {
   });
 
   async function mountCity() {
-    const handle = await createCityScene(makeCanvas(), cityPropsFor(session));
+    const handle = await createCityScene(makeCanvas(), session.bindings());
     cities.push(handle);
     return handle;
   }

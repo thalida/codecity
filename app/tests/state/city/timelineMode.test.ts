@@ -5,11 +5,11 @@ import { EXCLUDES } from '@/state/stores/source';
 import { RebuildStatus } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
-import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
+import { EMPTY_MANIFEST } from '../../_helpers/manifestFixtures';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
-import { StubEventSource, installEventSource } from '../_helpers/eventSource';
-import { flush } from '../_helpers/preact';
+import { StubEventSource, installEventSource } from '../../_helpers/eventSource';
+import { flush } from '../../_helpers/preact';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
@@ -17,7 +17,7 @@ const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(
 
 vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
-import { makeSession } from '../_helpers/city';
+import { makeSession } from '../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
@@ -43,7 +43,7 @@ function fakeHandle() {
     () =>
       new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
-          session.progress.reporter.markIdle();
+          session.progress.markIdle();
           resolve();
         });
       })
@@ -60,7 +60,7 @@ function fakeHandle() {
     whenOnScreen,
     buildStagesFor,
     // SELECTION_KEY reads through the handle's picker, so a handle without one
-    // isn't a SceneHandle any consumer can hold.
+    // isn't a CityScene any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
     timeline: {
       installScrubController,
@@ -81,7 +81,7 @@ function fakeHandle() {
   };
 }
 
-describe('loadTimelineScene', () => {
+describe('timelineMode.loadScene', () => {
   beforeEach(() => {
     session.source.current.value = { src: 's', branch: undefined };
     // Reset: SOURCE_INFO reads it, so a manifest left by a neighbour decides
@@ -180,7 +180,7 @@ describe('loadTimelineScene', () => {
         new Promise<void>((resolve) => {
           requestAnimationFrame(() => {
             visibleBeforeIdle = session.progress.overlay.value.visible;
-            session.progress.reporter.markIdle();
+            session.progress.markIdle();
             resolve();
           });
         })
@@ -314,7 +314,7 @@ describe('loadTimelineScene', () => {
   });
 });
 
-describe('exitTimelineMode', () => {
+describe('timelineMode.exit', () => {
   let restoreEventSource: () => void;
   beforeEach(() => {
     restoreEventSource = installEventSource();
@@ -343,7 +343,7 @@ describe('exitTimelineMode', () => {
   });
 });
 
-describe('teardownTimelineMode', () => {
+describe('timelineMode.teardown', () => {
   afterEach(() => {
     session.timeline.mode.value = false;
   });
@@ -401,7 +401,7 @@ describe('live poll suspends in Timeline mode', () => {
   });
 });
 
-describe('loadTimelineScene inPlace refetch', () => {
+describe('timelineMode.loadScene inPlace refetch', () => {
   beforeEach(() => {
     session.source.current.value = { src: 's', branch: undefined };
     // SOURCE_INFO reads the loaded manifest for the overlay's repo label.

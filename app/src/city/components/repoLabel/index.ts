@@ -75,10 +75,10 @@ export interface RepoLabelDeps {
   getGem: () => THREE.Object3D | null;
 }
 
-// Reads only ctx.cityState + deps.getGem; the camera arrives per-frame via
+// Reads only ctx.sceneState + deps.getGem; the camera arrives per-frame via
 // FrameContext, never at construction.
 export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLabel {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   const group = new THREE.Group();
   group.name = 'repoLabel';
 
@@ -271,8 +271,8 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   // Manifest changes every apply (setRepoName re-runs); on a non-reuse apply
   // the gem rebuilt in the same batch, so getGem() is already fresh.
   const stopAnchor = effect(() => {
-    const manifest = cityState.manifest.value;
-    const gemWorldPos = cityState.gemWorldPos.value;
+    const manifest = sceneState.manifest.value;
+    const gemWorldPos = sceneState.gemWorldPos.value;
     if (!manifest) return;
     setRepoName(manifest.tree.name);
     setAnchor(gemWorldPos ?? new THREE.Vector3());

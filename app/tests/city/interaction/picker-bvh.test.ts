@@ -35,7 +35,7 @@ function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
   const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
   cellOut.sceneRoot.updateMatrixWorld(true);
-  const cityState = makeCityState();
+  const sceneState = makeCityState();
   const api: PickerWorld = {
     getStreetPickables: () => [],
     getRootGem: () => null,
@@ -46,7 +46,7 @@ function makeCellWorld(buildings: Building[]) {
     getCells: () => cellOut.cells,
     getTrees: () => null,
   };
-  return Object.assign(api, { cityState, cellOut });
+  return Object.assign(api, { sceneState, cellOut });
 }
 
 let canvas: HTMLCanvasElement;
@@ -79,7 +79,7 @@ describe('picker BVH raycast', () => {
       canvas,
       camera,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
 
@@ -122,7 +122,7 @@ describe('picker BVH raycast', () => {
       canvas,
       camera,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     expect(picker.pickAt(400, 300)).toBeNull();
@@ -148,7 +148,7 @@ describe('picker BVH raycast', () => {
     const built = createMergedSidewalkMesh([streetA, streetB] as never, 0)!;
     built.mesh.updateMatrixWorld(true);
 
-    const cityState = makeCityState();
+    const sceneState = makeCityState();
     const world = Object.assign(
       {
         getStreetPickables: () => [built.mesh],
@@ -160,7 +160,7 @@ describe('picker BVH raycast', () => {
         getCells: () => new Map(),
         getTrees: () => null,
       } as unknown as PickerWorld,
-      { cityState }
+      { sceneState }
     );
 
     // Camera straight above street B (z=200) looking down.
@@ -169,7 +169,7 @@ describe('picker BVH raycast', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState, timeline: session.timeline });
+    const picker = createPicker({ canvas, camera, world, sceneState, timeline: session.timeline });
     const hit = picker.pickAt(400, 300);
     expect(hit).not.toBeNull();
     const t = picker.interpretHit(hit);
@@ -186,7 +186,7 @@ describe('picker BVH raycast', () => {
       canvas,
       camera,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     expect(picker.pickAt(400, 300)).toBeNull();

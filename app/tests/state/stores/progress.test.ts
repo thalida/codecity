@@ -289,11 +289,11 @@ describe('loadingReactions', () => {
   });
 
   it('has no city on screen once the canvas goes away', () => {
-    session.progress.reporter.markIdle();
+    session.progress.markIdle();
     session.progress.builtManifest.value = EMPTY_MANIFEST; // markIdle copies MANIFEST, empty here
     expect(session.progress.cityOnScreen.value).toBe(true);
 
-    session.progress.reporter.markGone();
+    session.progress.markGone();
     expect(session.progress.cityOnScreen.value).toBe(false);
     expect(session.progress.rebuildStatus.value).toBe(RebuildStatus.Pending);
   });
@@ -302,29 +302,25 @@ describe('loadingReactions', () => {
   // few frames, and the freshness readout flickering through them was noise.
 
   it('puts the build stage on the Building row', () => {
-    session.progress.reporter.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    session.progress.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
 
     expect(session.progress.overlay.value.stepTails[LoadingStep.Building]).toBe('0% layout');
   });
 
   it('follows the build the whole way down the row', () => {
-    session.progress.reporter.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-    session.progress.reporter.setBuildStagePercent(30);
+    session.progress.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    session.progress.setBuildStagePercent(30);
     expect(session.progress.overlay.value.stepTails[LoadingStep.Building]).toBe('15% layout');
 
-    session.progress.reporter.enterBuildStage(BuildStage.Assemble);
+    session.progress.enterBuildStage(BuildStage.Assemble);
     expect(session.progress.overlay.value.stepTails[LoadingStep.Building]).toBe('50% buildings');
   });
 
   it('carries on into the decoration pass rather than going blank', () => {
     // Timeline's overlay outlives the pack, so a row cleared here sits empty
     // through the tree pass and the scrub install: the wait that needed it.
-    session.progress.reporter.beginBuild([
-      BuildStage.Layout,
-      BuildStage.Assemble,
-      BuildStage.Decorate,
-    ]);
-    session.progress.reporter.markDecorating();
+    session.progress.beginBuild([BuildStage.Layout, BuildStage.Assemble, BuildStage.Decorate]);
+    session.progress.markDecorating();
 
     expect(session.progress.overlay.value.stepTails[LoadingStep.Building]).toBe('67% trees');
   });
@@ -332,18 +328,18 @@ describe('loadingReactions', () => {
   // The readout beside the dot says "rebuilding…" and nothing else; only a
   // build with no overlay to report it (Timeline's refetch) writes that detail.
   it('leaves the freshness detail alone through a build', () => {
-    session.progress.reporter.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    session.progress.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
     expect(session.progress.detail.value).toBeNull();
 
-    session.progress.reporter.setBuildStagePercent(30);
-    session.progress.reporter.enterBuildStage(BuildStage.Assemble);
-    session.progress.reporter.markDecorating();
+    session.progress.setBuildStagePercent(30);
+    session.progress.enterBuildStage(BuildStage.Assemble);
+    session.progress.markDecorating();
     expect(session.progress.detail.value).toBeNull();
   });
 
   it('clears the row when the build finishes', () => {
-    session.progress.reporter.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-    session.progress.reporter.markIdle();
+    session.progress.beginBuild([BuildStage.Layout, BuildStage.Assemble]);
+    session.progress.markIdle();
 
     expect(session.progress.buildProgress.value).toBeNull();
     expect(session.progress.overlay.value.stepTails[LoadingStep.Building]).toBeNull();

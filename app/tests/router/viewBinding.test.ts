@@ -45,7 +45,7 @@ const params = (): URLSearchParams => ROUTE_PARAMS.value;
  *  does it. */
 function commitWorld(src = SRC): void {
   session.source.commit(src, undefined, LOADED);
-  session.progress.reporter.markIdle();
+  session.progress.markIdle();
 }
 
 describe('view URL', () => {
@@ -224,13 +224,13 @@ describe('view URL', () => {
     // building to select: restoring there erases the params it was holding.
     it('waits for the apply, not for whatever left the city Idle', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
-      session.progress.reporter.markIdle(); // the empty boot city settles, before any source
+      session.progress.markIdle(); // the empty boot city settles, before any source
       session.source.commit(SRC, undefined, LOADED);
       await flush();
       expect(goToPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
-      session.progress.reporter.markIdle(); // the committed manifest's city lands
+      session.progress.markIdle(); // the committed manifest's city lands
       await flush();
       expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx', FocusMode.Recenter);
     });
@@ -240,11 +240,11 @@ describe('view URL', () => {
     it('waits for the whole build, not the paint the decoration starts from', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
       session.source.commit(SRC, undefined, LOADED);
-      session.progress.reporter.markDecorating(); // city on screen, trees still in flight
+      session.progress.markDecorating(); // city on screen, trees still in flight
       await flush();
       expect(goToCommit).not.toHaveBeenCalled();
 
-      session.progress.reporter.markIdle(); // trees placed, build over
+      session.progress.markIdle(); // trees placed, build over
       await flush();
       expect(goToCommit).toHaveBeenCalledWith('abc123', FocusMode.Recenter);
     });

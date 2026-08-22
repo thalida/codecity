@@ -19,7 +19,7 @@ import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
 import type { createLayoutClient } from '../layout';
 
-export interface CityState {
+export interface CitySceneState {
   manifest: Signal<Manifest | null>;
   // Full layout (positions + per-building dims), reassigned EVERY apply — feeds
   // the dims-dependent rebuilds (buildings/footprint/trees) + the bbox computed.
@@ -128,17 +128,17 @@ function sceneBboxOf(b: THREE.Box3): CityBbox {
   };
 }
 
-export function createCityState(
+export function createCitySceneState(
   layoutClient: ReturnType<typeof createLayoutClient>,
   treePlacementClient: TreePlacementClient,
   // Whose build this is: the world's, or a wallpaper's that nobody is waiting
   // for (see BuildReporter).
   report: BuildReporter
-): CityState {
+): CitySceneState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
   const treePlacements = signal<TreePlacement[] | null>(null);
-  // Change-notification counters (see CityState for what each means + who tracks it).
+  // Change-notification counters (see CitySceneState for what each means + who tracks it).
   const structureRevision = signal(0);
   const cityRevision = signal(0);
 

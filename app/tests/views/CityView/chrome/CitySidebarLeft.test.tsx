@@ -18,7 +18,7 @@ const TEST_TREE = {
 
 // Minimal SCENE_HANDLE stand-in: the panes only read getManifest() and
 // subscribe to onChange, so nothing else on the handle is touched here.
-function makeSceneHandle() {
+function makeScene() {
   return {
     world: {
       getManifest() {
@@ -47,7 +47,7 @@ describe('CitySidebarLeft', () => {
     // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is
     // still seeded for the picker the panes read.
     session.manifest.set({ tree: TEST_TREE } as never);
-    session.scene.value = makeSceneHandle() as never;
+    session.scene.value = makeScene() as never;
     renderInCity(<CitySidebarLeft />, session, container);
     await flush();
   });

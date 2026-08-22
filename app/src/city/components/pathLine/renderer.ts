@@ -16,7 +16,7 @@ import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
-import type { CityState } from '@/city/state';
+import type { CitySceneState } from '@/city/state';
 
 /** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
  *  stays proportional to the streets at any zoom (worldUnits: false). */
@@ -38,14 +38,14 @@ export function createPathLineRenderer({
   canvas,
   scene,
   picker,
-  cityState,
+  sceneState,
 }: {
   canvas: HTMLCanvasElement;
   /** Parent for the two line meshes; draw order comes from
    *  RENDER_ORDERS.PATH_LINE, not graph position. */
   scene: THREE.Object3D;
   picker: PickerSignals;
-  cityState: CityState;
+  sceneState: CitySceneState;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = STREETS.value;
@@ -102,7 +102,7 @@ export function createPathLineRenderer({
 
   function _updatePathLine(): void {
     const sel = picker.selection.value;
-    const gemPos = cityState.gemWorldPos.peek();
+    const gemPos = sceneState.gemWorldPos.peek();
     if (!gemPos || !sel) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
@@ -112,7 +112,7 @@ export function createPathLineRenderer({
     const pts = computePathPoints(
       sel,
       { x: gemPos.x, z: gemPos.z },
-      cityState.streetsByDirMap.peek()
+      sceneState.streetsByDirMap.peek()
     );
     if (pts.length < 2) {
       pathLine.visible = false;
@@ -144,7 +144,7 @@ export function createPathLineRenderer({
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
-    const gemPos = cityState.gemWorldPos.peek();
+    const gemPos = sceneState.gemWorldPos.peek();
     const cfg = STREETS.value;
     function hide() {
       hoverPathLine.visible = false;
@@ -156,7 +156,7 @@ export function createPathLineRenderer({
     const pts = computePathPoints(
       hov,
       { x: gemPos.x, z: gemPos.z },
-      cityState.streetsByDirMap.peek()
+      sceneState.streetsByDirMap.peek()
     );
     if (pts.length < 2) return hide();
     const elev = HOVER_PATH_LINE_ELEVATION;
@@ -188,8 +188,8 @@ export function createPathLineRenderer({
   // Recompute both lines when the gem moves or the city rebuilds;
   // untracked() keeps the subscription to exactly those two signals.
   const _disposeRebuildEffect = effect(() => {
-    void cityState.gemWorldPos.value;
-    void cityState.cityRevision.value;
+    void sceneState.gemWorldPos.value;
+    void sceneState.cityRevision.value;
     untracked(() => {
       _updatePathLine();
       _updateHoverPathLine();

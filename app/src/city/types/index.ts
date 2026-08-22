@@ -4,7 +4,7 @@
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CameraMode, CameraRig } from '../render/cameraRig';
-import type { CityState } from '../state';
+import type { CitySceneState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { ReadonlySignal } from '@preact/signals';
@@ -19,7 +19,7 @@ export interface SceneContext {
   scene: THREE.Scene;
   canvas: HTMLCanvasElement;
   picker: Picker;
-  cityState: CityState;
+  sceneState: CitySceneState;
   /** This city's timeline, for the components drawing what a scrub implies.
    *  Null when nothing scrubs this one. */
   timeline: CityTimelineBinding | null;
@@ -76,23 +76,23 @@ export interface CityTimelineBinding {
   /** What to rebuild from on exit: a union city holds buildings that do not
    *  exist at HEAD. A call, not a signal, so no store's type leaks in here. */
   liveManifest(): Manifest | null;
-  /** Re-pack while the mode is on, for a setting that moved the packer's
-   *  inputs: the union city is assembled, not applied from one manifest. */
-  repack(): Promise<void>;
+  /** Rebuild the union city from its bundle and put the scrubber back. What
+   *  repack means while something scrubs: there is no one manifest to apply. */
+  reassemble(): Promise<void>;
 }
 
-/** How a city is configured: what the one mounting it decides. Leave a field
- *  out and that part is off, which is what makes two of them independent. */
+/** What a scene is wired to, all of it from the session <City> renders. Two
+ *  scenes are two sessions, which is what makes them independent. */
 export interface CityBindings {
-  /** Camera behaviour: what this city is for. */
+  /** Camera behaviour: what this rendering is for. */
   cameraMode?: CameraMode;
-  /** Where this city announces its build, for whoever mounted it. Left out, it
-   *  reports to nobody. Questions go the other way, through the handle. */
-  report?: BuildReporter;
+  /** Where this scene announces its build. The session's progress store IS
+   *  this, so a city nobody watches reports into stores nobody reads. */
+  report: BuildReporter;
   /** What it is a picture OF, as one comparable string. The camera refits when
    *  it changes, so skeleton→heights→history frames once, not three times. */
-  subjectKey?(): string | null;
-  timeline?: CityTimelineBinding;
+  subjectKey(): string | null;
+  timeline: CityTimelineBinding;
 }
 
 /** The machinery drawing one city: its canvas, renderer, camera and picker,
@@ -114,7 +114,7 @@ export interface CityScene {
    *  WebGL will not tell you. `report.markIdle`'s moment, asked instead of told. */
   whenOnScreen(): Promise<void>;
   world: CityWorld;
-  /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
+  /** Timeline-mode install surface (see state/city/timelineMode). The controller
    *  is built here because it needs the components' mesh/attr resolvers. */
   timeline: CityTimeline;
   /** Tear all of it down. Required on unmount, or a remount stacks a second

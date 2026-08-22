@@ -73,7 +73,7 @@ describe('canvas pick → selection pane', () => {
         camera: { aspect: 1, updateProjectionMatrix() {} },
       } as never,
       renderer: { setSize() {} } as never,
-      cityState: {} as never,
+      sceneState: {} as never,
       showTooltip() {},
       hideTooltip() {},
       onResize() {},

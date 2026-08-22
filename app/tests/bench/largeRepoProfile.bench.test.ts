@@ -49,7 +49,7 @@ function tagMediaFiles(node: any, fraction: number, rng: () => number): number {
 }
 
 // A copy of the state/index.ts computed, so the bench times that work without
-// standing up a whole CityState. Halo omitted (default 0).
+// standing up a whole CitySceneState. Halo omitted (default 0).
 function computeBbox(layout: CityLayout): THREE.Box3 {
   const box = new THREE.Box3();
   const min = box.min;

@@ -72,9 +72,9 @@ function makeFakeWorld(
   let buildingMap: Record<string, { mesh: THREE.Mesh; building: Building }> = {};
   let streetMap: Record<string, Street> = {};
   let sidewalkMap: Record<string, THREE.Mesh> = {};
-  // A rebuild is now signalled by bumping cityState.cityRevision (the picker
+  // A rebuild is now signalled by bumping sceneState.cityRevision (the picker
   // reacts to it) rather than firing a world.onChange listener.
-  const cityState = makeCityState();
+  const sceneState = makeCityState();
   const rootGem: THREE.Object3D | null = null;
 
   function setSnapshot(buildings: FakeBuildingFixture[], streets: FakeStreetFixture[]): void {
@@ -101,7 +101,7 @@ function makeFakeWorld(
       } as unknown as Street;
       sidewalkMap[s.path] = s.sidewalk as unknown as THREE.Mesh;
     }
-    cityState.cityRevision.value++;
+    sceneState.cityRevision.value++;
   }
   setSnapshot(initialBuildings, initialStreets);
 
@@ -131,7 +131,7 @@ function makeFakeWorld(
       return null;
     },
   };
-  return Object.assign(api, { setSnapshot, cityState });
+  return Object.assign(api, { setSnapshot, sceneState });
 }
 
 let canvas: HTMLCanvasElement;
@@ -154,7 +154,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     expect(p.selectionKey.value).toBeNull();
@@ -167,7 +167,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.setSelection(makeFileTarget({ path: 'src/index.js' }));
@@ -181,7 +181,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.setSelection(makeDirTarget({ path: 'src/lib' }));
@@ -195,7 +195,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.setSelection(makeFileTarget({ path: 'a.js' }));
@@ -211,7 +211,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.selectByPath('a.js');
@@ -230,7 +230,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.selectByPath('a.js');
@@ -249,7 +249,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.selectByPath('a.js');
@@ -271,7 +271,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.selectByPath('a.js');
@@ -290,7 +290,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
@@ -307,7 +307,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     const target = p.interpretHit(fakeHit({ type: NodeKind.Gem }));
@@ -321,7 +321,7 @@ describe('createPicker', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: fakeScene,
-      cityState: fakeScene.cityState,
+      sceneState: fakeScene.sceneState,
       timeline: session.timeline,
     });
     expect(p.interpretHit(fakeHit({}))).toBeNull();

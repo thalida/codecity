@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
-import { createCityState } from '@/city/state';
+import { createCitySceneState } from '@/city/state';
 import {
   commitTarget,
   makeCityState,
@@ -78,7 +78,7 @@ function makePrePickerCtx(): SceneContext {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    cityState: makeCityState(),
+    sceneState: makeCityState(),
   } as unknown as SceneContext;
 }
 
@@ -120,18 +120,18 @@ describe('createTrees() component door', () => {
   // Driven through applyManifest, the way trees really arrive. Assigning
   // treePlacements by hand would pass even if the build stopped placing them.
   it('renders the placements an apply published, in the same flush as the city', async () => {
-    const cityState = createCityState(
+    const sceneState = createCitySceneState(
       layoutClientFor(TREE_LAYOUT) as never,
       stubPlacementClient(PLACEMENTS) as never,
-      session.progress.reporter
+      session.progress
     );
-    const { ctx } = makePickableSceneContext(cityState);
+    const { ctx } = makePickableSceneContext(sceneState);
     trees = createTrees(ctx);
     expect(trees.getRenderer()).toBeNull();
 
-    await cityState.applyManifest(manifestWith(COMMITS));
+    await sceneState.applyManifest(manifestWith(COMMITS));
 
-    expect(cityState.treePlacements.value).toEqual(PLACEMENTS);
+    expect(sceneState.treePlacements.value).toEqual(PLACEMENTS);
     expect(trees.getRenderer()).not.toBeNull();
     expect(trees.group.children.length).toBeGreaterThan(0);
   });

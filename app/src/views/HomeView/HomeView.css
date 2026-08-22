@@ -11,33 +11,6 @@
   overscroll-behavior: contain;
 }
 
-/* The wallpaper (`just hero-image`), with the backdrop city fading in over it.
-   Layers stay plain: 0 stage, 0 scrim, 1 inner. */
-.landing-stage {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url('/hero-city.webp');
-  background-size: cover;
-  background-position: center;
-}
-
-.landing-stage .city-canvas {
-  opacity: 0;
-  transition: opacity 600ms ease-out;
-}
-
-.landing-stage.is-painted .city-canvas {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-stage .city-canvas {
-    transition: none;
-  }
-}
-
 /* Scrim only the hero side for AA text contrast; the action cards frost
    their own backdrop and the center/right stays clear. */
 .landing::after {

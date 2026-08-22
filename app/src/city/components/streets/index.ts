@@ -61,7 +61,7 @@ export interface Streets extends SceneComponent {
 }
 
 export function createStreets(ctx: SceneContext): Streets {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   // Persistent outer group — added to the scene once. rebuild() swaps the inner
   // street meshes + labels in and out of this group.
   const group = new THREE.Group();
@@ -294,8 +294,8 @@ export function createStreets(ctx: SceneContext): Streets {
   // untracked, or baking the colours subscribes this to STREETS and a Refresh
   // Save recreates every mesh, orphaning the picker's pickables.
   const stopLayout = effect(() => {
-    void cityState.structureRevision.value;
-    const layout = cityState.layout.peek();
+    void sceneState.structureRevision.value;
+    const layout = sceneState.layout.peek();
     if (layout) untracked(() => rebuild(layout));
   });
 

@@ -5,7 +5,7 @@
 
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
-import { createCityState } from '@/city/state';
+import { createCitySceneState } from '@/city/state';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
 import { makeSession } from '../../_helpers/city';
@@ -66,12 +66,12 @@ function fakeLayoutClient() {
   };
 }
 
-describe('cityState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
+describe('sceneState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
   it('bumps structureRevision when layout_signature changes (full re-pack)', async () => {
-    const state = createCityState(
+    const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress.reporter
+      session.progress
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -82,10 +82,10 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
   // The discriminating case: the file size changes but layout_signature does
   // not, so a gate recomputing it from the tree would re-pack and fail here.
   it('reuses when layout_signature is unchanged even if the tree size differs', async () => {
-    const state = createCityState(
+    const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress.reporter
+      session.progress
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;

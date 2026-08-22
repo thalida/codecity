@@ -19,7 +19,7 @@ function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
 }
 
-// footprint reads ctx.cityState for its layout effect; layout stays null here
+// footprint reads ctx.sceneState for its layout effect; layout stays null here
 // (effect no-ops) and tests drive rebuild() directly.
 
 function singleBuildingLayout(): CityLayout {

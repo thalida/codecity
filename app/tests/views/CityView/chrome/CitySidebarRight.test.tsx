@@ -60,7 +60,7 @@ function manifestWithDir(dir: DirNode): Manifest {
 
 // The bridge subscribes to selection and world changes, so both have to be
 // live signals here for the component to see anything.
-function makeSceneHandle() {
+function makeScene() {
   const selection = signal<PickTarget | null>(null);
   const hover = signal<PickTarget | null>(null);
   return {
@@ -106,7 +106,7 @@ describe('CitySidebarRight', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
-    session.scene.value = makeSceneHandle() as never;
+    session.scene.value = makeScene() as never;
     renderInCity(<CitySidebarRight />, session, container);
     await flush();
   });
@@ -120,7 +120,7 @@ describe('CitySidebarRight', () => {
   });
 
   const selectFile = async (file: FileNode) => {
-    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file,
@@ -139,7 +139,7 @@ describe('CitySidebarRight', () => {
   });
 
   it('opens with the file preview pane when a file is selected', async () => {
-    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
     handle.picker.setSelection({
       kind: NodeKind.File,
       file: FILE_NODE,
@@ -156,7 +156,7 @@ describe('CitySidebarRight', () => {
 
   it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
     session.timeline.mode.value = true;
-    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
 
     // File selection while scrubbing → panel opens (the sidebar is now the only
@@ -185,7 +185,7 @@ describe('CitySidebarRight', () => {
   // offered there too (previously hidden as a would-be no-op).
   it('Timeline mode: the exclude button is available for a selected file', async () => {
     session.timeline.mode.value = true;
-    const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     handle.picker.setSelection({
       kind: NodeKind.File,
@@ -220,7 +220,7 @@ describe('CitySidebarRight', () => {
 
     it('file pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       session.manifest.set(manifestWithFile(FILE_NODE));
-      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
       handle.picker.setSelection({
         kind: NodeKind.File,
         file: FILE_NODE, // the picker's snapshot — becomes stale below
@@ -244,7 +244,7 @@ describe('CitySidebarRight', () => {
 
     it('street pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       session.manifest.set(manifestWithDir(DIR_NODE));
-      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
       handle.picker.setSelection({
         kind: NodeKind.Directory,
         dir: DIR_NODE, // the picker's snapshot — becomes stale below
@@ -283,7 +283,7 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 
@@ -328,7 +328,7 @@ describe('CitySidebarRight', () => {
       await flush();
 
       expect(isOpen()).toBe(false);
-      const handle = session.scene.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      const handle = session.scene.peek() as unknown as ReturnType<typeof makeScene>;
       expect(handle.picker.selection.value).not.toBeNull();
     });
 

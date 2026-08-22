@@ -3,7 +3,6 @@
 
 import './CityStage.css';
 import { City } from '@/city/City';
-import { cityPropsFor } from '@/city/forSession';
 import { useCity } from '@/state/city/context';
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
@@ -15,7 +14,7 @@ export function CityStage() {
     <div id="city-stage">
       {/* Opaque: nothing sits behind this canvas, so a resize gap would flash
           the page through it. */}
-      <City {...cityPropsFor(session)} opaque />
+      <City session={session} opaque />
       <SelectionChip />
       <div id="scene-controls">
         <TimelineScrubber />

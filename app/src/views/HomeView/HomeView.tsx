@@ -6,13 +6,11 @@
 import './HomeView.css';
 import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
-import { City } from '@/city/City';
-import { CameraMode } from '@/city/render/cameraRig';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 import { type SourcePayload } from '@/types/ui';
 import { RECENTS, BACKDROP_CITY } from '@/state/stores/source';
-import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
+import { HomeBackdrop } from './HomeBackdrop/HomeBackdrop';
 import { cityHref, navigate } from '@/router/location';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
 import { RUN_DOCS_URL } from '@/constants/ui';
@@ -26,12 +24,11 @@ const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
-  const { source } = useCity();
-  const backdrop = useHomeBackdrop();
+  const opened = useCity();
   // Navigate, don't load: the URL carrying a src IS the load trigger, the same
   // one a deep link uses. Loading here waited for the scan before routing.
   const open = (payload: SourcePayload): void => navigate(cityHref(payload.src, payload.branch));
-  const failed = source.error.value;
+  const failed = opened.source.error.value;
 
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.
@@ -49,20 +46,11 @@ export function HomeView() {
   const activeTab =
     pickedTab !== null && tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
 
-  const painted = BACKDROP_CITY.value !== null;
-
   return (
     <main class="landing">
-      {/* Wallpaper first, the city over it once one paints: here the canvas is
-          decoration, so it carries no chrome and no controls. */}
-      <div class={`landing-stage${painted ? ' is-painted' : ''}`} aria-hidden="true">
-        <City
-          source={backdrop.source}
-          report={backdrop.report}
-          cameraMode={CameraMode.Backdrop}
-          label="Decorative 3D city."
-        />
-      </div>
+      {/* The landing's own city, on its own session: it opens on whatever you
+          were last looking at, and can't reach the one you opened. */}
+      <HomeBackdrop opened={opened} />
 
       <div class="landing-inner">
         <section class="landing-hero">

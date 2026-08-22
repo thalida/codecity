@@ -3,17 +3,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readUrlView } from '@/router/viewParams';
 import { RECENTS, EXCLUDES } from '@/state/stores/source';
 import type { TimelineBundle } from '@/types';
-import { StubEventSource, installEventSource } from '../_helpers/eventSource';
-import { flush } from '../_helpers/preact';
+import { StubEventSource, installEventSource } from '../../_helpers/eventSource';
+import { flush } from '../../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { makeSession } from '../_helpers/city';
+import { makeSession } from '../../_helpers/city';
 import { attachUrlBinding } from '@/router/urlBinding';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
 
-describe('useManifestSource loadSource cancellation', () => {
+describe('CityLoader loadSource cancellation', () => {
   let restoreEventSource: () => void;
 
   beforeEach(() => {

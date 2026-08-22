@@ -1,5 +1,5 @@
 // city/components/gem/index.ts — the root gem component: rebuilds the inner
-// mesh off cityState.rootStreet, repaints on GEM Saves, animates in tick().
+// mesh off sceneState.rootStreet, repaints on GEM Saves, animates in tick().
 // Built before the picker/camera exist, so it reads ctx.picker only in
 // tick() (live by the first frame), never at construction.
 
@@ -55,7 +55,7 @@ export interface Gem extends SceneComponent {
 }
 
 export function createGem(ctx: SceneContext): Gem {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   // Persistent outer group — added to the scene once. rebuild() swaps the
   // inner gem in and out of this group.
   const group = new THREE.Group();
@@ -95,7 +95,7 @@ export function createGem(ctx: SceneContext): Gem {
   // untracked() is load-bearing: createRootGem reads GEM.value, and a GEM
   // subscription would recreate the pickable body sans cityRevision bump.
   const stopLayout = effect(() => {
-    const rootStreet = cityState.rootStreet.value;
+    const rootStreet = sceneState.rootStreet.value;
     if (rootStreet) untracked(() => rebuild(rootStreet));
   });
 

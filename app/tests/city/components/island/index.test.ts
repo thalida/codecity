@@ -6,9 +6,9 @@ import { ISLAND } from '@/state/settings/fields/island';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneContext } from '@/city/types';
 
-// Island reads only ctx.cityState at construction (latestWorldBounds starts
+// Island reads only ctx.sceneState at construction (latestWorldBounds starts
 // null → the bounds effect is a no-op until setBounds drives it directly here).
-const fakeCtx = { cityState: makeCityState() } as unknown as SceneContext;
+const fakeCtx = { sceneState: makeCityState() } as unknown as SceneContext;
 
 describe('createIsland', () => {
   beforeEach(() => {

@@ -13,10 +13,10 @@ import { setBuildingsTranslucent } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
-import type { CityState } from '@/city/state';
+import type { CitySceneState } from '@/city/state';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
-// handle; the street-by-dir lookup comes from cityState directly.
+// handle; the street-by-dir lookup comes from sceneState directly.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
   getFacadePanels(): InstancedFacadePanels | null;
@@ -24,12 +24,12 @@ interface FaderWorld {
 
 export function createBuildingFader({
   world,
-  cityState,
+  sceneState,
   picker,
   timeline,
 }: {
   world: FaderWorld;
-  cityState: CityState;
+  sceneState: CitySceneState;
   picker: ReturnType<typeof createPicker>;
   /** This city's history, when something scrubs it. */
   timeline: TimelineStore | null;
@@ -42,7 +42,7 @@ export function createBuildingFader({
     const hov = picker.hover.value;
 
     const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
-    const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap.peek());
+    const dirTarget = resolveDirTarget(sel, hov, sceneState.streetsByDirMap.peek());
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
     const fadeCfg = BUILDINGS.value;
@@ -106,7 +106,7 @@ export function createBuildingFader({
   // A rebuild resets iFade to opaque while the selection still stands.
   // untracked: _sweepAll's own reads would double this up with the effects above.
   const _unsubChange = effect(() => {
-    void cityState.cityRevision.value;
+    void sceneState.cityRevision.value;
     untracked(_sweepAll);
   });
 

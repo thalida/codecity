@@ -52,10 +52,10 @@ export function islandSeedFromBounds(b: WorldBounds): number {
   return h >>> 0;
 }
 
-// Reads only ctx.cityState (to size itself reactively off latestWorldBounds —
+// Reads only ctx.sceneState (to size itself reactively off latestWorldBounds —
 // see the bounds effect below); no picker/camera/renderer needed at construction.
 export function createIsland(ctx: SceneContext): Island {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   let currentBounds = getWorldBounds(null);
   // No city yet, so no ground: the fallback rectangle exists to give the mesh a
   // shape, not to paint an island over whatever the view put behind the canvas.
@@ -98,7 +98,7 @@ export function createIsland(ctx: SceneContext): Island {
   // The bounds reference is stable across a reuse apply, so this fires on real
   // changes only, with no gate of its own.
   const stopBounds = effect(() => {
-    const bounds = cityState.latestWorldBounds.value;
+    const bounds = sceneState.latestWorldBounds.value;
     if (bounds) setBounds(bounds);
   });
 

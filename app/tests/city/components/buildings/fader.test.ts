@@ -97,16 +97,16 @@ function makeFader(opts: {
 
   // The fader resolves a selection's parent dir through streetsByDirMap, so the
   // streets have to be seeded for any dirTarget lookup to land.
-  const cityState = makeCityState();
+  const sceneState = makeCityState();
   if (opts.streetByDir) {
-    cityState.layout.value = {
+    sceneState.layout.value = {
       streets: [...opts.streetByDir.values()],
       buildings: [],
     } as unknown as CityLayout;
-    cityState.structureRevision.value++;
+    sceneState.structureRevision.value++;
   }
 
-  const fader = createBuildingFader({ world, cityState, picker, timeline: session.timeline });
+  const fader = createBuildingFader({ world, sceneState, picker, timeline: session.timeline });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);

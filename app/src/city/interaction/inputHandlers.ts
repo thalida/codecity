@@ -24,14 +24,14 @@ import type { PickTarget } from '@/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
-import type { CityState } from '../state';
+import type { CitySceneState } from '../state';
 
 export function createInputHandlers({
   canvas,
   picker,
   rig,
   renderer,
-  cityState,
+  sceneState,
   timeline,
   showTooltip,
   hideTooltip,
@@ -42,7 +42,7 @@ export function createInputHandlers({
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
-  cityState: CityState;
+  sceneState: CitySceneState;
   /** This city's history, for the hover readout at a scrubbed commit. */
   timeline: TimelineStore | null;
   showTooltip: (content: TooltipContent, x: number, y: number) => void;
@@ -99,7 +99,7 @@ export function createInputHandlers({
     }
 
     // peek: a hover handler wants the current name, never a subscription.
-    const rootName = cityState.manifest.peek()?.tree?.name ?? null;
+    const rootName = sceneState.manifest.peek()?.tree?.name ?? null;
     const scrubLines =
       newHover?.kind === NodeKind.File && newHover.file?.path != null
         ? (timeline?.scrubbedStatsFor(newHover.file.path)?.lines ?? null)

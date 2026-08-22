@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker } from '@/city/interaction/picker';
-import { createCityState } from '@/city/state';
+import { createCitySceneState } from '@/city/state';
 import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
@@ -29,12 +29,12 @@ function makeTrees(count = 3): { trees: Trees; commits: ReturnType<typeof commit
 }
 
 function makeWorld(initialTrees: Trees | null): PickerWorld & {
-  cityState: ReturnType<typeof createCityState>;
+  sceneState: ReturnType<typeof createCitySceneState>;
   triggerRebuild(): void;
   setTrees(t: Trees | null): void;
 } {
   // A city rebuild bumps cityRevision, which is what the picker re-resolves on.
-  const cityState = makeCityState();
+  const sceneState = makeCityState();
   let currentTrees = initialTrees;
   const api: PickerWorld = {
     getStreetPickables: () => [],
@@ -47,9 +47,9 @@ function makeWorld(initialTrees: Trees | null): PickerWorld & {
     getTrees: () => currentTrees,
   };
   return Object.assign(api, {
-    cityState,
+    sceneState,
     triggerRebuild() {
-      cityState.cityRevision.value++;
+      sceneState.cityRevision.value++;
     },
     setTrees(t: Trees | null) {
       currentTrees = t;
@@ -82,7 +82,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
 
@@ -103,7 +103,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     expect(p.interpretHit(treeHit(trees, 0))).toBeNull();
@@ -119,7 +119,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
 
@@ -143,7 +143,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
 
@@ -165,7 +165,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     // The key is the picker's own now, so hydration is setting it on the one
@@ -189,7 +189,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     p.setSelection(p.interpretHit(treeHit(treesA, 1)));
@@ -217,7 +217,7 @@ describe('picker: tree commit picking', () => {
       canvas,
       camera: FAKE_CAMERA,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     p.selectionKey.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };

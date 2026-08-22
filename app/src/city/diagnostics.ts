@@ -1,5 +1,5 @@
 // city/diagnostics.ts — the console diagnostics and the formatters they print
-// through. The entry points read cityState; the formatters read nothing but
+// through. The entry points read sceneState; the formatters read nothing but
 // their arguments, so they test in isolation.
 
 import * as THREE from 'three';
@@ -8,11 +8,11 @@ import { findLayoutOverlaps, LayoutOverlapCategory } from './layout/overlaps';
 import type { LayoutOverlap } from './layout/overlaps';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
 import type { WorldRect } from './layout/occupancyIndex';
-import type { CityState } from './state';
+import type { CitySceneState } from './state';
 
 // Unexpected overlaps warn with a line each; a clean run logs a summary.
-export function runCollisionCheck(cityState: CityState): void {
-  const layout = cityState.layout.value;
+export function runCollisionCheck(sceneState: CitySceneState): void {
+  const layout = sceneState.layout.value;
   if (!layout) {
     console.warn('[collision] no layout — apply a manifest first');
     return;
@@ -32,8 +32,8 @@ export function runCollisionCheck(cityState: CityState): void {
 
 // Re-run layout with tracing on the current manifest and print the stem-
 // placement trace. No-ops with a warning when no manifest has been applied yet.
-export function runStemPlacementDiagnostic(cityState: CityState): void {
-  const m = cityState.manifest.value;
+export function runStemPlacementDiagnostic(sceneState: CitySceneState): void {
+  const m = sceneState.manifest.value;
   if (!m) {
     console.warn('[stem-diag] no manifest — apply one first');
     return;

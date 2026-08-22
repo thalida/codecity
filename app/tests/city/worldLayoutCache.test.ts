@@ -42,7 +42,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     session.manifest.set(stubManifest as unknown as Manifest);
 
     detach = attachSettingsReactions({
-      city: {
+      scene: {
         manifest: signal(stubManifest as unknown as Manifest),
         async repack() {
           calls.push('rebuildScene');
@@ -51,7 +51,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
           calls.push('invalidateLayoutCache');
         },
       },
-      report: session.progress.reporter,
+      report: session.progress,
     });
 
     // What Save does: commit() fires setKey on the real store, which is what

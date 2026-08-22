@@ -12,19 +12,19 @@ import type { TimelineStore } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { CommitEntry, PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
-import type { CityState } from '@/city/state';
+import type { CitySceneState } from '@/city/state';
 
 export function createPicker({
   canvas,
   camera,
   world,
-  cityState,
+  sceneState,
   timeline,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   world: PickerWorld;
-  cityState: CityState;
+  sceneState: CitySceneState;
   /** This city's history, when something scrubs it. */
   timeline: TimelineStore | null;
 }) {
@@ -172,7 +172,7 @@ export function createPicker({
   // Rebuild reaction: untracked() keeps this subscribed ONLY to
   // cityRevision — the body reads/writes signals that would re-fire it.
   const _disposeCityRevEffect = effect(() => {
-    void cityState.cityRevision.value;
+    void sceneState.cityRevision.value;
     untracked(() => {
       _clearHoverOnRebuild();
       _resolveKeyToSelection();
@@ -239,7 +239,7 @@ export function createPicker({
   /** The commit itself, for one the city drew no tree for. Timeline's list is
    *  the one the scrubber names; Live's comes off the manifest. */
   function _commitBySha(sha: string): CommitEntry | null {
-    const commits = timeline?.bundle.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
+    const commits = timeline?.bundle.peek()?.commits ?? sceneState.manifest.peek()?.commits ?? [];
     return commits.find((c) => c.sha === sha) ?? null;
   }
 

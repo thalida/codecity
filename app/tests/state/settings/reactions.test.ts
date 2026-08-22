@@ -25,14 +25,14 @@ describe('attachSettingsReactions routing', () => {
     const manifest = { tree: {} } as unknown as Manifest;
     session.manifest.set(manifest);
     detach = attachSettingsReactions({
-      city: {
+      scene: {
         manifest: signal(manifest),
         repack: async () => {
           rebuildCalls++;
         },
         invalidateLayoutCache: () => {},
       },
-      report: session.progress.reporter,
+      report: session.progress,
     });
   });
 

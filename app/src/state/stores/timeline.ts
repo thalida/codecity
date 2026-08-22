@@ -3,7 +3,7 @@
 // position implies. Derived reads live beside the position they read because
 // resetting the mode moves it, so splitting them would make the two files cyclic.
 
-import { signal, batch, computed, effect, type ReadonlySignal, type Signal } from '@preact/signals';
+import { signal, batch, computed, effect, type ReadonlySignal } from '@preact/signals';
 import type { DirNode, Manifest, TimelineBundle, TreeNode } from '@/types';
 import { NodeKind } from '@/types';
 import { parseDateMs, epochDayAt } from '@/utils/dates';
@@ -197,72 +197,38 @@ function _rebuildAt(
   } as TreeNode;
 }
 
-export interface TimelineStore {
+/** The history ONE city is being looked at through. Its own, so a second city
+ *  scrubs its own past. */
+export class TimelineStore {
   /** Distinct render mode (union city + scrub). */
-  readonly mode: Signal<boolean>;
-  readonly bundle: Signal<TimelineBundle | null>;
-  /** Float commit index, clamped against the loaded bundle, so scrubbing
-   *  interpolates and a bundle swap cannot strand it out of range. */
-  readonly scrubPos: ReadonlySignal<number>;
-  /** Highest valid index, 0 when there is no bundle. */
-  readonly scrubMax: ReadonlySignal<number>;
-  /** Today, when it is later than the last commit; null when it is not. */
-  readonly todayMs: ReadonlySignal<number | null>;
-  /** The whole commit scrubPos lands on. */
-  readonly scrubCommit: ReadonlySignal<number>;
+  readonly mode = signal(false);
+  readonly bundle = signal<TimelineBundle | null>(null);
   /** Anything that would reflow the layout waits for this to clear, or the
    *  track resizes under the pointer mid-drag and the position jumps. */
-  readonly dragging: Signal<boolean>;
-  /** The commit content fetches key on: follows the scrub but holds still
+  readonly dragging = signal(false);
+  /** What the content fetches key on: follows the scrub but holds still
    *  mid-drag, so dragging a long history doesn't refetch per commit crossed. */
-  readonly settledCommit: Signal<number>;
+  readonly settledCommit = signal(0);
   /** The same rest point as a position: settledCommit caps at the newest
    *  commit, so it cannot tell that stop from the today stop past it. */
-  readonly settledPos: Signal<number>;
-  /** The tree the panes render: the union filtered to what exists at the
-   *  scrub, or this project's live manifest outside the mode. */
-  readonly paneManifest: ReadonlySignal<ManifestValue>;
-  readonly presentPaths: ReadonlySignal<ReadonlySet<string>>;
-  /** The only way to move the scrubber; a readonly scrubPos makes bypassing it
-   *  a type error. */
-  setScrubPos(pos: number): void;
-  /** The moment Timeline treats as now. Set on entry; tests pin it. */
-  setTodayMs(ms: number): void;
-  /** Called BEFORE the union city is packed: the mode tells the scene layer
-   *  whose city to pack. The position follows, once its bundle is loaded. */
-  begin(): void;
-  /** Shared by every exit path (toggle-off, source switch); scene-free. */
-  reset(): void;
-  /** A file's measures at the scrub position, or at its deletion if gone. */
-  scrubbedStatsFor(path: string): ScrubbedFileStats | null;
-  /** Blob sha for a path at the scrub position; null in Live or when absent. */
-  scrubbedBlobShaFor(path: string | null | undefined): string | null;
-  /** No content to fetch here, so callers must NOT fall back to a by-path read:
-   *  that hits HEAD, where a union file may not exist (#122). */
-  hasNoContentAtScrub(path: string | null | undefined): boolean;
-  /** A directory at the settled commit: the union's structure, every measure
-   *  re-added from the per-blob numbers the buildings use. Null in Live. */
-  scrubbedDirFor(path: string): DirNode | null;
-  dispose(): void;
-}
+  readonly settledPos = signal(0);
 
-export function createTimelineStore({ manifest }: { manifest: ManifestStore }): TimelineStore {
-  const mode = signal(false);
-  const bundle = signal<TimelineBundle | null>(null);
+  /** Read once per Timeline entry rather than per frame: the stop today sits
+   *  at has to hold still while it is being scrubbed to. */
+  private readonly today = signal(Date.now());
+  private readonly rawPos = signal(0);
 
   /** How many commits the loaded bundle holds. */
-  const commitCount = computed(() => bundle.value?.commits.length ?? 0);
+  private readonly commitCount = computed(() => this.bundle.value?.commits.length ?? 0);
 
-  /** Read once per Timeline entry rather than per frame: the stop today sits at
-   *  has to hold still while it is being scrubbed to. */
-  const _todayMs = signal(Date.now());
-
-  const todayMs = computed<number | null>(() => {
-    const loaded = bundle.value;
+  /** Today, when it is later than the last commit: the city goes on aging
+   *  after the last thing anyone committed. Null when the newest IS today. */
+  readonly todayMs = computed<number | null>(() => {
+    const loaded = this.bundle.value;
     if (!loaded || loaded.commits.length === 0) return null;
     // Parsed the way the bar prints dates, so the stop lands on the day it names.
     const newest = parseDateMs(loaded.commits[loaded.commits.length - 1].date);
-    const today = _todayMs.value;
+    const today = this.today.value;
     if (!Number.isFinite(newest)) return null;
     // Whole days: a commit from this morning is not a stop away from now, and a
     // track ending hours past its last tick reads as a rounding error.
@@ -270,51 +236,35 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
   });
 
   /** One past the last commit when today is a stop of its own. */
-  const scrubMax = computed(
-    () => Math.max(0, commitCount.value - 1) + (todayMs.value === null ? 0 : 1)
+  readonly scrubMax = computed(
+    () => Math.max(0, this.commitCount.value - 1) + (this.todayMs.value === null ? 0 : 1)
   );
 
-  const _scrubPos = signal(0);
-
-  // Clamped against the current bundle, not at each write, so a bundle swap
-  // alone can't leave a stale position out of range. Readers never clamp.
-  const scrubPos: ReadonlySignal<number> = computed(() =>
-    Math.min(Math.max(_scrubPos.value, 0), scrubMax.value)
+  /** Clamped against the current bundle, not at each write, so a bundle swap
+   *  alone can't leave a stale position out of range. Readers never clamp. */
+  readonly scrubPos: ReadonlySignal<number> = computed(() =>
+    Math.min(Math.max(this.rawPos.value, 0), this.scrubMax.value)
   );
 
-  // The whole commit scrubPos lands on, so anything keyed on presence
-  // recomputes once a crossing. Capped: past the last, the city is still its.
-  const scrubCommit = computed(() =>
-    Math.min(Math.floor(scrubPos.value), Math.max(0, commitCount.value - 1))
+  /** The whole commit scrubPos lands on, so anything keyed on presence
+   *  recomputes once a crossing. Capped: past the last, the city is still its. */
+  readonly scrubCommit = computed(() =>
+    Math.min(Math.floor(this.scrubPos.value), Math.max(0, this.commitCount.value - 1))
   );
 
-  const dragging = signal(false);
-  const settledCommit = signal(0);
-  const settledPos = signal(0);
-
-  const stopSettle = effect(() => {
-    const commit = scrubCommit.value;
-    const pos = scrubPos.value;
-    if (dragging.value) return;
-    batch(() => {
-      settledCommit.value = commit;
-      settledPos.value = pos;
-    });
-  });
-
-  // Timelines depend only on the bundle — rebuilt when it changes, NOT per
-  // scrub. (A second copy from the scrub controller's; both are pure reads.)
-  const _timelines = computed<Map<string, PathTimeline> | null>(() => {
-    const loaded = bundle.value;
+  /** Timelines depend only on the bundle — rebuilt when it changes, NOT per
+   *  scrub. (A second copy from the scrub controller's; both are pure reads.) */
+  private readonly timelines = computed<Map<string, PathTimeline> | null>(() => {
+    const loaded = this.bundle.value;
     return loaded ? buildPathTimelines(loaded) : null;
   });
 
-  const presentPaths: ReadonlySignal<ReadonlySet<string>> = computed(() => {
-    if (!mode.value) return EMPTY;
-    const loaded = bundle.value;
-    const timelines = _timelines.value;
+  readonly presentPaths: ReadonlySignal<ReadonlySet<string>> = computed(() => {
+    if (!this.mode.value) return EMPTY;
+    const loaded = this.bundle.value;
+    const timelines = this.timelines.value;
     if (!loaded || !timelines) return EMPTY;
-    const pos = scrubCommit.value;
+    const pos = this.scrubCommit.value;
     const tree = (loaded.unionManifest as unknown as { tree?: TreeNode }).tree;
     if (!tree) return EMPTY;
     const out = new Set<string>();
@@ -322,9 +272,11 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
     return out;
   });
 
-  const paneManifest: ReadonlySignal<ManifestValue> = computed(() => {
-    const loaded = bundle.value;
-    if (!mode.value || !loaded) return manifest.current.value;
+  /** The tree the panes render: the union filtered to what exists at the
+   *  scrub, or this city's live manifest outside the mode. */
+  readonly paneManifest: ReadonlySignal<ManifestValue> = computed(() => {
+    const loaded = this.bundle.value;
+    if (!this.mode.value || !loaded) return this.manifest.current.value;
 
     const union = loaded.unionManifest as unknown as ManifestValue;
     const tree = (union as { tree?: DirNode } | null)?.tree;
@@ -332,7 +284,7 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
 
     // Root always stays (an empty tree still needs a container); its children
     // are filtered to the present-at-scrub subtrees.
-    const present = presentPaths.value;
+    const present = this.presentPaths.value;
     const children: TreeNode[] = [];
     for (const child of tree.children ?? []) {
       const kept = _filterPresent(child, present);
@@ -341,35 +293,83 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
     return { ...(union as object), tree: { ...tree, children } } as unknown as ManifestValue;
   });
 
-  function setScrubPos(pos: number): void {
-    _scrubPos.value = pos;
+  private readonly stopSettle: () => void;
+
+  constructor(private readonly manifest: ManifestStore) {
+    this.stopSettle = effect(() => {
+      const commit = this.scrubCommit.value;
+      const pos = this.scrubPos.value;
+      if (this.dragging.value) return;
+      batch(() => {
+        this.settledCommit.value = commit;
+        this.settledPos.value = pos;
+      });
+    });
   }
 
-  // .value, not .peek(): the footer reads these in render. At the SETTLED
-  // commit, so the number always describes the blob the content fetch serves.
-  function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
-    if (!mode.value) return null;
-    const pt = _timelines.value?.get(path);
+  /** The only way to move the scrubber; a readonly scrubPos makes bypassing it
+   *  a type error. */
+  setScrubPos = (pos: number): void => {
+    this.rawPos.value = pos;
+  };
+
+  /** The moment Timeline treats as now. Set on entry; tests pin it. */
+  setTodayMs = (ms: number): void => {
+    this.today.value = ms;
+  };
+
+  /** Called BEFORE the union city is packed: the mode tells the scene layer
+   *  whose city to pack. The position follows, once its bundle is loaded. */
+  begin = (): void => {
+    batch(() => {
+      this.mode.value = true;
+      this.today.value = Date.now();
+    });
+  };
+
+  /** Shared by every exit path (toggle-off, source switch); scene-free. */
+  reset = (): void => {
+    batch(() => {
+      this.mode.value = false;
+      this.setScrubPos(0);
+      this.bundle.value = null;
+      this.dragging.value = false;
+    });
+  };
+
+  /** A file's measures at the scrub position, or at its deletion if gone.
+   *  .value, not .peek(): the footer reads this in render. */
+  scrubbedStatsFor = (path: string): ScrubbedFileStats | null => {
+    if (!this.mode.value) return null;
+    const pt = this.timelines.value?.get(path);
     if (!pt) return null;
-    const pos = settledCommit.value;
+    const pos = this.settledCommit.value;
     const gone = statsAtDeletion(pt, pos);
     if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
     const entry = entryAt(pt, pos);
     if (!entry) return null;
     return { lines: entry.lines, bytes: entry.bytes, atDeletion: false };
-  }
+  };
 
-  function scrubbedBlobShaFor(path: string | null | undefined): string | null {
-    if (!path || !mode.value) return null;
-    const pt = _timelines.value?.get(path);
-    // Settled, not live: content fetches wait for the drag to end.
-    return pt ? blobShaAt(pt, settledCommit.value) : null;
-  }
+  /** Blob sha for a path at the scrub position; null in Live or when absent.
+   *  Settled, not live: content fetches wait for the drag to end. */
+  scrubbedBlobShaFor = (path: string | null | undefined): string | null => {
+    if (!path || !this.mode.value) return null;
+    const pt = this.timelines.value?.get(path);
+    return pt ? blobShaAt(pt, this.settledCommit.value) : null;
+  };
 
-  function scrubbedDirFor(path: string): DirNode | null {
-    if (!mode.value) return null;
-    const loaded = bundle.value;
-    const timelines = _timelines.value;
+  /** No content to fetch here, so callers must NOT fall back to a by-path read:
+   *  that hits HEAD, where a union file may not exist (#122). */
+  hasNoContentAtScrub = (path: string | null | undefined): boolean =>
+    this.mode.value && this.scrubbedBlobShaFor(path) === null;
+
+  /** A directory at the settled commit: the union's structure, every measure
+   *  re-added from the per-blob numbers the buildings use. Null in Live. */
+  scrubbedDirFor = (path: string): DirNode | null => {
+    if (!this.mode.value) return null;
+    const loaded = this.bundle.value;
+    const timelines = this.timelines.value;
     if (!loaded || !timelines) return null;
     const union = (loaded.unionManifest as unknown as { tree?: TreeNode }).tree;
     if (!union) return null;
@@ -378,44 +378,15 @@ export function createTimelineStore({ manifest }: { manifest: ManifestStore }): 
     if (!node || node.type !== NodeKind.Directory) return null;
 
     const commitDates = loaded.commits.map((c) => (c as { date?: string }).date);
-    const rebuilt = _rebuildAt(node, settledCommit.value, timelines, commitDates, _emptyRollup());
+    const rebuilt = _rebuildAt(
+      node,
+      this.settledCommit.value,
+      timelines,
+      commitDates,
+      _emptyRollup()
+    );
     return (rebuilt as DirNode | null) ?? null;
-  }
-
-  return {
-    mode,
-    bundle,
-    scrubPos,
-    scrubMax,
-    todayMs,
-    scrubCommit,
-    dragging,
-    settledCommit,
-    settledPos,
-    paneManifest,
-    presentPaths,
-    setScrubPos,
-    setTodayMs: (ms) => {
-      _todayMs.value = ms;
-    },
-    begin() {
-      batch(() => {
-        mode.value = true;
-        _todayMs.value = Date.now();
-      });
-    },
-    reset() {
-      batch(() => {
-        mode.value = false;
-        setScrubPos(0);
-        bundle.value = null;
-        dragging.value = false;
-      });
-    },
-    scrubbedStatsFor,
-    scrubbedBlobShaFor,
-    hasNoContentAtScrub: (path) => mode.value && scrubbedBlobShaFor(path) === null,
-    scrubbedDirFor,
-    dispose: stopSettle,
   };
+
+  dispose = (): void => this.stopSettle();
 }

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createPathLine } from '@/city/components/pathLine';
-import { createCityState } from '@/city/state';
+import { createCitySceneState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
@@ -44,20 +44,20 @@ const SRC_STREET = {
 // Seeded with SRC_STREET so the computeds resolve. gemWorldPos.peek() is spied
 // because one peek per line-update pass is what the untracked tests observe.
 function makeSeeded(): {
-  cityState: ReturnType<typeof createCityState>;
+  sceneState: ReturnType<typeof createCitySceneState>;
   counters: { gemPosCalls: number };
 } {
-  const cityState = makeCityState();
-  cityState.layout.value = { streets: [SRC_STREET], buildings: [] } as unknown as CityLayout;
-  cityState.structureRevision.value++;
+  const sceneState = makeCityState();
+  sceneState.layout.value = { streets: [SRC_STREET], buildings: [] } as unknown as CityLayout;
+  sceneState.structureRevision.value++;
   const counters = { gemPosCalls: 0 };
-  const gemSig = cityState.gemWorldPos;
+  const gemSig = sceneState.gemWorldPos;
   const origPeek = gemSig.peek.bind(gemSig);
   (gemSig as { peek: () => THREE.Vector3 | null }).peek = () => {
     counters.gemPosCalls++;
     return origPeek();
   };
-  return { cityState, counters };
+  return { sceneState, counters };
 }
 
 function dirTarget(): PickTarget {
@@ -87,14 +87,14 @@ describe('createPathLine() component door', () => {
   });
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
-    const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { sceneState, counters } = makeSeeded();
+    const { ctx, selection } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
     // Not armed → the rebuild effect doesn't exist yet, so a cityRevision bump
     // recomputes nothing (getGemWorldPos is never called).
-    cityState.cityRevision.value++;
+    sceneState.cityRevision.value++;
     expect(counters.gemPosCalls).toBe(0);
     // A selection set before the first tick produces no line (not armed) —
     // and a STREETS Save is safe (theme effect no-ops over the null inner).
@@ -104,15 +104,15 @@ describe('createPathLine() component door', () => {
   });
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
-    const { cityState, counters } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState);
+    const { sceneState, counters } = makeSeeded();
+    const { ctx } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
     // The rebuild effect is live: a cityRevision bump recomputes the lines
     // (getGemWorldPos is called from _updatePathLine + _updateHoverPathLine).
     const before = counters.gemPosCalls;
-    cityState.cityRevision.value++;
+    sceneState.cityRevision.value++;
     expect(counters.gemPosCalls).toBeGreaterThan(before);
     // Second tick does not re-arm (still two lines).
     comp.tick(0, FRAME());
@@ -120,8 +120,8 @@ describe('createPathLine() component door', () => {
   });
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
-    const { cityState } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { sceneState } = makeSeeded();
+    const { ctx, selection } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
@@ -139,8 +139,8 @@ describe('createPathLine() component door', () => {
   });
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
-    const { cityState } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState);
+    const { sceneState } = makeSeeded();
+    const { ctx } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
@@ -154,8 +154,8 @@ describe('createPathLine() component door', () => {
   });
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
-    const { cityState, counters } = makeSeeded();
-    const { ctx, hover } = makePickableSceneContext(cityState);
+    const { sceneState, counters } = makeSeeded();
+    const { ctx, hover } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -167,8 +167,8 @@ describe('createPathLine() component door', () => {
   });
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
-    const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { sceneState, counters } = makeSeeded();
+    const { ctx, selection } = makePickableSceneContext(sceneState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -177,7 +177,7 @@ describe('createPathLine() component door', () => {
     // After dispose the rebuild effect is dead: a cityRevision bump no longer
     // recomputes (getGemWorldPos is not called).
     const after = counters.gemPosCalls;
-    cityState.cityRevision.value++;
+    sceneState.cityRevision.value++;
     expect(counters.gemPosCalls).toBe(after);
     // And picker/theme writes over the disposed inner are inert.
     expect(() => {

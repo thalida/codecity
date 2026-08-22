@@ -42,7 +42,7 @@ function makePrePickerCtx(): SceneContext {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    cityState: makeCityState(),
+    sceneState: makeCityState(),
   } as unknown as SceneContext;
 }
 
@@ -149,7 +149,7 @@ describe('createBuildings()', () => {
     const { ctx } = makePickableSceneContext(undefined, {
       store: session.timeline,
       liveManifest: () => null,
-      repack: () => Promise.resolve(),
+      reassemble: () => Promise.resolve(),
     });
     buildings = createBuildings(ctx);
     session.timeline.mode.value = true;

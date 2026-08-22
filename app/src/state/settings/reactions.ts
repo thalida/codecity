@@ -12,9 +12,9 @@ import type { CityScene } from '@/city/types';
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface SettingsReactionsOpts {
-  /** The city to re-pack. It knows what it is showing and how to rebuild it,
+  /** The scene to re-pack. It knows what it is showing and how to rebuild it,
    *  which is why nothing here has to be told either. */
-  city: Pick<CityScene, 'manifest' | 'repack' | 'invalidateLayoutCache'>;
+  scene: Pick<CityScene, 'manifest' | 'repack' | 'invalidateLayoutCache'>;
   /** That city's status channel, so a Save to one nobody is waiting for cannot
    *  drive the readouts describing the one they are. */
   report: BuildReporter;
@@ -25,7 +25,7 @@ interface SettingsReactionsOpts {
 const REBUILD_SIGNATURE = computed(() => routeSignature(ChangeRoute.Rebuild));
 const REFRESH_SIGNATURE = computed(() => routeSignature(ChangeRoute.Refresh));
 
-export function attachSettingsReactions({ city, report }: SettingsReactionsOpts): () => void {
+export function attachSettingsReactions({ scene, report }: SettingsReactionsOpts): () => void {
   // Effects fire synchronously on first call. Suppress reactions until all
   // subscriptions are wired so the initial fire doesn't trigger a rebuild.
   let armed = false;
@@ -38,12 +38,12 @@ export function attachSettingsReactions({ city, report }: SettingsReactionsOpts)
     try {
       // Always invalidate: the manifest is unchanged, so reuseLayoutFrom would
       // skip the recompute and the setting would do nothing visible.
-      city.invalidateLayoutCache();
-      if (!city.manifest.peek()) {
+      scene.invalidateLayoutCache();
+      if (!scene.manifest.peek()) {
         report.markIdle(); // nothing on it to rebuild — settle immediately
         return;
       }
-      await city.repack();
+      await scene.repack();
       // Idle is owned by the trees decoration pass (markIdle), the last stage of
       // applyManifest — setting it here would stomp its Decorating state.
     } catch (err) {

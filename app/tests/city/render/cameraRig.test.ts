@@ -8,7 +8,7 @@ import { createCameraRig, CameraMode, FocusMode, type CameraRig } from '@/city/r
 import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, PickTarget, Street } from '@/types';
-import type { CityState } from '@/city/state';
+import type { CitySceneState } from '@/city/state';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { getDefault } from '@/state/persist';
 
@@ -16,8 +16,8 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
-// The rig frames off cityState, so seed a real bbox and root street.
-function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CityState {
+// The rig frames off sceneState, so seed a real bbox and root street.
+function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CitySceneState {
   const cs = makeCityState();
   cs.layout.value = {
     buildings: [{ x: 100, y: 0, w: 30, d: 30, h: 200 } as unknown as Building],
@@ -117,7 +117,7 @@ describe('cameraRig top-down focus', () => {
 
   it('a file target lands the camera at ~80° elevation centered on the building', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
     rig.update(16);
 
     const b = makeBuilding();
@@ -144,7 +144,7 @@ describe('cameraRig top-down focus', () => {
 
   it('a directory target lands the camera at ~80° elevation centered on the street', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
     rig.update(16);
     const s = makeStreet();
     rig.focusSelection(dirTarget(s));
@@ -174,7 +174,7 @@ describe('cameraRig top-down focus', () => {
       getTreeBoundsBySha: (sha: string) =>
         sha === 'abc' ? { x: 250, y: 0, z: -180, height: 100, radius: 30 } : null,
     });
-    const rig = createCameraRig({ canvas, deps, cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps, sceneState: seedFramedCity() });
     rig.update(16);
     rig.focusSelection(commitTarget('abc'));
     return new Promise<void>((resolve) => {
@@ -199,7 +199,7 @@ describe('cameraRig top-down focus', () => {
 
   it('a commit whose tree was never placed leaves the camera alone', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
     rig.focusSelection(commitTarget('missing-sha'));
@@ -217,7 +217,7 @@ describe('cameraRig top-down focus', () => {
 describe('cameraRig recenter focus', () => {
   it('centres the building with the camera angle and distance untouched', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
     rig.update(16); // the opening framing, i.e. the pose a load rests at
 
     const before = rig.camera.position.clone().sub(rig.controls.target);
@@ -238,7 +238,7 @@ describe('cameraRig recenter focus', () => {
 
   it('centres the street the same way', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
     rig.update(16);
 
     const before = rig.camera.position.clone().sub(rig.controls.target);
@@ -259,7 +259,7 @@ describe('cameraRig recenter focus', () => {
   // frame, so the one-shot opening framing is still pending when it runs.
   it('survives the first-frame framing when it lands before it', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), sceneState: seedFramedCity() });
 
     const b = makeBuilding();
     rig.focusSelection(fileTarget(b), FocusMode.Recenter);
@@ -278,8 +278,8 @@ describe('cameraRig home backdrop orbit', () => {
   // Every rig registers effects on the HOME_BACKDROP store, so a leaked one would
   // keep answering the next test's slider writes.
   const rigs: CameraRig[] = [];
-  function makeRig(cityState: CityState, mode = CameraMode.Backdrop): CameraRig {
-    const rig = createCameraRig({ canvas: makeCanvas(), deps: makeStubWorld(), cityState, mode });
+  function makeRig(sceneState: CitySceneState, mode = CameraMode.Backdrop): CameraRig {
+    const rig = createCameraRig({ canvas: makeCanvas(), deps: makeStubWorld(), sceneState, mode });
     rigs.push(rig);
     return rig;
   }
@@ -314,7 +314,7 @@ describe('cameraRig home backdrop orbit', () => {
   // The property the slider has to have: one value means one framing, on any
   // project. Against the city's extent, 0.1 varied by an order of magnitude.
   it('puts a value at the same distance whatever the city sprawls to', () => {
-    const at = (cs: CityState, t: number): number => {
+    const at = (cs: CitySceneState, t: number): number => {
       const rig = makeRig(cs);
       HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: t };
       return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
@@ -439,7 +439,7 @@ describe('cameraRig start framing', () => {
     const narrow = createCameraRig({
       canvas: makeCanvas(),
       deps: labelDeps(40),
-      cityState: seedFramedCity(),
+      sceneState: seedFramedCity(),
     });
     narrow.update(16);
     const narrowPos = narrow.camera.position.clone();
@@ -447,7 +447,7 @@ describe('cameraRig start framing', () => {
     const wide = createCameraRig({
       canvas: makeCanvas(),
       deps: labelDeps(4000),
-      cityState: seedFramedCity(),
+      sceneState: seedFramedCity(),
     });
     wide.update(16);
     const widePos = wide.camera.position.clone();

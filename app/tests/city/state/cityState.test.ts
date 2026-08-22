@@ -1,8 +1,6 @@
-// Unit coverage for the per-city signals object that replaced the old mutable
-// cityState bag. Asserts: independent instances, the four source signals are
-// settable, and the two computeds (rootStreet / gemWorldPos) derive off layout
-// exactly as the old _computeRootStreetAndGem did — including the
-// orientation-aware gem anchor math for BOTH axes and the null cases.
+// The per-city signals object: independent instances, four settable source
+// signals, and two computeds (rootStreet / gemWorldPos) deriving off layout,
+// gem anchor math on both axes and the null cases included.
 
 import { describe, it, expect } from 'vitest';
 import { StreetAxis, NodeKind } from '@/types';
@@ -36,7 +34,7 @@ function applyStructure(cs: ReturnType<typeof makeCityState>, layout: CityLayout
   cs.structureRevision.value++;
 }
 
-describe('createCityState', () => {
+describe('createCitySceneState', () => {
   it('constructs independent instances (not a module singleton)', () => {
     const a = makeCityState();
     const b = makeCityState();
@@ -180,9 +178,8 @@ describe('createCityState', () => {
       expect(cs.tallestBuilding.value).toBe(tall);
     });
 
-    // Crux of #62: a reuse apply (skeleton placeholder → real heights) reassigns
-    // `layout` without bumping structureRevision, so tallestBuilding must track
-    // `layout` or it'd frame to the stale placeholder height.
+    // A reuse apply reassigns `layout` without bumping structureRevision, so
+    // tallestBuilding must track `layout` or frame the placeholder height.
     it('updates when layout is reassigned without a structureRevision bump', () => {
       const cs = makeCityState();
       cs.layout.value = layoutOf([bld({ h: 20 })]); // skeleton placeholder height

@@ -9,7 +9,7 @@ import type { CityTimelineBinding, SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { createCityState, type CityState } from '@/city/state';
+import { createCitySceneState, type CitySceneState } from '@/city/state';
 import { commits } from './commits';
 import { makeSession } from './city';
 
@@ -24,17 +24,17 @@ const STUB_LAYOUT_CLIENT = {
 };
 
 /** A placement client that places no trees. The build calls it, so every
- *  cityState needs one, but only the placement tests care what it returns. */
+ *  sceneState needs one, but only the placement tests care what it returns. */
 export function stubPlacementClient(placements: unknown[] = []) {
   return { compute: () => Promise.resolve(placements), dispose: () => {} };
 }
 
-/** cityState with no-op build workers, for tests that don't drive applyManifest. */
-export function makeCityState(): CityState {
-  return createCityState(
+/** sceneState with no-op build workers, for tests that don't drive applyManifest. */
+export function makeCityState(): CitySceneState {
+  return createCitySceneState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
-    session.progress.reporter
+    session.progress
   );
 }
 
@@ -50,21 +50,21 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
 
 /** SceneContext for components that never touch the picker; camera/renderer are
  *  null (jsdom can't build a WebGL renderer, and nothing under test reads them). */
-export function makeSceneContext(cityState: CityState = makeCityState()): SceneContext {
+export function makeSceneContext(sceneState: CitySceneState = makeCityState()): SceneContext {
   return {
     scene: new THREE.Scene(),
     canvas: makeSizedCanvas().canvas,
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState,
+    sceneState,
   } as unknown as SceneContext;
 }
 
 /** SceneContext whose picker carries real signals, returned alongside them so a
  *  test can drive hover/selection and assert what the component does. */
 export function makePickableSceneContext(
-  cityState: CityState = makeCityState(),
+  sceneState: CitySceneState = makeCityState(),
   timeline: CityTimelineBinding | null = null
 ): {
   ctx: SceneContext;
@@ -79,7 +79,7 @@ export function makePickableSceneContext(
     scene: new THREE.Scene(),
     canvas,
     picker: { selection, hover } as unknown as Picker,
-    cityState,
+    sceneState,
     timeline,
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };

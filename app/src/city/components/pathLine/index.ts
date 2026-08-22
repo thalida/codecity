@@ -20,7 +20,7 @@ export interface PathLine extends SceneComponent {
 }
 
 export function createPathLine(ctx: SceneContext): PathLine {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   // Added to the scene once; the renderer parents its meshes in at arming.
   // Draw order comes from RENDER_ORDERS.PATH_LINE, not graph position.
   const group = new THREE.Group();
@@ -35,7 +35,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
       canvas: ctx.canvas,
       scene: group,
       picker: ctx.picker!,
-      cityState,
+      sceneState,
     });
     return [
       () => {
@@ -63,7 +63,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
   function dispose(): void {
     stopTheme();
     // Inner dispose (run via _arm's teardown) also stops its picker effects +
-    // its cityState rebuild effect.
+    // its sceneState rebuild effect.
     _arm.dispose();
   }
 

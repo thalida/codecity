@@ -4,11 +4,11 @@
 // App.tsx / the City component consume.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
+import { effect, signal, untracked } from '@preact/signals';
 
 import type { RangeStat } from '@/types';
-import { SILENT_BUILD_REPORTER } from '@/state/stores/progress';
 
+import { until } from '@/utils/until';
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
 import { makeHeightContext } from './layout/dimensions';
@@ -16,7 +16,7 @@ import { createScrubController } from './timeline/scrubController';
 import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
-import { createCityState } from './state';
+import { createCitySceneState } from './state';
 import {
   runCollisionCheck,
   runStemPlacementDiagnostic,
@@ -43,20 +43,9 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
-// One city, framed once: the default subject never changes, so an apply that
-// only refines the same city (skeleton → heights → history) holds the camera.
-const ONE_CITY = 'city';
-
 export async function createCityScene(
   canvas: HTMLCanvasElement,
-  {
-    cameraMode = CameraMode.Project,
-    // Inert by default: a city reports nothing, frames itself once, and has no
-    // timeline until whoever mounts it says otherwise (see CityBindings).
-    report = SILENT_BUILD_REPORTER,
-    subjectKey = () => ONE_CITY,
-    timeline,
-  }: { cameraMode?: CameraMode } & CityBindings = {}
+  { cameraMode = CameraMode.Project, report, subjectKey, timeline }: CityBindings
 ): Promise<CityScene> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -81,17 +70,17 @@ export async function createCityScene(
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const cityState = createCityState(layoutClient, treePlacementClient, report);
-  // Pulled off cityState for the City handle; components never wire into
-  // these — they rebuild reactively off cityState's signals.
-  const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
+  const sceneState = createCitySceneState(layoutClient, treePlacementClient, report);
+  // Pulled off sceneState for the City handle; components never wire into
+  // these — they rebuild reactively off sceneState's signals.
+  const { applyManifest, buildStagesFor, invalidateLayoutCache } = sceneState;
 
   // picker is backfilled below (built after the components it reads);
   // armOnFirstTick defers picker-dependent setup, so the null cast is safe.
   const ctx = {
     scene,
     canvas,
-    cityState,
+    sceneState,
     timeline: timeline ?? null,
     picker: null,
   } as unknown as SceneContext;
@@ -127,19 +116,19 @@ export async function createCityScene(
   // No boot apply: a scene with no manifest is a real state, so the components
   // start empty and the first applyManifest is the first city there has been.
 
-  // The rig reads its framing inputs from cityState directly; deps carries
+  // The rig reads its framing inputs from sceneState directly; deps carries
   // only component-geometry accessors state can't reach.
   const rig = createCameraRig({
     canvas,
-    cityState,
+    sceneState,
     mode: cameraMode,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
       // the first tick, and framing that waits frames a different city (#62).
       getRepoLabelBounds: () =>
         repoLabelBounds(
-          cityState.manifest.peek()?.tree?.name,
-          cityState.gemWorldPos.peek(),
+          sceneState.manifest.peek()?.tree?.name,
+          sceneState.gemWorldPos.peek(),
           REPO_LABEL.peek(),
           BUILDING_DIMENSIONS.peek()
         ),
@@ -150,46 +139,43 @@ export async function createCityScene(
   // batch flushed, so the camera is aimed at a built city, not half of one.
   let framedSubject: string | null = null;
   const stopReframe = effect(() => {
-    void cityState.cityRevision.value;
+    void sceneState.cityRevision.value;
     const subject = subjectKey();
     if (subject === null || subject === framedSubject) return;
     // No city yet: claiming the subject here would make the first real one,
     // which is what there is to frame, skip its reframe.
-    if (cityState.manifest.peek() === null) return;
+    if (sceneState.manifest.peek() === null) return;
     framedSubject = subject;
     untracked(() => rig.reset());
   });
 
-  // The build is over when the city is ON SCREEN, not when applyStructure
-  // returns: it starts the rebuilds without holding them (render/LOADING.md).
-  let presentedRevision = -1;
-  let awaitingFrame: (() => void)[] = [];
+  // On screen means presented, not applyStructure returning (render/LOADING.md).
+  // Holds the revision whose frame the compositor has actually shown.
+  const presented = signal(-1);
+  const gone = signal(false);
   const stopOnScreen = effect(() => {
-    const revision = cityState.cityRevision.value;
-    if (cityState.manifest.peek() === null) return;
+    const revision = sceneState.cityRevision.value;
+    if (sceneState.manifest.peek() === null) return;
     untracked(() => {
       void buildings.whenSettled().then(() => {
         // Two frames: render() only issues the GL commands, and the pixels land
         // a compositor pass later.
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
-            // max, not assign: a newer build's frame may already have landed.
-            presentedRevision = Math.max(presentedRevision, revision);
+            // max, not assign: a superseded build's frame can land after a
+            // newer one's, and the newer one is what is on screen.
+            presented.value = Math.max(presented.peek(), revision);
             report.markIdle();
-            const waiting = awaitingFrame;
-            awaitingFrame = [];
-            for (const resolve of waiting) resolve();
           })
         );
       });
     });
   });
 
-  /** Resolves once a frame carrying the latest build has been presented, or
-   *  immediately when one already has. WebGL offers no such callback. */
+  /** Resolves once a frame carrying the latest build has been presented, or at
+   *  once when one has. A disposed city never presents again, so that frees it. */
   function whenOnScreen(): Promise<void> {
-    if (presentedRevision === cityState.cityRevision.peek()) return Promise.resolve();
-    return new Promise((resolve) => awaitingFrame.push(resolve));
+    return until(() => gone.value || presented.value >= sceneState.cityRevision.value);
   }
 
   const postFx = createPostFx(renderer, scene, rig.camera);
@@ -198,7 +184,7 @@ export async function createCityScene(
   const picker = createPicker({
     canvas,
     camera: rig.camera,
-    cityState,
+    sceneState,
     timeline: timeline?.store ?? null,
     world: {
       getStreetPickables: () => streets.getPickables(),
@@ -207,7 +193,7 @@ export async function createCityScene(
       getTrees: () => trees.getRenderer(),
       getBuildingByPath: (p) => buildings.getBuildingByPath(p),
       getSidewalkByDir: (p) => streets.getSidewalkByDir(p),
-      getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
+      getStreetByDir: (p) => sceneState.streetsByDirMap.peek()[p] ?? null,
       getBuildingIndex: () => buildings.getBuildingIndex(),
     },
   });
@@ -220,7 +206,7 @@ export async function createCityScene(
     picker,
     rig,
     renderer,
-    cityState,
+    sceneState,
     timeline: timeline?.store ?? null,
     showTooltip,
     hideTooltip,
@@ -241,7 +227,7 @@ export async function createCityScene(
     onResetView: rig.reset,
   });
 
-  // Scrub controller: built on entering Timeline mode (useTimelineMode); held here to dispose on uninstall.
+  // Scrub controller: built on entering Timeline mode; held here to dispose on uninstall.
   let _scrubController: ReturnType<typeof createScrubController> | null = null;
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
@@ -300,9 +286,9 @@ export async function createCityScene(
         picker,
         timelines,
         commitLineRanges,
-        heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
-        scannedAt: cityState.manifest.peek()?.scanned_at,
-        streetsByDir: cityState.streetsByDirMap.peek(),
+        heightCtx: makeHeightContext(sceneState.manifest.peek()?.stats),
+        scannedAt: sceneState.manifest.peek()?.scanned_at,
+        streetsByDir: sceneState.streetsByDirMap.peek(),
         scrubGates: [
           {
             setScrubCommit: (i) => trees.setScrubCommit(i),
@@ -341,13 +327,13 @@ export async function createCityScene(
   /** Re-pack what is already on screen: the settings path. A union city under
    *  a scrubber was not built from one manifest, so it reassembles instead. */
   async function repack(): Promise<void> {
-    if (timeline?.store.mode.peek()) return timeline.repack();
-    const showing = cityState.manifest.peek();
+    if (timeline?.store.mode.peek()) return timeline.reassemble();
+    const showing = sceneState.manifest.peek();
     if (showing) await applyManifest(showing);
   }
 
   return {
-    manifest: cityState.manifest,
+    manifest: sceneState.manifest,
     whenOnScreen,
     repack,
     scene,
@@ -360,8 +346,8 @@ export async function createCityScene(
      *  canonical MANIFEST signal (the live tree renderer + the two diagnostics). */
     world: {
       getTrees: () => trees.getRenderer(),
-      runCollisionCheck: () => runCollisionCheck(cityState),
-      runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
+      runCollisionCheck: () => runCollisionCheck(sceneState),
+      runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(sceneState),
       runTreeGroundingDiagnostic: () =>
         runTreeGroundingDiagnostic(trees.getRenderer()?.group ?? null, ISLAND_TOP_Y),
     },
@@ -371,9 +357,7 @@ export async function createCityScene(
     dispose(): void {
       // Nothing more will be presented, so anything waiting for a frame is
       // waiting for one that is not coming.
-      const waiting = awaitingFrame;
-      awaitingFrame = [];
-      for (const resolve of waiting) resolve();
+      gone.value = true;
       stopFrameLoop();
       stopReframe();
       stopOnScreen();

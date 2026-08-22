@@ -47,7 +47,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   const group = new THREE.Group();
   group.name = 'city-fireflies';
 
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
 
   let _inner: Fireflies | null = null;
 
@@ -82,10 +82,10 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // Rebuild off treePlacements (lockstep with trees). untracked() stops a
   // FIREFLIES subscription reallocating orbs on every slider drag.
   const stopPlacements = effect(() => {
-    const placements = cityState.treePlacements.value;
+    const placements = sceneState.treePlacements.value;
     if (placements)
       untracked(() => {
-        const manifest = cityState.manifest.peek();
+        const manifest = sceneState.manifest.peek();
         rebuild(placements, manifest?.commits ?? null, manifest?.stats, manifest?.scanned_at);
       });
     else clear();

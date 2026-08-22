@@ -38,7 +38,7 @@ function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
   const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
   cellOut.sceneRoot.updateMatrixWorld(true);
-  const cityState = makeCityState();
+  const sceneState = makeCityState();
   const api: PickerWorld = {
     getStreetPickables: () => [],
     getRootGem: () => null,
@@ -49,7 +49,7 @@ function makeCellWorld(buildings: Building[]) {
     getCells: () => cellOut.cells,
     getTrees: () => null,
   };
-  return Object.assign(api, { cityState, cellOut });
+  return Object.assign(api, { sceneState, cellOut });
 }
 
 let canvas: HTMLCanvasElement;
@@ -77,7 +77,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
       canvas,
       camera,
       world,
-      cityState: world.cityState,
+      sceneState: world.sceneState,
       timeline: session.timeline,
     });
     const building = world.cellOut.index.byPath.get('src/a.ts')!;
@@ -172,7 +172,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
     const commits = commitSeries(count);
     const placements = commits.map((_, i) => treePlacement(i, i * 40, 0));
     const trees = renderTrees(placements, commits, { avg: 1, busy: 1 });
-    const cityState = makeCityState();
+    const sceneState = makeCityState();
     const api: PickerWorld = {
       getStreetPickables: () => [],
       getRootGem: () => null,
@@ -187,7 +187,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       canvas,
       camera: FAKE_CAMERA,
       world: api,
-      cityState,
+      sceneState,
       timeline: session.timeline,
     });
     return { trees, commits, picker };
@@ -260,7 +260,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     const built = createMergedSidewalkMesh([streetA, streetB] as never, 0)!;
     built.mesh.updateMatrixWorld(true);
 
-    const cityState = makeCityState();
+    const sceneState = makeCityState();
     const world = Object.assign(
       {
         getStreetPickables: () => [built.mesh],
@@ -272,7 +272,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
         getCells: () => new Map(),
         getTrees: () => null,
       } as unknown as PickerWorld,
-      { cityState }
+      { sceneState }
     );
 
     const camera = new THREE.PerspectiveCamera(50, 800 / 600, 1, 100000);
@@ -280,7 +280,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState, timeline: session.timeline });
+    const picker = createPicker({ canvas, camera, world, sceneState, timeline: session.timeline });
     const rangeB = built.ranges.find((r) => r.path === 'lib')!;
     const aOpacity = built.mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
     return { picker, aOpacity, rangeB };

@@ -10,20 +10,19 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
-import { createCitySession } from '@/state/city/session';
+import { CitySession } from '@/state/city/session';
 import { CityProvider } from '@/state/city/context';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { useManifestSource } from '@/hooks/useManifestSource';
+import { useCityLoader } from '@/state/city/loader';
 import { attachUrlBinding } from '@/router/urlBinding';
 import { isDebugMode } from '@/utils/debugMode';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import type { CitySession } from '@/state/city/session';
 
 export function App() {
   // One project, for as long as the app is up. Everything below reads it
   // through the provider; nothing reads it from a module.
-  const session = useMemo(() => createCitySession(), []);
+  const session = useMemo(() => new CitySession(), []);
   useEffect(() => () => session.dispose(), [session]);
 
   // Before anything that reads the URL, so back/forward is never missed.
@@ -44,7 +43,7 @@ export function App() {
 // to rather than being handed pieces of it.
 function AppRoutes({ session }: { session: CitySession }) {
   useDocumentTitle();
-  useManifestSource(session);
+  useCityLoader(session);
 
   useEffect(() => session.progress.attachOverlayDriver(), [session]);
 

@@ -35,7 +35,7 @@ function makePrePickerCtx(): SceneContext {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    cityState: makeCityState(),
+    sceneState: makeCityState(),
   } as unknown as SceneContext;
 }
 

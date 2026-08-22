@@ -3,7 +3,7 @@
 // opened before, their exclude lists, and the repo behind the landing. The
 // excludes live here because the fetch layer sends them in the manifest URL.
 
-import { signal, computed, type ReadonlySignal, type Signal } from '@preact/signals';
+import { signal, computed, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
@@ -36,12 +36,12 @@ export interface SourceInfo {
   src: string | undefined;
 }
 
-export interface SourceStore {
+export class SourceStore {
   /** The applied source, or null when none is. Written only by commit(), so it
    *  means "a load succeeded". */
-  readonly current: Signal<SourceRef | null>;
+  readonly current = signal<SourceRef | null>(null);
   /** The last load failure, or null. A fetch outcome, not a UI command. */
-  readonly error: Signal<SourceError | null>;
+  readonly error = signal<SourceError | null>(null);
   /** Its stable hash, or null. Namespaces per-source storage. */
   readonly key: ReadonlySignal<string | null>;
   /** A working tree on disk rather than a clone: only a working tree changes
@@ -51,95 +51,77 @@ export interface SourceStore {
   readonly info: ReadonlySignal<SourceInfo>;
   /** The folders hidden in this repo (empty when none / no source). */
   readonly excludes: ReadonlySignal<string[]>;
+
+  constructor(private readonly manifest: ManifestStore) {
+    this.key = computed(() =>
+      this.current.value ? sourceKey(this.current.value.src, this.current.value.branch) : null
+    );
+
+    this.isLocal = computed(() => {
+      const cur = this.current.value;
+      return cur ? srcKind(cur.src) === SourceKind.Local : false;
+    });
+
+    this.info = computed(() => {
+      const cur = this.current.value;
+      const m = this.manifest.current.value;
+      if (!cur || !m) {
+        return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
+      }
+      const loaded = m as Manifest;
+      return {
+        label: loaded.tree?.name ?? '',
+        branch: resolveBranch(loaded, cur.branch),
+        sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
+        src: cur.src,
+      };
+    });
+
+    this.excludes = computed(() => {
+      const cur = this.current.value;
+      return cur ? (EXCLUDES.value[repoKeyFor(cur.src)] ?? []) : [];
+    });
+  }
+
   /** Commit a loaded source: this session's source, its recents entry, and the
    *  manifest the UI reads. Every mode ends its load here. */
-  commit(src: string, branch: string | undefined, manifest: Manifest): void;
-  /** Whether these name the project this session already has open. */
-  isOpen(src?: string | null, branch?: string | null): boolean;
+  commit = (src: string, branch: string | undefined, loaded: Manifest): void => {
+    // ONE identity for the load, used by both writes below. Deriving it twice
+    // is what listed a repo twice (#185): see the test for the two rows.
+    const checkout = resolveBranch(loaded, branch);
+    // A local source carries no branch: its checkout is dynamic, so identity
+    // omits it. The header still shows it, read off the manifest.
+    const idBranch = identityBranch(src, checkout);
+    // Source before manifest: the camera-reframe reaction reads the source at
+    // apply-start, and the apply is kicked off by the manifest write.
+    this.current.value = { src, branch: idBranch };
+    this.manifest.set(loaded);
+    pushRecent({
+      src,
+      // tree.name is the canonical owner/repo; a worktree's is its folder.
+      label: loaded.tree?.name || src,
+      branch: idBranch,
+      checkout,
+    });
+  };
+
+  /** Whether these name the city this session already has open. */
+  isOpen = (src?: string | null, branch?: string | null): boolean => {
+    const cur = this.current.peek();
+    return !!cur && !!src && sameSourceIdentity(cur, { src, branch: branch ?? undefined });
+  };
+
   /** Hide `path` from this repo's city, restore one, restore all. */
-  addExclude(path: string): void;
-  removeExclude(path: string): void;
-  clearExcludes(): void;
-}
+  addExclude = (path: string): void => this.setExcludes([...this.excludes.peek(), path]);
+  removeExclude = (path: string): void =>
+    this.setExcludes(this.excludes.peek().filter((p) => p !== path));
+  clearExcludes = (): void => this.setExcludes([]);
 
-export function createSourceStore({ manifest }: { manifest: ManifestStore }): SourceStore {
-  const current = signal<SourceRef | null>(null);
-  const error = signal<SourceError | null>(null);
-
-  const key = computed<string | null>(() =>
-    current.value ? sourceKey(current.value.src, current.value.branch) : null
-  );
-
-  const isLocal = computed<boolean>(() => {
-    const cur = current.value;
-    return cur ? srcKind(cur.src) === SourceKind.Local : false;
-  });
-
-  const info = computed<SourceInfo>(() => {
-    const cur = current.value;
-    const m = manifest.current.value;
-    if (!cur || !m) {
-      return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
-    }
-    const loaded = m as Manifest;
-    return {
-      label: loaded.tree?.name ?? '',
-      branch: resolveBranch(loaded, cur.branch),
-      sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
-      src: cur.src,
-    };
-  });
-
-  const repoKey = computed<string | null>(() => {
-    const cur = current.value;
-    return cur ? repoKeyFor(cur.src) : null;
-  });
-
-  const excludes = computed<string[]>(() => {
-    const repo = repoKey.value;
-    return repo ? (EXCLUDES.value[repo] ?? []) : [];
-  });
-
-  function setExcludes(next: string[]): void {
-    const cur = current.peek();
+  private setExcludes(next: string[]): void {
+    const cur = this.current.peek();
     if (!cur) return; // no source loaded: nothing to key against
     setExcludesFor(cur.src, next);
   }
-
-  return {
-    current,
-    error,
-    key,
-    isLocal,
-    info,
-    excludes,
-    commit(src, branch, loaded) {
-      // ONE identity for the load, used by both writes below. Deriving it twice
-      // is what listed a repo twice (#185): see the test for the two rows.
-      const checkout = resolveBranch(loaded, branch);
-      // A local source carries no branch: its checkout is dynamic, so identity
-      // omits it. The header still shows it, read off the manifest.
-      const idBranch = identityBranch(src, checkout);
-      // Source before manifest: the camera-reframe reaction reads the source at
-      // apply-start, and the apply is kicked off by the manifest write.
-      current.value = { src, branch: idBranch };
-      manifest.set(loaded);
-      pushRecent({
-        src,
-        // tree.name is the canonical owner/repo; a worktree's basename is its folder.
-        label: loaded.tree?.name || src,
-        branch: idBranch,
-        checkout,
-      });
-    },
-    isOpen: (src, branch) => {
-      const cur = current.peek();
-      return !!cur && !!src && sameSourceIdentity(cur, { src, branch: branch ?? undefined });
-    },
-    addExclude: (path) => setExcludes([...excludes.peek(), path]),
-    removeExclude: (path) => setExcludes(excludes.peek().filter((p) => p !== path)),
-    clearExcludes: () => setExcludes([]),
-  };
 }
 
 // ── Recently-opened sources (persisted, app-wide) ────────────────────

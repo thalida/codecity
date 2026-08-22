@@ -134,8 +134,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   let _rebuilding: Promise<void> = Promise.resolve();
 
   const stopRebuild = effect(() => {
-    const layout = ctx.cityState.layout.value;
-    const manifest = ctx.cityState.manifest.value;
+    const layout = ctx.sceneState.layout.value;
+    const manifest = ctx.sceneState.manifest.value;
     if (layout && manifest)
       untracked(() => {
         // Held, not just fired: nothing downstream can know the meshes exist
@@ -161,7 +161,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
         getCells: () => _cells,
         getFacadePanels: () => _facadePanels,
       },
-      cityState: ctx.cityState,
+      sceneState: ctx.sceneState,
       picker: ctx.picker!,
       timeline,
     });
@@ -381,7 +381,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const cellOut = buildCellsFromLayout(
       bounds,
       buildings,
-      sourceOf(ctx.cityState.manifest.peek()),
+      sourceOf(ctx.sceneState.manifest.peek()),
       timeline
     );
 

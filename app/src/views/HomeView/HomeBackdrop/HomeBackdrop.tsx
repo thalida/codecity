@@ -1,20 +1,18 @@
-// hooks/useHomeBackdrop.ts — paints a city behind the landing for as long as
-// HomeView is mounted: the project you were last in, from whatever the server
-// had cached for it, then the featured repo. Neither scans, and every failure
-// is silent, since the hero image underneath is already a complete answer.
+// views/HomeView/HomeBackdrop — a city behind the landing, over the hero image,
+// for as long as the landing is mounted: the repo you were last in, from
+// whatever the server had cached for it, then the featured repo. Neither scans,
+// and every failure is silent, since the hero image is already a whole answer.
 
-// Its own source signal and its own reporter, never MANIFEST and never the
-// app's status: those mean "the project you opened", which a backdrop is not.
-
+import './HomeBackdrop.css';
 import { useEffect, useMemo } from 'preact/hooks';
-import { effect, signal, type ReadonlySignal } from '@preact/signals';
+import { effect } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { SILENT_BUILD_REPORTER, type BuildReporter } from '@/state/stores/progress';
-import { useCity } from '@/state/city/context';
-import type { CitySession } from '@/state/city/session';
+import { CitySession } from '@/state/city/session';
 import { RECENTS, BACKDROP_CITY, BackdropKind, type BackdropCity } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
+import { City } from '@/city/City';
+import { CameraMode } from '@/city/render/cameraRig';
 import type { Manifest } from '@/types';
 
 interface Candidate {
@@ -49,13 +47,14 @@ function fitsBehindTheLanding(manifest: Manifest): boolean {
   return files === undefined || files <= BACKDROP_MAX_FILES;
 }
 
-/** Who gets to be the backdrop, best first. */
-function candidates(featuredRepo: string | undefined, session: CitySession): Candidate[] {
+/** Who gets to be the backdrop, best first. `opened` is the city you just
+ *  left: reading it picks a wallpaper, and nothing writes back. */
+function candidates(featuredRepo: string | undefined, opened: CitySession): Candidate[] {
   const out: Candidate[] = [];
-  // The project you just left, still in that session: no round trip, and it is
-  // the city you were looking at a moment ago.
-  const loaded = session.manifest.current.peek();
-  const current = session.source.current.peek();
+  // Still in that session, so no round trip: it is the city you were looking
+  // at a moment ago.
+  const loaded = opened.manifest.current.peek();
+  const current = opened.source.current.peek();
   if (current && loaded) {
     out.push({
       src: current.src,
@@ -84,35 +83,12 @@ function candidates(featuredRepo: string | undefined, session: CitySession): Can
   return out;
 }
 
-/** What the landing hands its city: the repo it picked, and a status channel
- *  nobody else reads. */
-export interface HomeBackdrop {
-  source: ReadonlySignal<Manifest | null>;
-  report: BuildReporter;
-}
-
-export function useHomeBackdrop(): HomeBackdrop {
-  // The landing's wallpaper opens on the project the focused session last had.
-  const session = useCity();
-  // Per landing visit, like the city it feeds: a second one would be a second
-  // wallpaper, showing whatever IT picked.
-  const backdrop = useMemo(() => {
-    const source = signal<Manifest | null>(null);
-    // Named only once it lands: BACKDROP_CITY fades the canvas in, and a fade
-    // that starts on the manifest fades in an empty canvas.
-    let painting: BackdropCity | null = null;
-    const report: BuildReporter = {
-      ...SILENT_BUILD_REPORTER,
-      markIdle: () => {
-        BACKDROP_CITY.value = painting;
-      },
-    };
-    const show = (manifest: Manifest, city: BackdropCity): void => {
-      painting = city;
-      source.value = manifest;
-    };
-    return { source: source as ReadonlySignal<Manifest | null>, report, show };
-  }, []);
+/** Its own session, never `opened`'s: that keeps a backdrop's load, status and
+ *  scene off the chrome. `opened` is read to pick a repo, never written to. */
+export function HomeBackdrop({ opened }: { opened: CitySession }) {
+  // Per landing visit, like the canvas it feeds: a second one would be a
+  // second wallpaper, showing whatever IT picked.
+  const backdrop = useMemo(() => new CitySession(), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -123,7 +99,7 @@ export function useHomeBackdrop(): HomeBackdrop {
 
     async function tryNext(featuredRepo?: string): Promise<void> {
       const signal = controller.signal;
-      const next = candidates(featuredRepo, session).find((c) => !tried.has(`${c.kind}:${c.src}`));
+      const next = candidates(featuredRepo, opened).find((c) => !tried.has(`${c.kind}:${c.src}`));
       if (!next) return;
       tried.add(`${next.kind}:${next.src}`);
       inFlight = true;
@@ -136,31 +112,47 @@ export function useHomeBackdrop(): HomeBackdrop {
           void tryNext(featuredRepo);
           return;
         }
-        backdrop.show(manifest, {
+        backdrop.manifest.set(manifest);
+        pending = {
           src: next.src,
           label: manifest.tree?.name ?? next.src,
-          // Normalised the way commitSource does: identity includes the
-          // branch, or the repo won't match its own row in recents.
+          // Normalised the way a commit does: identity includes the branch, or
+          // the repo won't match its own row in recents.
           branch: identityBranch(next.src, resolveBranch(manifest, next.branch)),
           kind: next.kind,
-        });
+        };
       } finally {
         inFlight = false;
       }
     }
 
+    // Named only once its city is on screen: BACKDROP_CITY fades the canvas
+    // in, and a fade that starts on the manifest fades in an empty one.
+    let pending: BackdropCity | null = null;
+    const stopPainted = effect(() => {
+      if (backdrop.progress.cityOnScreen.value) BACKDROP_CITY.value = pending;
+    });
+
     // Re-runs when the server config lands, which gives featured its turn.
-    const stop = effect(() => {
+    const stopPick = effect(() => {
       const featured = SERVER_CONFIG.value.featuredRepo;
       if (!inFlight && !BACKDROP_CITY.peek()) void tryNext(featured);
     });
 
     return () => {
-      stop();
+      stopPick();
+      stopPainted();
       controller.abort();
       BACKDROP_CITY.value = null;
+      backdrop.dispose();
     };
-  }, []);
+  }, [backdrop]);
 
-  return backdrop;
+  // Decoration: no chrome, no controls, and nothing here for a screen reader
+  // that the landing does not already say in text.
+  return (
+    <div class={`landing-stage${BACKDROP_CITY.value ? ' is-painted' : ''}`} aria-hidden="true">
+      <City session={backdrop} cameraMode={CameraMode.Backdrop} label="Decorative 3D city." />
+    </div>
+  );
 }

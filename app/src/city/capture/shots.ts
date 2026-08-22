@@ -3,7 +3,7 @@
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.
 
-import type { SceneHandle } from '@/city/sceneHandle';
+import type { CityScene } from '@/city/types';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
@@ -25,7 +25,7 @@ export interface ShotOverrides {
 /** Pose the camera for one shot. false when its target isn't ready yet, which
  *  is the harness's cue to retry. */
 export type ShotPose = (
-  handle: SceneHandle,
+  handle: CityScene,
   manifest: Manifest,
   o: ShotOverrides,
   /** The project being shot: its history, for a shot that scrubs. */
@@ -34,7 +34,7 @@ export type ShotPose = (
 
 /** A placed tree's bounds. A named commit often has no tree, so this walks
  *  commits most-authors-first: the one it lands on carries the most orbs. */
-function placedTree(handle: SceneHandle, manifest: Manifest) {
+function placedTree(handle: CityScene, manifest: Manifest) {
   const byAuthors = [...manifest.commits].sort((x, y) => y.authors.length - x.authors.length);
   for (const c of byAuthors) {
     const tree = handle.rig.treeAnchor(c.sha);

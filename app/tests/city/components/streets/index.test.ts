@@ -116,7 +116,7 @@ describe('createStreets()', () => {
       picker: null as unknown as Picker,
       camera: null as unknown as THREE.PerspectiveCamera,
       renderer: null as unknown as THREE.WebGLRenderer,
-      cityState: makeCityState(),
+      sceneState: makeCityState(),
     } as unknown as SceneContext;
     streets = createStreets(ctx);
     STREETS.value = { ...STREETS.value };

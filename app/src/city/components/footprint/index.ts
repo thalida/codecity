@@ -37,7 +37,7 @@ export interface Footprint extends SceneComponent {
 }
 
 export function createFootprint(ctx: SceneContext): Footprint {
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
   // Persistent outer group — added to the scene once by createCityScene.
   // rebuild() swaps the inner InstancedMesh in and out of this group.
   const group = new THREE.Group();
@@ -239,7 +239,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
   // On layout, not structureRevision: per-building dims recompute on every
   // apply, so the slabs have to re-match even when nothing structural moved.
   const stopLayout = effect(() => {
-    const layout = cityState.layout.value;
+    const layout = sceneState.layout.value;
     if (layout) rebuild(layout);
   });
 

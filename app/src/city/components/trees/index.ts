@@ -49,7 +49,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   const group = new THREE.Group();
   group.name = 'city-trees';
 
-  const { cityState } = ctx;
+  const { sceneState } = ctx;
 
   let _inner: Trees | null = null;
   // Declared BEFORE the theme effect below — the effect body runs
@@ -86,12 +86,12 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   // The build places the trees and publishes them with the rest of the city, so
   // this renders a signal like every other component: nothing pops in later.
   const stopPlacements = effect(() => {
-    const placements = cityState.treePlacements.value;
+    const placements = sceneState.treePlacements.value;
     untracked(() => {
       if (!placements) {
         clear();
       } else {
-        const manifest = cityState.manifest.peek();
+        const manifest = sceneState.manifest.peek();
         rebuild(
           placements,
           manifest?.commits ?? null,
