@@ -15,7 +15,7 @@
 
 **Open any public repo at [codecity.io](https://codecity.io).**
 
-Private repos and local folders need codecity on your own machine.
+Run codecity on your machine to access locally cloned repos.
 
 ## Run it yourself
 
@@ -44,7 +44,6 @@ docker run --rm --init --pull=always \
 
 - Same path on both sides of the `-v` is easiest: that is the path you type in
 - Use multiple `-v` flags to mount more than one directory
-- Private repos: clone it yourself, then open the folder
 - codecity only renders git working trees: `git init` first to render a non-git directory
 
 ### Public repos only
