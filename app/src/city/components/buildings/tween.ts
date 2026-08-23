@@ -4,13 +4,16 @@
 // else, and the fader writes iFade, so the two can't conflict by construction.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { ReadonlySignal } from '@preact/signals';
 import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
 
 /** Narrow resolver surface the tween queue needs from the buildings
  *  component (re-resolved per frame so tweens survive rebuilds). */
 export interface TweenDeps {
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+  /** This city's transition duration. */
+  buildings: ReadonlySignal<BuildingsConfig>;
 }
 
 interface Tween {
@@ -85,7 +88,7 @@ export function createBuildingTweens(deps: TweenDeps) {
   }): void {
     // Once per diff, so a burst shares one duration and the next picks up a
     // Settings change.
-    const transitionMs = BUILDINGS.value.BUILDING_TRANSITION_MS;
+    const transitionMs = deps.buildings.value.BUILDING_TRANSITION_MS;
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {

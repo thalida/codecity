@@ -13,6 +13,7 @@ import { ISLAND } from '@/state/settings/fields/island';
 import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCitySceneState, type CitySceneState } from '@/city/state';
+import { BuildingMaterial } from '@/city/components/buildings/material';
 import { commits } from './commits';
 import { makeSession } from './city';
 import type { TimelineStore } from '@/state/stores/timeline';
@@ -33,12 +34,18 @@ export function stubPlacementClient(placements: unknown[] = []) {
   return { compute: () => Promise.resolve(placements), dispose: () => {} };
 }
 
+/** This city's building material, as the composer makes one. */
+export function makeBuildingMaterial(): BuildingMaterial {
+  return new BuildingMaterial(session.config);
+}
+
 /** sceneState with no-op build workers, for tests that don't drive applyManifest. */
 export function makeCityState(): CitySceneState {
   return createCitySceneState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
-    session.progress
+    session.progress,
+    makeBuildingMaterial()
   );
 }
 
@@ -63,6 +70,7 @@ export function makeSceneContext(sceneState: CitySceneState = makeCityState()): 
     renderer: null as unknown as THREE.WebGLRenderer,
     sceneState,
     config: session.config,
+    buildingMaterial: makeBuildingMaterial(),
   } as unknown as SceneContext;
 }
 
@@ -76,6 +84,7 @@ export function makePrePickerSceneContext(): SceneContext {
     sceneState: makeCityState(),
     timeline: session.timeline,
     config: session.config,
+    buildingMaterial: makeBuildingMaterial(),
   } as unknown as SceneContext;
 }
 
@@ -100,6 +109,7 @@ export function makePickableSceneContext(
     sceneState,
     timeline,
     config: session.config,
+    buildingMaterial: makeBuildingMaterial(),
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }

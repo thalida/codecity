@@ -6,10 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { BLOOM } from '@/state/settings/fields/effects';
-import { SCENE } from '@/state/settings/fields/scene';
-import { RUINS } from '@/state/settings/fields/ruins';
 import type { Building, CityLayout, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -19,7 +15,6 @@ import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
-import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { sourceOf } from '@/utils/manifest';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
@@ -73,6 +68,7 @@ export interface Buildings extends SceneComponent {
 }
 
 export function createBuildings(ctx: SceneContext): Buildings {
+  const material = ctx.buildingMaterial;
   const timeline = ctx.timeline;
   // Persistent outer group — added to the scene once by createCityScene. rebuild()
   // swaps the inner cell root in and out of this group.
@@ -117,12 +113,12 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // Material theme. Reads each store's .value to subscribe to all of them; safe
   // at construction, since none of it is the picker, and it no-ops pre-rebuild.
   const stopMaterialEffect = effect(() => {
-    void BUILDINGS.value;
-    void SCENE.value;
-    void BLOOM.value;
-    void BUILDING_DIMENSIONS.value;
-    void RUINS.value;
-    refreshBuildingMaterial();
+    void ctx.config.BUILDINGS.value;
+    void ctx.config.SCENE.value;
+    void ctx.config.BLOOM.value;
+    void ctx.config.BUILDING_DIMENSIONS.value;
+    void ctx.config.RUINS.value;
+    material.refresh();
     _facadePanels?.refresh();
   });
 
@@ -161,6 +157,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
         getFacadePanels: () => _facadePanels,
       },
       sceneState: ctx.sceneState,
+      material,
+      buildings: ctx.config.BUILDINGS,
       picker: ctx.picker!,
       timeline,
     });
@@ -171,6 +169,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       scene: ctx.scene,
       world: { getCells: () => _cells },
       picker: ctx.picker!,
+      buildings: ctx.config.BUILDINGS,
     });
     _ghost = createGhostRenderer({
       scene: ctx.scene,
@@ -205,11 +204,12 @@ export function createBuildings(ctx: SceneContext): Buildings {
 
   // Enter/stay tween queue. No picker dep, so (unlike fader/outline/ghost) it is
   // created at construction, not armed.
-  const _tweens = createBuildingTweens({ getMeshForBuilding });
+  const _tweens = createBuildingTweens({ getMeshForBuilding, buildings: ctx.config.BUILDINGS });
 
   // Resolves meshes through the same accessors the tweens use, so a rebuild
   // swaps both onto the fresh cells at once.
   const applyScrub = createBuildingScrubApply({
+    material,
     getBuildingIndex: () => _buildingIndex,
     getMeshForBuilding,
     getFacadePanels: () => _facadePanels,
@@ -341,19 +341,26 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const nowMs = parseDateMs(scannedAt ?? '') || Date.now();
 
     // ---- Color the buildings. ----
+    const facade = ctx.config.BUILDINGS.value;
     for (const b of buildings) {
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see city/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        nowMs
+        nowMs,
+        facade
       );
       // The other clock: how long it has STOOD, so a building weathers even
       // while it is being edited.
-      b.createdAge = getCreatedAge(b.file as unknown as Parameters<typeof getCreatedAge>[0], nowMs);
+      b.createdAge = getCreatedAge(
+        b.file as unknown as Parameters<typeof getCreatedAge>[0],
+        nowMs,
+        facade
+      );
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        nowMs
+        nowMs,
+        facade
       );
     }
 
@@ -381,7 +388,9 @@ export function createBuildings(ctx: SceneContext): Buildings {
       bounds,
       buildings,
       sourceOf(ctx.sceneState.manifest.peek()),
-      timeline
+      timeline,
+      material,
+      ctx.config
     );
 
     // Grabbed before the swap reassigns them: the arrays stay readable through

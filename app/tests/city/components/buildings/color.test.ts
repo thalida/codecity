@@ -84,13 +84,19 @@ describe('getBuildingColorForRecency', () => {
     ['midpoint', 0.5, 'hsl(215, 60%, 48%)'],
     ['ceiling', 1, 'hsl(215, 100%, 70%)'],
   ])('drives both channels off one t (%s)', (_label, t, expected) => {
-    expect(getBuildingColorForRecency({ type: NodeKind.File, extension: '.ts' }, t)).toBe(expected);
+    expect(
+      getBuildingColorForRecency({ type: NodeKind.File, extension: '.ts' }, t, BUILDINGS.value)
+    ).toBe(expected);
   });
 
   it('clamps a t outside the range rather than overshooting the bounds', () => {
     const f = { type: NodeKind.File, extension: '.ts' };
-    expect(getBuildingColorForRecency(f, -1)).toBe(getBuildingColorForRecency(f, 0));
-    expect(getBuildingColorForRecency(f, 2)).toBe(getBuildingColorForRecency(f, 1));
+    expect(getBuildingColorForRecency(f, -1, BUILDINGS.value)).toBe(
+      getBuildingColorForRecency(f, 0, BUILDINGS.value)
+    );
+    expect(getBuildingColorForRecency(f, 2, BUILDINGS.value)).toBe(
+      getBuildingColorForRecency(f, 1, BUILDINGS.value)
+    );
   });
 });
 
@@ -100,31 +106,34 @@ describe('modifiedRecency', () => {
     ['at the half-life', 30, 0.5],
     ['a year old', 365, 30 / 395],
   ])('%s', (_label, days, expected) => {
-    expect(modifiedRecency(at(new Date(NOW - days * DAY).toISOString()), NOW)).toBeCloseTo(
-      expected,
-      6
-    );
+    expect(
+      modifiedRecency(at(new Date(NOW - days * DAY).toISOString()), NOW, BUILDINGS.value)
+    ).toBeCloseTo(expected, 6);
   });
 
   it('takes the midpoint when the file has no date', () => {
-    expect(modifiedRecency(at(null), NOW)).toBe(0.5);
+    expect(modifiedRecency(at(null), NOW, BUILDINGS.value)).toBe(0.5);
   });
 
   it('depends on nothing but its own age, so one edit cannot restate another file', () => {
     const f = at(MIDPOINT);
-    expect(modifiedRecency(f, NOW)).toBe(modifiedRecency(f, NOW));
+    expect(modifiedRecency(f, NOW, BUILDINGS.value)).toBe(modifiedRecency(f, NOW, BUILDINGS.value));
   });
 
   it('stretches with the half-life instead of clipping at a horizon', () => {
     BUILDINGS.value = { ...BUILDINGS.value, MODIFIED_HALF_LIFE_DAYS: 365 };
-    const long = modifiedRecency(at(OLDEST), NOW);
+    const long = modifiedRecency(at(OLDEST), NOW, BUILDINGS.value);
     BUILDINGS.value = { ...BUILDINGS.value, MODIFIED_HALF_LIFE_DAYS: 30 };
-    expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW));
+    expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW, BUILDINGS.value));
   });
 
   it('keeps a year and a decade apart, where a horizon would flatten both', () => {
-    const year = modifiedRecency(at(new Date(NOW - 365 * DAY).toISOString()), NOW);
-    const decade = modifiedRecency(at(new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    const year = modifiedRecency(at(new Date(NOW - 365 * DAY).toISOString()), NOW, BUILDINGS.value);
+    const decade = modifiedRecency(
+      at(new Date(NOW - 3650 * DAY).toISOString()),
+      NOW,
+      BUILDINGS.value
+    );
     expect(decade).toBeGreaterThan(0);
     expect(year / decade).toBeGreaterThan(3);
   });
@@ -133,7 +142,10 @@ describe('modifiedRecency', () => {
 describe('getModifiedAge', () => {
   it('is the colour axis inverted, so Live and Timeline cannot drift', () => {
     const f = at(MIDPOINT);
-    expect(getModifiedAge(f, NOW)).toBeCloseTo(1 - modifiedRecency(f, NOW), 10);
+    expect(getModifiedAge(f, NOW, BUILDINGS.value)).toBeCloseTo(
+      1 - modifiedRecency(f, NOW, BUILDINGS.value),
+      10
+    );
   });
 });
 
@@ -146,11 +158,15 @@ describe('getBuildingColor', () => {
   });
 
   it('sends a file touched now to both range ceilings', () => {
-    expect(getBuildingColor(file('.ts', NEWEST), NOW)).toBe('hsl(215, 100%, 70%)');
+    expect(getBuildingColor(file('.ts', NEWEST), NOW, BUILDINGS.value)).toBe('hsl(215, 100%, 70%)');
   });
 
   it('walks both channels down together as a file ages', () => {
-    const old = getBuildingColor(file('.ts', new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    const old = getBuildingColor(
+      file('.ts', new Date(NOW - 3650 * DAY).toISOString()),
+      NOW,
+      BUILDINGS.value
+    );
     expect(old).toBe('hsl(215, 21%, 25%)');
   });
 
@@ -158,6 +174,8 @@ describe('getBuildingColor', () => {
     ['.md', 275],
     ['.xyz', XYZ_HUE],
   ])('takes the hue from the extension (%s)', (ext, hue) => {
-    expect(getBuildingColor(file(ext, NEWEST), NOW)).toBe(`hsl(${hue}, 100%, 70%)`);
+    expect(getBuildingColor(file(ext, NEWEST), NOW, BUILDINGS.value)).toBe(
+      `hsl(${hue}, 100%, 70%)`
+    );
   });
 });

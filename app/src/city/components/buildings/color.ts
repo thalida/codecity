@@ -3,7 +3,7 @@
 // utils/recency, so dim means nobody has touched this in a long time rather than
 // merely that it is the oldest here. getCreatedAge is a separate axis.
 
-import { BUILDINGS } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
 import { recencyT } from '@/city/utils/recency';
 import { NodeKind } from '@/types';
 import type {} from '@/types';
@@ -58,37 +58,40 @@ function lerpRange(t: number, config: MinMaxRange): number {
 
 /** Weathering from how long ago the file was CREATED, 1 for the longest
  *  standing: laid down years ago and edited yesterday reads grimy and vivid. */
-export function getCreatedAge(file: FileLike, nowMs: number): number {
-  return 1 - createdRecency(file, nowMs);
+export function getCreatedAge(file: FileLike, nowMs: number, cfg: BuildingsConfig): number {
+  return 1 - createdRecency(file, nowMs, cfg);
 }
 
 /** How lately a file came into existence, on colour's curve but its own clock:
  *  standing a year and going untouched a year are not the same span. */
-export function createdRecency(file: FileLike, nowMs: number): number {
-  return recencyT(parseDateMs(file.created || ''), nowMs, BUILDINGS.value.CREATED_HALF_LIFE_DAYS);
+export function createdRecency(file: FileLike, nowMs: number, cfg: BuildingsConfig): number {
+  return recencyT(parseDateMs(file.created || ''), nowMs, cfg.CREATED_HALF_LIFE_DAYS);
 }
 
 /** The colour axis inverted for the shader's iModifiedAge: 1 = longest
  *  untouched. Shares modifiedRecency so Live and Timeline agree at HEAD. */
-export function getModifiedAge(file: FileLike, nowMs: number): number {
-  return 1 - modifiedRecency(file, nowMs);
+export function getModifiedAge(file: FileLike, nowMs: number, cfg: BuildingsConfig): number {
+  return 1 - modifiedRecency(file, nowMs, cfg);
 }
 
 /** One building's colour, from the palette and the configured ranges. */
-export function getBuildingColor(file: FileLike, nowMs: number): string {
-  return getBuildingColorForRecency(file, modifiedRecency(file, nowMs));
+export function getBuildingColor(file: FileLike, nowMs: number, cfg: BuildingsConfig): string {
+  return getBuildingColorForRecency(file, modifiedRecency(file, nowMs, cfg), cfg);
 }
 
 /** How recently a file was touched, from its own age alone: a long-lived file
  *  edited yesterday reads vivid and grimy at once. */
-export function modifiedRecency(file: FileLike, nowMs: number): number {
-  return recencyT(parseDateMs(file.modified || ''), nowMs, BUILDINGS.value.MODIFIED_HALF_LIFE_DAYS);
+export function modifiedRecency(file: FileLike, nowMs: number, cfg: BuildingsConfig): number {
+  return recencyT(parseDateMs(file.modified || ''), nowMs, cfg.MODIFIED_HALF_LIFE_DAYS);
 }
 
 /** getBuildingColor's curve driven by an explicit recency (1 freshest), so the
  *  scrub can re-weather a building each frame through the very same maths. */
-export function getBuildingColorForRecency(file: FileLike, recency: number): string {
-  const palette = BUILDINGS.value;
+export function getBuildingColorForRecency(
+  file: FileLike,
+  recency: number,
+  palette: BuildingsConfig
+): string {
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
   const s = lerpRange(recency, { min: palette.SATURATION_MIN, max: palette.SATURATION_MAX });
   const l = lerpRange(recency, { min: palette.LIGHTNESS_MIN, max: palette.LIGHTNESS_MAX });

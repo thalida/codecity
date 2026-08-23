@@ -16,6 +16,10 @@ import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import type { Building } from '@/types';
 import { makeBuilding, makeFile } from '../../../_helpers/scrub';
+import { makeBuildingMaterial } from '../../../_helpers/cityFixtures';
+
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
 
 const ATTRS: [string, number][] = [
   ['iFade', 3],
@@ -81,6 +85,7 @@ describe('applying a scrub frame', () => {
     apply = createBuildingScrubApply({
       getBuildingIndex: () => index,
       getMeshForBuilding: () => ({ mesh, slot: 0 }),
+      material: MATERIAL,
       getFacadePanels: () => panels,
     });
   });
@@ -210,6 +215,7 @@ describe('re-upload flags', () => {
     const apply = createBuildingScrubApply({
       getBuildingIndex: () => index,
       getMeshForBuilding: (x) => ({ mesh, slot: x === a ? 0 : 1 }),
+      material: MATERIAL,
       getFacadePanels: () => null,
     });
 
@@ -241,6 +247,7 @@ describe('re-upload flags', () => {
     const apply = createBuildingScrubApply({
       getBuildingIndex: () => index,
       getMeshForBuilding: () => ({ mesh: live, slot: 0 }),
+      material: MATERIAL,
       getFacadePanels: () => null,
     });
     const states = new Map([['a.txt', state(PRESENT)]]);
@@ -269,6 +276,7 @@ describe('a building with no detail mesh', () => {
     const apply = createBuildingScrubApply({
       getBuildingIndex: () => index,
       getMeshForBuilding: (x) => (x === real ? { mesh, slot: 0 } : null),
+      material: MATERIAL,
       getFacadePanels: () => null,
     });
     apply(

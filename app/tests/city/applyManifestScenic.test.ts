@@ -7,7 +7,11 @@ import { createCitySceneState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
-import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
+import {
+  makeSceneContext,
+  stubPlacementClient,
+  makeBuildingMaterial,
+} from '../_helpers/cityFixtures';
 import { makeSession } from '../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.
@@ -77,7 +81,8 @@ describe('sceneState.applyManifest — scenic reactivity parity', () => {
     const sceneState = createCitySceneState(
       layoutClient as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     const streets = createStreets(makeSceneContext(sceneState));
     disposers.push(() => streets.dispose());

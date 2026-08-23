@@ -5,11 +5,12 @@
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { ReadonlySignal } from '@preact/signals';
 import type { TimelineStore } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';
-import { setBuildingsTranslucent } from './material';
+import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -27,12 +28,17 @@ export function createBuildingFader({
   sceneState,
   picker,
   timeline,
+  material,
+  buildings,
 }: {
   world: FaderWorld;
   sceneState: CitySceneState;
   picker: ReturnType<typeof createPicker>;
   /** This city's history, when something scrubs it. */
   timeline: TimelineStore | null;
+  /** This city's material: a fade is what makes its buildings translucent. */
+  material: BuildingMaterial;
+  buildings: ReadonlySignal<BuildingsConfig>;
 }) {
   function _sweepAll(): void {
     // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
@@ -45,7 +51,7 @@ export function createBuildingFader({
     const dirTarget = resolveDirTarget(sel, hov, sceneState.streetsByDirMap.peek());
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = BUILDINGS.value;
+    const fadeCfg = buildings.value;
 
     // Built here rather than inside applyBuildingFades' per-slot callback,
     // which would re-walk the tree per slot.
@@ -82,7 +88,7 @@ export function createBuildingFader({
       iFadeAttr.needsUpdate = true;
     }
 
-    setBuildingsTranslucent(anyTranslucent);
+    material.setTranslucent(anyTranslucent);
 
     // A media building's 4 panels take the same tier as its body, so the
     // billboard dims with the wall it sits on.
@@ -110,10 +116,10 @@ export function createBuildingFader({
     untracked(_sweepAll);
   });
 
-  // Every value _sweepAll reads comes from BUILDINGS, so dragging a slider in
-  // the controls pane has to re-sweep to show up.
+  // Every value _sweepAll reads comes from the buildings config, so a change
+  // in the controls pane has to re-sweep to show up.
   const _unsubCfg = effect(() => {
-    void BUILDINGS.value;
+    void buildings.value;
     _sweepAll();
   });
 

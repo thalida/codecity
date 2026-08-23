@@ -7,12 +7,14 @@ import type { Building } from '@/types';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { BuildingIndex } from './buildingIndex';
 import { BuildingLane, type BuildingScrubState } from './scrubState';
-import { setBuildingsTranslucent } from './material';
+import type { BuildingMaterial } from './material';
 
 export interface BuildingScrubApplyCtx {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
   getFacadePanels(): InstancedFacadePanels | null;
+  /** This city's material: a fade is what makes its buildings translucent. */
+  material: BuildingMaterial;
 }
 
 function attr(mesh: THREE.InstancedMesh, name: string): THREE.BufferAttribute | undefined {
@@ -118,7 +120,7 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
     }
     for (const a of _attrs) a.needsUpdate = true;
 
-    setBuildingsTranslucent(_anyTranslucent);
+    ctx.material.setTranslucent(_anyTranslucent);
 
     // 0, not null: Live's fader reads null as leave-untouched, which would
     // strand an undriven panel at its shown default.

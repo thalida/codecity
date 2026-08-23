@@ -7,14 +7,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
-import { getBuildingMaterial } from '@/city/components/buildings/material';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+
+import { makeCityState, makeBuildingMaterial } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
 import { makeSession } from '../../../_helpers/city';
 
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
+
 // One city for this file, the way the app makes one for itself.
+
 const session = makeSession();
 
 const _originalFade = BUILDINGS.value;
@@ -106,7 +110,14 @@ function makeFader(opts: {
     sceneState.structureRevision.value++;
   }
 
-  const fader = createBuildingFader({ world, sceneState, picker, timeline: session.timeline });
+  const fader = createBuildingFader({
+    world,
+    sceneState,
+    picker,
+    timeline: session.timeline,
+    material: MATERIAL,
+    buildings: BUILDINGS,
+  });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);
@@ -363,7 +374,7 @@ describe('buildingFader → material transparency', () => {
     });
 
     // Idle: every tier resolves to DEFAULT_BODY_OPACITY 1.0, nothing to blend.
-    expect(getBuildingMaterial().transparent).toBe(false);
+    expect(MATERIAL.get().transparent).toBe(false);
 
     // Selecting drops the far building to L4 (0.2), which only reads correctly
     // with blending on.
@@ -373,11 +384,11 @@ describe('buildingFader → material transparency', () => {
       data: selBuilding,
       file: a,
     } as unknown as PickTarget;
-    expect(getBuildingMaterial().transparent).toBe(true);
+    expect(MATERIAL.get().transparent).toBe(true);
 
     // ...and back to opaque when the selection clears.
     picker.selection.value = null;
-    expect(getBuildingMaterial().transparent).toBe(false);
+    expect(MATERIAL.get().transparent).toBe(false);
   });
 
   it('stays opaque for a cascade whose tiers are all fully opaque', () => {
@@ -420,6 +431,6 @@ describe('buildingFader → material transparency', () => {
       streetByDir: new Map([['src/foo', { dir: makeDir('src/foo') }]]),
     });
 
-    expect(getBuildingMaterial().transparent).toBe(false);
+    expect(MATERIAL.get().transparent).toBe(false);
   });
 });

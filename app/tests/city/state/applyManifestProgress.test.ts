@@ -2,7 +2,7 @@
 // city" used to sit silent for the whole apply; it now names each stage, and
 // the count beside it has to come from the stages this apply actually runs.
 
-import { stubPlacementClient } from '../../_helpers/cityFixtures';
+import { stubPlacementClient, makeBuildingMaterial } from '../../_helpers/cityFixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { RebuildStatus } from '@/state/stores/progress';
@@ -82,7 +82,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
     const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     session.progress.rebuildStatus.value = RebuildStatus.Idle;
     const apply = state.applyManifest(manifest('sig-1'));
@@ -96,7 +97,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
     const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -109,7 +111,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
     const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
@@ -123,7 +126,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
     const state = createCitySceneState(
       fakeLayoutClient([7, 61]) as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -150,7 +154,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
     const state = createCitySceneState(
       client as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
 
     void state.applyManifest(manifest('sig-1'));

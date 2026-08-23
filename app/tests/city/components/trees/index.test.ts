@@ -14,6 +14,7 @@ import {
   makePrePickerSceneContext,
   stubPlacementClient,
   treePlacement,
+  makeBuildingMaterial,
 } from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
@@ -111,7 +112,8 @@ describe('createTrees() component door', () => {
     const sceneState = createCitySceneState(
       layoutClientFor(TREE_LAYOUT) as never,
       stubPlacementClient(PLACEMENTS) as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     const { ctx } = makePickableSceneContext(sceneState);
     trees = createTrees(ctx);

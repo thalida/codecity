@@ -48,7 +48,7 @@ function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {
 
 describe('InstancedFacadePanels', () => {
   it('registerMediaBuilding returns layer 0 and 4 panel slots for the first building', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const b = fakeMediaBuilding();
 
     const reg = ads.registerMediaBuilding(b);
@@ -61,7 +61,7 @@ describe('InstancedFacadePanels', () => {
   });
 
   it('registerMediaBuilding increments layer for each new building', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
 
     const b1 = fakeMediaBuilding({
       file: {
@@ -105,7 +105,7 @@ describe('InstancedFacadePanels', () => {
   });
 
   it('registerMediaBuilding returns null on capacity overflow (5th building when capacity=4)', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
 
     for (let i = 0; i < 4; i++) {
       const b = fakeMediaBuilding({
@@ -148,7 +148,7 @@ describe('InstancedFacadePanels', () => {
   });
 
   it('registerMediaBuilding returns null for a non-media building', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const b = fakeMediaBuilding({
       file: {
         path: 'main.ts',
@@ -169,7 +169,7 @@ describe('InstancedFacadePanels', () => {
   });
 
   it('mesh.count grows to reflect the total number of registered panel slots', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
 
     expect(ads.mesh.count).toBe(0);
 
@@ -197,12 +197,12 @@ describe('InstancedFacadePanels', () => {
   });
 
   it('mesh has meshKind=adPanel in userData', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     expect(ads.mesh.userData.meshKind).toBe('facadePanel');
   });
 
   it('ad panels are not pickable (raycast is a no-op)', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const intersects: THREE.Intersection[] = [];
     // The override ignores every argument, so a null raycaster is fine.
     ads.mesh.raycast(null as unknown as THREE.Raycaster, intersects);
@@ -242,7 +242,7 @@ function fakeBinaryBuilding(overrides: Partial<Building> = {}): Building {
 
 describe('InstancedFacadePanels — binary fingerprint panels', () => {
   it('registerBinaryBuilding returns a layer + 4 slots for a data building', () => {
-    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const reg = panels.registerBinaryBuilding(fakeBinaryBuilding());
     expect(reg).not.toBeNull();
     expect(reg!.layer).toBe(0);
@@ -250,7 +250,7 @@ describe('InstancedFacadePanels — binary fingerprint panels', () => {
   });
 
   it('registerBinaryBuilding returns null for a code (non-binary) building', () => {
-    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const code = fakeBinaryBuilding({
       file: {
         path: 'main.ts',
@@ -270,13 +270,13 @@ describe('InstancedFacadePanels — binary fingerprint panels', () => {
   });
 
   it('registerBinaryBuilding returns null for a media building (media renders as a billboard, not data)', () => {
-    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const panels = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     // media file is binary=true too, but isDataBuilding excludes it.
     expect(panels.registerBinaryBuilding(fakeMediaBuilding())).toBeNull();
   });
 
   it('media and binary buildings share one instance (mesh.count spans both)', () => {
-    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline);
+    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline, session.config);
     panels.registerMediaBuilding(fakeMediaBuilding());
     panels.registerBinaryBuilding(fakeBinaryBuilding());
     expect(panels.mesh.count).toBe(8); // 2 buildings × 4 faces
@@ -284,7 +284,7 @@ describe('InstancedFacadePanels — binary fingerprint panels', () => {
 
   it('schedules a streamed load for an on-screen binary building via updateLOD', () => {
     const started: string[] = [];
-    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline, {
+    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     panels.registerBinaryBuilding(fakeBinaryBuilding({ x: 0, y: 0, w: 12, d: 12, h: 8 }));
@@ -335,7 +335,7 @@ describe('InstancedFacadePanels distance LOD (updateLOD)', () => {
   // The no-op onStartLoad keeps updateLOD from firing real image loads during
   // visibility-only tests.
   function adsAtOrigin(): InstancedFacadePanels {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: () => {},
     });
     ads.registerMediaBuilding(fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 }));
@@ -372,7 +372,7 @@ describe('InstancedFacadePanels distance LOD (updateLOD)', () => {
   });
 
   it('is a no-op with no registered panels (nothing to draw either way)', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     expect(() => ads.updateLOD(cameraAt(0, 5000, 5000), VIEWPORT_H)).not.toThrow();
   });
 
@@ -419,7 +419,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('registerMediaBuilding does NOT start a load on its own (no eager burst)', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
@@ -429,7 +429,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('starts loads only for panels inside the camera frustum', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     ads.registerMediaBuilding(mediaAt('near.png', 0, 0)); // at origin, in view
@@ -442,7 +442,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('loads a big building at the frustum edge whose CENTER is off-frame', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     // x=15 is past the frustum's right plane (~11 wide here), so the centre is
@@ -465,7 +465,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('spreads starts across frames via a per-frame budget', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     // 12 clustered media buildings, all in view.
@@ -484,7 +484,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('culls (and does not load) small background panels while a foreground panel is close', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     ads.registerMediaBuilding(mediaAt('close.png', 0, 350)); // slots 0-3, near camera
@@ -516,7 +516,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
   it('does not start loads while zoomed out (mesh hidden — nothing visible to load)', () => {
     const started: string[] = [];
-    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, {
+    const ads = new InstancedFacadePanels(64, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) => started.push(b.file!.path),
     });
     ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
@@ -528,7 +528,7 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
 
 describe('InstancedFacadePanels emission + tint refresh', () => {
   it('refresh() pushes per-kind emission + the data tint into the uniforms', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     BLOOM.value = { ...BLOOM.value, ENABLED: true };
     BUILDINGS.value = {
       ...BUILDINGS.value,
@@ -554,7 +554,7 @@ describe('sampleLayer page dispatch', () => {
   // WebGL2 forbids a non-constant sampler-array index, so the shader must
   // dispatch with literal indices. vitest cannot compile GLSL: guard the shape.
   it('dispatches over the sampler array with constant indices', () => {
-    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline);
+    const ads = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config);
     const mat = ads.mesh.material as unknown as {
       defines: Record<string, unknown>;
       fragmentShader: string;
@@ -567,7 +567,7 @@ describe('sampleLayer page dispatch', () => {
   });
 
   it('picks per-kind emission + tint from vIsData (jsdom cannot compile GLSL)', () => {
-    const mat = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline).mesh
+    const mat = new InstancedFacadePanels(4, TEST_SOURCE, session.timeline, session.config).mesh
       .material as unknown as {
       fragmentShader: string;
     };
@@ -604,7 +604,7 @@ describe('InstancedFacadePanels version re-arm (Timeline scrub)', () => {
   }
 
   function panelsWatching(started: string[]): InstancedFacadePanels {
-    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline, {
+    const panels = new InstancedFacadePanels(8, TEST_SOURCE, session.timeline, session.config, {
       onStartLoad: (b) =>
         started.push(session.timeline.scrubbedBlobShaFor(b.file!.path) ?? 'working-tree'),
     });

@@ -44,6 +44,7 @@ import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
+import { BuildingMaterial } from './components/buildings/material';
 
 export async function createCityScene(
   canvas: HTMLCanvasElement,
@@ -72,7 +73,14 @@ export async function createCityScene(
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient(session.config);
-  const sceneState = createCitySceneState(layoutClient, treePlacementClient, session.progress);
+  // Before the scene state, which pushes the icon atlas it builds into it.
+  const buildingMaterial = new BuildingMaterial(session.config);
+  const sceneState = createCitySceneState(
+    layoutClient,
+    treePlacementClient,
+    session.progress,
+    buildingMaterial
+  );
   // Pulled off sceneState for the City handle; components never wire into
   // these — they rebuild reactively off sceneState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = sceneState;
@@ -85,6 +93,7 @@ export async function createCityScene(
     sceneState,
     timeline: session.timeline,
     config: session.config,
+    buildingMaterial,
     picker: null,
   } as unknown as SceneContext;
 

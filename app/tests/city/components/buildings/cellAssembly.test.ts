@@ -16,8 +16,12 @@ import type { FileNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeSession } from '../../../_helpers/city';
+import { makeBuildingMaterial } from '../../../_helpers/cityFixtures';
 
 // One city for this file, the way the app makes one for itself.
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
+
 const session = makeSession();
 
 // BuildingIndex reads only file.path; the rest satisfies the type.
@@ -42,7 +46,14 @@ describe('buildCellsFromLayout', () => {
   it('returns a Map, SpatialGrid, BuildingIndex, and a sceneRoot Group', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
     const buildings = [building({ x: 10, y: 10 }), building({ x: 20, y: 20 })];
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.cells).toBeInstanceOf(Map);
     expect(out.grid).toBeDefined();
@@ -57,7 +68,14 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
     const dense = Array.from({ length: 100 }, (_, i) => building({ x: i % 10, y: 1 }));
     const sparse = [20, 32, 44, 56].map((x) => building({ x, y: 1 }));
-    const out = buildCellsFromLayout(bounds, [...dense, ...sparse], TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      [...dense, ...sparse],
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     const cell0 = out.cells.get(0)!;
     expect(cell0.buildings.filter(Boolean).length).toBe(100);
@@ -73,7 +91,14 @@ describe('buildCellsFromLayout', () => {
       building({ x: 7, y: 2 }),
       building({ x: 10, y: 9 }),
     ];
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     // All buildings land in the same cell (x<CELL_SIZE and z<CELL_SIZE).
     expect(out.cells.size).toBe(1);
@@ -90,7 +115,14 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
     const buildings = Array.from({ length: N }, (_, i) => building({ x: i * CELL_SIZE + 1, y: 1 }));
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.cells.size).toBe(N);
     expect(out.grid.cellCount).toBeGreaterThan(N);
@@ -104,7 +136,14 @@ describe('buildCellsFromLayout', () => {
       building({ x: 1, y: 1 }), // cell at grid-col 0, row 0
       building({ x: CELL_SIZE + 1, y: 1 }), // cell at grid-col 1, row 0
     ];
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.cells.size).toBe(2);
     // 2 cells × 1 mesh (detail) = 2 children in sceneRoot.
@@ -114,7 +153,14 @@ describe('buildCellsFromLayout', () => {
   it('each occupied cell has a detailMesh', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
@@ -124,7 +170,14 @@ describe('buildCellsFromLayout', () => {
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     for (const child of out.sceneRoot.children) {
       expect(child).toBeInstanceOf(THREE.InstancedMesh);
@@ -149,14 +202,28 @@ describe('buildCellsFromLayout', () => {
         modified: '',
       },
     });
-    const out = buildCellsFromLayout(bounds, [b], TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      [b],
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.index.byPath.get('src/foo.ts')).toBeDefined();
   });
 
   it('handles empty buildings array without throwing', () => {
     const bounds = { minX: 0, maxX: 200, minZ: 0, maxZ: 200 };
-    const out = buildCellsFromLayout(bounds, [], TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      bounds,
+      [],
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
@@ -188,13 +255,27 @@ describe('buildCellsFromLayout', () => {
     });
 
     it('builds an ad-panel mesh for media buildings when MEDIA_ENABLED (default)', () => {
-      const out = buildCellsFromLayout(bounds, [mediaBuilding()], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [mediaBuilding()],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       expect(out.facadePanels).not.toBeNull();
     });
 
     it('skips the ad-panel mesh entirely when MEDIA_ENABLED is off', () => {
       BUILDINGS.value = { ...BUILDINGS.value, MEDIA_ENABLED: false };
-      const out = buildCellsFromLayout(bounds, [mediaBuilding()], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [mediaBuilding()],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       expect(out.facadePanels).toBeNull();
       // The building itself still renders (its cell + detail mesh exist).
       expect(out.cells.size).toBeGreaterThan(0);
@@ -219,7 +300,14 @@ describe('buildCellsFromLayout', () => {
           modified: '',
         },
       });
-      const out = buildCellsFromLayout(bounds, [empty], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [empty],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       expect(out.facadePanels).toBeNull();
       expect(out.index.byPath.get('blank.png')).toBeDefined();
     });
@@ -252,13 +340,27 @@ describe('buildCellsFromLayout', () => {
 
     it('registers a facade panel for a binary building when DATA_ENABLED (default)', () => {
       expect(
-        buildCellsFromLayout(bounds, [dataBuilding()], TEST_SOURCE, session.timeline).facadePanels
+        buildCellsFromLayout(
+          bounds,
+          [dataBuilding()],
+          TEST_SOURCE,
+          session.timeline,
+          MATERIAL,
+          session.config
+        ).facadePanels
       ).not.toBeNull();
     });
 
     it('skips the facade when DATA_ENABLED is off, but the block still renders', () => {
       BUILDINGS.value = { ...BUILDINGS.value, DATA_ENABLED: false };
-      const out = buildCellsFromLayout(bounds, [dataBuilding()], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [dataBuilding()],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       expect(out.facadePanels).toBeNull();
       expect(out.cells.size).toBeGreaterThan(0);
       expect(out.index.byPath.get('app.db')).toBeDefined();
@@ -282,7 +384,14 @@ describe('buildCellsFromLayout', () => {
           modified: '',
         },
       });
-      const out = buildCellsFromLayout(bounds, [empty], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [empty],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       expect(out.facadePanels).toBeNull();
       expect(out.index.byPath.get('empty.db')).toBeDefined();
     });
@@ -324,7 +433,14 @@ describe('buildCellsFromLayout', () => {
         },
       });
 
-      const out = buildCellsFromLayout(bounds, [empty, nonEmpty], TEST_SOURCE, session.timeline);
+      const out = buildCellsFromLayout(
+        bounds,
+        [empty, nonEmpty],
+        TEST_SOURCE,
+        session.timeline,
+        MATERIAL,
+        session.config
+      );
       // Only the non-empty building should be registered (4 slots).
       expect(out.facadePanels).not.toBeNull();
       expect(out.facadePanels!.mesh.count).toBe(4);

@@ -3,7 +3,7 @@
 // an edit changes a file's size without touching paths, so the structure-only
 // gate reused a stale layout every time.
 
-import { stubPlacementClient } from '../../_helpers/cityFixtures';
+import { stubPlacementClient, makeBuildingMaterial } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
 import { createCitySceneState } from '@/city/state';
 import { NodeKind } from '@/types';
@@ -71,7 +71,8 @@ describe('sceneState.applyManifest — reuse gate keys on the layout signature (
     const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -85,7 +86,8 @@ describe('sceneState.applyManifest — reuse gate keys on the layout signature (
     const state = createCitySceneState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      session.progress
+      session.progress,
+      makeBuildingMaterial()
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;

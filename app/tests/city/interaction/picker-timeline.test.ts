@@ -11,7 +11,7 @@ import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
+import { makeCityState, treePlacement, makeBuildingMaterial } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import { NodeKind, StreetAxis } from '@/types';
@@ -20,6 +20,9 @@ import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { makeSession } from '../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
+
 const session = makeSession();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
@@ -38,7 +41,14 @@ function mkBuilding(path: string, x: number, y: number): Building {
 
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+  const cellOut = buildCellsFromLayout(
+    bounds,
+    buildings,
+    TEST_SOURCE,
+    session.timeline,
+    MATERIAL,
+    session.config
+  );
   cellOut.sceneRoot.updateMatrixWorld(true);
   const sceneState = makeCityState();
   const api: PickerWorld = {

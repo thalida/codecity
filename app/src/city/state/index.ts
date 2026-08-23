@@ -16,7 +16,7 @@ import type { TreePlacement } from '../components/trees/treePlacement';
 import type { TreePlacementClient } from '../components/trees/treePlacementClient';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
-import { setIconAtlas } from '../components/buildings/material';
+import type { BuildingMaterial } from '../components/buildings/material';
 import type { createLayoutClient } from '../layout';
 
 export interface CitySceneState {
@@ -133,7 +133,9 @@ export function createCitySceneState(
   treePlacementClient: TreePlacementClient,
   // Whose build this is: the world's, or a wallpaper's that nobody is waiting
   // for (see BuildReporter).
-  report: BuildReporter
+  report: BuildReporter,
+  /** This city's material: the atlas the build makes is pushed into it. */
+  buildingMaterial: BuildingMaterial
 ): CitySceneState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
@@ -273,7 +275,7 @@ export function createCitySceneState(
         const atlas = await buildIconAtlas(newManifest);
         if (myGeneration !== generation) return; // superseded mid-build
         lastAtlasTreeSig = treeSig;
-        setIconAtlas(atlas);
+        buildingMaterial.setIconAtlas(atlas);
       } catch (err) {
         console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
       }

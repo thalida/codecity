@@ -3,6 +3,7 @@
 // cache that forever. The tween and the timeline scrub both rewrite those
 // matrices after, so the cell has to own the sphere itself.
 
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
@@ -13,8 +14,12 @@ import { building } from '../../../_helpers/buildingFixture';
 import type { Building } from '@/types';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeSession } from '../../../_helpers/city';
+import { makeBuildingMaterial } from '../../../_helpers/cityFixtures';
 
 // One city for this file, the way the app makes one for itself.
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
+
 const session = makeSession();
 
 const BOUNDS = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
@@ -34,7 +39,14 @@ const topOf = (b: Building) => new THREE.Vector3(b.x, b.h, b.y);
 
 describe('cell cull sphere', () => {
   it('is the cell’s own, not one three.js derived from a single frame', () => {
-    const out = buildCellsFromLayout(BOUNDS, layout(), TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      BOUNDS,
+      layout(),
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     for (const cell of out.cells.values()) {
       expect(cell.detailMesh.boundingSphere).toBe(cell.boundsSphere);
@@ -43,7 +55,14 @@ describe('cell cull sphere', () => {
 
   it('covers the tallest building it holds, not the 20-unit default', () => {
     const buildings = layout();
-    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      BOUNDS,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
 
     const tall = buildings[0];
     const cell = out.cells.get(out.grid.worldToCell(tall.x, tall.y).cellId)!;
@@ -57,7 +76,14 @@ describe('cell cull sphere', () => {
     const grid = new SpatialGrid(BOUNDS);
     const edge = grid.cellSize - 0.1; // centre hard against the boundary
     const wide = building({ x: edge, y: edge, w: 6, d: 6, h: 10, file: fileAt('w.ts') as never });
-    const out = buildCellsFromLayout(BOUNDS, [wide], TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      BOUNDS,
+      [wide],
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
     const cell = out.cells.get(out.grid.worldToCell(wide.x, wide.y).cellId)!;
 
     const corner = new THREE.Vector3(wide.x + wide.w / 2, wide.h, wide.y + wide.d / 2);
@@ -68,7 +94,14 @@ describe('cell cull sphere', () => {
   // later write culls against where the buildings used to be.
   it('survives a frustum test, so a later matrix write is not culled against a stale sphere', () => {
     const buildings = layout();
-    const out = buildCellsFromLayout(BOUNDS, buildings, TEST_SOURCE, session.timeline);
+    const out = buildCellsFromLayout(
+      BOUNDS,
+      buildings,
+      TEST_SOURCE,
+      session.timeline,
+      MATERIAL,
+      session.config
+    );
     const tall = buildings[0];
     const cell = out.cells.get(out.grid.worldToCell(tall.x, tall.y).cellId)!;
     const mesh = cell.detailMesh;
@@ -98,6 +131,7 @@ describe('cull opt-out while a building is moving', () => {
     const moved = building({ x: 2, y: 2, h: 10, file: fileAt('m.ts') as never });
     const tweens = createBuildingTweens({
       getMeshForBuilding: () => ({ mesh: cell.detailMesh, slot: 0 }),
+      buildings: BUILDINGS,
     });
 
     // A building that moved: it travels between two cells and is inside neither
@@ -143,6 +177,7 @@ describe('cull opt-out while a building is moving', () => {
     const cell = createEmptyCellTile(grid, 0, 8, { maxHeight: 10, overhang: 1 });
     const tweens = createBuildingTweens({
       getMeshForBuilding: () => ({ mesh: cell.detailMesh, slot: 0 }),
+      buildings: BUILDINGS,
     });
 
     tweens.onDiff({

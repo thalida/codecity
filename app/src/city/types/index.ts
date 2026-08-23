@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CityConfig } from '../config';
+import type { BuildingMaterial } from '../components/buildings/material';
 import type { CameraRig } from '../render/cameraRig';
 import type { CitySceneState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
@@ -23,6 +24,9 @@ export interface SceneContext {
   /** What this city looks like. Every visual setting is read through here, so
    *  nothing under city/ reaches for the panel's own signals. */
   config: CityConfig;
+  /** This city's building material and icon atlas: every cell of it shares
+   *  one, so a uniform written there reaches this city and no other. */
+  buildingMaterial: BuildingMaterial;
   /** This city's history state, for the components drawing what a scrub
    *  implies. Its own, so a second city scrubs its own. */
   timeline: TimelineStore;

@@ -66,7 +66,10 @@ describe('createBuildingTweens()', () => {
   it('entering diff: first update writes the grow-in start (scaleY≈0.0001, posY 0); final transform lands at the duration and the tween is removed', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+      buildings: BUILDINGS,
+    });
 
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
 
@@ -104,7 +107,10 @@ describe('createBuildingTweens()', () => {
   it('staying diff with identical old/new transform starts no tween', () => {
     const b = building({ cellId: 1, slotId: 1 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 1 }) });
+    const tweens = createBuildingTweens({
+      getMeshForBuilding: () => ({ mesh, slot: 1 }),
+      buildings: BUILDINGS,
+    });
 
     tweens.onDiff(
       diffOf({
@@ -138,7 +144,10 @@ describe('createBuildingTweens()', () => {
   it('a second onDiff for the same Building identity supersedes targets but keeps startedAt', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+      buildings: BUILDINGS,
+    });
 
     // First diff at t=0 targets h=8.
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
@@ -167,6 +176,7 @@ describe('createBuildingTweens()', () => {
     let live = true;
     const tweens = createBuildingTweens({
       getMeshForBuilding: () => (live ? { mesh, slot: 0 } : null),
+      buildings: BUILDINGS,
     });
 
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
@@ -187,6 +197,7 @@ describe('createBuildingTweens()', () => {
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
       getMeshForBuilding: (b) => ({ mesh, slot: b === b0 ? 0 : 1 }),
+      buildings: BUILDINGS,
     });
 
     tweens.onDiff(diffOf({ entering: [entering(b0, 0, 8), entering(b1, 1, 12)] }));
@@ -201,7 +212,10 @@ describe('createBuildingTweens()', () => {
   it('clear() empties the queue', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+      buildings: BUILDINGS,
+    });
 
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
     tweens.clear();

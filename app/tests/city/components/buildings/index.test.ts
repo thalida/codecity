@@ -10,7 +10,7 @@ import {
   makePickableSceneContext,
   makePrePickerSceneContext,
 } from '../../../_helpers/cityFixtures';
-import { getBuildingMaterial } from '@/city/components/buildings/material';
+
 import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { SCENE } from '@/state/settings/fields/scene';
@@ -208,7 +208,7 @@ describe('createBuildings()', () => {
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
-    const uniforms = getBuildingMaterial().uniforms;
+    const uniforms = ctx.buildingMaterial.get().uniforms;
 
     BUILDINGS.value = { ...BUILDINGS.value, OUTLINE_WIDTH: 7.5 };
     expect(uniforms.uOutlineWidth.value).toBe(7.5);
@@ -223,7 +223,7 @@ describe('createBuildings()', () => {
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
-    const uniforms = getBuildingMaterial().uniforms;
+    const uniforms = ctx.buildingMaterial.get().uniforms;
 
     SCENE.value = { ...SCENE.value, FOG_HEIGHT_FRAC: 0.4 };
     expect(uniforms.uFogHeightFrac.value).toBe(0.4);
@@ -238,7 +238,7 @@ describe('createBuildings()', () => {
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })])
     );
-    const uniforms = getBuildingMaterial().uniforms;
+    const uniforms = ctx.buildingMaterial.get().uniforms;
 
     RUINS.value = { ...RUINS.value, X_ENABLED: true, X_COLOR: '#ff0000', X_WIDTH: 0.3 };
     expect(uniforms.uRuinXEnabled.value).toBe(true);

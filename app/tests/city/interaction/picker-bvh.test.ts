@@ -10,13 +10,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { makeCityState, makeBuildingMaterial } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { makeSession } from '../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.
+// One material for this file, the way one city has one.
+const MATERIAL = makeBuildingMaterial();
+
 const session = makeSession();
 
 function mkBuilding(path: string, x: number, y: number): Building {
@@ -35,7 +38,14 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, session.timeline);
+  const cellOut = buildCellsFromLayout(
+    bounds,
+    buildings,
+    TEST_SOURCE,
+    session.timeline,
+    MATERIAL,
+    session.config
+  );
   cellOut.sceneRoot.updateMatrixWorld(true);
   const sceneState = makeCityState();
   const api: PickerWorld = {

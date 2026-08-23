@@ -8,7 +8,8 @@ import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { BUILDINGS } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { ReadonlySignal } from '@preact/signals';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
@@ -43,13 +44,16 @@ export function createOutlineRenderer({
   scene,
   world: _world,
   picker,
+  buildings,
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
   world: OutlineWorld;
   picker: ReturnType<typeof createPicker>;
+  /** This city's outline settings: width, colour and opacity. */
+  buildings: ReadonlySignal<BuildingsConfig>;
 }) {
-  const _bo = BUILDINGS.value;
+  const _bo = buildings.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new SafeLineSegmentsGeometry();
@@ -216,7 +220,7 @@ export function createOutlineRenderer({
   // BUILDINGS Save → push color/width/opacity into the two materials; the
   // construction-time first fire reproduces the seeded values (no-op).
   const _stopMaterials = effect(() => {
-    const outline = BUILDINGS.value;
+    const outline = buildings.value;
     hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);
     hoverLineMat.linewidth = outline.OUTLINE_WIDTH;
     hoverLineMat.opacity = outline.OUTLINE_HOVER_OPACITY;

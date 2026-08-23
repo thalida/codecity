@@ -2,6 +2,7 @@
 // literal, so no scene is involved. scrubApply.test.ts covers the buffer
 // writes, scrubPass.test.ts the rollup that feeds streets.
 
+import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { describe, it, expect } from 'vitest';
 
 import {
@@ -204,7 +205,7 @@ describe('weathering', () => {
     // modes call one function, so HEAD matches.
     const state = resolve(2, spread, commitMs);
     const recency = 1 - state.modifiedAge;
-    expect(state.colorBase).toBe(getBuildingColorForRecency(file, recency));
+    expect(state.colorBase).toBe(getBuildingColorForRecency(file, recency, BUILDINGS.value));
     expect(state.colorToward).toBeNull();
   });
 

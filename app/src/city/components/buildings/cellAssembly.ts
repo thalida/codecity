@@ -6,9 +6,10 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
+import type { BuildingMaterial } from './material';
+import type { CityConfig } from '@/city/config';
 import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { TimelineStore } from '@/state/stores/timeline';
 import type { Building, SourceRef } from '@/types/index';
@@ -29,8 +30,12 @@ export function buildCellsFromLayout(
   buildings: Building[],
   source: SourceRef | null,
   /** This city's history: which blob a facade reads is a scrub question. */
-  timeline: TimelineStore | null
+  timeline: TimelineStore | null,
+  /** This city's material and icon atlas, shared by every cell of it. */
+  material: BuildingMaterial,
+  config: CityConfig
 ): CellAssemblyOutput {
+  const facade = config.BUILDINGS.value;
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
 
@@ -54,7 +59,7 @@ export function buildCellsFromLayout(
   const cells = new Map<number, CellTile>();
   for (const [id, count] of cellCounts) {
     const cell = createEmptyCellTile(grid, id, cellCapacityFor(count), cellExtents.get(id));
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, material);
     cells.set(id, cell);
   }
 
@@ -83,7 +88,7 @@ export function buildCellsFromLayout(
     b.cellId = cellId;
     b.slotId = slot;
     cell.buildings[slot] = b;
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, facade, material.getIconAtlas());
     index.insert(b);
   }
 
@@ -103,12 +108,12 @@ export function buildCellsFromLayout(
 
   // One mesh serves both, so they share the LOD/streaming/fade machinery.
   // Textures load later: updateLOD streams in the ones actually on screen.
-  const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
+  const mediaBuildings = facade.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file) && !isEmptyFile(b.file))
     : [];
   // DATA_ENABLED gates only the facade texture; the windowless block still
   // renders from the building mesh (cellMesh) regardless.
-  const binaryBuildings = BUILDINGS.value.DATA_ENABLED
+  const binaryBuildings = facade.DATA_ENABLED
     ? buildings.filter((b) => isDataBuilding(b.file) && !isEmptyFile(b.file))
     : [];
   let facadePanels: InstancedFacadePanels | null = null;
@@ -117,7 +122,8 @@ export function buildCellsFromLayout(
     facadePanels = new InstancedFacadePanels(
       Math.max(64, Math.ceil(panelCount * 1.5)),
       source,
-      timeline
+      timeline,
+      config
     );
     for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
     for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);

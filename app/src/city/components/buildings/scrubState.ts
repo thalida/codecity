@@ -169,7 +169,7 @@ export function resolveBuildingScrubState(
       f.fadeCfg.MODIFIED_HALF_LIFE_DAYS
     );
     out.modifiedAge = 1 - recency;
-    out.colorBase = getBuildingColorForRecency(b.file, recency);
+    out.colorBase = getBuildingColorForRecency(b.file, recency, f.fadeCfg);
     out.colorToward = null;
     out.colorMix = 0;
   } else {
@@ -179,7 +179,7 @@ export function resolveBuildingScrubState(
     out.modifiedAge = 0;
     if (lane === BuildingLane.Ruin) {
       // A ruin keeps a muted memory of the file's own hue.
-      out.colorBase = getBuildingColorForRecency(b.file, RUIN_BASE_RECENCY);
+      out.colorBase = getBuildingColorForRecency(b.file, RUIN_BASE_RECENCY, f.fadeCfg);
       out.colorToward = RUIN_GRAY;
       out.colorMix = f.ruinGrayMix;
     } else {
