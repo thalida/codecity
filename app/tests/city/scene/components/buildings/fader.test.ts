@@ -11,7 +11,8 @@ import { createBuildingFader } from '@/city/scene/components/buildings/fader';
 import { makeCityState, makeBuildingMaterial } from '../../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/city/session/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
-import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
+import type { Building, CityLayout, DirNode, FileNode, Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../../../_helpers/city';
 
 // One material for this file, the way one city has one.

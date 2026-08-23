@@ -5,7 +5,7 @@
 
 import { signal, computed, effect } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase, CloneStage } from '@/api/manifest';
+import { ScanPhase, CloneStage } from '@/city/session/api/manifest';
 import type { Manifest } from '@/types';
 import {
   BuildStage,

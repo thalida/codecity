@@ -22,7 +22,7 @@ import {
   UnreachableSource,
   NoticeReason,
 } from '@/components/sources/UnreachableSource/UnreachableSource';
-import type { ScanErrorCode } from '@/api/manifest';
+import type { ScanErrorCode } from '@/city/session/api/manifest';
 import type { SourcePayload } from '@/types/ui';
 import { useCity } from '@/city/CityProvider';
 

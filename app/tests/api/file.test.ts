@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fileUrl } from '@/api/file';
+import { fileUrl } from '@/city/session/api/file';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 
 describe('fileUrl', () => {

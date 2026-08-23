@@ -9,7 +9,8 @@ import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constant
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { SidebarTab, NodeKind } from '@/types';
-import type { PickTarget, TreeNode } from '@/types';
+import type { TreeNode } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';

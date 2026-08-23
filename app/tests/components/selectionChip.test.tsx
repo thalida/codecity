@@ -8,7 +8,8 @@ import { signal } from '@preact/signals';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
-import type { FileNode, PickTarget } from '@/types';
+import type { FileNode } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { flush } from '../_helpers/preact';
 import { makeSession, renderInCity } from '../_helpers/city';
 

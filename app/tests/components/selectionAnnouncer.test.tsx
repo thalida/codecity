@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { flush } from '../_helpers/preact';
 import { makeSession, renderInCity } from '../_helpers/city';
 

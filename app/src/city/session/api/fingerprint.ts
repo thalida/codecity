@@ -3,7 +3,7 @@
 // never reaches the client, only the picture of its byte distribution.
 
 import { apiUrl } from '@/api/apiUrl';
-import { fetchContent } from '@/api/file';
+import { fetchContent } from '@/city/session/api/file';
 import type { SourceRef } from '@/types';
 
 /** URL for a binary file's fingerprint PNG, addressed like /api/file. `mtime`

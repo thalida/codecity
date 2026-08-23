@@ -12,7 +12,8 @@ import { buildCellsFromLayout } from '@/city/scene/components/buildings/cellAsse
 import { createMergedSidewalkMesh } from '@/city/scene/components/streets/streets';
 import { makeCityState, makeBuildingMaterial } from '../../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickerWorld, Street } from '@/types';
+import type { Building, Street } from '@/types';
+import type { PickerWorld } from '@/city/scene/types/picker';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeSession } from '../../../_helpers/city';
 

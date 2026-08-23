@@ -3,7 +3,7 @@
 // exit reloads live HEAD. Every exit path only flips the mode: the city layer
 // (city/index.ts) reacts to that and does the scene teardown itself.
 
-import { fetchTimelineBundle } from '@/api/timeline';
+import { fetchTimelineBundle } from '@/city/session/api/timeline';
 import { buildPathTimelines } from '@/city/scene/scrub/replay';
 import { activeExcludePathsFor } from '@/city/session/stores/excludes';
 import { whenScene } from '@/city/session/commands';

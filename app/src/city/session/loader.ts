@@ -11,7 +11,7 @@ import {
   streamManifest,
   ScanPhase,
   ScanError,
-} from '@/api/manifest';
+} from '@/city/session/api/manifest';
 import { LIVE_UPDATES, liveUpdatesActive } from '@/city/session/settings/updates';
 import { activeExcludePathsFor } from '@/city/session/stores/excludes';
 import type { ProgressStore } from '@/city/session/stores/progress';

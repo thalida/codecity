@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import * as branchesApi from '@/api/branches';
-import { ScanError } from '@/api/manifest';
+import { ScanError } from '@/city/session/api/manifest';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
 import { makeSession, renderInCity } from '../_helpers/city';

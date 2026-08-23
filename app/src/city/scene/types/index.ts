@@ -2,13 +2,13 @@
 // render loop agree on. Types only.
 
 import type * as THREE from 'three';
-import type { Picker } from './interaction/picker';
+import type { Picker } from '../interaction/picker';
 import type { CityConfig } from '@/city/session/config';
-import type { BuildingMaterial } from './components/buildings/material';
-import type { CameraRig } from './render/cameraRig';
-import type { CityBuild } from './build';
-import type { Trees } from './components/trees/treeRenderer';
-import type { PathTimeline } from './scrub/replay';
+import type { BuildingMaterial } from '../components/buildings/material';
+import type { CameraRig } from '../render/cameraRig';
+import type { CityBuild } from '../build';
+import type { Trees } from '../components/trees/treeRenderer';
+import type { PathTimeline } from '../scrub/replay';
 import type { ReadonlySignal } from '@preact/signals';
 import type { Manifest, RangeStat } from '@/types';
 import type { BuildStage } from '@/constants/progress';

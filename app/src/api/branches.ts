@@ -4,7 +4,7 @@
 
 import { URL_PARAMS } from '@/constants/urlParams';
 import { apiUrl } from '@/api/apiUrl';
-import { ScanError, type ScanErrorCode } from '@/api/manifest';
+import { ScanError, type ScanErrorCode } from '@/city/session/api/manifest';
 
 export interface BranchList {
   branches: string[];

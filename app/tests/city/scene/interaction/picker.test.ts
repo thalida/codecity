@@ -7,15 +7,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker } from '@/city/scene/interaction/picker';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { NodeKind } from '@/types';
-import type {
-  Building,
-  DirNode,
-  FileNode,
-  FileTarget,
-  DirTarget,
-  PickerWorld,
-  Street,
-} from '@/types';
+import type { Building, DirNode, FileNode, Street } from '@/types';
+import type { FileTarget, DirTarget, PickerWorld } from '@/city/scene/types/picker';
 import { makeSession } from '../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

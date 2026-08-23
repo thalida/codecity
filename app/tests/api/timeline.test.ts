@@ -1,5 +1,5 @@
 import { test, expect, describe, it } from 'vitest';
-import { timelineUrlFor, fetchTimelineBundle } from '@/api/timeline';
+import { timelineUrlFor, fetchTimelineBundle } from '@/city/session/api/timeline';
 import type { TimelineBundle } from '@/types';
 import { makeES } from '../_helpers/eventSource';
 

@@ -6,7 +6,7 @@ import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
 import { LoaderCircle } from 'lucide-preact';
 import { fetchBranches } from '@/api/branches';
-import { ScanError, type ScanErrorCode } from '@/api/manifest';
+import { ScanError, type ScanErrorCode } from '@/city/session/api/manifest';
 
 export interface BranchSelectProps {
   url: string; // a resolvable git URL, or '' to stay idle

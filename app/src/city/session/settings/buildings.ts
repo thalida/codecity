@@ -9,7 +9,7 @@ import {
   type ConfigOf,
   type FieldMap,
 } from '@/state/settings/schema';
-import { DEFAULT_HUE_EXT_MAP } from '@/constants/buildings';
+import { DEFAULT_HUE_EXT_MAP } from '@/city/scene/constants/buildings';
 import { FadeDetail } from '@/types';
 
 const FADE_DETAIL_OPTIONS = [

@@ -16,7 +16,8 @@ import { BUILDINGS } from '@/city/session/settings/buildings';
 import { SCENE } from '@/city/session/settings/scene';
 import { RUINS } from '@/city/session/settings/ruins';
 import { NodeKind } from '@/types';
-import type { Building, CityLayout, FileTarget } from '@/types';
+import type { Building, CityLayout } from '@/types';
+import type { FileTarget } from '@/city/scene/types/picker';
 import { building } from '../../../../_helpers/buildingFixture';
 import { makeSession } from '../../../../_helpers/city';
 

@@ -13,7 +13,7 @@ const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
 import { NodeKind } from '@/types';
 import type { TimelineStore } from '@/city/session/stores/timeline';
-import type { PickTarget } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import type { CityChrome } from '@/city/scene/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltip/text';
 import type { createPicker } from './picker';

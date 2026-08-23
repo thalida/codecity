@@ -6,7 +6,7 @@ import './ReadmeTab.css';
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { fetchFileText } from '@/api/file';
+import { fetchFileText } from '@/city/session/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';

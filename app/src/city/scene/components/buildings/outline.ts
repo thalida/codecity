@@ -18,7 +18,7 @@ import { createSafeLineMaterial } from '@/city/scene/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import type { CellTile } from './cellTile';
 import type { createPicker } from '@/city/scene/interaction/picker';
-import type { FileTarget } from '@/types';
+import type { FileTarget } from '@/city/scene/types/picker';
 
 // Narrow world surface the outline renderer needs (cell lookup only). Supplied
 // by the buildings component (cells are component-local).

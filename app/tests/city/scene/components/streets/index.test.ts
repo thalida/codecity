@@ -11,7 +11,8 @@ import {
 } from '../../../../_helpers/cityFixtures';
 import { STREETS } from '@/city/session/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, PickTarget, Street } from '@/types';
+import type { CityLayout, Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

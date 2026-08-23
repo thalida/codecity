@@ -15,7 +15,7 @@ import { FLOATS_PER_SEGMENT } from '@/city/scene/constants/bufferLayout';
 import { createSafeLineMaterial } from '@/city/scene/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
-import type { PickTarget } from '@/types/picker';
+import type { PickTarget } from '@/city/scene/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import { effect } from '@preact/signals';
 

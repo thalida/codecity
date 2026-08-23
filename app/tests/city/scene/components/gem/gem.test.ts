@@ -8,7 +8,8 @@ import {
 } from '../../../../_helpers/cityFixtures';
 import { GEM } from '@/city/session/settings/gem';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Street, PickTarget } from '@/types';
+import type { Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the
 // gem only reads geometry fields (x/y/width/length/orientation).

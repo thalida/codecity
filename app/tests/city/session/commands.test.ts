@@ -8,7 +8,7 @@ import { signal } from '@preact/signals';
 import { FocusMode } from '@/city/scene/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

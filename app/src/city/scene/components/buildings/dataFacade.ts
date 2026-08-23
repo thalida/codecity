@@ -3,7 +3,7 @@
 // white-on-transparent like the server fingerprint, and browser-native, so the
 // backend needs no decoder for either.
 
-import { fetchFileBytes } from '@/api/file';
+import { fetchFileBytes } from '@/city/session/api/file';
 import type { SourceRef } from '@/types';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';

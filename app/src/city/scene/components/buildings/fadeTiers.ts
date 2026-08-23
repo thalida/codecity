@@ -3,7 +3,8 @@
 // same way whether or not you are time-travelling.
 import { NodeKind } from '@/types';
 import type { BuildingsConfig } from '@/city/session/settings/buildings';
-import type { DirNode, FadeDetail, FileNode, PickTarget, Street } from '@/types';
+import type { DirNode, FadeDetail, FileNode, Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { parentDirPath } from '@/city/scene/utils/path';
 import { ROOT_PATH } from '@/constants/manifest';
 

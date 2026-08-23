@@ -6,7 +6,8 @@ import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CityS
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { NodeKind } from '@/types';
-import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';
+import type { DirNode, FileNode, Manifest } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { flush, drainAsync } from '../../../_helpers/preact';
 import { makeSession, renderInCity } from '../../../_helpers/city';
 

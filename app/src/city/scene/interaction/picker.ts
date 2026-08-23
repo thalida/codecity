@@ -11,7 +11,9 @@ import { BuildingKind } from '@/city/scene/components/buildings/buildingKind';
 import type { TimelineStore } from '@/city/session/stores/timeline';
 import { RUINED_STREET_DIRS } from '@/city/scene/components/streets/scrubState';
 
-import type { CommitEntry, PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
+import type { CommitEntry } from '@/types';
+import type { PickerWorld } from '@/city/scene/types/picker';
+import type { PickTarget, PickerSelectionKey } from '@/city/scene/types/picker';
 import type { CityBuild } from '@/city/scene/build';
 
 export function createPicker({

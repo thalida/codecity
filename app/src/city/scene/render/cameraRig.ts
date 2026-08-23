@@ -20,7 +20,8 @@ import {
   CAMERA_EASING_POWER,
 } from '@/city/scene/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickTarget, Street } from '@/types';
+import type { Building, Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import type { CityBuild } from '@/city/scene/build';
 import { computeFramingDir } from './framingDir';
 import type { CityConfig } from '@/city/session/config';

@@ -15,7 +15,7 @@ import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/city/scene/layout/streetPath';
 import { rainbowRgbAt } from '@/city/scene/utils/rainbowChase';
-import type { PickTarget } from '@/types/picker';
+import type { PickTarget } from '@/city/scene/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CityBuild } from '@/city/scene/build';
 

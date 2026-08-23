@@ -3,7 +3,7 @@ import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
 } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
-import { fileUrl } from '@/api/file';
+import { fileUrl } from '@/city/session/api/file';
 import { TEST_SOURCE } from '../../../../../../_helpers/manifestFixtures';
 
 const README = 'README.md';

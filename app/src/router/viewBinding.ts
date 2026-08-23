@@ -12,7 +12,7 @@ import { ROUTES } from './paths';
 import type { CitySession } from '@/city/session/session';
 import { FocusMode } from '@/city/scene/render/cameraRig';
 import { NodeKind } from '@/types';
-import type { PickerSelectionKey } from '@/types';
+import type { PickerSelectionKey } from '@/city/scene/types/picker';
 
 const REPLACE: NavigateOptions = { replace: true };
 

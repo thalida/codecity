@@ -13,7 +13,7 @@ import { computePathLinewidthPixels } from '@/city/scene/components/pathLine/ren
 import { STREETS, STREET_TIERS } from '@/city/session/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
-import type { PickTarget } from '@/types/picker';
+import type { PickTarget } from '@/city/scene/types/picker';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

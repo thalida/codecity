@@ -1,12 +1,10 @@
-// city/components/gem/shapes.ts — SIDES → THREE geometry builders for the
-// root gem's body. The key set is the canonical GEM_SIDES vocabulary from
-// constants/gem.ts; the Record type makes this table compile-time exhaustive
-// against it (a shape added or removed there errors here, and vice versa).
-// mesh.ts builds the body through buildGemGeometry() — no hand-written
-// switch over the shape set anywhere.
+// city/scene/components/gem/shapes.ts — SIDES → geometry for the root gem's
+// body. Keyed by the GEM_SIDES vocabulary, as a Record, so the table is
+// exhaustive at compile time: a shape added there errors here until it is
+// built. mesh.ts goes through buildGemGeometry, never a switch.
 
 import * as THREE from 'three';
-import { GEM_SIDES_DEFAULT, type GemSides } from '@/constants/gem';
+import { GEM_SIDES_DEFAULT, type GemSides } from '@/city/scene/constants/gem';
 
 /** Face count → geometry builder. detail 0 keeps the raw polyhedron
  *  (un-subdivided), so the face count matches the key. */

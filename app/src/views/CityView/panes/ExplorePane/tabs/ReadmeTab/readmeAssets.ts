@@ -2,7 +2,7 @@
 // image path would resolve against the app origin and 404, so repo-relative
 // refs are rewritten through /api/file, against the README's own directory.
 
-import { fileUrl } from '@/api/file';
+import { fileUrl } from '@/city/session/api/file';
 import type { SourceRef } from '@/types';
 
 // Already addressable as-is: a scheme, a protocol-relative //host, or a bare

@@ -6,7 +6,8 @@ import {
 } from '@/city/scene/interaction/tooltip/text';
 import { NodeKind } from '@/types';
 import { commits as buildCommits } from '../../../_helpers/commits';
-import type { FileNode, DirNode, PickTarget } from '@/types';
+import type { FileNode, DirNode } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 
 // The formatter reads a handful of fields but the types want the whole shape,
 // so the rest are inert defaults.

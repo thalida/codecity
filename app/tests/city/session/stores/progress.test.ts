@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RebuildStatus } from '@/city/session/stores/progress';
 
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase, CloneStage } from '@/api/manifest';
+import { ScanPhase, CloneStage } from '@/city/session/api/manifest';
 import {
   LoadingStep,
   BuildStage,

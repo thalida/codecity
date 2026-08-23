@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { untracked } from '@preact/signals';
 import { BuildingOrient, type SourceRef } from '@/types/index';
 import type { CityConfig } from '@/city/session/config';
-import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
+import { MEDIA_ERROR_COLOR } from '@/city/scene/constants/buildings';
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
 import { mediaKindOf, MediaKind, isDataBuilding } from '@/utils/fileKind';
 import {
@@ -15,8 +15,13 @@ import {
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
 import type { TimelineStore } from '@/city/session/stores/timeline';
-import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
-import { fingerprintUrl } from '@/api/fingerprint';
+import {
+  ContentPendingError,
+  fetchFileBlob,
+  fileUrl,
+  isContentPending,
+} from '@/city/session/api/file';
+import { fingerprintUrl } from '@/city/session/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
 

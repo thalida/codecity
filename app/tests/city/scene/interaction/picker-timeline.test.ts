@@ -15,7 +15,8 @@ import { makeCityState, treePlacement, makeBuildingMaterial } from '../../../_he
 import { commitSeries } from '../../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../../_helpers/renderTrees';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickerWorld, Street } from '@/types';
+import type { Building, Street } from '@/types';
+import type { PickerWorld } from '@/city/scene/types/picker';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeSession } from '../../../_helpers/city';
 

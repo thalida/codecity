@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
 import * as branchesApi from '@/api/branches';
-import { ScanError } from '@/api/manifest';
+import { ScanError } from '@/city/session/api/manifest';
 import { flush, drainAsync } from '../_helpers/preact';
 
 describe('BranchSelect', () => {

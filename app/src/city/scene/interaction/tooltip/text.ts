@@ -3,7 +3,7 @@
 // shares the selection pane's stat builders, so hovering a building and
 // selecting it cannot report different numbers.
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/constants/manifest';
 import { fileStatItems, directoryStatItems } from '@/utils/statItems';

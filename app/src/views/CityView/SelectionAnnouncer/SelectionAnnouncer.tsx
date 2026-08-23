@@ -4,7 +4,7 @@
 import { useComputed } from '@preact/signals';
 import { useCity } from '@/city/CityProvider';
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 
 function describe(sel: PickTarget | null): string {
   if (!sel) return '';

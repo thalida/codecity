@@ -3,7 +3,7 @@
 
 import type { SourceKind } from '@/utils/sources';
 import type { LoadingStep } from '@/constants/progress';
-import type { ScanErrorCode } from '@/api/manifest';
+import type { ScanErrorCode } from '@/city/session/api/manifest';
 
 /** Left-sidebar tab IDs. Discriminator on the activity bar's mounted pane. */
 /** One stat on a selection pane's bottom row, or in a hover tooltip: the two

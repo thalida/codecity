@@ -2,7 +2,7 @@
 // What a derived type can't check: our hand-written enums still match the wire.
 import type { components } from './manifest.generated';
 import { NodeKind } from './manifest';
-import { ScanPhase, CloneStage } from '@/api/manifest';
+import { ScanPhase, CloneStage } from '@/city/session/api/manifest';
 import { TimelineStage } from './timeline';
 
 type Schemas = components['schemas'];

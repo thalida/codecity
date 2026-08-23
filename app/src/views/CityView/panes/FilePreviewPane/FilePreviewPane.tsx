@@ -18,10 +18,15 @@ export enum PreviewKind {
   Font = 'font',
   Text = 'text',
 }
-import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/api/file';
+import {
+  fileUrl,
+  fetchFileText,
+  fetchFileBytes,
+  ContentPendingError,
+} from '@/city/session/api/file';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/utils/statItems';
-import { fetchFingerprintBlob } from '@/api/fingerprint';
+import { fetchFingerprintBlob } from '@/city/session/api/fingerprint';
 import {
   IMAGE_EXTS,
   VIDEO_EXTS,

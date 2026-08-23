@@ -7,7 +7,8 @@ import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/pro
 import { LIVE_UPDATES } from '@/city/session/settings/updates';
 import { EMPTY_MANIFEST } from '../../_helpers/manifestFixtures';
 import { TimelineStage } from '@/types';
-import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
+import type { TimelineBundle, TimelineProgress } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { StubEventSource, installEventSource } from '../../_helpers/eventSource';
 import { flush } from '../../_helpers/preact';
 
@@ -15,8 +16,8 @@ import { flush } from '../../_helpers/preact';
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
 
-vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
-import { fetchTimelineBundle } from '@/api/timeline';
+vi.mock('@/city/session/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
+import { fetchTimelineBundle } from '@/city/session/api/timeline';
 import { makeSession } from '../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

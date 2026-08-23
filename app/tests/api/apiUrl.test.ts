@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { apiUrl } from '@/api/apiUrl';
-import { manifestUrlFor, signatureUrlFor } from '@/api/manifest';
+import { manifestUrlFor, signatureUrlFor } from '@/city/session/api/manifest';
 
 describe('apiUrl', () => {
   it('builds an absolute /api/<path> URL on the current origin', () => {
@@ -30,10 +30,8 @@ describe('apiUrl', () => {
   });
 });
 
-// The live-update poll targets the committed CURRENT_SOURCE via these builders,
-// never the page URL — a poll reading window.location mid-switch was the cause
-// of the wrong-world render. These guard that the builders address the explicit
-// source they're handed and ignore the page URL entirely.
+// The poll builds its URL from the source it was handed, never window.location:
+// reading the page URL mid-switch is what rendered the wrong city.
 describe('explicit-source URL builders', () => {
   it('manifestUrlFor builds from the given src/branch, ignoring the page URL', () => {
     history.replaceState({}, '', '/?src=PAGE_SRC&branch=PAGE_BRANCH');

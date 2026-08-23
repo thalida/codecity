@@ -10,7 +10,7 @@ import { createTreeOutlineRenderer } from '@/city/scene/components/trees/outline
 import { TREES } from '@/city/session/settings/trees';
 import { RAINBOW } from '@/city/session/settings/effects';
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types/picker';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { commitTarget } from '../../../../_helpers/cityFixtures';
 
 function fakeCanvas(): HTMLCanvasElement {

@@ -11,7 +11,8 @@ import {
   openSelectionPane,
 } from '@/state/stores/chrome';
 import { NodeKind } from '@/types';
-import type { FileNode, PickTarget } from '@/types';
+import type { FileNode } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { streamManifest, ScanPhase, type ScanStreamEvent } from '@/api/manifest';
+import { streamManifest, ScanPhase, type ScanStreamEvent } from '@/city/session/api/manifest';
 
 // Minimal EventSource stub: records listeners; the test drives events via emit().
 import { makeES } from '../_helpers/eventSource';
@@ -87,9 +87,8 @@ describe('streamManifest (EventSource)', () => {
       signal: ac.signal,
       EventSourceImpl: ctor,
     })[Symbol.asyncIterator]();
-    // The abort-wiring block runs after finish() is declared, so an
-    // already-aborted signal closes the stream at iterator-creation time
-    // without a TDZ ReferenceError.
+    // Abort wiring runs after finish() is declared, so an already-aborted
+    // signal closes the stream at creation without a TDZ ReferenceError.
     expect(last().closed).toBe(true);
     const r = await it.next();
     expect(r.done).toBe(true);

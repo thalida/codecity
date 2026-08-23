@@ -13,7 +13,8 @@ import type { BuildingScrubState } from '@/city/scene/components/buildings/scrub
 import type { StreetScrubState } from '@/city/scene/components/streets/scrubState';
 import { BuildingIndex } from '@/city/scene/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/scene/scrub/replay';
-import type { PickTarget, RangeStat, Street } from '@/types';
+import type { RangeStat, Street } from '@/types';
+import type { PickTarget } from '@/city/scene/types/picker';
 import {
   BYTE_STATS,
   LINE_STATS,

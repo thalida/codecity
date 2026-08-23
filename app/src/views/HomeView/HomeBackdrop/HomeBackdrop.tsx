@@ -6,7 +6,12 @@
 import './HomeBackdrop.css';
 import { useEffect, useMemo } from 'preact/hooks';
 import { effect } from '@preact/signals';
-import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
+import {
+  fetchCachedManifest,
+  manifestUrlFor,
+  streamManifest,
+  ScanPhase,
+} from '@/city/session/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { CitySession } from '@/city/session/session';
 import { RECENTS } from '@/state/stores/recents';

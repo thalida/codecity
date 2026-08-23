@@ -12,7 +12,7 @@ import { renderTrees, treeFaceIndex, treeSlot } from '../../../_helpers/renderTr
 import type { Trees } from '@/city/scene/components/trees/treeRenderer';
 import { VERTS_PER_TRIANGLE } from '@/city/scene/constants/bufferLayout';
 import { NodeKind } from '@/types';
-import type { PickerWorld, CommitTarget } from '@/types';
+import type { PickerWorld, CommitTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.
