@@ -35,11 +35,8 @@ describe('interpolateOklch()', () => {
     const out = rgb(0, 0, 0);
     interpolateOklch(purple, teal, 0.5, out);
 
-    // A plain RGB midpoint would be (0.275, 0.40, 0.75) — a muddy
-    // blue-gray with low chroma. OKLCH midpoint should stay
-    // visibly saturated. Verify by checking the channel SPREAD —
-    // a saturated color has at least one channel clearly higher
-    // than the others.
+    // An RGB midpoint here is a muddy blue-grey; an OKLCH one stays saturated,
+    // which shows as one channel clearly above the others.
     const channels = [out.r, out.g, out.b].sort((x, y) => y - x);
     const spread = channels[0] - channels[2];
     expect(spread).toBeGreaterThan(0.3);

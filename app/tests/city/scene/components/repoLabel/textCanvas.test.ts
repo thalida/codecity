@@ -24,10 +24,8 @@ describe('repoLabel textCanvas', () => {
   });
 
   it('redrawRepoName flags texture.needsUpdate when canvas width is unchanged', () => {
-    // Width-preserving redraws (live-update poll with same name, or a
-    // different name that happens to fit in the same nextPow2 bucket)
-    // stay on the existing texture and rely on a version bump so three.js
-    // re-uploads via texSubImage2D.
+    // A redraw at the same width stays on the texture and bumps its version,
+    // so three.js re-uploads through texSubImage2D.
     const out = createRepoNameTexture('codecity');
     const versionBefore = out.texture.version;
     const widthBefore = out.canvas.width;
@@ -38,12 +36,8 @@ describe('repoLabel textCanvas', () => {
   });
 
   it('replaces out.texture when the canvas width changes', () => {
-    // Three.js cannot resize a Texture's GPU allocation once texStorage2D
-    // has run — see Texture.js: "After the initial use of a texture, its
-    // dimensions [...] cannot be changed. Instead, call Texture#dispose
-    // [...] and instantiate a new one." So a redraw that bumps the canvas
-    // width MUST swap out.texture for a fresh CanvasTexture; mutating in
-    // place leaves stale pixels visible on the GPU.
+    // texStorage2D fixes a texture's dimensions for good (Texture.js says so),
+    // so a wider redraw must swap in a fresh one or show stale pixels.
     const out = createRepoNameTexture('a');
     const oldTexture = out.texture;
     redrawRepoName(out, 'a-much-longer-repo-name-than-before');
@@ -53,9 +47,8 @@ describe('repoLabel textCanvas', () => {
   });
 
   it('reuses out.texture when the canvas width is unchanged', () => {
-    // texSubImage2D handles same-dimension updates fine — disposing the
-    // texture every redraw would churn the GPU allocation for no reason
-    // (e.g. live-update polls re-applying the same manifest).
+    // texSubImage2D covers a same-size update, so disposing every redraw
+    // would churn the GPU allocation for nothing.
     const out = createRepoNameTexture('codecity');
     const oldTexture = out.texture;
     redrawRepoName(out, 'codecity');
@@ -67,18 +60,15 @@ describe('repoLabel textCanvas', () => {
   });
 
   it('keeps the requested font size for names that fit at full FONT_PX', () => {
-    // A short "org/repo" easily fits inside the 1024px canvas cap at
-    // FONT_PX=80. The shrink path must not engage here — we want full
-    // visual weight for the common case.
+    // A short org/repo fits the 1024px cap at FONT_PX=80: the shrink path must
+    // stay out of the common case.
     const { fontPx } = measureForName('foo/bar');
     expect(fontPx).toBe(80);
   });
 
   it('shrinks the font so long org/repo names fit without canvas clipping', () => {
-    // Regression: an org/repo label like "dependency-check/DependencyCheck"
-    // is wider than (MAX_WIDTH − 2·SIDE_PAD) = 960px at FONT_PX=80 and used
-    // to spill off both sides of the center-aligned fillText. measureForName
-    // must pick a smaller font so the rendered text fits inside the canvas.
+    // A label this long exceeds MAX_WIDTH − 2·SIDE_PAD at FONT_PX=80 and used
+    // to spill off both sides of the centred fillText.
     const longName = 'dependency-check/DependencyCheck';
     const { fontPx, canvasWidth } = measureForName(longName);
     expect(fontPx).toBeLessThan(80);

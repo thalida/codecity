@@ -171,9 +171,8 @@ describe('buildIslandGeometry', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const nor = geom.getAttribute('normal') as THREE.BufferAttribute;
-    // After toNonIndexed + computeVertexNormals, every vertex in a top-cap
-    // triangle has the same face normal. Find any vertex at y=0 and check
-    // its normal points upward.
+    // Non-indexed, so every vertex of a top-cap triangle carries the face
+    // normal: any vertex at y=0 must point up.
     let foundTopVertex = false;
     for (let i = 0; i < pos.count; i++) {
       if (Math.abs(pos.getY(i)) < 1e-6) {
@@ -191,10 +190,8 @@ describe('buildIslandGeometry', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const nor = geom.getAttribute('normal') as THREE.BufferAttribute;
-    // The bottom-cap center is at (0, -totalDepth, 0) — the cap fan uses
-    // reversed winding so computeVertexNormals() gives it a -Y face normal.
-    // Look for a vertex very close to the XZ origin at the deepest Y band;
-    // that vertex will be the replicated cap center inside a fan triangle.
+    // The bottom cap's fan winds in reverse, so its face normal is -Y. The
+    // replicated fan centre is the vertex nearest the XZ origin, deepest Y.
     const islandRadius = Math.min(100, 100);
     const totalDepth = islandRadius * 0.6;
     const expectedBottomY = -totalDepth;
@@ -218,9 +215,8 @@ describe('buildIslandGeometry', () => {
   it('vertex count is in the expected low-poly range', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
-    // Non-indexed: vertexCount = triangleCount * 3.
-    // Expected triangles: sides*(4 + 2*(tiers+1)) = 12*(4+6) = 120.
-    // Some variation due to the actual ring count — accept a generous range.
+    // Non-indexed, so vertices = triangles × 3, and the ring count varies:
+    // sides × (4 + 2 × (tiers+1)) ≈ 120 triangles, hence the loose range.
     expect(pos.count).toBeGreaterThan(100);
     expect(pos.count).toBeLessThan(3000);
     geom.dispose();
@@ -257,9 +253,8 @@ describe('pointInIslandPolygon', () => {
   });
 
   it('point inside inscribed circle at mid-edge angle is inside polygon', () => {
-    // For a square bounds (hw=hd=100), the polygon is a regular 12-gon
-    // circumscribed by radius 100. Its inscribed circle radius is
-    // 100 × cos(π/12) ≈ 96.6. A point well inside that is inside the polygon.
+    // Square bounds give a regular 12-gon circumscribed at r=100, inscribed
+    // at 100 × cos(π/12) ≈ 96.6: well within that is inside it.
     const inscR = 100 * Math.cos(Math.PI / 12);
     const angle = Math.PI / 12; // midway between vertex 0 (theta=0) and vertex 1 (theta=2π/12)
     const x = Math.cos(angle) * inscR * 0.99;
@@ -268,9 +263,8 @@ describe('pointInIslandPolygon', () => {
   });
 
   it('point outside polygon at mid-edge angle is outside polygon', () => {
-    // Polygon baseline radius = 100 × sqrt(2)/cos(π/12) ≈ 146.4. Its
-    // inscribed circle sits at baseline × cos(π/12) = 100×sqrt(2) ≈ 141.4.
-    // Point just past that is outside.
+    // Baseline radius 100 × √2 / cos(π/12) ≈ 146.4, inscribed at ≈ 141.4:
+    // just past that is outside.
     const inscR = 100 * Math.SQRT2;
     const angle = Math.PI / 12;
     const x = Math.cos(angle) * inscR * 1.01;

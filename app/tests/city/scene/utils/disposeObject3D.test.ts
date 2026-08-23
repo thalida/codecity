@@ -1,8 +1,6 @@
-// disposeObject3D.test.ts — parity proof for the shared per-Object3D GPU
-// disposer extracted from the gem/streets/buildings/world hand-copies.
-// Verifies: geometry + material + texture-prop disposal on a built subtree,
-// the sharedMaterial guard (module-owned material is NOT freed), idempotency
-// via userData.disposed, and array-material awareness.
+// The shared per-Object3D GPU disposer, against the hand-copies it replaced:
+// geometry, material and texture props on a built subtree, the sharedMaterial
+// guard, idempotency via userData.disposed, and array materials.
 
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';

@@ -153,17 +153,8 @@ describe('findSmallestValidStem', () => {
   });
 
   it("global rect blocks forward at child rect's perp band → slides past", () => {
-    // X-orient parent. Child rect at child-local (0, 10), w=4, d=4.
-    // After side=1 (no flips), it sits at world (stem, 10), perp band [8, 12].
-    // Insert a global rect at world x in [50, 100], y in [8, 12].
-    //
-    // Forbidden interval: lower = 50 - 2 - 8 = 40, upper = 100 - (-2) + 8 = 110.
-    // priorStem=50 puts s inside (40, 110) from the start → algorithm advances to 110.
-    //
-    // (Note: priorStem=0 would return 0 because the child at x=[-2,2] is before
-    //  the global rect at [50,100] and doesn't overlap — that's the gap-fit
-    //  placing the child in the empty space before the blocker. To exercise the
-    //  "slides past" path we must start s inside the forbidden interval.)
+    // A blocker at x[50,100] forbids stems in (40, 110): priorStem=50 starts
+    // inside it and slides out to 110, where priorStem=0 would gap-fit before.
     const occ = new WorldOccupancy();
     occ.insert(worldRect(50, 8, 100, 12));
     const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
@@ -208,12 +199,8 @@ describe('findSmallestValidStem', () => {
   });
 
   it('two global rects with a gap big enough → child fits in the gap', () => {
-    // X-orient parent. Child rect at child-local (0, 10), w=4, d=4 — 4 units wide.
-    // Global rect A at world x in [0, 20], y in [8, 12].
-    // Global rect B at world x in [50, 100], y in [8, 12].
-    // Gap between A and B: x in [20, 50], i.e. 30 units. Child needs 4 + 2*gap = 20.
-    // At priorStem=0: child's alongMin at stem=0 = -2. To fit after A: stem ≥ 20 - (-2) + gap = 30.
-    //   At stem=30: child x range [28, 32] — fits in gap [20+8, 50-8] = [28, 42]. ✓
+    // A 4-wide child needs 20 units with padding, and A[0,20]/B[50,100] leave
+    // 30: it fits at stem=30, occupying [28,32] inside the gap's [28,42].
     const occ = new WorldOccupancy();
     occ.insert(worldRect(0, 8, 20, 12));
     occ.insert(worldRect(50, 8, 100, 12));
@@ -236,9 +223,8 @@ describe('findSmallestValidStem', () => {
   });
 
   it('two global rects with a gap too small → slides past both', () => {
-    // Same as above but A in [0, 20] and B in [25, 100] — gap only 5 units.
-    // Child (4 wide + 16 padding = 20) cannot fit. Must slide past B.
-    // After B at x=100: stem = 100 - (-2) + gap = 102 + 8 = 110.
+    // The same, with a 5-unit gap the 20-wide child cannot use: it slides past
+    // B to stem 110.
     const occ = new WorldOccupancy();
     occ.insert(worldRect(0, 8, 20, 12));
     occ.insert(worldRect(25, 8, 100, 12));
@@ -261,10 +247,7 @@ describe('findSmallestValidStem', () => {
   });
 
   it('multiple child rects at different perps — max constraint applies', () => {
-    // Child has two rects: r1 at perp y=10, r2 at perp y=20.
-    // r1 blocked by global at x [0,10] in y [8,12] → needs stem ≥ 10+gap-(-2) = 20.
-    // r2 blocked by global at x [0,50] in y [18,22] → needs stem ≥ 50+gap-(-2) = 60.
-    // Max applies: stem = 60.
+    // Two rects, blocked at 20 and at 60: the further one wins, so stem = 60.
     const occ = new WorldOccupancy();
     occ.insert(worldRect(0, 8, 10, 12));
     occ.insert(worldRect(0, 18, 50, 22));
@@ -407,10 +390,8 @@ describe('placeChild', () => {
   });
 
   it('priorStems: per-side floors override priorStem for each variant', () => {
-    // priorStems[0]=50, priorStems[1]=0. A mirror-invariant child should
-    // prefer side 1 (floor 0) over side 0 (floor 50) since side 1 fits
-    // sooner. Without per-side, the cross-side floor of 50 would force
-    // both sides to start at 50.
+    // A mirror-invariant child takes the side that fits sooner (floor 0, not
+    // 50), which a single cross-side floor would deny it.
     const occ = new WorldOccupancy();
     const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
     const result = placeChild({

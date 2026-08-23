@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { writeSunDir, sunDir } from '@/city/scene/utils/shaders/sunDir';
 
-// sunDir is pure math: (azimuthDeg, elevationDeg) → unit world-space direction
-// toward the sun. Tests pass the angles directly (the production sun position
-// is the fixed LIGHTING_* constants in constants/lighting).
+// Pure math: (azimuthDeg, elevationDeg) → a unit direction toward the sun. The
+// angles are passed directly; production reads the LIGHTING_* constants.
 
 describe('writeSunDir', () => {
   it('reproduces the legacy normalize(0.5, 1.0, 0.4) at az=51 el=58', () => {

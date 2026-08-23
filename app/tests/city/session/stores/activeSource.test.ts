@@ -111,8 +111,7 @@ describe('opening a source', () => {
 
   beforeEach(() => {
     session = makeSession();
-    // The URL is an adapter over a session, so the history entries below are
-    // what pointing it at this one produces; recents is the other reaction the
+    // The URL is an adapter over a session; recents is the other reaction the
     // app attaches to the city you opened.
     stopUrl = attachUrlBinding(session);
     stopRecents = attachRecents(session);

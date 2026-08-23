@@ -38,9 +38,8 @@ describe('sky.frag.glsl', () => {
   });
 
   it('does NOT reference the removed horizon uniforms or star min-elevation', () => {
-    // The horizon band and the star min-elevation cutoff were removed.
-    // Catching them as a regression guards against an accidental
-    // reintroduction (or a stale shader file).
+    // Both were removed: catching them guards a reintroduction, or a stale
+    // shader file.
     expect(src).not.toContain('uHorizonColor');
     expect(src).not.toContain('uHorizonHeight');
     expect(src).not.toContain('uStarMinElevation');
@@ -67,10 +66,8 @@ describe('sky.frag.glsl', () => {
   });
 
   it('scatters stars with a hash-without-sine over a cube-face grid', () => {
-    // Star presence + placement come from hash13/hash33 (Dave Hoskins),
-    // replacing the old fract(sin(dot(...))) hash that banded into moiré, and
-    // the cube-face projection replaces the equirectangular grid that crowded
-    // stars into meridian lines at the poles.
+    // hash13/hash33 (Dave Hoskins), because fract(sin(dot(…))) banded into
+    // moiré; cube faces, because an equirectangular grid crowds the poles.
     expect(src).toMatch(/hash13\s*\(/);
     expect(src).toMatch(/hash33\s*\(/);
     expect(src).toMatch(/starCubeUV\s*\(/);

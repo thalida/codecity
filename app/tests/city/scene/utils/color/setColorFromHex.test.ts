@@ -24,9 +24,8 @@ describe('setColorFromHex()', () => {
       linear.getHex(THREE.LinearSRGBColorSpace)
     );
 
-    // The default-converted form differs — guards against someone "fixing"
-    // the helper to use the default color space and silently washing out
-    // every consumer's palette.
+    // The default-converted form differs, so "fixing" the helper to use it
+    // would wash out every consumer's palette.
     const converted = new THREE.Color().setStyle('#5e8a3a');
     expect(viaHelper.equals(converted)).toBe(false);
   });

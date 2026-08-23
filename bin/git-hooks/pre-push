@@ -39,7 +39,11 @@ docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 # app/'s comment cap runs over what this push changes, not the whole tree: that
 # rule arrived long after its comments did. api/ has no such backlog, so its cap
 # above runs over everything. Listed here (git is on the host), linted in there.
-CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'app/**' \
+#
+# R100 (moved, byte-identical) is dropped: a rename changes no comment, and
+# counting it would make one restructure answer for the whole backlog.
+CHANGED_APP=$(git diff --name-status -M --diff-filter=ACMR origin/main...HEAD -- 'app/**' \
+    | grep -v '^R100' | awk '{print $NF}' \
     | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^app/||' | tr '\n' ' ' || true)
 
 # One container for all of it: each is seconds of work behind a slow start.

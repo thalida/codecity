@@ -1,10 +1,6 @@
-// onConfig(store, apply) is the shared setting-reactivity wrapper for the
-// city components. It must:
-//   - run `apply` once synchronously at wire time,
-//   - re-run `apply` on every Save (write) of `store`,
-//   - NOT re-run when some OTHER signal that `apply` reads changes (apply runs
-//     untracked, so reads inside it never become dependencies),
-//   - return a stop fn that unsubscribes.
+// onConfig(section, apply): apply runs once at wire time and on every write to
+// that section, never for another signal it happens to read, and the returned
+// stop unsubscribes.
 import { describe, it, expect } from 'vitest';
 import { signal } from '@preact/signals';
 import { onConfig } from '@/city/scene/utils/onConfig';
