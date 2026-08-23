@@ -39,6 +39,8 @@ docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 # app/'s comment cap runs over what this push changes, not the whole tree: that
 # rule arrived long after its comments did. api/ has no such backlog, so its cap
 # above runs over everything. Listed here (git is on the host), linted in there.
+# Paths are app-relative because eslint's config lives in app/, so the container
+# cd's there for this one command — `npm ci` still runs at the workspace root.
 CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'app/**' \
     | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^app/||' | tr '\n' ' ' || true)
 
@@ -47,10 +49,10 @@ CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'app
 echo "[pre-push] 5/7  eslint + typecheck (app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
-    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck \
-        && { [ -z '$CHANGED_APP' ] || npx eslint $CHANGED_APP; }" >/dev/null
+    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint -w app && npm run typecheck -w app \
+        && { [ -z '$CHANGED_APP' ] || (cd app && npx eslint $CHANGED_APP); }" >/dev/null
 
-# Its own container: the app-scoped vitest service can't see the root config.
+# Its own container so it doesn't pay for the apt bootstrap vitest needs.
 echo "[pre-push] 6/7  prettier --check (repo root)"
 docker compose -f docker-compose.test.yml run --rm prettier >/dev/null
 

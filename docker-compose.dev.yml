@@ -38,18 +38,26 @@ services:
 
   app:
     image: node:24-bookworm-slim
-    working_dir: /app
+    # The workspace root, not app/: one lockfile covers all three workspaces,
+    # so `npm ci` only runs here. `-w app` picks which one to serve.
+    working_dir: /repo
     # Pin npm to host version to match the lockfile shape (see Dockerfile
     # for the same workaround). NPM_VERSION is loaded from the repo-root
     # .env file by compose; fallback keeps this working if .env is missing.
-    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm run dev -w app -- --host 0.0.0.0 --port 5173"
     ports:
       # ${VITE_HOST_PORT} is set by `just dev` to a per-worktree free port.
       # Default 5173 covers ad-hoc `docker compose up` in a single worktree.
       - '${VITE_HOST_PORT:-5173}:5173'
     volumes:
-      - './app:/app'
-      - '/app/node_modules' # anonymous volume — npm-installed in container
+      - '.:/repo'
+      # Anonymous volumes — npm-installed in container, so the host's
+      # macOS-built binaries never leak in. One per workspace: npm hoists to
+      # the root but drops a nested tree wherever versions conflict.
+      - '/repo/node_modules'
+      - '/repo/app/node_modules'
+      - '/repo/city/node_modules'
+      - '/repo/client/node_modules'
     environment:
       - VITE_API_PROXY=http://api:8000
     depends_on:

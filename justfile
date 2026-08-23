@@ -140,12 +140,12 @@ check-types-fresh:
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
-# Prettier needs its own service: the app-scoped vitest one can't see the
-# root config.
+# Prettier gets its own service so it doesn't pay for the apt bootstrap the
+# vitest one needs for node-canvas.
 lint-app:
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
-         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint -w app && npm run typecheck -w app"
     docker compose -f docker-compose.test.yml run --rm prettier
 
 # ── Codegen ──────────────────────────────────────────────────────
@@ -237,11 +237,11 @@ demo-webp quality='50' fps='12':
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs node_modules
-# at the root (prettier) and in app/ (so local vitest / IDE intellisense work —
-# runtime itself uses Docker via `just dev`), plus the per-clone git hooks.
+# for every npm workspace (app/, city/, client/) from the single root lockfile,
+# so local vitest / IDE intellisense work — runtime itself uses Docker via
+# `just dev`. Plus the per-clone git hooks.
 setup: install-hooks
     npm install
-    cd app && npm install
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \
          echo "[just] seeded .env.local — your mount, flags and deploy credentials live there" ; \

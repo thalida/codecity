@@ -102,20 +102,22 @@ services:
       - './pyproject.toml:/srv/pyproject.toml:ro'
       - 'codecity-test-pyright-cache:/root/.cache/pyright-python'
 
-  # Separate from `vitest` because that service only mounts ./app, and
-  # prettier's install and config are at the root.
   # Regenerates the TS types from a schema `just gen-types` already wrote to
-  # .local/, and diffs. Its own service because it needs app's node_modules and
-  # the repo root together, which neither vitest nor prettier mounts.
+  # .local/, and diffs. Its own service, like `prettier` below, so neither pays
+  # for the apt bootstrap `vitest` needs for node-canvas.
   gentypes:
     image: node:24-bookworm-slim
-    working_dir: /repo/app
+    # Install at the workspace root, generate from app/ (where the committed
+    # file it diffs against lives).
+    working_dir: /repo
     init: true
-    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && cd app && npx openapi-typescript ../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
     volumes:
       - '.:/repo'
       - '/repo/node_modules'
       - '/repo/app/node_modules'
+      - '/repo/city/node_modules'
+      - '/repo/client/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   prettier:
@@ -128,11 +130,17 @@ services:
       - '.:/repo'
       - '/repo/node_modules'
       - '/repo/app/node_modules'
+      - '/repo/city/node_modules'
+      - '/repo/client/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   vitest:
     image: node:24-bookworm-slim
-    working_dir: /app
+    # The workspace root, not app/: one lockfile covers all three workspaces,
+    # so `npm ci` only runs here. Every command this service is overridden
+    # with (just lint-app, ci.yml, the pre-push gate) picks its workspace
+    # with `-w`.
+    working_dir: /repo
     init: true
     # Pin npm to host version to match the lockfile shape (see Dockerfile
     # for the same workaround). NPM_VERSION is loaded from the repo-root
@@ -148,14 +156,19 @@ services:
     # Reliability: canvas's prebuilt .node download can flake and fall back to a
     # node-gyp source build that fails in this slim image. Mitigations: cache the
     # prebuilt in named volumes (fetched once, reused) and retry `npm ci`.
-    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test -w app"
     volumes:
-      # Not :ro — Docker can't mkdir the /app/node_modules mountpoint under a
+      # Not :ro — Docker can't mkdir the node_modules mountpoints under a
       # read-only parent mount on a fresh checkout (no existing node_modules
       # dir to overlay on). Vitest tests are pure-functional and don't write
       # to source.
-      - './app:/app'
-      - '/app/node_modules' # anonymous volume — npm-installed in container
+      - '.:/repo'
+      # Anonymous volumes — npm-installed in container. One per workspace: npm
+      # hoists to the root but drops a nested tree wherever versions conflict.
+      - '/repo/node_modules'
+      - '/repo/app/node_modules'
+      - '/repo/city/node_modules'
+      - '/repo/client/node_modules'
       - 'codecity-test-npm-cache:/root/.npm' # persist npm + prebuild-install cache
       - 'codecity-test-node-cache:/root/.cache' # prebuild-install may cache here too
 

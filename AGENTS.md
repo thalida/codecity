@@ -110,6 +110,15 @@ leaving those containers pointing at a gone network (`just dev` then fails with
 
 ## Layout
 
+`app/`, `city/` and `client/` are npm workspaces. One `package-lock.json`, at the
+repo root, is the only lockfile — every `npm ci` runs there, and `-w app` picks
+which workspace a script belongs to.
+
+- `city/` (`@codecity/city`) and `client/` (`@codecity/client`) — empty
+  scaffolding. `app/src/city/` and `app/src/api/` move into them over the course
+  of [#208](https://github.com/thalida/codecity/issues/208); until then both hold
+  a `src/index.ts` that exports nothing, and a temporary `@/*` alias pointing
+  back at `app/src/` so code can move one family at a time.
 - `app/` — Preact + TypeScript frontend. Two routes, one view each: `/` is the
   landing (pick a project) and `/city?src=…` is a world. The URL is the source of
   truth for both — `router/` owns it, and `?src`, `?mode`, `?commit` and `?sel`

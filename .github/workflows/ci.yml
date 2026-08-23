@@ -73,10 +73,10 @@ jobs:
         # Override the default compose command (which runs `npm test`) to
         # run `npm run coverage` instead. Same apt-get / npm bootstrap as
         # the compose service. Output lands in app/coverage/ on the host
-        # via the ./app:/app bind mount.
+        # via the .:/repo bind mount.
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage -w app"
 
       - name: Upload pytest coverage report
         if: always()
@@ -97,9 +97,9 @@ jobs:
       - name: Lint + typecheck
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint -w app && npm run typecheck -w app"
 
-      # Its own service: the app-scoped vitest service can't see the root config.
+      # Its own service so it doesn't pay for the apt bootstrap vitest needs.
       - name: Format check (prettier)
         run: docker compose -f docker-compose.test.yml run --rm prettier
 

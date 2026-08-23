@@ -12,14 +12,22 @@ FROM node:24-bookworm-slim AS web-builder
 ARG NPM_VERSION=11.6.2
 RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build
+# npm workspaces: one lockfile at the root covers app/, city/ and client/, so
+# the install runs here and every workspace manifest has to be present for it.
 # .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
 # vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
-COPY app/package.json app/package-lock.json app/.npmrc ./
+COPY package.json package-lock.json .npmrc ./
+COPY app/package.json ./app/
+COPY city/package.json ./city/
+COPY client/package.json ./client/
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
-COPY app/ ./
-RUN npm run build
-# Output: /build/dist/
+COPY tsconfig.base.json ./
+COPY app/ ./app/
+COPY city/ ./city/
+COPY client/ ./client/
+RUN npm run build -w app
+# Output: /build/app/dist/
 
 # ─────── Stage 2: runtime ───────
 FROM python:3.13-slim AS runtime
@@ -67,7 +75,7 @@ COPY api/ ./api/
 
 # Built frontend → /srv/api/static (matches api/app.py DEFAULT_STATIC_DIR
 # resolution: Path(__file__).resolve().parent / "static"). No env var needed.
-COPY --from=web-builder /build/dist /srv/api/static
+COPY --from=web-builder /build/app/dist /srv/api/static
 
 # pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
 # but .dockerignore excludes .git to keep the build context small. Feed the

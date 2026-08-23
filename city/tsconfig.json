@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Temporary, and the load-bearing piece of the extraction (#208): code
+    // moved in here keeps resolving its `@/` imports against the app while
+    // those imports are removed one family at a time. Deleted once
+    // `grep "@/" city/src` comes back empty.
+    "paths": {
+      "@/*": ["../app/src/*"]
+    },
+
+    // "three" is required because three.js ships no bundled .d.ts files;
+    // "webxr" is @types/three's declared dependency and referenced in its
+    // declarations (XRSession etc.), so it must be listed here too.
+    "types": ["three", "webxr"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "vite.config.js"]
+}
