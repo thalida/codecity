@@ -12,16 +12,20 @@ import type { Manifest, CityLayout } from '@/types';
  *  clones its commits array across postMessage every apply, for nothing. */
 export type LayoutManifest = Pick<Manifest, 'tree' | 'stats'>;
 
+/** What laying a city out reads: passed in rather than read from a store,
+ *  since this runs in a worker as often as on the main thread. */
+export interface LayoutConfig {
+  streetLayout: StreetLayoutConfig;
+  buildingDimensions: BuildingDimensionsConfig;
+  gemSizing: GemSizingConfig;
+  streetTiers: StreetTier[];
+}
+
 export interface LayoutRequest {
   type: 'layout';
   id: number;
   manifest: LayoutManifest;
-  configSnapshot: {
-    streetLayout: StreetLayoutConfig;
-    buildingDimensions: BuildingDimensionsConfig;
-    gemSizing: GemSizingConfig;
-    streetTiers: StreetTier[];
-  };
+  configSnapshot: LayoutConfig;
 }
 
 export type LayoutResponse =

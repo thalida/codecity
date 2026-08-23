@@ -12,6 +12,9 @@ import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { ISLAND, WORLD } from '@/state/settings/fields/island';
 import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
+import { GEM_SIZING } from '@/state/settings/fields/gem';
+import type { LayoutConfig } from '@/city/layout/protocol';
 import { createCitySceneState, type CitySceneState } from '@/city/state';
 import { BuildingMaterial } from '@/city/components/buildings/material';
 import { commits } from './commits';
@@ -122,6 +125,16 @@ export function placementConfig(): TreePlacementConfig {
     footprint: FOOTPRINT.value,
     island: ISLAND.value,
     world: WORLD.value,
+  };
+}
+
+/** What a city is laid out from, as the app's own settings read now. */
+export function layoutConfig(): LayoutConfig {
+  return {
+    streetLayout: STREET_LAYOUT.value,
+    buildingDimensions: BUILDING_DIMENSIONS.value,
+    gemSizing: GEM_SIZING.value,
+    streetTiers: STREET_TIERS.value.TIERS,
   };
 }
 

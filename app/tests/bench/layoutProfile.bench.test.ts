@@ -8,6 +8,7 @@ import { layoutCity } from '@/city/layout/algorithm.js';
 import { setLayoutProfiling, getLayoutProfile } from '@/city/layout/profiling';
 import { NodeKind } from '@/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
+import { layoutConfig } from '../_helpers/cityFixtures';
 
 function countFilesDirs(node: any): { files: number; dirs: number } {
   let files = 0;
@@ -30,7 +31,7 @@ describe('layoutCity profile (Linux-sized)', () => {
     const { files, dirs } = countFilesDirs(tree);
     setLayoutProfiling(true);
     const t0 = performance.now();
-    layoutCity({ tree });
+    layoutCity({ tree }, layoutConfig());
     const t1 = performance.now();
     const buckets = getLayoutProfile();
     setLayoutProfiling(false);

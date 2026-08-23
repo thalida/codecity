@@ -6,6 +6,7 @@
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { NodeKind } from '@/types';
+import { layoutConfig } from '../_helpers/cityFixtures';
 
 function mkFile(name: string, depth: number) {
   return {
@@ -61,7 +62,7 @@ const PERF_TIMEOUT_MS = 60_000;
 describe('layoutCity perf smoke', () => {
   function runOne(label: string, tree: any) {
     const t0 = performance.now();
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, layoutConfig());
     const t1 = performance.now();
     const ms = (t1 - t0).toFixed(1);
     const nBuildings = layout.buildings.length;

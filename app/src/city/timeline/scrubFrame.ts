@@ -1,7 +1,7 @@
 // The only per-frame reader of the scrub position, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig, BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 import type { CityConfig } from '@/city/config';
 import { NodeKind } from '@/types';
 import type { FileNode, RangeStat, Street } from '@/types';
@@ -32,6 +32,8 @@ export interface ScrubFrame {
   dirTarget: ReturnType<typeof resolveDirTarget>;
   hoverFile: FileNode | null;
   fadeCfg: BuildingsConfig;
+  /** The dimensions a scrubbed building is re-measured with. */
+  buildingDims: BuildingDimensionsConfig;
 }
 
 export interface ScrubFrameDeps {
@@ -86,5 +88,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
     hoverFile: hov?.kind === NodeKind.File ? hov.file : null,
     fadeCfg: deps.config.BUILDINGS.peek(),
+    buildingDims: deps.config.BUILDING_DIMENSIONS.peek(),
   };
 }

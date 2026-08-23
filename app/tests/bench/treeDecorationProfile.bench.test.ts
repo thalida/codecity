@@ -7,7 +7,7 @@ import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/settings/fields/trees';
-import { noIslandConfig } from '../_helpers/cityFixtures';
+import { noIslandConfig, layoutConfig } from '../_helpers/cityFixtures';
 import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
 import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
@@ -26,7 +26,7 @@ describe('tree decoration profile', () => {
     // Derived outside the timed regions so they exclude the stats pass;
     // layoutCity needs the ranges or every building collapses to min-width.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
-    const layout = layoutCity({ tree, stats });
+    const layout = layoutCity({ tree, stats }, layoutConfig());
     const bbox = bboxOf(layout);
 
     const t0 = performance.now();

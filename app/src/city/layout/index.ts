@@ -3,28 +3,16 @@
 // newer call supersedes the pending ones rather than racing them. Falls back to
 // synchronous in-process layout when Worker is undefined (jsdom), identically.
 
-import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { GEM_SIZING } from '@/state/settings/fields/gem';
-import type { StreetLayoutConfig, StreetTier } from '@/state/settings/fields/streets';
-import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
-import type { GemSizingConfig } from '@/state/settings/fields/gem';
+import type { CityConfig } from '@/city/config';
 import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
-import type { LayoutRequest, LayoutResponse } from './protocol';
+import type { LayoutConfig, LayoutRequest, LayoutResponse } from './protocol';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;
   reject: (err: Error) => void;
   onProgress?: (percent: number) => void;
-}
-
-interface ConfigSnapshot {
-  streetLayout: StreetLayoutConfig;
-  buildingDimensions: BuildingDimensionsConfig;
-  gemSizing: GemSizingConfig;
-  streetTiers: StreetTier[];
 }
 
 export interface LayoutClient {
@@ -55,14 +43,15 @@ function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
 
 // The cheap main-thread path: prior positions kept, per-file refs and dims
 // recomputed from the new manifest. No worker, no collision detection.
-function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
+function reuseLayout(prior: CityLayout, newManifest: Manifest, cfg: LayoutConfig): CityLayout {
   const filesByPath = buildPathToFile(newManifest.tree as unknown as TreeNode);
   const heightCtx = makeHeightContext(newManifest.stats);
   const newBuildings = prior.buildings.map((b) => {
     const freshFile = (b.file?.path ? filesByPath.get(b.file.path) : null) ?? b.file;
     const dims = recomputeBuildingDimensions(
       freshFile as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
-      heightCtx
+      heightCtx,
+      cfg.buildingDimensions
     );
     return {
       ...b,
@@ -80,16 +69,15 @@ function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
   };
 }
 
-function _snapshot(): ConfigSnapshot {
-  return {
-    streetLayout: STREET_LAYOUT.value,
-    buildingDimensions: BUILDING_DIMENSIONS.value,
-    gemSizing: GEM_SIZING.value,
-    streetTiers: STREET_TIERS.value.TIERS,
-  };
-}
-
-export function createLayoutClient(): LayoutClient {
+export function createLayoutClient(config: CityConfig): LayoutClient {
+  // Read per request, not once: a Save changes what the next city is laid out
+  // from, and the worker cannot read a signal.
+  const snapshot = (): LayoutConfig => ({
+    streetLayout: config.STREET_LAYOUT.value,
+    buildingDimensions: config.BUILDING_DIMENSIONS.value,
+    gemSizing: config.GEM_SIZING.value,
+    streetTiers: config.STREET_TIERS.value.TIERS,
+  });
   const pending = new Map<number, PendingRequest>();
   let nextId = 1;
   let disposed = false;
@@ -152,7 +140,10 @@ export function createLayoutClient(): LayoutClient {
     reject: PendingRequest['reject']
   ): void {
     try {
-      const layout = layoutCity(manifest as unknown as Parameters<typeof layoutCity>[0]);
+      const layout = layoutCity(
+        manifest as unknown as Parameters<typeof layoutCity>[0],
+        snapshot()
+      );
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -187,7 +178,7 @@ export function createLayoutClient(): LayoutClient {
           if (!pending.has(id)) return; // superseded
           pending.delete(id);
           try {
-            resolve(reuseLayout(reuseLayoutFrom, manifest));
+            resolve(reuseLayout(reuseLayoutFrom, manifest, snapshot()));
           } catch (err) {
             reject(err instanceof Error ? err : new Error(String(err)));
           }
@@ -210,7 +201,7 @@ export function createLayoutClient(): LayoutClient {
         // ONLY what layoutCity reads: the commits array would be structured-
         // cloned on the main thread every apply (~240ms at 200k), for nothing.
         manifest: { tree: manifest.tree, stats: manifest.stats },
-        configSnapshot: _snapshot(),
+        configSnapshot: snapshot(),
       };
       w.postMessage(request);
     });

@@ -17,7 +17,7 @@ import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 import { makeSession } from '../_helpers/city';
-import { makeBuildingMaterial } from '../_helpers/cityFixtures';
+import { makeBuildingMaterial, layoutConfig } from '../_helpers/cityFixtures';
 
 // One city for this file, the way the app makes one for itself.
 // One material for this file, the way one city has one.
@@ -134,7 +134,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
 
   // ── 1. layout compute ──
   const t0 = performance.now();
-  const layout = layoutCity({ tree, stats } as any) as unknown as CityLayout;
+  const layout = layoutCity({ tree, stats } as any, layoutConfig()) as unknown as CityLayout;
   const t1 = performance.now();
 
   // ── 2. worker payload clone (full manifest-carrying layout vs geometry-only) ──

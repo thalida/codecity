@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import type { CityLayout } from '@/types';
+import { layoutConfig } from '../../_helpers/cityFixtures';
 import {
   makeRng,
   genWeightedTree,
@@ -58,7 +59,7 @@ describe('layoutCity golden (bit-identical guard)', () => {
       const tree = genWeightedTree('root', 'root', budget, 0, rng);
       // Without the file-stat ranges (server-provided in production) dimensions
       // fall back to SAFE_RANGE and the guard covers only a uniform layout.
-      digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }));
+      digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }, layoutConfig()));
     }
     expect(digests).toEqual(EXPECTED);
   }, 60_000);

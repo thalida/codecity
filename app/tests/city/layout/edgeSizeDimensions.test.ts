@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { NodeKind } from '@/types';
+import { layoutConfig } from '../../_helpers/cityFixtures';
 import {
   edgeCaseFiles,
   mkDir,
@@ -33,7 +34,7 @@ describe.each([
 ])('layout dimensions with %s', (_label, build) => {
   it('emits a building per file with finite, positive dimensions', () => {
     const tree = build();
-    const layout = layoutCity({ tree, stats: statsFromTree(tree) });
+    const layout = layoutCity({ tree, stats: statsFromTree(tree) }, layoutConfig());
 
     const fileCount = tree.children.filter((c: any) => c.type === NodeKind.File).length;
     expect(layout.buildings).toHaveLength(fileCount);
@@ -50,7 +51,7 @@ describe.each([
 
   it('keeps streets finite too, since they size off the same ranges', () => {
     const tree = build();
-    const layout = layoutCity({ tree, stats: statsFromTree(tree) });
+    const layout = layoutCity({ tree, stats: statsFromTree(tree) }, layoutConfig());
 
     for (const s of layout.streets) {
       for (const f of ['x', 'y', 'length', 'width'] as const) {
@@ -67,13 +68,16 @@ describe('layout dimensions given a zero-floored stats range', () => {
   const tree = () => mkDir('root', edgeCaseFiles('root'), 'root');
 
   it('survives a byte range starting at zero', () => {
-    const layout = layoutCity({
-      tree: tree(),
-      stats: {
-        byteSizeRange: { min: 0, max: 51200 },
-        lineCountRange: { min: 1, max: 400 },
-      } as any,
-    });
+    const layout = layoutCity(
+      {
+        tree: tree(),
+        stats: {
+          byteSizeRange: { min: 0, max: 51200 },
+          lineCountRange: { min: 1, max: 400 },
+        } as any,
+      },
+      layoutConfig()
+    );
 
     expect(layout.buildings.length).toBeGreaterThan(0);
     for (const b of layout.buildings) {
@@ -83,13 +87,16 @@ describe('layout dimensions given a zero-floored stats range', () => {
   });
 
   it('survives a line range starting at zero', () => {
-    const layout = layoutCity({
-      tree: tree(),
-      stats: {
-        byteSizeRange: { min: 1, max: 51200 },
-        lineCountRange: { min: 0, max: 400 },
-      } as any,
-    });
+    const layout = layoutCity(
+      {
+        tree: tree(),
+        stats: {
+          byteSizeRange: { min: 1, max: 51200 },
+          lineCountRange: { min: 0, max: 400 },
+        } as any,
+      },
+      layoutConfig()
+    );
 
     for (const b of layout.buildings) {
       expect(Number.isFinite(b.h), `h = ${b.h}`).toBe(true);
@@ -115,7 +122,7 @@ describe('layout dimensions when every file is empty', () => {
       })),
       'root'
     );
-    const layout = layoutCity({ tree, stats: statsFromTree(tree) });
+    const layout = layoutCity({ tree, stats: statsFromTree(tree) }, layoutConfig());
 
     expect(layout.buildings).toHaveLength(3);
     for (const b of layout.buildings) {

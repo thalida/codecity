@@ -67,7 +67,7 @@ export async function createCityScene(
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
 
-  const layoutClient = createLayoutClient();
+  const layoutClient = createLayoutClient(session.config);
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient(session.config);
@@ -133,6 +133,7 @@ export async function createCityScene(
     canvas,
     sceneState,
     mode: session.cameraMode ?? CameraMode.Project,
+    config: session.config,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
       // the first tick, and framing that waits frames a different city (#62).
@@ -356,7 +357,13 @@ export async function createCityScene(
     world: {
       getTrees: () => trees.getRenderer(),
       runCollisionCheck: () => runCollisionCheck(sceneState),
-      runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(sceneState),
+      runStemPlacementDiagnostic: () =>
+        runStemPlacementDiagnostic(sceneState, {
+          streetLayout: session.config.STREET_LAYOUT.peek(),
+          buildingDimensions: session.config.BUILDING_DIMENSIONS.peek(),
+          gemSizing: session.config.GEM_SIZING.peek(),
+          streetTiers: session.config.STREET_TIERS.peek().TIERS,
+        }),
       runTreeGroundingDiagnostic: () =>
         runTreeGroundingDiagnostic(trees.getRenderer()?.group ?? null, ISLAND_TOP_Y),
     },

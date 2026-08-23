@@ -146,7 +146,7 @@ export function resolveBuildingScrubState(
   out.kind = kindFor(b.file, scrubFile, lane);
 
   if (present) {
-    const dims = getBuildingDimensions(scrubFile, f.lineStats, f.byteStats);
+    const dims = getBuildingDimensions(scrubFile, f.buildingDims, f.lineStats, f.byteStats);
     out.height = dims.h;
     out.floors = dims.floors;
   } else {

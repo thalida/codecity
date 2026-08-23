@@ -1,8 +1,7 @@
 // city/layout/dimensions.ts — file/building sizing and street width derivation.
 // Pure functions over manifest stats and settings stores; no DOM or Three.js.
 
-import { STREET_TIERS } from '@/state/settings/fields/streets';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 import type { StreetTier } from '@/state/settings/fields/streets';
 import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile, isEmptyFile, isDataBuilding } from '@/utils/fileKind';
@@ -30,8 +29,8 @@ export type TreeLike = FileLike | DirLike;
 
 // The widest tier whose min_descendants the count meets; the last tier is the
 // catch-all for big directories.
-export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
-  const arr = tiers && tiers.length ? tiers : STREET_TIERS.value.TIERS;
+export function getStreetWidth(count: number, tiers: StreetTier[]): number {
+  const arr = tiers;
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
     if (count >= arr[i].min_descendants) chosen = arr[i].width;
@@ -62,7 +61,7 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 
 // Project-relative, but the ceiling is anchored to the biggest file's ABSOLUTE
 // size: a repo of small files reads as a short city, not a full one.
-type Dims = typeof BUILDING_DIMENSIONS.value;
+type Dims = BuildingDimensionsConfig;
 
 /** Floors from line count, sqrt-normalized. Full cap only when the largest file
  *  is >= FULL_HEIGHT_LINES, so a small-file repo reads low-rise; order preserved. */
@@ -126,10 +125,10 @@ export function getBuildingDimensions(
     media_height?: number;
     binary?: boolean;
   },
+  dims: Dims,
   lineStats?: RangeStat,
   byteStats?: RangeStat
 ): { w: number; d: number; h: number; floors: number } {
-  const dims = BUILDING_DIMENSIONS.value;
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 
   // MIN_FLOORS is the floor for files that HAVE content, so an empty file skips
@@ -195,13 +194,14 @@ export function makeHeightContext(stats: RepoStats | null | undefined): HeightCo
 // layout's skeleton-era placeholders into the final manifest's real sizes.
 export function recomputeBuildingDimensions(
   file: FileLike,
-  ctx: HeightContext
+  ctx: HeightContext,
+  dims: Dims
 ): { w: number; d: number; h: number; floors: number } {
-  return getBuildingDimensions(file, ctx.lineStats, ctx.byteStats);
+  return getBuildingDimensions(file, dims, ctx.lineStats, ctx.byteStats);
 }
 
 // A directory's descendants → its street width: bigger dirs, wider boulevards.
-export function _streetWidthForDir(dir: DirLike | null | undefined): number {
+export function _streetWidthForDir(dir: DirLike | null | undefined, tiers: StreetTier[]): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
-  return getStreetWidth(count, STREET_TIERS.value.TIERS);
+  return getStreetWidth(count, tiers);
 }

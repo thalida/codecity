@@ -9,10 +9,14 @@ import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
 import type { CitySession } from '@/state/city/session';
 
-/** Set the default-view angle (degrees); the rig re-frames the whole city to
- *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
-function angle(elevation: number, azimuth: number): void {
-  CAMERA.value = { ...CAMERA.value, ELEVATION: elevation, AZIMUTH: azimuth };
+/** This city's default-view angle in degrees, which the rig re-frames to. The
+ *  panel's own values are left alone: a shot poses one city, not the app. */
+function angle(session: CitySession, elevation: number, azimuth: number): void {
+  session.config.override(CAMERA, {
+    ...session.config.CAMERA.peek(),
+    ELEVATION: elevation,
+    AZIMUTH: azimuth,
+  });
 }
 
 /** Live overrides from ?elev=&az=&dist=, undefined when absent/non-numeric. */
@@ -94,8 +98,8 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
   // Whole-city framing: the rig fits the entire city to the chosen angle.
-  overview: (handle, _m, o) => {
-    angle(o.elev ?? 46, o.az ?? 34);
+  overview: (handle, _m, o, session) => {
+    angle(session, o.elev ?? 46, o.az ?? 34);
     handle.rig.reset();
   },
 
@@ -122,7 +126,7 @@ export const SHOTS: Record<string, ShotPose> = {
     const bundle = timeline.bundle.peek();
     if (!bundle || bundle.commits.length === 0) return false;
     timeline.setScrubPos(Math.floor(timeline.scrubMax.peek() * 0.5));
-    angle(o.elev ?? 44, o.az ?? 32);
+    angle(session, o.elev ?? 44, o.az ?? 32);
     handle.rig.reset();
   },
 

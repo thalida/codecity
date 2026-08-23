@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/settings/fields/trees';
-import { noIslandConfig } from '../_helpers/cityFixtures';
+import { noIslandConfig, layoutConfig } from '../_helpers/cityFixtures';
 import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import {
@@ -34,7 +34,7 @@ describe('decoration golden (bit-identical guard)', () => {
     // Backend-precomputed in production. layoutCity MUST get the file ranges or
     // every building collapses to min-width and tree placement drifts.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
-    const layout = layoutCity({ tree, stats });
+    const layout = layoutCity({ tree, stats }, layoutConfig());
     const bbox = bboxOf(layout);
 
     const placements = placeTrees(layout as any, bbox, {

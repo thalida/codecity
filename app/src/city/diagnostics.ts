@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { layoutCityWithTrace } from './layout/algorithm';
+import type { LayoutConfig } from './layout/protocol';
 import { findLayoutOverlaps, LayoutOverlapCategory } from './layout/overlaps';
 import type { LayoutOverlap } from './layout/overlaps';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
@@ -32,13 +33,16 @@ export function runCollisionCheck(sceneState: CitySceneState): void {
 
 // Re-run layout with tracing on the current manifest and print the stem-
 // placement trace. No-ops with a warning when no manifest has been applied yet.
-export function runStemPlacementDiagnostic(sceneState: CitySceneState): void {
+export function runStemPlacementDiagnostic(sceneState: CitySceneState, cfg: LayoutConfig): void {
   const m = sceneState.manifest.value;
   if (!m) {
     console.warn('[stem-diag] no manifest — apply one first');
     return;
   }
-  const { trace } = layoutCityWithTrace(m as unknown as Parameters<typeof layoutCityWithTrace>[0]);
+  const { trace } = layoutCityWithTrace(
+    m as unknown as Parameters<typeof layoutCityWithTrace>[0],
+    cfg
+  );
   for (const line of _formatStemDiagnostic(trace)) {
     console.log(line);
   }

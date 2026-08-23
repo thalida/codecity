@@ -1,27 +1,15 @@
-// city/layout/worker.ts — Web Worker entry point. Receives a manifest
-// + a snapshot of the four config stores layoutCity reads, populates
-// the worker's local store instances, runs the layout, posts the
-// result back. Pure compute, no DOM or THREE.* references.
+// city/layout/worker.ts — Web Worker entry point. Receives a manifest and the
+// city's own layout config, runs the layout, posts the result back. Pure
+// compute, no DOM or THREE.* references.
 
 import { layoutCity } from './algorithm';
 import { createPackReporter } from './packProgress';
-import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { GEM_SIZING } from '@/state/settings/fields/gem';
 import type { LayoutRequest, LayoutResponse } from './protocol';
-
-function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {
-  STREET_LAYOUT.value = { ...STREET_LAYOUT.value, ...snap.streetLayout };
-  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...snap.buildingDimensions };
-  GEM_SIZING.value = { ...GEM_SIZING.value, ...snap.gemSizing };
-  STREET_TIERS.value = { TIERS: snap.streetTiers };
-}
 
 self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {
   const data = event.data;
   if (!data || data.type !== 'layout') return;
   try {
-    _applySnapshot(data.configSnapshot);
     // The scanner already counted the tree, so the denominator is free. The
     // main thread is idle awaiting this reply, so each tick repaints at once.
     const onPlaced = createPackReporter(data.manifest.tree.descendants_count, (percent) => {
@@ -30,6 +18,7 @@ self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {
     });
     const layout = layoutCity(
       data.manifest as unknown as Parameters<typeof layoutCity>[0],
+      data.configSnapshot,
       onPlaced
     );
     const reply: LayoutResponse = {

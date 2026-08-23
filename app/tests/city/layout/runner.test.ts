@@ -3,6 +3,10 @@ import { createLayoutClient } from '@/city/layout';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
+import { makeSession } from '../../_helpers/city';
+
+// One city for this file, the way the app makes one for itself.
+const session = makeSession();
 
 function makeMinimalManifest(): Manifest {
   return {
@@ -56,7 +60,7 @@ describe('layoutClient', () => {
   let client: ReturnType<typeof createLayoutClient>;
 
   beforeEach(() => {
-    client = createLayoutClient();
+    client = createLayoutClient(session.config);
   });
 
   afterEach(() => {

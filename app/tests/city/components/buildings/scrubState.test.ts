@@ -15,6 +15,7 @@ import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import { FadeDetail } from '@/types';
 import type { FileNode } from '@/types';
+import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import {
   BYTE_STATS,
   LINE_STATS,
@@ -40,7 +41,12 @@ function resolve(
 }
 
 const heightForLines = (lines: number, stats = LINE_STATS): number =>
-  getBuildingDimensions({ ...file, lines } as unknown as FileNode, stats, BYTE_STATS).h;
+  getBuildingDimensions(
+    { ...file, lines } as unknown as FileNode,
+    BUILDING_DIMENSIONS.value,
+    stats,
+    BYTE_STATS
+  ).h;
 
 describe('lane', () => {
   it.each([
@@ -114,7 +120,9 @@ describe('floors', () => {
     const early = resolve(1).floors;
     const late = resolve(2).floors;
     expect(early).toBeLessThan(late);
-    expect(late).toBe(getBuildingDimensions(file, LINE_STATS, BYTE_STATS).floors);
+    expect(late).toBe(
+      getBuildingDimensions(file, BUILDING_DIMENSIONS.value, LINE_STATS, BYTE_STATS).floors
+    );
   });
 
   it.each([['a ruin blanks its facade', 3, { ruinsOn: true }]])('%s', (_label, pos, over) => {
