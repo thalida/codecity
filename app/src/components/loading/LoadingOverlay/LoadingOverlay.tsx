@@ -4,7 +4,7 @@
 // attachLoadReaction), so this renders and nothing more.
 
 import './LoadingOverlay.css';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import { LoadingProgress } from '@/components/loading/LoadingProgress/LoadingProgress';
 
 export interface LoadingOverlayProps {

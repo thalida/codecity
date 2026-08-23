@@ -28,6 +28,9 @@ export enum SidebarTab {
 export interface SourcePayload {
   src: string;
   branch?: string;
+  /** What to call it until the server says: whoever opened it may already know
+   *  (a recents row does), and the overlay is up before the first event. */
+  label?: string;
   /** When true, this open forces a fresh scan (server-side ?no_cache=1).
    *  Not persisted — re-opening from a recent uses cached scan by default. */
   skipCache?: boolean;

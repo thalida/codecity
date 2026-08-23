@@ -24,7 +24,7 @@ import {
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.

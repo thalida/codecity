@@ -4,7 +4,7 @@
 // timed run per shape, so vitest's bench() API buys nothing here.
 
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
+import { layoutCity } from '@/city/scene/layout/algorithm.js';
 import { NodeKind } from '@/types';
 import { layoutConfig } from '../_helpers/cityFixtures';
 

@@ -7,9 +7,9 @@ import './FreshnessStatus.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
-import { liveUpdatesActive } from '@/state/settings/fields/updates';
-import { RebuildStatus } from '@/state/stores/progress';
-import { useCity } from '@/state/city/context';
+import { liveUpdatesActive } from '@/city/session/settings/updates';
+import { RebuildStatus } from '@/city/session/stores/progress';
+import { useCity } from '@/city/CityProvider';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.

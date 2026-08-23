@@ -4,7 +4,7 @@
 // so a stale one stranded the tab at "(pending)". The overlay still shows it.
 
 import { useSignalEffect } from '@preact/signals';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 export function useDocumentTitle(): void {
   const { manifest } = useCity();

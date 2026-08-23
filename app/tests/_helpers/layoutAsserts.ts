@@ -4,7 +4,7 @@ import {
   findLayoutOverlaps,
   isStreetJoinPair,
   LayoutOverlapCategory,
-} from '@/city/layout/overlaps';
+} from '@/city/scene/layout/overlaps';
 import { StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
@@ -34,9 +34,8 @@ export function assertStemOrder(layout: CityLayout): void {
       .sort((a, b) => a.name.localeCompare(b.name));
     if (children.length < 2) continue;
 
-    // A negated subtree runs its road in the -axis direction, so either
-    // direction passes as long as it holds for the whole run. Ties are paired
-    // stems, two children placed opposite each other.
+    // A negated subtree runs its road the other way, so either direction
+    // passes as long as it holds for the run. Ties are paired stems.
     let direction = 0;
     for (let i = 1; i < children.length; i++) {
       const delta = children[i].stemAlong - children[i - 1].stemAlong;
@@ -53,9 +52,8 @@ export function assertStemOrder(layout: CityLayout): void {
   }
 }
 
-// Verifies each non-root street has a parent street whose dir is the tree
-// parent of this street's dir. (T-junction geometry is checked separately by
-// assertTJunctionsValid.)
+// Each non-root street's parent street draws the dir that is its dir's tree
+// parent. T-junction geometry is assertTJunctionsValid's.
 export function assertTreeRespecting(layout: CityLayout): void {
   // Build a map from dir.path to its street.
   const byPath: Record<string, Street> = {};
@@ -75,9 +73,8 @@ export function assertTreeRespecting(layout: CityLayout): void {
   }
 }
 
-// Verifies each non-root street's joining end (the end closer to its parent's
-// centerline) sits ON the parent's centerline within tolerance, AND the join
-// happens within the parent's length span.
+// Each non-root street's joining end sits ON its parent's centerline within
+// tolerance, and within the parent's length span.
 export function assertTJunctionsValid(layout: CityLayout): void {
   const byPath: Record<string, Street> = {};
   for (const s of layout.streets) {

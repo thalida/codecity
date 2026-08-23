@@ -5,21 +5,21 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
-import type { SceneContext } from '@/city/types';
-import type { Picker } from '@/city/interaction/picker';
-import { TREES } from '@/state/settings/fields/trees';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { ISLAND, WORLD } from '@/state/settings/fields/island';
-import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
-import { GEM_SIZING } from '@/state/settings/fields/gem';
-import type { LayoutConfig } from '@/city/layout/protocol';
-import { createCitySceneState, type CitySceneState } from '@/city/state';
-import { BuildingMaterial } from '@/city/components/buildings/material';
+import type { SceneContext } from '@/city/scene/types';
+import type { Picker } from '@/city/scene/interaction/picker';
+import { TREES } from '@/city/session/settings/trees';
+import { FOOTPRINT } from '@/city/session/settings/footprint';
+import { ISLAND, WORLD } from '@/city/session/settings/island';
+import type { TreePlacementConfig } from '@/city/scene/components/trees/treePlacement';
+import { BUILDING_DIMENSIONS } from '@/city/session/settings/buildings';
+import { STREET_LAYOUT, STREET_TIERS } from '@/city/session/settings/streets';
+import { GEM_SIZING } from '@/city/session/settings/gem';
+import type { LayoutConfig } from '@/city/scene/layout/protocol';
+import { createCityBuild, type CityBuild } from '@/city/scene/build';
+import { BuildingMaterial } from '@/city/scene/components/buildings/material';
 import { commits } from './commits';
 import { makeSession } from './city';
-import type { TimelineStore } from '@/state/stores/timeline';
+import type { TimelineStore } from '@/city/session/stores/timeline';
 
 // One city for this file, the way the app makes one for itself.
 const session = makeSession();
@@ -32,7 +32,7 @@ const STUB_LAYOUT_CLIENT = {
 };
 
 /** A placement client that places no trees. The build calls it, so every
- *  sceneState needs one, but only the placement tests care what it returns. */
+ *  build needs one, but only the placement tests care what it returns. */
 export function stubPlacementClient(placements: unknown[] = []) {
   return { compute: () => Promise.resolve(placements), dispose: () => {} };
 }
@@ -42,9 +42,9 @@ export function makeBuildingMaterial(): BuildingMaterial {
   return new BuildingMaterial(session.config);
 }
 
-/** sceneState with no-op build workers, for tests that don't drive applyManifest. */
-export function makeCityState(): CitySceneState {
-  return createCitySceneState(
+/** build with no-op build workers, for tests that don't drive applyManifest. */
+export function makeCityState(): CityBuild {
+  return createCityBuild(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
     session.progress,
@@ -65,14 +65,14 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
 
 /** SceneContext for components that never touch the picker; camera/renderer are
  *  null (jsdom can't build a WebGL renderer, and nothing under test reads them). */
-export function makeSceneContext(sceneState: CitySceneState = makeCityState()): SceneContext {
+export function makeSceneContext(build: CityBuild = makeCityState()): SceneContext {
   return {
     scene: new THREE.Scene(),
     canvas: makeSizedCanvas().canvas,
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
-    sceneState,
+    build,
     config: session.config,
     buildingMaterial: makeBuildingMaterial(),
   } as unknown as SceneContext;
@@ -85,7 +85,7 @@ export function makePrePickerSceneContext(): SceneContext {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    sceneState: makeCityState(),
+    build: makeCityState(),
     timeline: session.timeline,
     config: session.config,
     buildingMaterial: makeBuildingMaterial(),
@@ -95,7 +95,7 @@ export function makePrePickerSceneContext(): SceneContext {
 /** SceneContext whose picker carries real signals, returned alongside them so a
  *  test can drive hover/selection and assert what the component does. */
 export function makePickableSceneContext(
-  sceneState: CitySceneState = makeCityState(),
+  build: CityBuild = makeCityState(),
   timeline: TimelineStore = session.timeline
 ): {
   ctx: SceneContext;
@@ -110,7 +110,7 @@ export function makePickableSceneContext(
     scene: new THREE.Scene(),
     canvas,
     picker: { selection, hover } as unknown as Picker,
-    sceneState,
+    build,
     timeline,
     config: session.config,
     buildingMaterial: makeBuildingMaterial(),
@@ -252,7 +252,7 @@ export function treePlacement(
   x = 0,
   y = 0,
   seed = 0
-): import('@/city/components/trees/treePlacement').TreePlacement {
+): import('@/city/scene/components/trees/treePlacement').TreePlacement {
   return { x, y, seed, commitIndex };
 }
 

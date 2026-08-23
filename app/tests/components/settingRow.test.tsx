@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
 import { Field } from '@/components/fields/Field/Field';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/city/session/settings/buildings';
 import { flush } from '../_helpers/preact';
 
 describe('FieldRow layout B', () => {

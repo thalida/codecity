@@ -3,9 +3,9 @@ import { TRANSFER_GROUPS } from '@/views/CityView/chrome/CityFooter/transferGrou
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { forEachSettingStore, type SettingStore } from '@/state/settings/schema';
 import { getStoreName } from '@/state/persist';
-import { TREES } from '@/state/settings/fields/trees';
+import { TREES } from '@/city/session/settings/trees';
 import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/city/session/settings/updates';
 import { TransferFamily } from '@/state/settings/transfer';
 import { NON_TRANSFERABLE } from '@/views/CityView/chrome/CityFooter/transferGroups';
 

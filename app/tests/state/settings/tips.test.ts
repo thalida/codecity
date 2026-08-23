@@ -6,11 +6,11 @@ import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settings
 
 // Self-registration happens on import; glob so a new store is covered the day
 // it lands rather than whenever someone remembers to add it here.
-const STORE_MODULES = import.meta.glob('../../src/state/stores/settings/*.ts', { eager: true });
+const STORE_MODULES = import.meta.glob('../../../src/state/stores/settings/*.ts', { eager: true });
 
 // Source text via the same `?raw` import the shaders use, rather than node's fs
 // — this tsconfig has no node types, and the app is browser-targeted.
-const SOURCES = import.meta.glob('../../src/**/*.{ts,tsx}', {
+const SOURCES = import.meta.glob('../../../src/**/*.{ts,tsx}', {
   query: '?raw',
   import: 'default',
   eager: true,

@@ -47,7 +47,7 @@ import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/fileKind';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.

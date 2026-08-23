@@ -3,13 +3,13 @@ import { signal } from '@preact/signals';
 
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { attachSourceReflection } from '@/router/urlBinding';
-import { FocusMode } from '@/city/render/cameraRig';
+import { FocusMode } from '@/city/scene/render/cameraRig';
 
 import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/types';
 import type { Manifest, PickerSelectionKey } from '@/types';
-import type { CityScene } from '@/city/types';
+import type { CityScene } from '@/city/scene/types';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { makeSession } from '../_helpers/city';
@@ -44,7 +44,7 @@ const params = (): URLSearchParams => ROUTE_PARAMS.value;
 /** A source loaded and its city built, each through the function that really
  *  does it. */
 function commitWorld(src = SRC): void {
-  session.source.commit(src, undefined, LOADED);
+  session.source.set(src, undefined, LOADED);
   session.progress.markIdle();
 }
 
@@ -225,7 +225,7 @@ describe('view URL', () => {
     it('waits for the apply, not for whatever left the city Idle', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
       session.progress.markIdle(); // the empty boot city settles, before any source
-      session.source.commit(SRC, undefined, LOADED);
+      session.source.set(SRC, undefined, LOADED);
       await flush();
       expect(goToPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
@@ -239,7 +239,7 @@ describe('view URL', () => {
     // while it runs has no tree, so the camera has nothing to centre on.
     it('waits for the whole build, not the paint the decoration starts from', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
-      session.source.commit(SRC, undefined, LOADED);
+      session.source.set(SRC, undefined, LOADED);
       session.progress.markDecorating(); // city on screen, trees still in flight
       await flush();
       expect(goToCommit).not.toHaveBeenCalled();

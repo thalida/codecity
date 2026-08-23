@@ -6,9 +6,9 @@
 import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
-import { createCityScene } from '@/city';
-import { attachSettingsReactions } from '@/state/settings/reactions';
-import type { CitySession } from '@/state/city/session';
+import { createCityScene } from '@/city/scene';
+import { rebuildOnSave } from '@/city/session/rebuildOnSave';
+import type { CitySession } from '@/city/session/session';
 import type { Manifest } from '@/types';
 
 export interface CityProps {
@@ -48,7 +48,7 @@ export function City({ session, label = DEFAULT_LABEL }: CityProps) {
         session.scene.value = built;
         // It knows what it is showing and how to re-pack it, so a Save needs to
         // be told neither.
-        disposeReactions = attachSettingsReactions({
+        disposeReactions = rebuildOnSave({
           scene: built,
           report: progress,
           config: session.config,

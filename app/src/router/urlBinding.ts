@@ -11,7 +11,7 @@ import { computed, effect } from '@preact/signals';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { readUrlView } from '@/router/viewParams';
 import { sourceIdentity } from '@/utils/sources';
-import type { CitySession } from '@/state/city/session';
+import type { CitySession } from '@/city/session/session';
 
 /** Drop the load from the URL and go home: a cancel with nothing to fall back
  *  to must not leave a reload re-running what it called off. */

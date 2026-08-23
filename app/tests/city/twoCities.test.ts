@@ -6,11 +6,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
-import { RebuildStatus } from '@/state/stores/progress';
+import { RebuildStatus } from '@/city/session/stores/progress';
 import { SourceKind } from '@/utils/sources';
-import { TREES } from '@/state/settings/fields/trees';
+import { TREES } from '@/city/session/settings/trees';
 import { ChangeRoute } from '@/state/settings/schema';
-import { BuildingMaterial } from '@/city/components/buildings/material';
+import { BuildingMaterial } from '@/city/scene/components/buildings/material';
 import type { Manifest } from '@/types';
 
 vi.mock('three', async () => {
@@ -19,17 +19,19 @@ vi.mock('three', async () => {
   return { ...actual, WebGLRenderer: fakeWebGLRenderer() };
 });
 
-vi.mock('@/city/render/postFx', async () => (await import('../_helpers/threeMock')).postFxMock());
+vi.mock('@/city/scene/render/postFx', async () =>
+  (await import('../_helpers/threeMock')).postFxMock()
+);
 
 // Icon images never fire onload in jsdom and would hang the apply.
-vi.mock('@/city/components/buildings/atlas', async () => {
-  const actual = await vi.importActual<typeof import('@/city/components/buildings/atlas')>(
-    '@/city/components/buildings/atlas'
+vi.mock('@/city/scene/components/buildings/atlas', async () => {
+  const actual = await vi.importActual<typeof import('@/city/scene/components/buildings/atlas')>(
+    '@/city/scene/components/buildings/atlas'
   );
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCityScene } from '@/city/index';
+import { createCityScene } from '@/city/scene';
 import { makeSession } from '../_helpers/city';
 
 // The city the app has open, and the one the landing draws behind itself.

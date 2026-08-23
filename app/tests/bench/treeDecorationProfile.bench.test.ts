@@ -2,18 +2,18 @@
 // tree placement (placeTrees) + renderer build (createTreeRenderer), one tree
 // per commit. Diagnostic driver for finding the decoration-pass bottleneck.
 
-import { RAINBOW } from '@/state/settings/fields/effects';
+import { RAINBOW } from '@/city/session/settings/effects';
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { placeTrees } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/settings/fields/trees';
+import { layoutCity } from '@/city/scene/layout/algorithm.js';
+import { placeTrees } from '@/city/scene/components/trees/treePlacement';
+import { TREES } from '@/city/session/settings/trees';
 import { noIslandConfig, layoutConfig } from '../_helpers/cityFixtures';
-import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
-import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
-import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
-import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
-import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import { createTreeRenderer } from '@/city/scene/components/trees/treeRenderer';
+import { createFireflyAssembly } from '@/city/scene/components/fireflies/fireflies';
+import { placeFireflies } from '@/city/scene/components/fireflies/firefliesPlacement';
+import { createOrbitRings } from '@/city/scene/components/fireflies/orbitRings';
+import { createFireflyRenderer } from '@/city/scene/components/fireflies/firefliesRenderer';
+import { FIREFLIES } from '@/city/session/settings/fireflies';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 

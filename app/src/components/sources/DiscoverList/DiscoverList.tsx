@@ -3,7 +3,7 @@
 // stars or timings, which would rot or reopen a third-party dependency, and no
 // "Featured" note, since what a row can usefully say is whether you can see it.
 import { DISCOVER } from '@/state/stores/serverData';
-import { type SourceRef } from '@/state/stores/source';
+import { type SourceRef } from '@/city/session/stores/source';
 import { sameSourceIdentity } from '@/utils/sources';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
 import { cityHref } from '@/router/location';

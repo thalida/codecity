@@ -7,14 +7,14 @@ const settings = vi.hoisted(() => ({
   hueMap: {} as Record<string, number>,
   asphalt: '#1a1d28',
 }));
-vi.mock('@/state/settings/fields/buildings', () => ({
+vi.mock('@/city/session/settings/buildings', () => ({
   BUILDINGS: {
     get value() {
       return { HUE_EXT_MAP: settings.hueMap };
     },
   },
 }));
-vi.mock('@/state/settings/fields/streets', () => ({
+vi.mock('@/city/session/settings/streets', () => ({
   STREETS: {
     get value() {
       return { ASPHALT_COLOR: settings.asphalt };

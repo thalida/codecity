@@ -2,14 +2,14 @@
 // phase measures, and which numbers are browser-representative, is in the
 // README beside this file. Diagnostic driver: no timing assertions.
 
-import { STREETS } from '@/state/settings/fields/streets';
+import { STREETS } from '@/city/session/settings/streets';
 import { describe, it } from 'vitest';
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
-import { createStreetLabels } from '@/city/components/streets/streetLabels';
+import { layoutCity } from '@/city/scene/layout/algorithm.js';
+import { buildCellsFromLayout } from '@/city/scene/components/buildings/cellAssembly';
+import { InstancedFacadePanels } from '@/city/scene/components/buildings/facadePanels';
+import { createStreetLabels } from '@/city/scene/components/streets/streetLabels';
 import { isMediaFile } from '@/utils/fileKind';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout } from '@/types';
@@ -54,7 +54,7 @@ function tagMediaFiles(node: any, fraction: number, rng: () => number): number {
 }
 
 // A copy of the state/index.ts computed, so the bench times that work without
-// standing up a whole CitySceneState. Halo omitted (default 0).
+// standing up a whole CityBuild. Halo omitted (default 0).
 function computeBbox(layout: CityLayout): THREE.Box3 {
   const box = new THREE.Box3();
   const min = box.min;

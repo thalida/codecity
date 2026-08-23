@@ -14,7 +14,7 @@ import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseBut
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.

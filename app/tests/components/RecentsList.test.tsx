@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { RECENTS } from '@/state/stores/source';
+import { RECENTS } from '@/state/stores/recents';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import type { Manifest } from '@/types';

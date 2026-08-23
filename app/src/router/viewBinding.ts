@@ -9,8 +9,8 @@ import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
 import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
 import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
-import type { CitySession } from '@/state/city/session';
-import { FocusMode } from '@/city/render/cameraRig';
+import type { CitySession } from '@/city/session/session';
+import { FocusMode } from '@/city/scene/render/cameraRig';
 import { NodeKind } from '@/types';
 import type { PickerSelectionKey } from '@/types';
 

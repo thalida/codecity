@@ -13,7 +13,7 @@ import DOMPurify from 'dompurify';
 import type { DirNode, Manifest, SourceRef } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { sourceOf } from '@/utils/manifest';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,

@@ -8,12 +8,12 @@ import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { TREES } from '@/state/settings/fields/trees';
+import { TREES } from '@/city/session/settings/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
-import { useCity } from '@/state/city/context';
-import type { CityCommands } from '@/state/city/commands';
+import { useCity } from '@/city/CityProvider';
+import type { CityCommands } from '@/city/session/commands';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.

@@ -2,8 +2,8 @@
 // has: the one a project opens at, and the one the landing's wallpaper orbits.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { CAMERA } from '@/state/settings/fields/camera';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
+import { CAMERA } from '@/city/session/settings/camera';
+import { HOME_BACKDROP } from '@/city/session/settings/homeBackdrop';
 
 export const VIEW_SECTION: SectionNode = {
   key: 'view',

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, useMemo } from 'preact/hooks';
 import { useSignal } from '@preact/signals';
 import { ArrowDownUp, FolderInput, Download } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import {
   buildSettingsFile,
   parseSettingsFile,

@@ -18,7 +18,7 @@ import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { clearSourceUrl } from '@/router/urlBinding';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 export function CityView() {
   const session = useCity();

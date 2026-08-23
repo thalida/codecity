@@ -3,7 +3,7 @@
 // it too. Its text colour is chosen by luminance against that fill.
 
 import './KindBadge.css';
-import { getHue } from '@/city/components/buildings/color';
+import { getHue } from '@/city/scene/components/buildings/color';
 import {
   parseHex,
   hslToRgb,
@@ -12,8 +12,8 @@ import {
   FILE_TAG_LIGHTNESS,
 } from '@/utils/colors';
 import { NodeKind } from '@/types';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { STREETS } from '@/state/settings/fields/streets';
+import { BUILDINGS } from '@/city/session/settings/buildings';
+import { STREETS } from '@/city/session/settings/streets';
 
 // The luminance check reads the same saturation and lightness the CSS paints,
 // so it judges the colour actually on screen.

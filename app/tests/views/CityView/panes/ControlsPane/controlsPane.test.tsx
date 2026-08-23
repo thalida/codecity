@@ -7,18 +7,18 @@ import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/synt
 import { _resetForTests } from '@/state/settings/drafts';
 // Load every settings store for its registration side-effect (settingSignal
 // registers each store at module-load) so every field renders.
-import '@/state/settings/fields/updates';
-import '@/state/settings/fields/scene';
+import '@/city/session/settings/updates';
+import '@/city/session/settings/scene';
 import '@/state/settings/fields/syntaxTheme';
 import '@/state/settings/fields/theme';
-import '@/state/settings/fields/streets';
-import '@/state/settings/fields/buildings';
-import '@/state/settings/fields/gem';
-import '@/state/settings/fields/island';
-import '@/state/settings/fields/footprint';
-import '@/state/settings/fields/trees';
-import '@/state/settings/fields/fireflies';
-import '@/state/settings/fields/effects';
+import '@/city/session/settings/streets';
+import '@/city/session/settings/buildings';
+import '@/city/session/settings/gem';
+import '@/city/session/settings/island';
+import '@/city/session/settings/footprint';
+import '@/city/session/settings/trees';
+import '@/city/session/settings/fireflies';
+import '@/city/session/settings/effects';
 import { flush } from '../../../../_helpers/preact';
 
 describe('ControlsPane', () => {

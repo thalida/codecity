@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { pushRecent, removeRecent, RECENTS } from '@/state/stores/source';
+import { pushRecent, removeRecent, RECENTS } from '@/state/stores/recents';
 import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants/storage';
 
 describe('sourceRecents', () => {
@@ -64,10 +64,8 @@ describe('sourceRecents', () => {
   });
 
   it('keeps the checkout off identity, so one path stays one row across branches', () => {
-    // Worktrees of one repo all label as owner/repo (the server bakes it from
-    // the git remote), so the checkout is the only thing telling them apart —
-    // but folding it into identity would split a single path into a row per
-    // branch and re-key its cache every time you switch.
+    // Worktrees of one repo all label as owner/repo, so the checkout is what
+    // tells them apart; in identity it would split one path into a row each.
     pushRecent({ src: '/repo', label: 'owner/repo', checkout: 'main' });
     pushRecent({ src: '/repo', label: 'owner/repo', checkout: 'feature' });
     expect(RECENTS.value).toHaveLength(1);

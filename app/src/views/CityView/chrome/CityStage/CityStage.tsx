@@ -3,7 +3,7 @@
 
 import './CityStage.css';
 import { City } from '@/city/City';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';

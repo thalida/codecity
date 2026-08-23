@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import { EXCLUDES } from '@/state/stores/source';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { EXCLUDES } from '@/city/session/stores/excludes';
+import { LIVE_UPDATES } from '@/city/session/settings/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 import { makeSession, renderInCity } from '../_helpers/city';

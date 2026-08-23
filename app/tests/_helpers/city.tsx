@@ -3,13 +3,14 @@
 // shape: no reset-the-globals dance between cases.
 
 import { render } from 'preact';
-import { CityProvider } from '@/state/city/context';
-import { CitySession } from '@/state/city/session';
+import { CityProvider } from '@/city/CityProvider';
+import { CitySession } from '@/city/session/session';
+import { SessionChrome } from '@/state/cityChrome';
 import type { ComponentChildren, VNode } from 'preact';
 
 /** A fresh session, isolated from every other test's. */
 export function makeSession(): CitySession {
-  return new CitySession();
+  return new CitySession({ chrome: new SessionChrome() });
 }
 
 /** Render `ui` inside `session`, the way the app mounts its views. */

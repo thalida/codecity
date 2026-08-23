@@ -2,7 +2,7 @@
 // live region speaking the city selection to screen readers, since the canvas is
 // a graphic and cannot announce its own (WCAG 4.1.3).
 import { useComputed } from '@preact/signals';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 

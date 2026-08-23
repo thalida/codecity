@@ -1,7 +1,7 @@
 // views/ControlsPane/sections/Fireflies.ts — motes orbiting each commit-tree.
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import { FIREFLIES } from '@/city/session/settings/fireflies';
 
 export const FIREFLIES_SECTION: SectionNode = {
   key: 'fireflies',

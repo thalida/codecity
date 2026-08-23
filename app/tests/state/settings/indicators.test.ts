@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/city/session/settings/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/fields/theme';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { EXCLUDES } from '@/state/stores/source';
+import { BUILDINGS } from '@/city/session/settings/buildings';
+import { EXCLUDES } from '@/city/session/stores/excludes';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settings/schema';
 import { makeSession } from '../../_helpers/city';

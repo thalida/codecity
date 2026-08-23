@@ -4,8 +4,8 @@
 // driver, not a perf gate.
 
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { setLayoutProfiling, getLayoutProfile } from '@/city/layout/profiling';
+import { layoutCity } from '@/city/scene/layout/algorithm.js';
+import { setLayoutProfiling, getLayoutProfile } from '@/city/scene/layout/profiling';
 import { NodeKind } from '@/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { layoutConfig } from '../_helpers/cityFixtures';

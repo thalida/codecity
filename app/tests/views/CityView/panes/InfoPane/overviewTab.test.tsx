@@ -9,7 +9,7 @@ import { flush } from '../../../../_helpers/preact';
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).
 const treesState = vi.hoisted(() => ({ ENABLED: true }));
-vi.mock('@/state/settings/fields/trees', () => ({
+vi.mock('@/city/session/settings/trees', () => ({
   TREES: {
     get value() {
       return treesState;

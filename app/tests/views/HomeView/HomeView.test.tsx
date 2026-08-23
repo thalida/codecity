@@ -22,7 +22,8 @@ vi.mock('@/router/location', async (importOriginal) => ({
   navigate: vi.fn(),
 }));
 import { HomeView } from '@/views/HomeView/HomeView';
-import { BACKDROP_CITY, BackdropKind, RECENTS } from '@/state/stores/source';
+import { RECENTS } from '@/state/stores/recents';
+import { BACKDROP_CITY, BackdropKind } from '@/views/HomeView/HomeBackdrop/backdropCity';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 

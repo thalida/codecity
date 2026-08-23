@@ -3,7 +3,7 @@
 // which rows to draw and which one is live; what those mean is the store's.
 
 import './LoadingProgress.css';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 
 import { SourceKind } from '@/utils/sources';

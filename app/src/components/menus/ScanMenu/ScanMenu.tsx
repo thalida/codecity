@@ -13,10 +13,10 @@ import {
 import { Field } from '@/components/fields/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/city/session/settings/updates';
 import { EXCLUDES_DOCS_URL } from '@/constants/ui';
 import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 const PANEL_LABEL = 'Scan Settings';
 

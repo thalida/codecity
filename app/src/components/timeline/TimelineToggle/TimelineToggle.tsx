@@ -2,7 +2,7 @@
 // toggle centered at the bottom of the scene (above the time-travel bar).
 
 import './TimelineToggle.css';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 export function TimelineToggle() {
   const { source, timeline: history, timelineMode } = useCity();

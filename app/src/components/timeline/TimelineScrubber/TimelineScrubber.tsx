@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { ACCENT_THEME } from '@/state/settings/fields/theme';
 import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import {
   buildScrubberScale,
   commitFraction,

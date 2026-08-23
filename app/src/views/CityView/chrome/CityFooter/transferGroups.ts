@@ -8,7 +8,7 @@ import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/fields/theme';
 import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/city/session/settings/updates';
 
 /** Settings that deliberately do not travel. Auto-refresh is a fact about this
  *  machine and this server, not a look: an imported 1s poll hammers a stranger's. */

@@ -9,7 +9,8 @@ import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'luci
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 import { type SourcePayload } from '@/types/ui';
-import { RECENTS, BACKDROP_CITY } from '@/state/stores/source';
+import { RECENTS } from '@/state/stores/recents';
+import { BACKDROP_CITY } from '@/views/HomeView/HomeBackdrop/backdropCity';
 import { HomeBackdrop } from './HomeBackdrop/HomeBackdrop';
 import { cityHref, navigate } from '@/router/location';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
@@ -18,7 +19,7 @@ import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectFo
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/sources/DiscoverList/DiscoverList';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';

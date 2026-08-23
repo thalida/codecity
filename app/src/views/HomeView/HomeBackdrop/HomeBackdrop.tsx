@@ -8,11 +8,16 @@ import { useEffect, useMemo } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { CitySession } from '@/state/city/session';
-import { RECENTS, BACKDROP_CITY, BackdropKind, type BackdropCity } from '@/state/stores/source';
+import { CitySession } from '@/city/session/session';
+import { RECENTS } from '@/state/stores/recents';
+import {
+  BACKDROP_CITY,
+  BackdropKind,
+  type BackdropCity,
+} from '@/views/HomeView/HomeBackdrop/backdropCity';
 import { sameSourceIdentity } from '@/utils/sources';
 import { City } from '@/city/City';
-import { CameraMode } from '@/city/render/cameraRig';
+import { CameraMode } from '@/city/scene/render/cameraRig';
 import type { Manifest } from '@/types';
 
 interface Candidate {
@@ -88,7 +93,7 @@ function candidates(featuredRepo: string | undefined, opened: CitySession): Cand
 export function HomeBackdrop({ opened }: { opened: CitySession }) {
   // Per landing visit, like the canvas it feeds: a second one would be a
   // second wallpaper, showing whatever IT picked.
-  const backdrop = useMemo(() => new CitySession(CameraMode.Backdrop), []);
+  const backdrop = useMemo(() => new CitySession({ cameraMode: CameraMode.Backdrop }), []);
 
   useEffect(() => {
     const controller = new AbortController();

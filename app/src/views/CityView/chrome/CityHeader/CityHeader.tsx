@@ -13,7 +13,7 @@ import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeClust
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */

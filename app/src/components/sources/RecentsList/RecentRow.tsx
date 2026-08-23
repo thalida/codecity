@@ -5,7 +5,7 @@
 
 import { X } from 'lucide-preact';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
-import type { RecentSource } from '@/state/stores/source';
+import type { RecentSource } from '@/state/stores/recents';
 
 const UNAVAILABLE_REASON = "Local paths aren't enabled, so this one can't be opened here.";
 

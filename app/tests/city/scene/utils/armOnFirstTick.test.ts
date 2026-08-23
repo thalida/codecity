@@ -1,0 +1,97 @@
+// The arming latch itself: setup runs once, only after ctx.picker is live, and
+// never again after dispose.
+
+import { describe, it, expect, vi } from 'vitest';
+
+import { armOnFirstTick } from '@/city/scene/utils/armOnFirstTick';
+import type { SceneContext } from '@/city/scene/types';
+import type { Picker } from '@/city/scene/interaction/picker';
+
+// Picker starts null (the construction window) and is flipped live, the way the
+// composer backfills ctx before the first tick.
+function makeCtx(): SceneContext {
+  return { picker: null as unknown as Picker } as unknown as SceneContext;
+}
+
+const livePicker = {} as unknown as Picker;
+
+describe('armOnFirstTick', () => {
+  it('arms once after picker becomes live (setup runs exactly once across many arm() calls)', () => {
+    const ctx = makeCtx();
+    const setup = vi.fn(() => [] as Array<() => void>);
+    const arm = armOnFirstTick(ctx, setup);
+
+    // Construction window: picker null → no-op.
+    arm.arm();
+    expect(setup).not.toHaveBeenCalled();
+
+    // createCityScene populates the picker; the first arm() now runs setup.
+    ctx.picker = livePicker;
+    arm.arm();
+    expect(setup).toHaveBeenCalledTimes(1);
+
+    // Subsequent ticks are no-ops (sticky once).
+    arm.arm();
+    arm.arm();
+    expect(setup).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT arm while picker is null', () => {
+    const ctx = makeCtx();
+    const setup = vi.fn(() => [] as Array<() => void>);
+    const arm = armOnFirstTick(ctx, setup);
+
+    arm.arm();
+    arm.arm();
+    expect(setup).not.toHaveBeenCalled();
+  });
+
+  it('runs the setup teardowns on dispose', () => {
+    const ctx = makeCtx();
+    const t1 = vi.fn();
+    const t2 = vi.fn();
+    const arm = armOnFirstTick(ctx, () => [t1, t2]);
+
+    ctx.picker = livePicker;
+    arm.arm();
+    arm.dispose();
+    expect(t1).toHaveBeenCalledTimes(1);
+    expect(t2).toHaveBeenCalledTimes(1);
+  });
+
+  it('post-dispose arm() is a no-op (never re-arms)', () => {
+    const ctx = makeCtx();
+    const setup = vi.fn(() => [] as Array<() => void>);
+    const arm = armOnFirstTick(ctx, setup);
+
+    ctx.picker = livePicker;
+    arm.arm();
+    expect(setup).toHaveBeenCalledTimes(1);
+
+    arm.dispose();
+    // Stray post-dispose tick — armed stays true, so setup is NOT re-run.
+    arm.arm();
+    expect(setup).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose before arm() is safe (no teardowns to run)', () => {
+    const ctx = makeCtx();
+    const setup = vi.fn(() => [vi.fn()]);
+    const arm = armOnFirstTick(ctx, setup);
+
+    arm.dispose();
+    expect(setup).not.toHaveBeenCalled();
+  });
+
+  it('dispose is idempotent — teardowns run at most once across repeated calls', () => {
+    const ctx = makeCtx();
+    const t1 = vi.fn();
+    const arm = armOnFirstTick(ctx, () => [t1]);
+
+    ctx.picker = livePicker;
+    arm.arm();
+    arm.dispose();
+    arm.dispose();
+    expect(t1).toHaveBeenCalledTimes(1);
+  });
+});

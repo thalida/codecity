@@ -16,7 +16,7 @@ import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseBut
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 

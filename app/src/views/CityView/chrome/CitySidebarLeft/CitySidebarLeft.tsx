@@ -15,7 +15,7 @@ import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

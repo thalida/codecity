@@ -6,7 +6,7 @@ import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { useCity } from '@/state/city/context';
+import { useCity } from '@/city/CityProvider';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 

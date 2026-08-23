@@ -4,7 +4,8 @@
 // entry only; the scan cache is the skip-cache control's business.
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { RECENTS, removeRecent, type SourceRef } from '@/state/stores/source';
+import { type SourceRef } from '@/city/session/stores/source';
+import { RECENTS, removeRecent } from '@/state/stores/recents';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import { RecentRow } from './RecentRow';

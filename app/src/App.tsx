@@ -10,25 +10,30 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
-import { CitySession } from '@/state/city/session';
-import { CityProvider } from '@/state/city/context';
+import { CitySession } from '@/city/session/session';
+import { CityProvider } from '@/city/CityProvider';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { useCityLoader } from '@/state/city/loader';
+import { useLiveUpdates } from '@/city/session/loader';
+import { useServerData } from '@/state/stores/serverData';
 import { attachUrlBinding } from '@/router/urlBinding';
+import { attachRecents } from '@/state/stores/recents';
+import { SessionChrome } from '@/state/cityChrome';
 import { isDebugMode } from '@/utils/debugMode';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
 export function App() {
-  // One project, for as long as the app is up. Everything below reads it
-  // through the provider; nothing reads it from a module.
-  const session = useMemo(() => new CitySession(), []);
+  // The city you opened, for as long as the app is up: the one with chrome
+  // around it. Everything below reads it through the provider.
+  const session = useMemo(() => new CitySession({ chrome: new SessionChrome() }), []);
   useEffect(() => () => session.dispose(), [session]);
 
   // Before anything that reads the URL, so back/forward is never missed.
   useEffect(() => attachRouteHistory(), []);
   // The URL describes THIS session: one adapter, pointed at one project.
   useEffect(() => attachUrlBinding(session), [session]);
+  // What it opens is what "recent" means; the backdrop's session does not.
+  useEffect(() => attachRecents(session), [session]);
 
   return (
     <CityProvider session={session}>
@@ -43,15 +48,18 @@ export function App() {
 // to rather than being handed pieces of it.
 function AppRoutes({ session }: { session: CitySession }) {
   useDocumentTitle();
-  useCityLoader(session);
+  useServerData();
+  useLiveUpdates(session);
 
   useEffect(() => session.progress.attachOverlayDriver(), [session]);
 
-  // Debug-only README screenshot capture, when opened with ?shot=<name>.
-  // Imported dynamically so the harness never ships in a normal session.
+  // Debug-only ?shot=<name> capture, imported dynamically so the harness
+  // never ships in a normal session.
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has('shot') || !isDebugMode()) return;
-    void import('@/city/capture/captureHarness').then((m) => m.initCaptureHarness(session));
+    void import('@/city/scene/debug/capture/captureHarness').then((m) =>
+      m.initCaptureHarness(session)
+    );
   }, [session]);
 
   // A failure sends you back to the landing, which reads the error itself to
