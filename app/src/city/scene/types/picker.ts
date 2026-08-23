@@ -2,8 +2,8 @@
 // selection-driven renderer reads: one shape per kind of thing you can hit.
 
 import type * as THREE from 'three';
-import type { Building } from '@/types';
-import type { Street } from '@/types';
+import type { Building } from './building';
+import type { Street } from './street';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { NodeKind } from '@/types';
 import type { BuildingIndex } from '@/city/scene/components/buildings/buildingIndex';

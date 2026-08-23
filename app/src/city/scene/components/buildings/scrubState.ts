@@ -2,8 +2,9 @@
 // decision table is exercisable without a scene; scrubApply.ts does the writes.
 
 import { getBuildingDimensions } from '@/city/scene/layout/dimensions';
-import type { Building, FileNode } from '@/types';
-import { FadeDetail } from '@/types';
+import type { FileNode } from '@/types';
+import type { Building } from '@/city/scene/types';
+import { FadeDetail } from '@/city/scene/types';
 import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
 import type { PathTimeline } from '@/city/scene/scrub/replay';
 import {

@@ -1,14 +1,9 @@
-// city/components/buildings/buildingIndex.ts — Lookup adapter that decouples consumers
-// (picker, fader, outline, animator, manifest-diff) from the
-// CellTile rendering layout. Two indexes:
-//   - byPath:      path → Building            (manifest diff, hover-by-path)
-//   - byCellSlot:  "cellId:slotId" → Building (raycaster hits)
-//
-// Building objects carry their own (cellId, slotId) back-pointers
-// so reverse lookups are O(1). A fresh index is built per rebuild
-// (cellAssembly), so there is no removal/clearing API.
+// city/scene/components/buildings/buildingIndex.ts — the two lookups everything
+// downstream uses instead of knowing the cell layout: path → Building, and
+// "cellId:slotId" → Building for a raycast hit. Each Building carries those
+// back-pointers, and a rebuild makes a fresh index, so nothing removes.
 
-import type { Building } from '@/types/index';
+import type { Building } from '@/city/scene/types';
 
 export class BuildingIndex {
   readonly byPath = new Map<string, Building>();

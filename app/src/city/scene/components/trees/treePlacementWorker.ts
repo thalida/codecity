@@ -6,7 +6,7 @@ import type { TreesConfig } from '@/city/session/settings/trees';
 import type { FootprintConfig } from '@/city/session/settings/footprint';
 import type { WorldConfig } from '@/city/session/settings/island';
 import type { IslandConfig } from '@/city/session/settings/island';
-import type { CityBbox } from '@/types';
+import type { CityBbox } from '@/city/scene/types';
 
 type TreesValue = TreesConfig;
 type FootprintValue = FootprintConfig;

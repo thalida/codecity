@@ -10,7 +10,8 @@ import type { ScrubFrameDeps } from '@/city/scene/scrub/scrubFrame';
 import { BUILDING_DIMENSIONS } from '@/city/session/settings/buildings';
 import { RUINS } from '@/city/session/settings/ruins';
 import { NodeKind } from '@/types';
-import type { FileNode, RangeStat, Street, TimelineBundle } from '@/types';
+import type { FileNode, RangeStat, TimelineBundle } from '@/types';
+import type { Street } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../../_helpers/city';
 

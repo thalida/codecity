@@ -7,7 +7,8 @@ import { stubPlacementClient, makeBuildingMaterial } from '../../../_helpers/cit
 import { describe, it, expect, vi } from 'vitest';
 import { createCityBuild } from '@/city/scene/build';
 import { NodeKind } from '@/types';
-import type { CityLayout, DateRanges, Manifest } from '@/types';
+import type { DateRanges, Manifest } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { makeSession } from '../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

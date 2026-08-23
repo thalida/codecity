@@ -2,7 +2,7 @@
 // Defines the Building shape the layout step produces; the city renderer
 // (city/index.ts createCityScene) reads it to instantiate three.js meshes.
 
-import type { FileNode } from './manifest';
+import type { FileNode } from '@/types';
 
 /** Direction the door faces. Layout sets this; engine reads it. */
 export enum BuildingOrient {

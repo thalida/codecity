@@ -11,8 +11,9 @@ import {
   type CameraRig,
 } from '@/city/scene/render/cameraRig';
 import { commitTarget, makeCityState } from '../../../_helpers/cityFixtures';
-import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { BuildingOrient, StreetAxis } from '@/city/scene/types';
+import type { Building, CityLayout, Street } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 import type { CityBuild } from '@/city/scene/build';
 import { HOME_BACKDROP } from '@/city/session/settings/homeBackdrop';

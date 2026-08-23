@@ -6,9 +6,9 @@
 import * as THREE from 'three';
 import type { BuildingsConfig } from '@/city/session/settings/buildings';
 import type { IconAtlas } from './atlas';
-import { BuildingOrient } from '@/types/index';
+import { BuildingOrient } from '@/city/scene/types';
 import type { CellTile } from './cellTile';
-import type { Building } from '@/types/index';
+import type { Building } from '@/city/scene/types';
 import type { BuildingMaterial } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
 import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';

@@ -12,8 +12,9 @@ import {
 } from '@/city/scene/constants/streets';
 import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Street } from '@/city/scene/types';
 
 // Hardcoded label constants — these have no visible effect at normal viewing
 // distances, so they are baked in here rather than exposed as UI controls.

@@ -3,7 +3,8 @@
 // on purpose: tests pass minimal mocks, real Streets/PickTargets satisfy
 // them without casts.
 
-import { NodeKind, StreetAxis } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
 import { parentDirPath } from '../utils/path';
 
 /** Minimal street shape these helpers read. Real Streets satisfy this. */

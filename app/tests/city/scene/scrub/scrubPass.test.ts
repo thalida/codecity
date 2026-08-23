@@ -9,7 +9,8 @@ import { createScrubPass } from '@/city/scene/scrub/scrubPass';
 import { StreetTint } from '@/city/scene/components/streets/scrubState';
 import { BuildingIndex } from '@/city/scene/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/scene/scrub/replay';
-import type { Street, TimelineBundle } from '@/types';
+import type { TimelineBundle } from '@/types';
+import type { Street } from '@/city/scene/types';
 import { makeBuilding, makeBundle, makeFile, makeScrubFrame } from '../../../_helpers/scrub';
 
 const street = (path: string, over: Partial<Street> = {}): Street =>

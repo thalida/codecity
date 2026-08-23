@@ -12,7 +12,8 @@ import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import { BuildingIndex } from './buildingIndex';
 import type { TimelineStore } from '@/city/session/stores/timeline';
-import type { Building, SourceRef } from '@/types/index';
+import type { SourceRef } from '@/types';
+import type { Building } from '@/city/scene/types';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;

@@ -4,17 +4,12 @@
 // unit-testable without the rig/canvas.
 
 import * as THREE from 'three';
-import { StreetAxis } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
 
 const DEG2RAD = Math.PI / 180;
 
-/**
- * Unit camera-offset direction for the start framing. `elevationDeg` lifts the
- * camera above the horizon (90° = straight overhead); `azimuthDeg` swings it
- * around the gem, measured off the root street's long axis (0° = looking
- * straight down the street from behind the gem). `axis` is the root street's
- * orientation, or null when there's no gem (a high-oblique fallback).
- */
+/** Unit camera offset for the start framing: elevation lifts off the horizon,
+ *  azimuth swings around the gem from the root street's axis. No axis: oblique. */
 export function computeFramingDir(
   elevationDeg: number,
   azimuthDeg: number,

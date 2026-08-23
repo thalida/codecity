@@ -7,7 +7,7 @@ import type { TreesConfig } from '@/city/session/settings/trees';
 import type { FootprintConfig } from '@/city/session/settings/footprint';
 import type { IslandConfig, WorldConfig } from '@/city/session/settings/island';
 import type { CityConfig } from '@/city/session/config';
-import type { CityBbox, CityLayout } from '@/types';
+import type { CityBbox, CityLayout } from '@/city/scene/types';
 
 interface PendingRequest {
   resolve(placements: TreePlacement[]): void;

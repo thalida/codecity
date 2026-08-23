@@ -3,7 +3,8 @@
 
 import type { TimelineStore } from '@/city/session/stores/timeline';
 import type { CityConfig } from '@/city/session/config';
-import type { RangeStat, Street } from '@/types';
+import type { RangeStat } from '@/types';
+import type { Street } from '@/city/scene/types';
 import type { BuildingIndex } from '@/city/scene/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/scene/components/buildings/scrubState';
 import type { StreetScrubState } from '@/city/scene/components/streets/scrubState';

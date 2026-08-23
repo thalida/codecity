@@ -10,8 +10,10 @@ import { createBuildingFader } from '@/city/scene/components/buildings/fader';
 
 import { makeCityState, makeBuildingMaterial } from '../../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/city/session/settings/buildings';
-import { FadeDetail, NodeKind } from '@/types';
-import type { Building, CityLayout, DirNode, FileNode, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { FadeDetail } from '@/city/scene/types';
+import type { DirNode, FileNode } from '@/types';
+import type { Building, CityLayout, Street } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 import { makeSession } from '../../../../_helpers/city';
 

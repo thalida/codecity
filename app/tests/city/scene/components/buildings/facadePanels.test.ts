@@ -8,8 +8,9 @@ import {
 } from '@/city/scene/components/buildings/facadePanelTextureArray';
 import { BLOOM } from '@/city/session/settings/effects';
 import { BUILDINGS } from '@/city/session/settings/buildings';
-import { BuildingOrient, NodeKind } from '@/types/index';
-import type { Building } from '@/types/index';
+import { NodeKind } from '@/types';
+import { BuildingOrient } from '@/city/scene/types';
+import type { Building } from '@/city/scene/types';
 import { TEST_SOURCE } from '../../../../_helpers/manifestFixtures';
 import { makeBundle } from '../../../../_helpers/scrub';
 import type { TimelineBundle } from '@/types';

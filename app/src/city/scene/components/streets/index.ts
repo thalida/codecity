@@ -7,8 +7,9 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { setColorFromHex } from '@/city/scene/utils/color/setColorFromHex';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { CityLayout, Street } from '@/city/scene/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';

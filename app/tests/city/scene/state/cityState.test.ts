@@ -3,8 +3,9 @@
 // gem anchor math on both axes and the null cases included.
 
 import { describe, it, expect } from 'vitest';
-import { StreetAxis, NodeKind } from '@/types';
-import type { Building, CityLayout, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Building, CityLayout, Street } from '@/city/scene/types';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads

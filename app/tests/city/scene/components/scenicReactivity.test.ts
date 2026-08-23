@@ -11,8 +11,10 @@ import { createStreets } from '@/city/scene/components/streets';
 import { createGem } from '@/city/scene/components/gem';
 import { createIsland } from '@/city/scene/components/island';
 import { createRepoLabel } from '@/city/scene/components/repoLabel';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Manifest, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Manifest } from '@/types';
+import type { CityLayout, Street } from '@/city/scene/types';
 
 function makeRootStreet(): Street {
   return {

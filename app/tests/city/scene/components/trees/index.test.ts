@@ -19,7 +19,8 @@ import {
 import { TREES } from '@/city/session/settings/trees';
 import { commits as buildCommits } from '../../../../_helpers/commits';
 import { commitStats } from '../../../../_helpers/statsFixtures';
-import { NodeKind, StreetAxis } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
 import { makeSession } from '../../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

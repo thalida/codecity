@@ -10,7 +10,7 @@ import {
   type FieldMap,
 } from '@/state/settings/schema';
 import { DEFAULT_HUE_EXT_MAP } from '@/city/scene/constants/buildings';
-import { FadeDetail } from '@/types';
+import { FadeDetail } from '@/city/scene/types';
 
 const FADE_DETAIL_OPTIONS = [
   { value: FadeDetail.Full, label: 'Full' },

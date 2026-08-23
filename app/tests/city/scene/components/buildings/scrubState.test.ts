@@ -13,7 +13,7 @@ import {
 import { BuildingKind } from '@/city/scene/components/buildings/buildingKind';
 import { getBuildingColorForRecency } from '@/city/scene/components/buildings/color';
 import { getBuildingDimensions } from '@/city/scene/layout/dimensions';
-import { FadeDetail } from '@/types';
+import { FadeDetail } from '@/city/scene/types';
 import type { FileNode } from '@/types';
 import { BUILDING_DIMENSIONS } from '@/city/session/settings/buildings';
 import {

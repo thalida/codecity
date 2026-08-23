@@ -11,7 +11,7 @@ import { createEmptyCellTile } from '@/city/scene/components/buildings/cellTile'
 import { buildCellsFromLayout } from '@/city/scene/components/buildings/cellAssembly';
 import { createBuildingTweens } from '@/city/scene/components/buildings/tween';
 import { building } from '../../../../_helpers/buildingFixture';
-import type { Building } from '@/types';
+import type { Building } from '@/city/scene/types';
 import { TEST_SOURCE } from '../../../../_helpers/manifestFixtures';
 import { makeSession } from '../../../../_helpers/city';
 import { makeBuildingMaterial } from '../../../../_helpers/cityFixtures';

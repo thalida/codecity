@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/scene/layout/algorithm.js';
-import type { CityLayout } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { layoutConfig } from '../../../_helpers/cityFixtures';
 import {
   makeRng,

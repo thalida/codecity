@@ -8,7 +8,8 @@ import type { PathTimeline } from '@/city/scene/scrub/replay';
 import type { ScrubFrame } from '@/city/scene/scrub/scrubFrame';
 import type { BuildingScrubInput } from '@/city/scene/components/buildings/scrubState';
 import { NodeKind } from '@/types';
-import type { Building, FileNode, RangeStat, TimelineBundle } from '@/types';
+import type { FileNode, RangeStat, TimelineBundle } from '@/types';
+import type { Building } from '@/city/scene/types';
 
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
 export const BYTE_STATS: RangeStat = { min: 1, max: 5000 };

@@ -1,6 +1,14 @@
 // city/types/index.ts — the shape every scene component, the composer and the
 // render loop agree on. Types only.
 
+// The city's own model — what it is made of, where that sits, and what a pick
+// returns. The manifest it is built FROM is the server's contract (@/types).
+export * from './building';
+export * from './street';
+export * from './scene';
+export * from './animation';
+export * from './picker';
+
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CityConfig } from '@/city/session/config';

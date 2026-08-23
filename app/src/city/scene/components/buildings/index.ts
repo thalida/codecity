@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import type { Building, CityLayout, EnteringBuilding, StayingBuilding } from '@/types';
+import type { Building, CityLayout, EnteringBuilding, StayingBuilding } from '@/city/scene/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';

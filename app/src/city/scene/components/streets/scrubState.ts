@@ -2,7 +2,7 @@
 // buildings. No meshes, no signals: the pass gathers, this decides, the
 // component applies.
 
-import type { Street } from '@/types';
+import type { Street } from '@/city/scene/types';
 
 // The picker rejects hits on these; buildings use iKind instead. Republished by
 // the streets component every scrub frame.

@@ -4,7 +4,7 @@
 // and friends do the geometry and material assembly.
 
 import * as THREE from 'three';
-import type { Building } from '@/types/index';
+import type { Building } from '@/city/scene/types';
 import type { SpatialGrid } from './spatialGrid';
 
 export interface CellTile {

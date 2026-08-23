@@ -1,18 +1,10 @@
-// city/layout/rect.ts — the city's canonical 2D footprint rectangle, plus the
-// ONE place that knows how a Street/Building maps onto it.
-//
-// Rect lives on the layout plane: (x, y) is the rect's CENTER and w/d are
-// the FULL width/depth, matching the Building convention. The layout plane's
-// y axis is the world's z axis — 3D consumers (e.g. the footprint component)
-// place rects at world (x, 0, y).
-//
-// A Street stores its extent as length-along-axis + width-across, so turning
-// one into a Rect requires the orientation swap below. Keep that swap here so
-// every consumer (layout occupancy, layout invariant checks, the footprint
-// slab) can never disagree.
+// city/scene/layout/rect.ts — the 2D footprint rectangle, and the one place a
+// Street or Building becomes one. (x, y) is the CENTRE and w/d are full
+// extents, on a plane whose y is the world's z. A Street stores length-along
+// and width-across, so the orientation swap lives here and nowhere else.
 
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Building, Street } from '@/city/scene/types';
 
 /** Axis-aligned rectangle on the layout plane. (x, y) is the CENTER;
  *  w/d are the full width/depth (matches Building/Street conventions). */
@@ -37,24 +29,8 @@ export function rectOfStreet(s: Street): Rect {
   return { x: s.x, y: s.y, w: s.width, d: s.length };
 }
 
-// _rectsOverlap(a, b) -> boolean
-//
-// True iff two axis-aligned rectangles intersect by more than FP noise.
-// Touching edges (zero overlap) returns false; the packer relies on this
-// so that two rects abutted at exactly their sibling gap apart count as
-// non-overlapping. Because layout edges are derived from CENTER ± SIZE/2
-// after additive translation through non-integer offsets (e.g. a path's
-// far edge `61.6 + 2 = 63.6` vs a building's near edge `66.6 - 3 =
-// 63.5999…`), strict `<` comparison on FP-derived edges sporadically
-// reports the touching case as a sub-femto-unit overlap.
-//
-// OVERLAP_EPS: tolerance for IEEE-754 noise that arises when two touching
-// rects have edges computed via different additive paths (e.g. center+size/2
-// vs neighbor-center-size/2 through a non-integer subAnchor). Empirically
-// ~7e-15 per single translation; a few orders of magnitude higher under
-// deep recursion at large coordinate scales. 1e-9 sits well above this
-// noise band and far below any visible-scale geometry (smallest gap ~1
-// unit), so it eliminates false-positive overlaps without masking real ones.
+// Edges that should touch differ by ~7e-15 (centre ± size/2 through non-integer
+// offsets), and the packer must read that as no overlap, not a sliver.
 export const OVERLAP_EPS = 1e-9;
 
 /** The four edges of a rect (center ± half-extent). Shared by the overlap test

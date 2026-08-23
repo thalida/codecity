@@ -13,7 +13,8 @@ import {
 } from '@/city/scene/components/buildings/cellMesh';
 
 import { BuildingKind } from '@/city/scene/components/buildings/buildingKind';
-import { BuildingOrient, NodeKind } from '@/types/index';
+import { NodeKind } from '@/types';
+import { BuildingOrient } from '@/city/scene/types';
 import type { IconAtlas } from '@/city/scene/components/buildings/atlas';
 import type { FileNode } from '@/types';
 import { building } from '../../../../_helpers/buildingFixture';

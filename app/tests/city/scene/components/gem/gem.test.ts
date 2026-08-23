@@ -7,8 +7,9 @@ import {
   makePrePickerSceneContext,
 } from '../../../../_helpers/cityFixtures';
 import { GEM } from '@/city/session/settings/gem';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Street } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the

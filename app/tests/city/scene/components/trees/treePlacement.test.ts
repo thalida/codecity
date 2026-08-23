@@ -6,7 +6,7 @@ import { placeTrees, type TreePlacement } from '@/city/scene/components/trees/tr
 import { TREES } from '@/city/session/settings/trees';
 import { FOOTPRINT } from '@/city/session/settings/footprint';
 import { WORLD } from '@/city/session/settings/island';
-import type { CityLayout } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import {
   bbox,
   emptyLayout,

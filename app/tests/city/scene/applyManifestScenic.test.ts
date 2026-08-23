@@ -5,8 +5,10 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import { createCityBuild } from '@/city/scene/build';
 import { createStreets } from '@/city/scene/components/streets';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { DateRanges, Manifest } from '@/types';
+import type { CityLayout, Street } from '@/city/scene/types';
 import {
   makeSceneContext,
   stubPlacementClient,

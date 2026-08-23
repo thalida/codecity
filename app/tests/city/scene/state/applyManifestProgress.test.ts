@@ -9,7 +9,8 @@ import { RebuildStatus } from '@/city/session/stores/progress';
 import { createCityBuild } from '@/city/scene/build';
 import { buildStageTail } from '@/constants/progress';
 import { NodeKind } from '@/types';
-import type { CityLayout, DateRanges, Manifest } from '@/types';
+import type { DateRanges, Manifest } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { makeSession } from '../../../_helpers/city';
 
 // One city for this file, the way the app makes one for itself.

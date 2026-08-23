@@ -6,9 +6,11 @@ import {
   computeFileStats,
 } from '@/city/scene/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/city/session/settings/buildings';
-import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
+import { NodeKind } from '@/types';
+import { BuildingOrient, StreetAxis } from '@/city/scene/types';
 import type { BuildingDimensionsConfig } from '@/city/session/settings/buildings';
-import type { RepoStats, CityLayout } from '@/types';
+import type { RepoStats } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { EMPTY_REPO_STATS } from '../../../_helpers/manifestFixtures';
 import type { StreetTier } from '@/city/session/settings/streets';
 import {

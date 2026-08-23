@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import type { BuildingsConfig } from '@/city/session/settings/buildings';
 import type { ReadonlySignal } from '@preact/signals';
-import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
+import type { Building, EnteringBuilding, StayingBuilding } from '@/city/scene/types';
 
 /** Narrow resolver surface the tween queue needs from the buildings
  *  component (re-resolved per frame so tweens survive rebuilds). */

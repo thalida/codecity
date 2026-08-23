@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, CommitEntry } from '@/types';
+import type { CommitEntry } from '@/types';
+import type { CityBbox, CityLayout } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 import type { SceneContext } from '@/city/scene/types';
 import type { Picker } from '@/city/scene/interaction/picker';

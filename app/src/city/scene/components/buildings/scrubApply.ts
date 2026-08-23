@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 
-import type { Building } from '@/types';
+import type { Building } from '@/city/scene/types';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { BuildingIndex } from './buildingIndex';
 import { BuildingLane, type BuildingScrubState } from './scrubState';

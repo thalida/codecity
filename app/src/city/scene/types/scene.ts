@@ -3,7 +3,7 @@
 
 import type { Building } from './building';
 import type { Street } from './street';
-import type { FileStats, RangeStat } from './manifest';
+import type { FileStats, RangeStat } from '@/types';
 
 /** Axis-aligned bounding box around the entire laid-out city. */
 export interface CityBbox {

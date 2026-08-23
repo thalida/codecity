@@ -4,7 +4,8 @@
 import type { BuildingsConfig, BuildingDimensionsConfig } from '@/city/session/settings/buildings';
 import type { CityConfig } from '@/city/session/config';
 import { NodeKind } from '@/types';
-import type { FileNode, RangeStat, Street } from '@/types';
+import type { FileNode, RangeStat } from '@/types';
+import type { Street } from '@/city/scene/types';
 import { resolveDirTarget } from '@/city/scene/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/scene/interaction/picker';
 

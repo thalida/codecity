@@ -1,7 +1,7 @@
 // types/street.ts — pairs with state/stores/settings/streets.ts (the tunables).
 // Defines the Street shape the layout step produces.
 
-import type { DirNode } from './manifest';
+import type { DirNode } from '@/types';
 
 /** Street long-axis. 'x' = runs along world-X, 'y' = along world-Z. */
 export enum StreetAxis {

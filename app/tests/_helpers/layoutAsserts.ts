@@ -5,8 +5,8 @@ import {
   isStreetJoinPair,
   LayoutOverlapCategory,
 } from '@/city/scene/layout/overlaps';
-import { StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { CityLayout, Street } from '@/city/scene/types';
 
 export function assertNoOverlap(layout: CityLayout): void {
   const bad = findLayoutOverlaps(layout).filter(

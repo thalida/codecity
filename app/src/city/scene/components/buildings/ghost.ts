@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
-import type { Building } from '@/types';
+import type { Building } from '@/city/scene/types';
 import type { FileTarget } from '@/city/scene/types/picker';
 import type { createPicker } from '@/city/scene/interaction/picker';
 

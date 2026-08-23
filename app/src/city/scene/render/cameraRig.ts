@@ -19,8 +19,9 @@ import {
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
 } from '@/city/scene/constants/camera';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Building, Street } from '@/city/scene/types';
 import type { PickTarget } from '@/city/scene/types/picker';
 import type { CityBuild } from '@/city/scene/build';
 import { computeFramingDir } from './framingDir';

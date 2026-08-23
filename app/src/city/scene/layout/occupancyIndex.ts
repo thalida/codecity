@@ -4,7 +4,7 @@
 // frame.
 
 import RBush from 'rbush';
-import type { Building, Street } from '@/types';
+import type { Building, Street } from '@/city/scene/types';
 
 // Touches at edges (zero-area overlap) are NOT reported as overlap.
 const OVERLAP_EPS = 1e-9;
@@ -25,10 +25,8 @@ export interface WorldRect {
   // Payload — what kind of thing is this, what does it belong to.
   kind: WorldRectKind;
   ref: Building | Street;
-  // True only for the phantom strip seeded to clear a child off its PARENT
-  // street body. It's a Street rect but NOT a sibling, so the sibling-gap
-  // logic (findSmallestValidStem) must not apply the street gap to it — the
-  // join clearance is PARENT_JOIN_PAD's job, not the sibling gap's.
+  // The phantom strip clearing a child off its PARENT's body: a Street rect
+  // but not a sibling, so PARENT_JOIN_PAD spaces it, not the sibling gap.
   parentBody?: boolean;
 }
 

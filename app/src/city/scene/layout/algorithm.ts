@@ -4,8 +4,10 @@
 // placement takes the smallest stem that clears everything already placed.
 
 import type { LayoutConfig } from './protocol';
-import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, RangeStat, RepoStats, Street } from '@/types';
+import { NodeKind } from '@/types';
+import { BuildingOrient, JoinSide, StreetAxis } from '@/city/scene/types';
+import type { RangeStat, RepoStats } from '@/types';
+import type { Building, CityLayout, Street } from '@/city/scene/types';
 import { parentDirPath } from '../utils/path';
 import { rectOfBuilding, rectOfStreet } from './rect';
 import type { Rect } from './rect';

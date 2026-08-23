@@ -14,7 +14,7 @@ import {
 } from '@/city/scene/components/buildings/scrubState';
 import { BuildingIndex } from '@/city/scene/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/scene/components/buildings/facadePanels';
-import type { Building } from '@/types';
+import type { Building } from '@/city/scene/types';
 import { makeBuilding, makeFile } from '../../../../_helpers/scrub';
 import { makeBuildingMaterial } from '../../../../_helpers/cityFixtures';
 

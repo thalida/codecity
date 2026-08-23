@@ -5,7 +5,8 @@
 
 import * as THREE from 'three';
 import { untracked } from '@preact/signals';
-import { BuildingOrient, type SourceRef } from '@/types/index';
+import { type SourceRef } from '@/types';
+import { BuildingOrient } from '@/city/scene/types';
 import type { CityConfig } from '@/city/session/config';
 import { MEDIA_ERROR_COLOR } from '@/city/scene/constants/buildings';
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
@@ -23,7 +24,7 @@ import {
 } from '@/city/session/api/file';
 import { fingerprintUrl } from '@/city/session/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
-import type { Building } from '@/types/index';
+import type { Building } from '@/city/scene/types';
 
 import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';

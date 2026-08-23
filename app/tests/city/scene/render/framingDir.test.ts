@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { StreetAxis } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
 import { computeFramingDir } from '@/city/scene/render/framingDir';
 
 const DEG = Math.PI / 180;

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { NodeKind } from '@/types';
-import type { Street } from '@/types';
+import type { Street } from '@/city/scene/types';
 import { disposeObject3D } from '@/city/scene/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';

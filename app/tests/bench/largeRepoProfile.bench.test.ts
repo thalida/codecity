@@ -11,8 +11,9 @@ import { buildCellsFromLayout } from '@/city/scene/components/buildings/cellAsse
 import { InstancedFacadePanels } from '@/city/scene/components/buildings/facadePanels';
 import { createStreetLabels } from '@/city/scene/components/streets/streetLabels';
 import { isMediaFile } from '@/utils/fileKind';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout } from '@/types';
+import { NodeKind } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Building, CityLayout } from '@/city/scene/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';

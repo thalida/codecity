@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/city/scene/components/trees/treePlacementClient';
-import type { CityLayout } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { bbox, emptyLayout } from '../../../../_helpers/cityFixtures';
 import { makeSession } from '../../../../_helpers/city';
 

@@ -2,7 +2,8 @@
 // depend on them byte for byte, so a change here means recapturing a golden.
 
 import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, CommitEntry, RepoStats } from '@/types';
+import type { CommitEntry, RepoStats } from '@/types';
+import type { CityBbox, CityLayout } from '@/city/scene/types';
 
 /** Deterministic LCG so tree shape (and thus digests/timings) reproduce. */
 export function makeRng(seed: number): () => number {

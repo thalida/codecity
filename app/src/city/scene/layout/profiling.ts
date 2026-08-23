@@ -1,11 +1,9 @@
 // city/layout/profiling.ts — opt-in per-phase profiler for the layout packer.
 
-import type { CityLayout } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 
 // ─── Profiling ───────────────────────────────────────────────────────────────
-// Off by default; the _profEnabled guard keeps production cost to one branch per
-// section. setLayoutProfiling(true) makes layoutCity log a per-phase breakdown
-// and expose raw buckets (cumulative ms + count) via getLayoutProfile().
+// Off by default, one branch per section; on, layoutCity logs per phase.
 interface ProfBucket {
   ms: number;
   n: number;

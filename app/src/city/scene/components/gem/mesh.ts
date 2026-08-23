@@ -11,7 +11,7 @@ import { NodeKind } from '@/types';
 import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
-import type { Street } from '@/types';
+import type { Street } from '@/city/scene/types';
 
 // Hover-lift as a fraction of street width — fixed, not user-tunable;
 // index.ts recomputes baseY from it on Save.

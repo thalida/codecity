@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 import { createBuildingTweens } from '@/city/scene/components/buildings/tween';
 import { BUILDINGS } from '@/city/session/settings/buildings';
-import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
+import type { Building, EnteringBuilding, StayingBuilding } from '@/city/scene/types';
 import { building } from '../../../../_helpers/buildingFixture';
 
 const _origBuildings = BUILDINGS.value;

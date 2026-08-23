@@ -7,7 +7,8 @@ import type { CityConfig } from '@/city/session/config';
 import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutConfig, LayoutRequest, LayoutResponse } from './protocol';
-import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
+import type { Manifest, FileNode, TreeNode } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;

@@ -4,8 +4,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/scene/components/footprint';
 import { FOOTPRINT } from '@/city/session/settings/footprint';
-import { StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { CityLayout, Street } from '@/city/scene/types';
 import {
   BuildingLane,
   blankBuildingScrubState,

@@ -2,7 +2,7 @@
 // (the center of the root street's origin-end cap). Computed from the
 // street geometry; shared by the gem mesh and tree placement.
 
-import { StreetAxis } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
 
 type RootStreetGeometry = {
   x: number;

@@ -10,8 +10,9 @@ import type { RuinsConfig } from '@/city/session/settings/ruins';
 import { ASPHALT_WIDTH_FRAC } from '@/city/scene/constants/streets';
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
 import { setColorFromHex } from '@/city/scene/utils/color/setColorFromHex';
-import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Street } from '@/types';
+import { NodeKind } from '@/types';
+import { CapStyle, JoinSide, StreetAxis } from '@/city/scene/types';
+import type { Street } from '@/city/scene/types';
 
 // `joinSide` says which end of a child street merges into its parent, so that
 // end can be capped flat.

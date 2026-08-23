@@ -7,7 +7,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker } from '@/city/scene/interaction/picker';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { NodeKind } from '@/types';
-import type { Building, DirNode, FileNode, Street } from '@/types';
+import type { DirNode, FileNode } from '@/types';
+import type { Building, Street } from '@/city/scene/types';
 import type { FileTarget, DirTarget, PickerWorld } from '@/city/scene/types/picker';
 import { makeSession } from '../../../_helpers/city';
 

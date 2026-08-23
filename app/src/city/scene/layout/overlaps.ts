@@ -2,15 +2,14 @@
 // with T-junction joins classified apart from unexpected overlaps. Pure data;
 // no DOM or Three.js.
 
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import { StreetAxis } from '@/city/scene/types';
+import type { Building, Street } from '@/city/scene/types';
 import { rectOfBuilding, rectOfStreet, _rectsOverlap, rectEdges } from './rect';
 import type { Rect } from './rect';
 import { WorldRectKind } from './occupancyIndex';
 
-// Perpendicular streets whose endpoint sits on the other's centerline: the flat
-// join the renderer fuses, and so the one overlap a layout may contain. The
-// half-unit slop absorbs coordinate drift; a well-formed join has a zero gap.
+// Perpendicular streets meeting on a centreline: the flat join the renderer
+// fuses, and the one overlap a layout may contain. Half a unit absorbs drift.
 export function isStreetJoinPair(a: Street, b: Street): boolean {
   if (a.orientation === b.orientation) return false;
   const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';
@@ -29,9 +28,7 @@ export function isStreetJoinPair(a: Street, b: Street): boolean {
   return perpClose && longClose;
 }
 
-// How an overlap is classified. String enum (values match the prior wire
-// strings) so call sites reference LayoutOverlapCategory.TJunction, mirroring
-// the WorldRectKind convention.
+// A string enum, like WorldRectKind, so a call site names the category.
 export enum LayoutOverlapCategory {
   TJunction = 't-junction',
   Unexpected = 'unexpected',
@@ -91,12 +88,8 @@ export function findLayoutOverlaps(layout: {
         B = all[j];
       if (!_rectsOverlap(A.rect, B.rect)) continue;
       const overlap = _intersectRect(A.rect, B.rect);
-      // Skip FP-noise overlaps. The internal _rectsOverlap uses
-      // OVERLAP_EPS=1e-9, which is below the IEEE-754 drift produced by
-      // chains of Float32 translations at large coordinate magnitudes
-      // (~1e-5 at coords of 10000+). Touching-edge cases produce overlaps
-      // with one dimension in that drift range; they're visually
-      // imperceptible and not actual layout bugs.
+      // OVERLAP_EPS sits below the drift a chain of translations produces out
+      // at 10000+ (~1e-5), so a touching edge lands here, invisible and real.
       if (overlap.w < 1e-3 || overlap.d < 1e-3) continue;
       let category: LayoutOverlapCategory = LayoutOverlapCategory.Unexpected;
       if (

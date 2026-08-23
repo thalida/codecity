@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { RENDER_ORDERS } from '@/city/scene/constants/renderOrders';
-import type { CityLayout } from '@/types';
+import type { CityLayout } from '@/city/scene/types';
 import { setColorFromHex } from '@/city/scene/utils/color/setColorFromHex';
 import { rectOfBuilding, rectOfStreet } from '@/city/scene/layout/rect';
 import type { Rect } from '@/city/scene/layout/rect';
