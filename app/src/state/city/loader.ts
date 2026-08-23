@@ -3,7 +3,7 @@
 // render layer consumes those signals and owns the apply's rebuild status.
 
 import { useEffect } from 'preact/hooks';
-import { computed, effect } from '@preact/signals';
+import { effect } from '@preact/signals';
 
 import {
   manifestUrlFor,
@@ -19,10 +19,8 @@ import { RECENTS, activeExcludePathsFor } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import type { ProgressStore } from '@/state/stores/progress';
 import type { CitySession } from '@/state/city/session';
-import { srcKind, SourceKind, identityBranch, sourceKey, sourceIdentity } from '@/utils/sources';
-import { readUrlView, type UrlView } from '@/router/viewParams';
-import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { srcKind, SourceKind, identityBranch, sourceKey } from '@/utils/sources';
+import type { UrlView } from '@/router/viewParams';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
 
@@ -95,14 +93,6 @@ interface SignatureResponse {
   scanned_at: string;
   content_signature: string;
 }
-
-/** What the address bar asks for, as one comparable string: a computed notifies
- *  only when THAT changes, so writing ?sel= or ?mode= cannot re-ask it. */
-const URL_SOURCE = computed(() => {
-  if (ROUTE_PATH.value !== ROUTES.CITY) return '';
-  const view = readUrlView(ROUTE_PARAMS.value);
-  return view.src ? sourceIdentity(view.src, view.branch) : '';
-});
 
 export class CityLoader {
   private readonly disposers: (() => void)[] = [];
@@ -362,43 +352,15 @@ export class CityLoader {
     await this.loadSource({ src, branch: view.branch });
   };
 
-  /** Follow the URL into this city: attached for the focused one only. */
-  attachRouteLoad = (): (() => void) => {
-    // Whether the URL named a city on the last run, so this one can tell arriving
-    // at one from moving around inside it.
-    let onCityRoute = false;
-    return effect(() => {
-      if (!URL_SOURCE.value) {
-        onCityRoute = false;
-        return;
-      }
-      const arriving = !onCityRoute;
-      onCityRoute = true;
-      // Peeked: the identity above is the trigger, and re-reading the params here
-      // must not subscribe this to the view ones alongside it.
-      const asked = readUrlView(ROUTE_PARAMS.peek());
-      // Out of the tracking scope: the load writes signals this effect reads.
-      queueMicrotask(() => {
-        // Arriving always asks: only the server knows if its scan still holds.
-        // Once here, that city again is the branch a commit put in the URL.
-        if (!arriving && this.session.source.isOpen(asked.src, asked.branch)) return;
-        void this.boot(asked);
-      });
-    });
-  };
-
   dispose = (): void => this.disposers.splice(0).forEach((stop) => stop());
 }
 
-/** Boot this city's fetch pipeline on mount: the server reads the whole app
- *  shares, then the URL follow and the live-update poll for THIS one. */
+/** Boot this city's fetch pipeline: the app-wide server reads, then the
+ *  live-update poll for THIS one. What to load is the URL adapter's. */
 export function useCityLoader(session: CitySession): void {
   useEffect(() => {
     let cancelled = false;
     let disposeLiveUpdates: (() => void) | null = null;
-    // The URL drives what is rendered: boot read and every later Back/Forward.
-    // A bare ?src is complete; the server resolves the default branch.
-    const disposeRouteLoad = session.load.attachRouteLoad();
     (async () => {
       // Independent boot reads, so they go out together rather than making the
       // landing wait for two round trips in series.
@@ -413,7 +375,6 @@ export function useCityLoader(session: CitySession): void {
     })();
     return () => {
       cancelled = true;
-      disposeRouteLoad();
       disposeLiveUpdates?.();
     };
   }, []);
