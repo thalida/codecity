@@ -10,6 +10,7 @@ import { RebuildStatus } from '@/state/stores/progress';
 import { SourceKind } from '@/utils/sources';
 import { TREES } from '@/state/settings/fields/trees';
 import { ChangeRoute } from '@/state/settings/schema';
+import { BuildingMaterial } from '@/city/components/buildings/material';
 import type { Manifest } from '@/types';
 
 vi.mock('three', async () => {
@@ -199,6 +200,17 @@ describe('two cities at once', () => {
     } finally {
       dark.dispose();
     }
+  });
+
+  // Shared GPU state is the other way two cities leak into each other: one
+  // material meant one fog colour, one outline width, one icon atlas.
+  it('gives each city its own building material and atlas', async () => {
+    const mine = new BuildingMaterial(opened.config);
+    const theirs = new BuildingMaterial(backdrop.config);
+    expect(mine.get()).not.toBe(theirs.get());
+
+    mine.setIconAtlas({ texture: null, slotSize: 4 } as never);
+    expect(theirs.getIconAtlas(), 'the other city never saw it').toBeNull();
   });
 
   it('holds the backdrop’s camera when the opened city changes', async () => {
