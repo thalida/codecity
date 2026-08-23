@@ -48,6 +48,7 @@ const pick = (t: unknown) => t as PickTarget;
 function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
   return {
     scrubPos: session.timeline.scrubPos.peek(),
+    config: session.config,
     commitLineRanges: RANGES,
     commitMs: COMMIT_MS,
     trackEndMs: SCANNED_AT,

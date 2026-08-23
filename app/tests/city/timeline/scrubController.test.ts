@@ -51,6 +51,7 @@ function setup(scrubGates: ScrubGate[] = []) {
 
   const controller = createScrubController({
     timeline: session.timeline,
+    config: session.config,
     buildings: {
       getBuildingIndex: () => index,
       applyScrub: (s) => void buildingSlices.push(s),

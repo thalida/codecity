@@ -27,8 +27,6 @@ import { createSky } from './components/sky';
 import { createIsland, ISLAND_TOP_Y } from './components/island';
 import { createRepoLabel } from './components/repoLabel';
 import { repoLabelBounds } from './components/repoLabel/bounds';
-import { REPO_LABEL } from '@/state/settings/fields/gem';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createFootprint } from './components/footprint';
 import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
@@ -79,7 +77,8 @@ export async function createCityScene(
     layoutClient,
     treePlacementClient,
     session.progress,
-    buildingMaterial
+    buildingMaterial,
+    session.config
   );
   // Pulled off sceneState for the City handle; components never wire into
   // these — they rebuild reactively off sceneState's signals.
@@ -141,8 +140,8 @@ export async function createCityScene(
         repoLabelBounds(
           sceneState.manifest.peek()?.tree?.name,
           sceneState.gemWorldPos.peek(),
-          REPO_LABEL.peek(),
-          BUILDING_DIMENSIONS.peek()
+          session.config.REPO_LABEL.peek(),
+          session.config.BUILDING_DIMENSIONS.peek()
         ),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
@@ -190,7 +189,7 @@ export async function createCityScene(
     return until(() => gone.value || presented.value >= sceneState.cityRevision.value);
   }
 
-  const postFx = createPostFx(renderer, scene, rig.camera);
+  const postFx = createPostFx(renderer, scene, rig.camera, session.config.BLOOM);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
   const picker = createPicker({
@@ -286,6 +285,7 @@ export async function createCityScene(
       _scrubController?.dispose();
       _scrubController = createScrubController({
         timeline: session.timeline,
+        config: session.config,
         buildings: {
           getBuildingIndex: () => buildings.getBuildingIndex(),
           applyScrub: (states) => buildings.applyScrub(states),

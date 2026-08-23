@@ -12,6 +12,7 @@ import type { CommitEntry, RepoStats } from '@/types';
 import type { ReadonlySignal } from '@preact/signals';
 import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
 import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 
 /** createFireflyAssembly's handle: the renderer plus sha-based hover/select
  *  so callers never manage the sha→index map. */
@@ -42,6 +43,7 @@ export function createFireflyAssembly(
    *  sized against the same tree config the forest grew from. */
   fireflies: ReadonlySignal<FirefliesConfig>,
   trees: ReadonlySignal<TreesConfig>,
+  rainbow: ReadonlySignal<RainbowConfig>,
   /** Drawing-buffer canvas — the orbs' point sizes scale to its device-pixel
    *  height. Optional for tests. */
   canvas?: HTMLCanvasElement
@@ -73,7 +75,7 @@ export function createFireflyAssembly(
     fireflies.value,
     trees.value
   );
-  const rings = createOrbitRings(orbs, fireflies);
+  const rings = createOrbitRings(orbs, fireflies, rainbow);
   const renderer = createFireflyRenderer(orbs, fireflies, canvas);
   const scrub = createFirefliesScrub(orbs, commits, stats, fireflies, trees);
   // Both arrive per frame, from the same controller, and both feed one resize.

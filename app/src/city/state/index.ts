@@ -4,8 +4,7 @@
 // change counters, the rest are computed. Components rebuild off them.
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { TREES } from '@/state/settings/fields/trees';
+import type { CityConfig } from '@/city/config';
 import { type BuildReporter } from '@/state/stores/progress';
 import { BuildStage } from '@/constants/progress';
 import { StreetAxis } from '@/types';
@@ -135,7 +134,10 @@ export function createCitySceneState(
   // for (see BuildReporter).
   report: BuildReporter,
   /** This city's material: the atlas the build makes is pushed into it. */
-  buildingMaterial: BuildingMaterial
+  buildingMaterial: BuildingMaterial,
+  /** What this city looks like: its ground buffer, halo and whether it grows
+   *  trees at all decide what a build produces. */
+  config: CityConfig
 ): CitySceneState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
@@ -147,7 +149,7 @@ export function createCitySceneState(
   // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
   // the halo changes, not on every FOOTPRINT change (which would refit).
   const footprintHalo = computed<number>(() => {
-    const f = FOOTPRINT.value;
+    const f = config.FOOTPRINT.value;
     return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
   });
 
@@ -173,7 +175,7 @@ export function createCitySceneState(
   // structure change. null until the first apply.
   const latestWorldBounds = computed<WorldBounds | null>(() => {
     const sb = sceneBbox.value;
-    return sb ? getWorldBounds(sb, cityHeight.value) : null;
+    return sb ? getWorldBounds(sb, config.WORLD.value, cityHeight.value) : null;
   });
 
   // The root-of-repo street, which gets the gem. Ref-stable on a reuse apply,
@@ -231,7 +233,7 @@ export function createCitySceneState(
       BuildStage.Assemble,
       // The trees component ends a build: enabled, it decorates; off, it settles
       // straight to idle and this stage never comes.
-      ...(TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
+      ...(config.TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
     ];
   }
 
@@ -307,7 +309,7 @@ export function createCitySceneState(
     // Placed against the finished layout, so the scan belongs to the build, not
     // to the component that draws them: the batch below publishes a whole city.
     let newPlacements: TreePlacement[] | null = null;
-    if (TREES.peek().ENABLED) {
+    if (config.TREES.peek().ENABLED) {
       report.markDecorating();
       const newBbox = cityBbox(newLayout, footprintHalo.peek());
       try {

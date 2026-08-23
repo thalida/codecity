@@ -82,7 +82,8 @@ describe('sceneState.applyManifest — scenic reactivity parity', () => {
       layoutClient as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     const streets = createStreets(makeSceneContext(sceneState));
     disposers.push(() => streets.dispose());

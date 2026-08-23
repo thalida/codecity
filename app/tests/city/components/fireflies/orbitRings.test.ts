@@ -3,6 +3,7 @@
 // pool itself, not the surrounding renderer wiring.
 
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
+import { RAINBOW } from '@/state/settings/fields/effects';
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createOrbitRings, ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
@@ -36,14 +37,14 @@ function meshesIn(rings: ReturnType<typeof createOrbitRings>): THREE.Mesh[] {
 
 describe('createOrbitRings — lazy pool', () => {
   it('returns an empty group at construction (no upfront geometry)', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     expect(rings.group.name).toBe(ORBIT_RINGS_GROUP);
     expect(meshesIn(rings).length).toBe(0);
     rings.dispose();
   });
 
   it('returns the no-op interface when placements is empty', () => {
-    const rings = createOrbitRings([], FIREFLIES);
+    const rings = createOrbitRings([], FIREFLIES, RAINBOW);
     expect(() => rings.setHoveredCommit(0)).not.toThrow();
     expect(() => rings.setSelectedCommit(0)).not.toThrow();
     expect(() => rings.update(0)).not.toThrow();
@@ -52,7 +53,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('setHoveredCommit(idx) builds exactly one mesh in the group', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
@@ -64,7 +65,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('setHoveredCommit with the same idx twice is a no-op (geometry identity preserved)', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(1);
     const geomBefore = meshesIn(rings)[0].geometry;
     rings.setHoveredCommit(1);
@@ -74,7 +75,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('setHoveredCommit(a) then (b) disposes the old geometry and builds a new one', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     const oldGeom = meshesIn(rings)[0].geometry as THREE.BufferGeometry;
     let disposed = false;
@@ -89,7 +90,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('setHoveredCommit(null) disposes the hover slot mesh', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     expect(meshesIn(rings).length).toBe(1);
     rings.setHoveredCommit(null);
@@ -98,7 +99,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('setSelectedCommit(idx) builds a mesh whose material has vertexColors enabled', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setSelectedCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
@@ -108,7 +109,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('hover + selected on the same commit shows only the selected mesh', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     rings.setSelectedCommit(0);
     const ms = meshesIn(rings);
@@ -119,7 +120,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('hover + selected on different commits shows two meshes with distinct material strategies', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     rings.setSelectedCommit(1);
     const ms = meshesIn(rings);
@@ -132,7 +133,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('deselecting while still hovered restores the hover ring', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     rings.setSelectedCommit(0);
     // After selecting the hovered commit, only the selected mesh is visible.
@@ -148,7 +149,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('dispose() clears the group and is idempotent', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     rings.setSelectedCommit(1);
     rings.dispose();
@@ -163,7 +164,7 @@ describe('createOrbitRings — lazy pool', () => {
       ...makePlacement(0),
       lightRgb: [0.9, 0.8, 0.7],
     };
-    const rings = createOrbitRings([placement], FIREFLIES);
+    const rings = createOrbitRings([placement], FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
@@ -181,7 +182,7 @@ describe('createOrbitRings — lazy pool', () => {
       orbitRadius: 2 + i, // distinct geometry so they don't collapse
       lightRgb: [i / 2, 1 - i / 2, 0.5] as [number, number, number],
     }));
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(3);
@@ -195,7 +196,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('selected ring material uses vertexColors and gets a color attribute', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setSelectedCommit(0);
     rings.update(performance.now());
     const ms = meshesIn(rings);
@@ -208,7 +209,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('update(t) advances rainbow chase on selected rings', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     rings.setSelectedCommit(0);
     rings.update(0);
     const attr1 = (meshesIn(rings)[0].geometry as THREE.BufferGeometry).getAttribute(
@@ -234,7 +235,7 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('update() is a cheap no-op when nothing is selected', () => {
-    const rings = createOrbitRings(PLACEMENTS, FIREFLIES);
+    const rings = createOrbitRings(PLACEMENTS, FIREFLIES, RAINBOW);
     // Only hover; no selected meshes.
     rings.setHoveredCommit(0);
     expect(() => rings.update(0)).not.toThrow();
@@ -256,7 +257,7 @@ describe('createOrbitRings — lazy pool', () => {
 
   it('setHoveredCommit on a multi-author commit builds one ring mesh per author orb', () => {
     const placements = multiAuthorPlacements(0);
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     // Three co-authors at commit 0 → three orbit rings.
     expect(meshesIn(rings).length).toBe(3);
@@ -265,7 +266,7 @@ describe('createOrbitRings — lazy pool', () => {
 
   it('setSelectedCommit on a multi-author commit builds one ring mesh per author orb', () => {
     const placements = multiAuthorPlacements(0);
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setSelectedCommit(0);
     expect(meshesIn(rings).length).toBe(3);
     rings.dispose();
@@ -273,7 +274,7 @@ describe('createOrbitRings — lazy pool', () => {
 
   it('hover + selected on different multi-author commits shows N + M rings', () => {
     const placements = [...multiAuthorPlacements(0), ...multiAuthorPlacements(1)];
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0); // 3 hover rings
     rings.setSelectedCommit(1); // 2 selected rings (different placements at idx 1)
     // multiAuthorPlacements(1) emits 3 orbs too → 3 selected + 3 hover = 6.
@@ -283,7 +284,7 @@ describe('createOrbitRings — lazy pool', () => {
 
   it('clearing hover on a multi-author commit disposes all of its rings', () => {
     const placements = multiAuthorPlacements(0);
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     expect(meshesIn(rings).length).toBe(3);
     rings.setHoveredCommit(null);
@@ -293,7 +294,7 @@ describe('createOrbitRings — lazy pool', () => {
 
   it("multi-author ring geometries reflect each orb's distinct orbit params", () => {
     const placements = multiAuthorPlacements(0);
-    const rings = createOrbitRings(placements, FIREFLIES);
+    const rings = createOrbitRings(placements, FIREFLIES, RAINBOW);
     rings.setHoveredCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(3);
@@ -313,7 +314,7 @@ describe('createOrbitRings — lazy pool', () => {
     // Structural and timed: the factory must build no rings upfront, and a
     // hover into 100k placements must still feel instant.
     const big: FireflyPlacement[] = Array.from({ length: 100_000 }, (_, i) => makePlacement(i));
-    const rings = createOrbitRings(big, FIREFLIES);
+    const rings = createOrbitRings(big, FIREFLIES, RAINBOW);
     expect(meshesIn(rings).length).toBe(0);
 
     const t0 = performance.now();

@@ -111,6 +111,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       picker: ctx.picker!,
       getTrees: () => _inner,
       trees: config.TREES,
+      rainbow: config.RAINBOW,
     });
     return [
       () => {

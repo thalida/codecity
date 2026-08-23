@@ -170,6 +170,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       world: { getCells: () => _cells },
       picker: ctx.picker!,
       buildings: ctx.config.BUILDINGS,
+      rainbow: ctx.config.RAINBOW,
     });
     _ghost = createGhostRenderer({
       scene: ctx.scene,

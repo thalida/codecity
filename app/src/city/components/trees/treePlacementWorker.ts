@@ -48,6 +48,7 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
         trees: data.configSnapshot.trees,
         footprint: data.configSnapshot.footprint,
         island: data.configSnapshot.islandGeo,
+        world: data.configSnapshot.world,
       },
     });
     const reply: PlaceResponse = {

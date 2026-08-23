@@ -9,6 +9,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 import type { ReadonlySignal } from '@preact/signals';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
@@ -45,6 +46,7 @@ export function createOutlineRenderer({
   world: _world,
   picker,
   buildings,
+  rainbow,
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
@@ -52,6 +54,8 @@ export function createOutlineRenderer({
   picker: ReturnType<typeof createPicker>;
   /** This city's outline settings: width, colour and opacity. */
   buildings: ReadonlySignal<BuildingsConfig>;
+  /** Its rainbow chase, which the selected outline runs. */
+  rainbow: ReadonlySignal<RainbowConfig>;
 }) {
   const _bo = buildings.value;
 
@@ -150,11 +154,11 @@ export function createOutlineRenderer({
   ): void {
     const k = segIdx * FLOATS_PER_SEGMENT;
     // Start RGB — consume the scratch tuple before the next call overwrites it.
-    const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart);
+    const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart, rainbow.value);
     _selectedColors[k] = r0;
     _selectedColors[k + 1] = g0;
     _selectedColors[k + 2] = b0;
-    const [r1, g1, b1] = rainbowRgbAt(timeMs, fracEnd);
+    const [r1, g1, b1] = rainbowRgbAt(timeMs, fracEnd, rainbow.value);
     _selectedColors[k + 3] = r1;
     _selectedColors[k + 4] = g1;
     _selectedColors[k + 5] = b1;

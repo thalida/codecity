@@ -83,7 +83,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     session.progress.rebuildStatus.value = RebuildStatus.Idle;
     const apply = state.applyManifest(manifest('sig-1'));
@@ -98,7 +99,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -112,7 +114,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
@@ -127,7 +130,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
       fakeLayoutClient([7, 61]) as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -155,7 +159,8 @@ describe('sceneState.applyManifest — the build says where it is (#185)', () =>
       client as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
 
     void state.applyManifest(manifest('sig-1'));

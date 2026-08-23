@@ -2,6 +2,7 @@
 // tree placement (placeTrees) + renderer build (createTreeRenderer), one tree
 // per commit. Diagnostic driver for finding the decoration-pass bottleneck.
 
+import { RAINBOW } from '@/state/settings/fields/effects';
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
@@ -35,13 +36,13 @@ describe('tree decoration profile', () => {
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();
-    createFireflyAssembly(placements, commits, stats, null, FIREFLIES, TREES);
+    createFireflyAssembly(placements, commits, stats, null, FIREFLIES, TREES, RAINBOW);
     const tf1 = performance.now();
     // Split fireflies into its three parts.
     const ts0 = performance.now();
     const orbs = placeFireflies(placements, commits, stats, null, FIREFLIES.value, TREES.value);
     const ts1 = performance.now();
-    createOrbitRings(orbs, FIREFLIES);
+    createOrbitRings(orbs, FIREFLIES, RAINBOW);
     const ts2 = performance.now();
     createFireflyRenderer(orbs, FIREFLIES);
     const ts3 = performance.now();

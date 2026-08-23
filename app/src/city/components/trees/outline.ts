@@ -8,6 +8,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
@@ -37,9 +38,18 @@ interface CreateArgs {
   getTrees: () => TreesHandle | null;
   /** This city's tree settings: the outline follows what it is drawn around. */
   trees: ReadonlySignal<TreesConfig>;
+  /** Its rainbow chase, which the selected outline runs. */
+  rainbow: ReadonlySignal<RainbowConfig>;
 }
 
-export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees, trees }: CreateArgs) {
+export function createTreeOutlineRenderer({
+  canvas,
+  scene,
+  picker,
+  getTrees,
+  trees,
+  rainbow,
+}: CreateArgs) {
   const _cfg = trees.value;
 
   // One shared silhouette: every tree uses the same facet count, so there's
@@ -144,7 +154,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees, tre
     if (!_selColorBuf) return;
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
-      const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount);
+      const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount, rainbow.value);
       const k = i * FLOATS_PER_SEGMENT;
       _selColorBuf[k] = r;
       _selColorBuf[k + 1] = g;

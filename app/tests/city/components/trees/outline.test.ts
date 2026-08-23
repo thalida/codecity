@@ -71,6 +71,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', matrix),
     });
     expect(r.hoverOutline.visible).toBe(false);
@@ -88,6 +89,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', matrix),
     });
     picker.hover.value = commitTarget('a');
@@ -106,6 +108,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
     picker.hover.value = commitTarget('a');
@@ -122,6 +125,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4().makeTranslation(5, 0, 0)),
     });
     expect(r.selectedOutline.visible).toBe(false);
@@ -140,6 +144,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
     picker.selection.value = commitTarget('a');
@@ -157,6 +162,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
     picker.hover.value = {
@@ -177,6 +183,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
     TREES.value = {
@@ -202,6 +209,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       trees: TREES,
+      rainbow: RAINBOW,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
     picker.selection.value = commitTarget('a');

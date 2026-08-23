@@ -60,7 +60,7 @@ export function islandSeedFromBounds(b: WorldBounds): number {
 export function createIsland(ctx: SceneContext): Island {
   const { sceneState, config } = ctx;
   const island = config.ISLAND;
-  let currentBounds = getWorldBounds(null);
+  let currentBounds = getWorldBounds(null, config.WORLD.value);
   // No city yet, so no ground: the fallback rectangle exists to give the mesh a
   // shape, not to paint an island over whatever the view put behind the canvas.
   let sized = false;

@@ -12,7 +12,7 @@ import { islandSeedFromBounds } from '../island';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
 import type { Building, CityBbox, Street } from '@/types';
-import type { IslandConfig } from '@/state/settings/fields/island';
+import type { IslandConfig, WorldConfig } from '@/state/settings/fields/island';
 import type { TreesConfig } from '@/state/settings/fields/trees';
 import type { FootprintConfig } from '@/state/settings/fields/footprint';
 
@@ -47,6 +47,8 @@ export interface TreePlacementConfig {
   /** The island's shape: the extent trees are sampled over, and the polygon
    *  they are culled to. Disabled, the ground is a rect and nothing culls. */
   island: IslandConfig;
+  /** The ground buffer the forest is sampled across. */
+  world: WorldConfig;
 }
 
 export interface PlaceTreesOptions {
@@ -148,7 +150,7 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
+  const bounds = getWorldBounds(bbox, options.config.world, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
   // Sampled to the island polygon's extent, not the rect it circumscribes: the

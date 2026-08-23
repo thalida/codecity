@@ -32,6 +32,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
     _inner = createPathLineRenderer({
       streets: ctx.config.STREETS,
       streetTiers: ctx.config.STREET_TIERS,
+      rainbow: ctx.config.RAINBOW,
       canvas: ctx.canvas,
       scene: group,
       picker: ctx.picker!,

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { ReadonlySignal } from '@preact/signals';
 import type { FirefliesConfig } from '@/state/settings/fields/fireflies';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { FireflyPlacement } from './firefliesPlacement';
 
@@ -92,14 +93,14 @@ function ensureColorBuffer(geom: THREE.BufferGeometry): Float32Array {
 
 /** TubeGeometry is indexed `j * radialSlices + i`. Every vertex on a tubular
  *  slice takes the same hue, so the chase rotates smoothly. */
-function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
+function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number, rainbow: RainbowConfig): void {
   const geom = mesh.geometry as THREE.BufferGeometry;
   const buf = ensureColorBuffer(geom);
   const tubularSlices = TUBULAR_SEGMENTS + 1;
   const radialSlices = RADIAL_SEGMENTS + 1;
   for (let j = 0; j < tubularSlices; j++) {
     // One hue per tubular slice; all radial verts on the slice share it.
-    const [r, g, b] = rainbowRgbAt(timeMs, j / TUBULAR_SEGMENTS);
+    const [r, g, b] = rainbowRgbAt(timeMs, j / TUBULAR_SEGMENTS, rainbow);
     for (let i = 0; i < radialSlices; i++) {
       const vertexIdx = j * radialSlices + i;
       const k = vertexIdx * 3;
@@ -118,7 +119,8 @@ export const ORBIT_RINGS_GROUP = 'firefly-orbit-rings';
 
 export function createOrbitRings(
   orbs: FireflyPlacement[],
-  fireflies: ReadonlySignal<FirefliesConfig>
+  fireflies: ReadonlySignal<FirefliesConfig>,
+  rainbow: ReadonlySignal<RainbowConfig>
 ): OrbitRings {
   const group = new THREE.Group();
   group.name = ORBIT_RINGS_GROUP;
@@ -275,7 +277,7 @@ export function createOrbitRings(
     update(timeMs: number) {
       if (selected.meshes.length === 0) return;
       for (const mesh of selected.meshes) {
-        writeRainbowToTube(mesh, timeMs);
+        writeRainbowToTube(mesh, timeMs, rainbow.value);
       }
     },
 

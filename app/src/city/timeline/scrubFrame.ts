@@ -1,8 +1,8 @@
 // The only per-frame reader of the scrub position, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
-import { RUINS } from '@/state/settings/fields/ruins';
+import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { CityConfig } from '@/city/config';
 import { NodeKind } from '@/types';
 import type { FileNode, RangeStat, Street } from '@/types';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
@@ -31,7 +31,7 @@ export interface ScrubFrame {
   bldgTargetFile: FileNode | null;
   dirTarget: ReturnType<typeof resolveDirTarget>;
   hoverFile: FileNode | null;
-  fadeCfg: ReturnType<typeof BUILDINGS.peek>;
+  fadeCfg: BuildingsConfig;
 }
 
 export interface ScrubFrameDeps {
@@ -46,6 +46,8 @@ export interface ScrubFrameDeps {
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
+  /** What this city looks like, as the scrub reads it each frame. */
+  config: CityConfig;
 }
 
 /** The date the handle sits on, interpolated toward the next commit so a quiet
@@ -63,8 +65,8 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
   // The position is clamped to the bundle; only the ranges can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];
 
-  const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
-  const ruins = RUINS.peek();
+  const floorHeight = deps.config.BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
+  const ruins = deps.config.RUINS.peek();
 
   // The fader is dormant in Timeline, so resolve its targets here instead.
   const sel = deps.picker.selection.peek();
@@ -83,6 +85,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
     dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
     hoverFile: hov?.kind === NodeKind.File ? hov.file : null,
-    fadeCfg: BUILDINGS.peek(),
+    fadeCfg: deps.config.BUILDINGS.peek(),
   };
 }

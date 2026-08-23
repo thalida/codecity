@@ -2,6 +2,7 @@
 // component its slice. It writes nobody else's buffers.
 
 import type { TimelineStore } from '@/state/stores/timeline';
+import type { CityConfig } from '@/city/config';
 import type { RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
@@ -25,6 +26,8 @@ export interface ScrubGate {
 export interface ScrubControllerDeps {
   /** The history being scrubbed: this city's, never the app's. */
   timeline: TimelineStore;
+  /** And what that city looks like, read fresh each frame. */
+  config: CityConfig;
   buildings: {
     /** The union set the pass decides over. */
     getBuildingIndex(): BuildingIndex | null;
@@ -63,6 +66,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
   function update(): void {
     const frame = readScrubFrame({
+      config: deps.config,
       scrubPos: deps.timeline.scrubPos.peek(),
       commitLineRanges: deps.commitLineRanges,
       commitMs,

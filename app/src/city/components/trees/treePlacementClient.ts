@@ -118,7 +118,12 @@ export function createTreePlacementClient(config: CityConfig): TreePlacementClie
       const placements = placeTrees(layout, bbox, {
         commitCount,
         cityHeight,
-        config: { trees: snap.trees, footprint: snap.footprint, island: snap.islandGeo },
+        config: {
+          trees: snap.trees,
+          footprint: snap.footprint,
+          island: snap.islandGeo,
+          world: snap.world,
+        },
       });
       queueMicrotask(() => {
         if (!pending.has(id)) return;

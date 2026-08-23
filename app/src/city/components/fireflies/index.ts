@@ -74,6 +74,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
       scannedAt,
       ctx.config.FIREFLIES,
       ctx.config.TREES,
+      ctx.config.RAINBOW,
       ctx.canvas
     );
     group.add(_inner.group);

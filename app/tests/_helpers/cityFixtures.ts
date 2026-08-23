@@ -9,7 +9,7 @@ import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { ISLAND } from '@/state/settings/fields/island';
+import { ISLAND, WORLD } from '@/state/settings/fields/island';
 import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCitySceneState, type CitySceneState } from '@/city/state';
@@ -45,7 +45,8 @@ export function makeCityState(): CitySceneState {
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
     session.progress,
-    makeBuildingMaterial()
+    makeBuildingMaterial(),
+    session.config
   );
 }
 
@@ -116,7 +117,12 @@ export function makePickableSceneContext(
 
 /** What placeTrees grows a forest from, as the app's own settings read now. */
 export function placementConfig(): TreePlacementConfig {
-  return { trees: TREES.value, footprint: FOOTPRINT.value, island: ISLAND.value };
+  return {
+    trees: TREES.value,
+    footprint: FOOTPRINT.value,
+    island: ISLAND.value,
+    world: WORLD.value,
+  };
 }
 
 /** The same, with the island off: no polygon to cull the forest to, which is

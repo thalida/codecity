@@ -4,7 +4,7 @@
 //   hue = wrap(timeMs * SPEED + fraction) -> setHSL(hue, SATURATION, LIGHTNESS)
 import * as THREE from 'three';
 
-import { RAINBOW } from '@/state/settings/fields/effects';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 
 // Scratch reused across calls so steady-state frames allocate nothing.
 const _scratchColor = new THREE.Color();
@@ -15,9 +15,10 @@ const _scratchOut: [number, number, number] = [0, 0, 0];
 export function rainbowRgbAt(
   timeMs: number,
   fraction: number,
+  rainbow: RainbowConfig,
   out: [number, number, number] = _scratchOut
 ): [number, number, number] {
-  const rb = RAINBOW.value;
+  const rb = rainbow;
   const t = timeMs * rb.SPEED;
   const hue = (((t + fraction) % 1) + 1) % 1;
   _scratchColor.setHSL(hue, rb.SATURATION, rb.LIGHTNESS);

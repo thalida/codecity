@@ -8,6 +8,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import type { StreetsConfig, StreetTiersConfig } from '@/state/settings/fields/streets';
+import type { RainbowConfig } from '@/state/settings/fields/effects';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -41,6 +42,7 @@ export function createPathLineRenderer({
   sceneState,
   streets,
   streetTiers,
+  rainbow,
 }: {
   canvas: HTMLCanvasElement;
   /** Parent for the two line meshes; draw order comes from
@@ -51,6 +53,8 @@ export function createPathLineRenderer({
   /** This city's street settings: the line is sized off its narrowest tier. */
   streets: ReadonlySignal<StreetsConfig>;
   streetTiers: ReadonlySignal<StreetTiersConfig>;
+  /** The chase the selected path runs. */
+  rainbow: ReadonlySignal<RainbowConfig>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = streets.value;
@@ -208,11 +212,11 @@ export function createPathLineRenderer({
     const n = pathSegmentCount;
     for (let s = 0; s < n; s++) {
       // Consume the start RGB before the second call overwrites the scratch.
-      const [r0, g0, b0] = rainbowRgbAt(timeMs, s / n);
+      const [r0, g0, b0] = rainbowRgbAt(timeMs, s / n, rainbow.value);
       _pathColorsBuf[s * 6] = r0;
       _pathColorsBuf[s * 6 + 1] = g0;
       _pathColorsBuf[s * 6 + 2] = b0;
-      const [r1, g1, b1] = rainbowRgbAt(timeMs, (s + 1) / n);
+      const [r1, g1, b1] = rainbowRgbAt(timeMs, (s + 1) / n, rainbow.value);
       _pathColorsBuf[s * 6 + 3] = r1;
       _pathColorsBuf[s * 6 + 4] = g1;
       _pathColorsBuf[s * 6 + 5] = b1;

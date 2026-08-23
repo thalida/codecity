@@ -113,7 +113,8 @@ describe('createTrees() component door', () => {
       layoutClientFor(TREE_LAYOUT) as never,
       stubPlacementClient(PLACEMENTS) as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     const { ctx } = makePickableSceneContext(sceneState);
     trees = createTrees(ctx);

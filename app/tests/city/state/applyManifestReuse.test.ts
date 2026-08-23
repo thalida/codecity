@@ -72,7 +72,8 @@ describe('sceneState.applyManifest — reuse gate keys on the layout signature (
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -87,7 +88,8 @@ describe('sceneState.applyManifest — reuse gate keys on the layout signature (
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       session.progress,
-      makeBuildingMaterial()
+      makeBuildingMaterial(),
+      session.config
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;
