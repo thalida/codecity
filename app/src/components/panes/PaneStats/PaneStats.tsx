@@ -3,18 +3,10 @@
 // node; one row that wraps rather than a grid, so a file's five and a road's
 // four occupy the same shell.
 import './PaneStats.css';
-
-export interface PaneStatItem {
-  text: string;
-  /** Hover tooltip, for a value the short form abbreviates (an exact date).
-   *  Defaults to the text, so a truncated item can still be read in full. */
-  title?: string;
-  /** How readily this item gives up width. Higher yields first; default 1. */
-  shrink?: number;
-}
+import type { StatItem } from '@/types/ui';
 
 export interface PaneStatsProps {
-  items: PaneStatItem[];
+  items: StatItem[];
 }
 
 export function PaneStats({ items }: PaneStatsProps) {

@@ -6,6 +6,17 @@ import type { LoadingStep } from '@/constants/progress';
 import type { ScanErrorCode } from '@/api/manifest';
 
 /** Left-sidebar tab IDs. Discriminator on the activity bar's mounted pane. */
+/** One stat on a selection pane's bottom row, or in a hover tooltip: the two
+ *  read the same numbers because they build them from the same items. */
+export interface StatItem {
+  text: string;
+  /** Hover tooltip, for a value the short form abbreviates (an exact date).
+   *  Defaults to the text, so a truncated item can still be read in full. */
+  title?: string;
+  /** How readily this item gives up width. Higher yields first; default 1. */
+  shrink?: number;
+}
+
 export enum SidebarTab {
   Explore = 'explore',
   Search = 'search',

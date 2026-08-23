@@ -8,11 +8,12 @@ import { ManifestStore } from '@/state/stores/manifest';
 import { SourceStore } from '@/state/stores/source';
 import { ProgressStore } from '@/state/stores/progress';
 import { TimelineStore } from '@/state/stores/timeline';
-import { CityCommands } from '@/city/commands';
+import { CityCommands } from '@/state/city/commands';
 import { CityLoader } from '@/state/city/loader';
 import { TimelineMode } from '@/state/city/timelineMode';
 import type { CameraMode } from '@/city/render/cameraRig';
 import { CityConfig } from '@/city/config';
+import { SessionChrome } from '@/state/city/chrome';
 import type { CityScene } from '@/city/types';
 
 /** The city open in one place. Loading a new source swaps its contents rather
@@ -30,6 +31,8 @@ export class CitySession {
   readonly timeline = new TimelineStore(this.manifest);
   /** What this city looks like. Its own, so a second city can differ. */
   readonly config = new CityConfig();
+  /** And what it asks of the app it is mounted in. */
+  readonly chrome = new SessionChrome();
 
   /** The scene drawing this city, while one is mounted. The chrome reaches
    *  through here to command it; a city with no scene is still a city. */

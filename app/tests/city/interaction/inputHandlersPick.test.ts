@@ -67,6 +67,7 @@ describe('canvas pick → selection pane', () => {
     handlers = createInputHandlers({
       canvas,
       timeline: session.timeline,
+      chrome: session.chrome,
       picker: picker as never,
       rig: {
         controls: { addEventListener() {}, removeEventListener() {} },

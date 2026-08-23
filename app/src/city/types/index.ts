@@ -14,6 +14,17 @@ import type { Manifest, RangeStat } from '@/types';
 import type { BuildStage } from '@/constants/progress';
 import type { TimelineStore } from '@/state/stores/timeline';
 
+/** What a city asks of whatever it is mounted in: it says what the user asked
+ *  for and the app decides what moves. No chrome, and these are no-ops. */
+export interface CityChrome {
+  /** True while something else owns the keyboard, so scene shortcuts hold. */
+  keyboardBusy(): boolean;
+  /** The user asked what this node IS: the details are the answer. */
+  showDetails(): void;
+  /** The user asked to LOOK at the city: move whatever is in the way. */
+  revealCity(): void;
+}
+
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */
 export interface SceneContext {
@@ -27,6 +38,8 @@ export interface SceneContext {
   /** This city's building material and icon atlas: every cell of it shares
    *  one, so a uniform written there reaches this city and no other. */
   buildingMaterial: BuildingMaterial;
+  /** What this city asks of whatever it is mounted in. */
+  chrome: CityChrome;
   /** This city's history state, for the components drawing what a scrub
    *  implies. Its own, so a second city scrubs its own. */
   timeline: TimelineStore;

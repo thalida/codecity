@@ -12,7 +12,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange, FolderX } from 'lucide-preact';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
-import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import { directoryStatItems } from '@/utils/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/remoteUrls';
 import { extHueColor } from '@/city/components/buildings/color';

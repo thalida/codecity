@@ -13,7 +13,7 @@ import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
 import { useCity } from '@/state/city/context';
-import type { CityCommands } from '@/city/commands';
+import type { CityCommands } from '@/state/city/commands';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.

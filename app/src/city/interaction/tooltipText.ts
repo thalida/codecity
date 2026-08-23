@@ -6,7 +6,7 @@ import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/constants/manifest';
-import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import { fileStatItems, directoryStatItems } from '@/utils/statItems';
 import type { TimelineStore } from '@/state/stores/timeline';
 
 /** Longest path rendered before the middle segments collapse to an ellipsis. */

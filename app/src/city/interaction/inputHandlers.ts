@@ -11,16 +11,10 @@ const TOUCH_CLICK_MOVE_THRESHOLD_PX = 12;
 const TOUCH_CLICK_TIME_THRESHOLD_MS = 700;
 const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
-import {
-  OVERLAY_OPEN,
-  openSelectionPane,
-  dismissSelectionPane,
-  SIDEBAR_COLLAPSED,
-} from '@/state/stores/chrome';
-import { IS_PHONE } from '@/state/stores/viewport';
 import { NodeKind } from '@/types';
 import type { TimelineStore } from '@/state/stores/timeline';
 import type { PickTarget } from '@/types';
+import type { CityChrome } from '@/city/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
@@ -33,6 +27,7 @@ export function createInputHandlers({
   renderer,
   sceneState,
   timeline,
+  chrome,
   showTooltip,
   hideTooltip,
   onResize,
@@ -45,6 +40,8 @@ export function createInputHandlers({
   sceneState: CitySceneState;
   /** This city's history, for the hover readout at a scrubbed commit. */
   timeline: TimelineStore | null;
+  /** What this city asks of whatever it is mounted in. */
+  chrome: CityChrome;
   showTooltip: (content: TooltipContent, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
@@ -148,13 +145,13 @@ export function createInputHandlers({
     // it: that is the way back to a pane you closed.
     const next = picker.interpretHit(hit);
     if (_sameHover(next, picker.selection.value)) {
-      openSelectionPane();
+      chrome.showDetails();
       return;
     }
     picker.setSelection(next);
     // Picking a node is asking what it is, so a pane put away for the last one
     // comes back for this one.
-    openSelectionPane();
+    chrome.showDetails();
   }
 
   // ── Bindings ───────────────────────────────────────────────────────
@@ -217,7 +214,7 @@ export function createInputHandlers({
 
     // A modal owns keyboard input while open — don't let scene shortcuts
     // (Esc-deselect, R, F) fire underneath it.
-    if (OVERLAY_OPEN.value) return;
+    if (chrome.keyboardBusy()) return;
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);
@@ -231,8 +228,7 @@ export function createInputHandlers({
       const sel = picker.selection.peek();
       if (sel) {
         rig.focusSelection(sel);
-        dismissSelectionPane();
-        if (IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
+        chrome.revealCity();
       }
     }
   });

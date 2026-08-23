@@ -6,7 +6,7 @@
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { RECENTS, activeExcludePathsFor } from '@/state/stores/source';
-import { whenScene } from '@/city/commands';
+import { whenScene } from '@/state/city/commands';
 import {
   BuildStage,
   PACK_STAGES,

@@ -20,7 +20,7 @@ export enum PreviewKind {
 }
 import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/api/file';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
-import { fileStatItems } from '@/components/panes/PaneStats/statItems';
+import { fileStatItems } from '@/utils/statItems';
 import { fetchFingerprintBlob } from '@/api/fingerprint';
 import {
   IMAGE_EXTS,

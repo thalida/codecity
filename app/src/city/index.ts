@@ -93,6 +93,7 @@ export async function createCityScene(
     timeline: session.timeline,
     config: session.config,
     buildingMaterial,
+    chrome: session.chrome,
     picker: null,
   } as unknown as SceneContext;
 
@@ -220,6 +221,7 @@ export async function createCityScene(
     renderer,
     sceneState,
     timeline: session.timeline,
+    chrome: session.chrome,
     showTooltip,
     hideTooltip,
     onResize() {

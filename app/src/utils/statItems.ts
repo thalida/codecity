@@ -1,13 +1,13 @@
-// components/panes/PaneStats/statItems.ts — Builds the stat rows the file and road
-// panes hand to <PaneStats>. Pure: the caller supplies the node, so the same
-// formatting rules serve both panes without either reaching for the picker.
+// utils/statItems.ts — the stat rows a file or a road reports. Pure: the caller
+// supplies the node, so the selection panes and the city's hover tooltip read
+// the same numbers without either reaching for the picker.
 
 import type { FileNode, DirNode } from '@/types';
 import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import type { TimelineStore } from '@/state/stores/timeline';
-import type { PaneStatItem } from './PaneStats';
+import type { StatItem } from '@/types/ui';
 
 /** Direct and recursive counts as one item, collapsing to a single number when
  *  a folder has no subfolders to distinguish them. */
@@ -15,7 +15,7 @@ function countItem(
   direct: number | null | undefined,
   total: number | null | undefined,
   label: string
-): PaneStatItem | null {
+): StatItem | null {
   if (direct == null && total == null) return null;
   if (direct == null) return { text: `${total} ${label}`, title: `${total} total` };
   if (total == null || direct === total) {
@@ -28,7 +28,7 @@ function countItem(
 }
 
 /** Relative age with the exact date as its tooltip. */
-function ageItem(iso: string, label: string, now: number): PaneStatItem {
+function ageItem(iso: string, label: string, now: number): StatItem {
   return {
     text: `${label} ${formatRelativeAgeShort(parseDateMs(iso), now)}`,
     title: `${label} ${formatShortDate(iso)}`,
@@ -46,9 +46,9 @@ export interface FileStatOpts {
   timeline?: TimelineStore | null;
 }
 
-export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStatItem[] {
+export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): StatItem[] {
   const { dates = true, now = Date.now(), timeline = null } = opts;
-  const items: PaneStatItem[] = [];
+  const items: StatItem[] = [];
   // In Timeline the static node carries max-over-history values, so the replayed
   // ones win where they exist (at deletion for a file already gone).
   const scrubbed = file.path != null ? (timeline?.scrubbedStatsFor(file.path) ?? null) : null;
@@ -76,10 +76,10 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   return items;
 }
 
-export function directoryStatItems(dir: DirNode): PaneStatItem[] {
+export function directoryStatItems(dir: DirNode): StatItem[] {
   // Lead with the kind: a folder named `app` and a file named `app` look alike,
   // and the counts that follow only make sense once you know which this is.
-  const items: PaneStatItem[] = [{ text: 'directory', shrink: 200 }];
+  const items: StatItem[] = [{ text: 'directory', shrink: 200 }];
   const files = countItem(dir.children_file_count, dir.descendants_file_count, 'files');
   if (files) items.push(files);
   const dirs = countItem(dir.children_dir_count, dir.descendants_dir_count, 'dirs');
