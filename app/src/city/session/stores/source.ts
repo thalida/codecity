@@ -81,8 +81,7 @@ export class SourceStore {
   }
 
   /** Show this source: what this city holds, and the manifest the chrome reads.
-   *  Every mode ends its load here. Remembering that you opened it is the
-   *  app's (see stores/recents), which is why a backdrop can call this too. */
+   *  Remembering you opened it is the app's, which is why a backdrop can too. */
   set = (src: string, branch: string | undefined, loaded: Manifest): SourceRef => {
     // A local source carries no branch: its checkout is dynamic, so identity
     // omits it. The header still shows it, read off the manifest.

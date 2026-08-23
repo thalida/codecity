@@ -351,9 +351,8 @@ export class CityLoader {
   dispose = (): void => this.disposers.splice(0).forEach((stop) => stop());
 }
 
-/** Watch this city for changes on disk, for as long as it is mounted. One loop
- *  for its lifetime: it re-reads the canonical signals per tick, so boot and
- *  every switch are covered without restarting it. */
+/** Watch this city for changes on disk while it is mounted. One loop per
+ *  session: it re-reads the signals per tick, so a switch needs no restart. */
 export function useLiveUpdates(session: CitySession): void {
   useEffect(() => session.load.setupLiveUpdates(), [session]);
 }
