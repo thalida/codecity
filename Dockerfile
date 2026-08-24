@@ -12,22 +12,14 @@ FROM node:24-bookworm-slim AS web-builder
 ARG NPM_VERSION=11.6.2
 RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build
-# npm workspaces: one lockfile at the root covers app/, city/ and client/, so
-# the install runs here and every workspace manifest has to be present for it.
 # .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
 # vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
-COPY package.json package-lock.json .npmrc ./
-COPY app/package.json ./app/
-COPY city/package.json ./city/
-COPY client/package.json ./client/
+COPY src/app/package.json src/app/package-lock.json src/app/.npmrc ./src/app/
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
-COPY tsconfig.base.json ./
-COPY app/ ./app/
-COPY city/ ./city/
-COPY client/ ./client/
-RUN npm run build -w app
-# Output: /build/app/dist/
+    cd src/app && npm ci --no-audit --no-fund
+COPY src/app/ ./src/app/
+RUN cd src/app && npm run build
+# Output: /build/src/app/dist/
 
 # ─────── Stage 2: runtime ───────
 FROM python:3.13-slim AS runtime
@@ -71,11 +63,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
 # Python source
-COPY api/ ./api/
+COPY src/api/ ./src/api/
 
-# Built frontend → /srv/api/static (matches api/app.py DEFAULT_STATIC_DIR
+# Built frontend → /srv/src/api/static (matches api/app.py DEFAULT_STATIC_DIR
 # resolution: Path(__file__).resolve().parent / "static"). No env var needed.
-COPY --from=web-builder /build/app/dist /srv/api/static
+COPY --from=web-builder /build/src/app/dist /srv/src/api/static
 
 # pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
 # but .dockerignore excludes .git to keep the build context small. Feed the
@@ -106,7 +98,7 @@ HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
 # script into /srv/.venv/bin (read-only for the non-root runtime user).
 # Zombie reaping + signal propagation are handled by Docker's --init.
 # `python -m api` launches a single uvicorn process (api.app:app) — single
-# process by design, see api/core/security.py (the allowed_roots trust set is
+# process by design, see src/api/core/security.py (the allowed_roots trust set is
 # in-memory; multi-worker would split it).
 ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
 # --host is explicit because the CLI defaults to loopback (an unauthenticated

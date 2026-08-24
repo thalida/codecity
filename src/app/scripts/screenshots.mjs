@@ -1,4 +1,4 @@
-// app/scripts/screenshots.mjs — headless captures of codecity rendering a repo,
+// src/app/scripts/screenshots.mjs — headless captures of codecity rendering a repo,
 // through the debug-gated ?shot= harness (app/src/city/capture). Run via
 // `just screenshots` (README images) or `just hero-image` (the landing's
 // wallpaper); both need `just dev` up in another terminal.
@@ -9,8 +9,8 @@ import { dirname, join, relative } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// app/scripts/ -> repo root -> .github/readme
-const OUT_DIR = join(HERE, '..', '..', '.github', 'readme');
+// src/app/scripts/ -> repo root -> .github/readme
+const OUT_DIR = join(HERE, '..', '..', '..', '.github', 'readme');
 // app/scripts/ -> app/public: shipped assets, not README images.
 const PUBLIC_DIR = join(HERE, '..', 'public');
 
@@ -90,7 +90,7 @@ try {
     await page.waitForSelector(READY, { timeout: 360_000 });
     const outDir = shot.dir ?? OUT_DIR;
     await page.locator('canvas#city').screenshot({ path: join(outDir, shot.file) });
-    console.log(`→ ${relative(join(HERE, '..', '..'), join(outDir, shot.file))}`);
+    console.log(`→ ${relative(join(HERE, '..', '..', '..'), join(outDir, shot.file))}`);
 
     await context.close();
   }

@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // strictNullChecks only, matching src/app — the other two are pending there
+    // (#186) and the packages are not going to be stricter than the code moving
+    // into them.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default).
+    "types": [],
+
+    // Temporary, and the load-bearing piece of the extraction (#208): code
+    // moved in here keeps resolving its `@/` imports against the app while
+    // those imports are removed one family at a time. Deleted once
+    // `grep "@/" src/city/src` comes back empty.
+    "paths": {
+      "@/*": ["../app/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "vite.config.js"]
+}

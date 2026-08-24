@@ -1,7 +1,7 @@
-// app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4, a looping
+// src/app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4, a looping
 // orbit of codecity rendering its own repo. Run via `just demo-video` (needs
 // the app served and ffmpeg); it records the debug-gated `orbit` shot between
-// its data-cc-orbit-start/done marks. Under app/ so `playwright` resolves.
+// its data-cc-orbit-start/done marks. Under src/app/ so `playwright` resolves.
 
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = join(HERE, '..', '..', '.github', 'readme', 'demo.mp4');
+const OUT = join(HERE, '..', '..', '..', '.github', 'readme', 'demo.mp4');
 
 const BASE_URL = (process.env.CODECITY_URL || 'http://localhost:8080').replace(/\/$/, '');
 const SRC = 'https://github.com/thalida/codecity';

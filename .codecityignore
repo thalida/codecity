@@ -1,2 +1,2 @@
-api/tests/fixtures/large-repo
-api/tests/fixtures/sample-repo
+src/api/tests/fixtures/large-repo
+src/api/tests/fixtures/sample-repo

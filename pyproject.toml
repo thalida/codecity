@@ -25,8 +25,8 @@ codecity = "api.__main__:main"
 source = "vcs"
 
 [tool.hatch.build.targets.wheel]
-packages = ["api"]
-exclude = ["api/tests"]
+packages = ["src/api"]
+exclude = ["src/api/tests"]
 
 [dependency-groups]
 dev = [
@@ -49,15 +49,15 @@ dev = [
 # compatible defaults (88 cols, double quotes, magic trailing commas, etc.).
 target-version = "py311"
 line-length = 88
-src = ["api", "bin", "scripts"]
+src = ["src/api", "bin", "scripts"]
 
 [tool.pytest.ini_options]
-testpaths = ["api/tests"]
-addopts = "-ra --strict-markers -n auto --cov=api --cov-report=term --cov-fail-under=80"
+testpaths = ["src/api/tests"]
+addopts = "-ra --strict-markers -n auto --cov=src/api --cov-report=term --cov-fail-under=80"
 
 [tool.pyright]
-include = ["api"]
-exclude = ["api/tests"]
+include = ["src/api"]
+exclude = ["src/api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 # Without this pyright resolves imports against whatever `python` is first on
@@ -69,8 +69,8 @@ venvPath = "."
 venv = ".venv"
 
 [tool.coverage.run]
-source = ["api"]
-omit = ["api/tests/*", "api/__main__.py"]
+source = ["src/api"]
+omit = ["src/api/tests/*", "src/api/__main__.py"]
 branch = true
 
 [tool.coverage.report]

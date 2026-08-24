@@ -1,5 +1,5 @@
 {
-  "name": "@codecity/web",
+  "name": "codecity",
   "version": "1.0.0",
   "description": "Visualize any codebase as an isometric 3D city. Frontend (Vite) for the codecity Python package.",
   "private": true,

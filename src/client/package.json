@@ -1,7 +1,7 @@
 {
-  "name": "@codecity/city",
+  "name": "@codecity/client",
   "version": "0.0.0",
-  "description": "Render any codebase as a 3D city. Give it a canvas, an API base and a repo; it fetches, builds, and tells you what it is doing.",
+  "description": "Typed browser client for the codecity API: manifests, scan streams, file blobs, timelines.",
   "license": "AGPL-3.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thalida/codecity.git",
-    "directory": "city"
+    "directory": "src/client"
   },
   "bugs": {
     "url": "https://github.com/thalida/codecity/issues"
@@ -21,15 +21,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@codecity/client": "*",
-    "@preact/signals": "^2.9.1",
-    "rbush": "^4.0.1",
-    "three": "^0.184.0",
-    "three-mesh-bvh": "^0.9.11"
-  },
   "devDependencies": {
-    "@types/three": "^0.184.0",
     "typescript": "^6.0.3"
   }
 }

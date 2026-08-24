@@ -24,7 +24,7 @@ services:
     entrypoint:
       ['sh', '-c', 'uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v "$@"', '--']
     environment:
-      # A couple of tests in api/tests/test_scan.py shell out to `git commit`
+      # A couple of tests in src/api/tests/test_scan.py shell out to `git commit`
       # to test cache invalidation. On a developer's host this works via
       # ~/.gitconfig; in a fresh container there's no identity. Provide one.
       - GIT_AUTHOR_NAME=Test Runner
@@ -32,12 +32,12 @@ services:
       - GIT_COMMITTER_NAME=Test Runner
       - GIT_COMMITTER_EMAIL=test@codecity.local
     volumes:
-      # `./api` is read-write (not :ro) because several tests in
-      # api/tests/test_scan.py mutate api/tests/fixtures/sample-repo/ (writing
+      # `./src/api` is read-write (not :ro) because several tests in
+      # src/api/tests/test_scan.py mutate its fixtures/sample-repo/ (writing
       # cache-bust files, modifying tracked files to test stat-cache
       # invalidation). They clean up via addCleanup, but they need write
       # access. The manifests are read-only — they never change at runtime.
-      - './api:/srv/api'
+      - './src/api:/srv/src/api'
       - './uv.lock:/srv/uv.lock:ro'
       - './pyproject.toml:/srv/pyproject.toml:ro'
 
@@ -56,17 +56,17 @@ services:
       [
         'sh',
         '-c',
-        'uv sync --frozen && /srv/.venv/bin/ruff check api bin scripts && exec /srv/.venv/bin/ruff format --check api bin scripts "$@"',
+        'uv sync --frozen && /srv/.venv/bin/ruff check src/api bin scripts && exec /srv/.venv/bin/ruff format --check src/api bin scripts "$@"',
         '--',
       ]
     volumes:
-      - './api:/srv/api:ro'
+      - './src/api:/srv/src/api:ro'
       - './bin:/srv/bin:ro'
       - './scripts:/srv/scripts:ro'
       - './uv.lock:/srv/uv.lock:ro'
       - './pyproject.toml:/srv/pyproject.toml:ro'
 
-  # Python's `npm run typecheck`. pyproject.toml sets strict mode over api/.
+  # Python's `npm run typecheck`. pyproject.toml sets strict mode over src/api/.
   #
   # Run as `python -m pyright` from the synced venv (like the pytest service)
   # so pyright resolves fastapi/pydantic from that venv rather than guessing an
@@ -97,27 +97,23 @@ services:
     environment:
       - PYRIGHT_PYTHON_FORCE_VERSION=${PYRIGHT_VERSION:-1.1.409}
     volumes:
-      - './api:/srv/api:ro'
+      - './src/api:/srv/src/api:ro'
       - './uv.lock:/srv/uv.lock:ro'
       - './pyproject.toml:/srv/pyproject.toml:ro'
       - 'codecity-test-pyright-cache:/root/.cache/pyright-python'
 
   # Regenerates the TS types from a schema `just gen-types` already wrote to
-  # .local/, and diffs. Its own service, like `prettier` below, so neither pays
-  # for the apt bootstrap `vitest` needs for node-canvas.
+  # .local/, and diffs. Its own service because it needs the app's node_modules
+  # and the repo root together, which neither vitest nor prettier mounts.
   gentypes:
     image: node:24-bookworm-slim
-    # Install at the workspace root, generate from app/ (where the committed
-    # file it diffs against lives).
-    working_dir: /repo
+    working_dir: /repo/src/app
     init: true
-    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && cd app && npx openapi-typescript ../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
     volumes:
       - '.:/repo'
       - '/repo/node_modules'
-      - '/repo/app/node_modules'
-      - '/repo/city/node_modules'
-      - '/repo/client/node_modules'
+      - '/repo/src/app/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   prettier:
@@ -129,18 +125,12 @@ services:
       # Not :ro — same fresh-clone mountpoint problem as vitest. Check never writes.
       - '.:/repo'
       - '/repo/node_modules'
-      - '/repo/app/node_modules'
-      - '/repo/city/node_modules'
-      - '/repo/client/node_modules'
+      - '/repo/src/app/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   vitest:
     image: node:24-bookworm-slim
-    # The workspace root, not app/: one lockfile covers all three workspaces,
-    # so `npm ci` only runs here. Every command this service is overridden
-    # with (just lint-app, ci.yml, the pre-push gate) picks its workspace
-    # with `-w`.
-    working_dir: /repo
+    working_dir: /app
     init: true
     # Pin npm to host version to match the lockfile shape (see Dockerfile
     # for the same workaround). NPM_VERSION is loaded from the repo-root
@@ -156,19 +146,14 @@ services:
     # Reliability: canvas's prebuilt .node download can flake and fall back to a
     # node-gyp source build that fails in this slim image. Mitigations: cache the
     # prebuilt in named volumes (fetched once, reused) and retry `npm ci`.
-    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test -w app"
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
     volumes:
-      # Not :ro — Docker can't mkdir the node_modules mountpoints under a
+      # Not :ro — Docker can't mkdir the /app/node_modules mountpoint under a
       # read-only parent mount on a fresh checkout (no existing node_modules
       # dir to overlay on). Vitest tests are pure-functional and don't write
       # to source.
-      - '.:/repo'
-      # Anonymous volumes — npm-installed in container. One per workspace: npm
-      # hoists to the root but drops a nested tree wherever versions conflict.
-      - '/repo/node_modules'
-      - '/repo/app/node_modules'
-      - '/repo/city/node_modules'
-      - '/repo/client/node_modules'
+      - './src/app:/app'
+      - '/app/node_modules' # anonymous volume — npm-installed in container
       - 'codecity-test-npm-cache:/root/.npm' # persist npm + prebuild-install cache
       - 'codecity-test-node-cache:/root/.cache' # prebuild-install may cache here too
 

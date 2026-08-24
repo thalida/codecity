@@ -1,14 +1,9 @@
 {
   "name": "codecity-repo",
   "version": "0.0.0",
-  "description": "Workspace root for codecity: the web app, the packages it is being extracted into, and the prettier config they all share.",
+  "description": "Repo-root tooling for codecity: prettier and its config, so formatting resolves the same way from anywhere in the tree.",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "app",
-    "city",
-    "client"
-  ],
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check ."

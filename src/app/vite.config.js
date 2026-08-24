@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import preact from '@preact/preset-vite';
 
 // Vite root is this directory; ./dist/ is what the Dockerfile copies into
-// the runtime image for api/server.py to serve.
+// the runtime image for src/api to serve.
 
 const appDir = import.meta.dirname;
 

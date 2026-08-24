@@ -7,14 +7,14 @@
 .mypy_cache
 .pytest_cache
 .ruff_cache
-api/__pycache__
+src/api/__pycache__
 **/__pycache__
 **/*.pyc
 
 # Node local
 **/node_modules
-app/dist
-app/.vite
+src/app/dist
+src/app/.vite
 
 # Codecity local artifacts
 .local
@@ -27,7 +27,7 @@ app/.vite
 docs
 
 # Stale static dir (legacy)
-api/static
+src/api/static
 
 # OS / editors
 **/.DS_Store

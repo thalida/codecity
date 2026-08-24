@@ -110,16 +110,21 @@ leaving those containers pointing at a gone network (`just dev` then fails with
 
 ## Layout
 
-`app/`, `city/` and `client/` are npm workspaces. One `package-lock.json`, at the
-repo root, is the only lockfile — every `npm ci` runs there, and `-w app` picks
-which workspace a script belongs to.
+Everything the product is made of lives under `src/`. `bin/`, `scripts/` and
+`.github/` are how it gets built and shipped; the split is what stops the two
+kinds from interleaving alphabetically at the repo root.
 
-- `city/` (`@codecity/city`) and `client/` (`@codecity/client`) — empty
-  scaffolding. `app/src/city/` and `app/src/api/` move into them over the course
-  of [#208](https://github.com/thalida/codecity/issues/208); until then both hold
-  a `src/index.ts` that exports nothing, and a temporary `@/*` alias pointing
-  back at `app/src/` so code can move one family at a time.
-- `app/` — Preact + TypeScript frontend. Two routes, one view each: `/` is the
+`src/app`, `src/city` and `src/client` are three independent npm projects, each
+with its own `package.json`, `package-lock.json` and `node_modules`. The root
+`package.json` holds prettier and nothing else, because prettier resolves its
+config from the cwd and has to run from the root (#165).
+
+- `src/city/` (`@codecity/city`) and `src/client/` (`@codecity/client`) — empty
+  scaffolding. `src/app/src/city/` and `src/app/src/api/` move into them over the
+  course of [#208](https://github.com/thalida/codecity/issues/208); until then
+  both hold a `src/index.ts` that exports nothing, and a temporary `@/*` alias
+  pointing back at `src/app/src/` so code can move one family at a time.
+- `src/app/` — Preact + TypeScript frontend. Two routes, one view each: `/` is the
   landing (pick a project) and `/city?src=…` is a world. The URL is the source of
   truth for both — `router/` owns it, and `?src`, `?mode`, `?commit` and `?sel`
   all survive Back and Forward.
@@ -130,13 +135,13 @@ which workspace a script belongs to.
     indicators over the fields they operate on.
   - `src/components/` — grouped by what a component is, not where it appears. A
     component used by exactly one thing lives beside that thing instead.
-- `api/` — FastAPI backend that walks the repo and serves the manifest. Layered,
+- `src/api/` — FastAPI backend that walks the repo and serves the manifest. Layered,
   and imports only ever point down: `routers/` → `scan/` → `git/` and `cache/` →
   `models/`, `core/`, `utils/`.
   - `routers/` — the whole HTTP surface, one module per route family. `sse.py`
     is the streaming plumbing the two SSE routes share, not a route.
   - `git/`, `scan/` and `cache/` each curate a barrel in `__init__`.
-    `api/tests/test_package_boundaries.py` fails if anything reaches past one.
+    `src/api/tests/test_package_boundaries.py` fails if anything reaches past one.
   - `models/` — Pydantic, and the only definition of each shape. The scanner
     builds these directly, so there is no second copy to drift from.
   - `core/` is codecity-specific (config, security, progress); `utils/` is the
