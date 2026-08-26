@@ -11,6 +11,7 @@ import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building, SourceRef } from '@/types/index';
+import type { CityResources } from '@/city/resources';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;
@@ -26,7 +27,8 @@ export interface CellAssemblyOutput {
 export function buildCellsFromLayout(
   bounds: WorldBounds,
   buildings: Building[],
-  source: SourceRef | null
+  source: SourceRef | null,
+  resources: CityResources
 ): CellAssemblyOutput {
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
@@ -51,7 +53,7 @@ export function buildCellsFromLayout(
   const cells = new Map<number, CellTile>();
   for (const [id, count] of cellCounts) {
     const cell = createEmptyCellTile(grid, id, cellCapacityFor(count), cellExtents.get(id));
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, resources.buildings);
     cells.set(id, cell);
   }
 
@@ -80,7 +82,7 @@ export function buildCellsFromLayout(
     b.cellId = cellId;
     b.slotId = slot;
     cell.buildings[slot] = b;
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, resources.buildings);
     index.insert(b);
   }
 
@@ -111,7 +113,9 @@ export function buildCellsFromLayout(
   let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {
-    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)), source);
+    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)), source, {
+      rendererRegistry: resources.renderer,
+    });
     for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
     for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);
     sceneRoot.add(facadePanels.mesh);

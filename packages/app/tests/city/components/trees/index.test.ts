@@ -21,6 +21,7 @@ import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { NodeKind, StreetAxis } from '@/types';
+import { createTestCityResources } from '../../../_helpers/cityResources';
 
 const SHA_A = 'a'.repeat(40);
 
@@ -118,7 +119,8 @@ describe('createTrees() component door', () => {
   it('renders the placements an apply published, in the same flush as the city', async () => {
     const cityState = createCityState(
       layoutClientFor(TREE_LAYOUT) as never,
-      stubPlacementClient(PLACEMENTS) as never
+      stubPlacementClient(PLACEMENTS) as never,
+      createTestCityResources()
     );
     const { ctx } = makePickableSceneContext(cityState);
     trees = createTrees(ctx);

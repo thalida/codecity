@@ -9,7 +9,7 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';
-import { setBuildingsTranslucent } from './material';
+import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -26,10 +26,12 @@ export function createBuildingFader({
   world,
   cityState,
   picker,
+  material,
 }: {
   world: FaderWorld;
   cityState: CityState;
   picker: ReturnType<typeof createPicker>;
+  material: BuildingMaterial;
 }) {
   function _sweepAll(): void {
     // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
@@ -79,7 +81,7 @@ export function createBuildingFader({
       iFadeAttr.needsUpdate = true;
     }
 
-    setBuildingsTranslucent(anyTranslucent);
+    material.setTranslucent(anyTranslucent);
 
     // A media building's 4 panels take the same tier as its body, so the
     // billboard dims with the wall it sits on.

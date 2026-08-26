@@ -28,6 +28,8 @@ import type { Building } from '@/types/index';
 
 import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
+import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
+import type { RendererRegistry } from './facadePanelTextureArray';
 
 // The only thing keeping the quad out of co-planar z-fighting with the wall:
 // depthWrite:false makes polygonOffset a no-op (see FACADE_PANELS.md).
@@ -158,7 +160,12 @@ export class InstancedFacadePanels {
     // The city's own source: paths are repo-relative, so a facade read is
     // meaningless without the repo they are relative to.
     readonly source: SourceRef | null,
-    opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
+    opts?: {
+      onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void;
+      /** This city's renderer slot. Defaults to a private one, which is what
+       *  tests without a renderer want: uploads time out and resolve false. */
+      rendererRegistry?: RendererRegistry;
+    }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
     this._versionStamp = TIMELINE_MODE.peek() ? SETTLED_COMMIT.peek() : LIVE_STAMP;
@@ -166,7 +173,10 @@ export class InstancedFacadePanels {
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
 
-    this._texArray = new FacadePanelTextureArray(Math.max(1, mediaFileCapacity));
+    this._texArray = new FacadePanelTextureArray(
+      Math.max(1, mediaFileCapacity),
+      opts?.rendererRegistry
+    );
 
     // Shared quad geometry — unit plane in XY (same as PlaneGeometry(1,1)).
     // Each instance is positioned/rotated/scaled via instanceMatrix.
@@ -565,28 +575,15 @@ export class InstancedFacadePanels {
 
 // ── Async media loading ──
 // Semaphore-gated, or a media-heavy repo drowns the pool (FACADE_PANELS.md).
-
-const MAX_CONCURRENT_LOADS = 4;
-let _inFlight = 0;
-const _pendingTasks: Array<() => void> = [];
+// Deliberately shared across cities — see mediaLoadLimiter.ts for why this is
+// the one piece of state that should be.
 
 function _acquireSlot(): Promise<void> {
-  if (_inFlight < MAX_CONCURRENT_LOADS) {
-    _inFlight++;
-    return Promise.resolve();
-  }
-  return new Promise<void>((resolve) => {
-    _pendingTasks.push(() => {
-      _inFlight++;
-      resolve();
-    });
-  });
+  return SHARED_MEDIA_LOAD_LIMITER.acquire();
 }
 
 function _releaseSlot(): void {
-  _inFlight--;
-  const next = _pendingTasks.shift();
-  if (next) next();
+  SHARED_MEDIA_LOAD_LIMITER.release();
 }
 
 /** Load and upload a building's image or video: image bytes are fetched as a

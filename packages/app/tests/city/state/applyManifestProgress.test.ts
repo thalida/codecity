@@ -10,6 +10,7 @@ import { BUILD_PROGRESS } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
 import { NodeKind } from '@/types';
 import type { CityLayout, DateRanges, Manifest } from '@/types';
+import { createTestCityResources } from '../../_helpers/cityResources';
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,
@@ -75,7 +76,11 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
   });
 
   it('walks the stages it is going to run', async () => {
-    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
+    const state = createCityState(
+      fakeLayoutClient() as never,
+      stubPlacementClient() as never,
+      createTestCityResources()
+    );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
     // Every stage of the plan, decoration included: the build places the trees
@@ -84,7 +89,11 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
   });
 
   it('counts against a shorter plan when the apply has less to do', async () => {
-    const state = createCityState(fakeLayoutClient() as never, stubPlacementClient() as never);
+    const state = createCityState(
+      fakeLayoutClient() as never,
+      stubPlacementClient() as never,
+      createTestCityResources()
+    );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
     // that stage never runs and must not be promised.
@@ -96,7 +105,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
   it('carries the packer percent while it packs', async () => {
     const state = createCityState(
       fakeLayoutClient([7, 61]) as never,
-      stubPlacementClient() as never
+      stubPlacementClient() as never,
+      createTestCityResources()
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -120,7 +130,11 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
       ),
       dispose: vi.fn(),
     };
-    const state = createCityState(client as never, stubPlacementClient() as never);
+    const state = createCityState(
+      client as never,
+      stubPlacementClient() as never,
+      createTestCityResources()
+    );
 
     void state.applyManifest(manifest('sig-1'));
     void state.applyManifest(manifest('sig-2')); // supersedes the first

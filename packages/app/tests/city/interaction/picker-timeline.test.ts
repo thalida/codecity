@@ -16,6 +16,9 @@ import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
+import { createTestCityResources } from '../../_helpers/cityResources';
+
+const _res = createTestCityResources();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
@@ -33,7 +36,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE);
+  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, _res);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {

@@ -55,30 +55,38 @@ export const MAX_PAGES = 8;
 // arrives, uploads time out and the upload promise resolves to `false`
 // so the caller can leave the placeholder visible instead of advancing
 // the fade attribute onto an empty texture layer.
-let _renderer: THREE.WebGLRenderer | null = null;
-const _rendererWaiters: Array<(r: THREE.WebGLRenderer | null) => void> = [];
 const _RENDERER_WAIT_TIMEOUT_MS = 5000;
 
-export function registerRenderer(renderer: THREE.WebGLRenderer): void {
-  _renderer = renderer;
-  if (_rendererWaiters.length > 0) {
-    const waiters = _rendererWaiters.splice(0);
-    for (const w of waiters) w(renderer);
-  }
+/** One city's renderer slot. Was a module `let` with room for exactly one
+ *  renderer, so a second city overwrote the first and its uploads landed on the
+ *  wrong context. */
+export interface RendererRegistry {
+  register(renderer: THREE.WebGLRenderer): void;
+  whenReady(): Promise<THREE.WebGLRenderer | null>;
 }
 
-function _whenRendererReady(): Promise<THREE.WebGLRenderer | null> {
-  if (_renderer) return Promise.resolve(_renderer);
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (r: THREE.WebGLRenderer | null): void => {
-      if (settled) return;
-      settled = true;
-      resolve(r);
-    };
-    _rendererWaiters.push(finish);
-    setTimeout(() => finish(null), _RENDERER_WAIT_TIMEOUT_MS);
-  });
+export function createRendererRegistry(): RendererRegistry {
+  let renderer: THREE.WebGLRenderer | null = null;
+  const waiters: Array<(r: THREE.WebGLRenderer | null) => void> = [];
+  return {
+    register(r: THREE.WebGLRenderer): void {
+      renderer = r;
+      if (waiters.length > 0) for (const w of waiters.splice(0)) w(r);
+    },
+    whenReady(): Promise<THREE.WebGLRenderer | null> {
+      if (renderer) return Promise.resolve(renderer);
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = (r: THREE.WebGLRenderer | null): void => {
+          if (settled) return;
+          settled = true;
+          resolve(r);
+        };
+        waiters.push(finish);
+        setTimeout(() => finish(null), _RENDERER_WAIT_TIMEOUT_MS);
+      });
+    },
+  };
 }
 
 // WebGL2 caps texture-array depth at MAX_ARRAY_TEXTURE_LAYERS. We probe
@@ -131,7 +139,10 @@ export class FacadePanelTextureArray {
   // the GPU and silently mutate state we no longer own.
   private _disposed = false;
 
-  constructor(capacity = 256) {
+  private readonly _rendererRegistry: RendererRegistry;
+
+  constructor(capacity = 256, rendererRegistry?: RendererRegistry) {
+    this._rendererRegistry = rendererRegistry ?? createRendererRegistry();
     const pageSize = _detectMaxArrayLayers();
     this.pageSize = pageSize;
 
@@ -216,7 +227,7 @@ export class FacadePanelTextureArray {
 
   private async _uploadFromCanvas(flatLayer: number, canvas: HTMLCanvasElement): Promise<boolean> {
     if (this._disposed) return false;
-    const renderer = await _whenRendererReady();
+    const renderer = await this._rendererRegistry.whenReady();
     if (!renderer || this._disposed) return false;
     const page = Math.floor(flatLayer / this.pageSize);
     const localLayer = flatLayer - page * this.pageSize;

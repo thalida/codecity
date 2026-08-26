@@ -11,6 +11,7 @@ import { TREES } from '@/state/settings/fields/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
+import { createTestCityResources } from '../_helpers/cityResources';
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.
@@ -27,7 +28,11 @@ export function stubPlacementClient(placements: unknown[] = []) {
 
 /** cityState with no-op build workers, for tests that don't drive applyManifest. */
 export function makeCityState(): CityState {
-  return createCityState(STUB_LAYOUT_CLIENT as never, stubPlacementClient() as never);
+  return createCityState(
+    STUB_LAYOUT_CLIENT as never,
+    stubPlacementClient() as never,
+    createTestCityResources()
+  );
 }
 
 /** A canvas whose clientWidth/clientHeight track a mutable `size`, so a test can
@@ -50,6 +55,7 @@ export function makeSceneContext(cityState: CityState = makeCityState()): SceneC
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
     cityState,
+    resources: createTestCityResources(),
   } as unknown as SceneContext;
 }
 
@@ -69,6 +75,7 @@ export function makePickableSceneContext(cityState: CityState = makeCityState())
     canvas,
     picker: { selection, hover } as unknown as Picker,
     cityState,
+    resources: createTestCityResources(),
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }

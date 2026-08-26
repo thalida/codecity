@@ -42,9 +42,28 @@ function _glowAlphaAt(t: number): number {
   return 0;
 }
 
-let _glowTexture: THREE.DataTexture | null = null;
-function _makeGlowTexture(): THREE.DataTexture {
-  if (_glowTexture) return _glowTexture;
+/** One city's gem textures. A DataTexture is uploaded to the context that
+ *  created it, so two cities cannot share the cache. */
+export interface GemTextures {
+  glow(): THREE.DataTexture;
+  dispose(): void;
+}
+
+export function createGemTextures(): GemTextures {
+  let glow: THREE.DataTexture | null = null;
+  return {
+    glow(): THREE.DataTexture {
+      if (!glow) glow = _buildGlowTexture();
+      return glow;
+    },
+    dispose(): void {
+      glow?.dispose();
+      glow = null;
+    },
+  };
+}
+
+function _buildGlowTexture(): THREE.DataTexture {
   // Texture is square, RGBA, and sized so the falloff has room to read smooth
   // at the halo's on-screen size.
   const SIZE = 256;
@@ -65,11 +84,11 @@ function _makeGlowTexture(): THREE.DataTexture {
       data[i + 3] = alpha;
     }
   }
-  _glowTexture = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat);
-  _glowTexture.magFilter = THREE.LinearFilter;
-  _glowTexture.minFilter = THREE.LinearFilter;
-  _glowTexture.needsUpdate = true;
-  return _glowTexture;
+  const tex = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
 }
 
 // Builds the gem at the street's origin-end cap; the inner gem lives at
@@ -80,7 +99,7 @@ export function gemRadiusFor(streetWidth: number, sizing: GemSizingConfig): numb
   return Math.max(streetWidth * sizing.RADIUS_AS_STREET_FRAC, sizing.MIN_RADIUS);
 }
 
-export function createRootGem(street: Street): THREE.Group {
+export function createRootGem(street: Street, textures: GemTextures): THREE.Group {
   const sizing = GEM_SIZING.value;
   const appearance = GEM.value;
   const edgeColor = appearance.EDGE_COLOR;
@@ -130,7 +149,7 @@ export function createRootGem(street: Street): THREE.Group {
   // — a specialized GPU path some mobile drivers corrupt into flashes.
   const gem = new THREE.Group();
   const glowCfg = GEM.value;
-  const glowTex = _makeGlowTexture();
+  const glowTex = textures.glow();
   const glowQuadGeo = new THREE.PlaneGeometry(1, 1);
   const innerGlow = new THREE.Mesh(
     glowQuadGeo,

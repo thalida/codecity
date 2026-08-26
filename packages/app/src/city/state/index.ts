@@ -21,8 +21,8 @@ import type { TreePlacement } from '../components/trees/treePlacement';
 import type { TreePlacementClient } from '../components/trees/treePlacementClient';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
-import { setIconAtlas } from '../components/buildings/material';
 import type { createLayoutClient } from '../layout';
+import type { CityResources } from '../resources';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -135,7 +135,8 @@ function sceneBboxOf(b: THREE.Box3): CityBbox {
 
 export function createCityState(
   layoutClient: ReturnType<typeof createLayoutClient>,
-  treePlacementClient: TreePlacementClient
+  treePlacementClient: TreePlacementClient,
+  resources: CityResources
 ): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
@@ -272,7 +273,7 @@ export function createCityState(
         const atlas = await buildIconAtlas(newManifest);
         if (myGeneration !== generation) return; // superseded mid-build
         lastAtlasTreeSig = treeSig;
-        setIconAtlas(atlas);
+        resources.buildings.setIconAtlas(atlas);
       } catch (err) {
         console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
       }

@@ -10,12 +10,15 @@ import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
 } from '@/city/components/buildings/cellMesh';
-import { setIconAtlas } from '@/city/components/buildings/material';
+
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { IconAtlas } from '@/city/components/buildings/atlas';
 import type { FileNode } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
+import { createTestCityResources } from '../../../_helpers/cityResources';
+
+const _res = createTestCityResources();
 
 // Fake IconAtlas — minimal implementation of the IconAtlas interface that
 // returns a known UV for any icon name it was seeded with.
@@ -33,13 +36,13 @@ function fakeAtlas(uvMap: Record<string, [number, number]>): IconAtlas {
 describe('cellMesh factory', () => {
   // Clear the module-level atlas after each test so tests don't bleed into each other.
   afterEach(() => {
-    setIconAtlas(null);
+    _res.buildings.setIconAtlas(null);
   });
   it('attachBuildingMeshToCell replaces placeholder geometry and allocates per-instance attributes', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
 
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     // Geometry should have all required instanced attributes.
     expect(cell.detailMesh.geometry.getAttribute('iCols')).toBeTruthy();
@@ -78,10 +81,10 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot sets matrix position matching (b.x, b.h/2, b.y)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 5, y: 7, h: 4, slotId: 3 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const matrix = new THREE.Matrix4();
     cell.detailMesh.getMatrixAt(3, matrix);
@@ -94,10 +97,10 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot sets matrix scale matching (b.w, b.h, b.d)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, w: 3, d: 4, h: 6, slotId: 0 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const matrix = new THREE.Matrix4();
     cell.detailMesh.getMatrixAt(0, matrix);
@@ -111,10 +114,10 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes iFade.x=1.0 (opacity defaults to full visibility)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 1 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const fadeAttr = cell.detailMesh.geometry.getAttribute(
       'iFade'
@@ -127,10 +130,10 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes iconUV.xy=-1 (no icon) when no atlas is set', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 2 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
       'iIconUV'
@@ -142,7 +145,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes resolved atlas UV into iconUV.xy when atlas is set', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     // The icon name is resolved at runtime, so seed the plausible ones: a
     // plain object can't catch-all the way a Proxy would.
@@ -152,10 +155,10 @@ describe('cellMesh factory', () => {
       file_type_typescript: knownUV,
       ts: knownUV,
     });
-    setIconAtlas(atlas);
+    _res.buildings.setIconAtlas(atlas);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 4 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
       'iIconUV'
@@ -176,10 +179,10 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes orient=0 for South (shader contract)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     const doorAttr = cell.detailMesh.geometry.getAttribute(
       'iDoor'
@@ -190,11 +193,11 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes into the correct slot without touching adjacent slots', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     // Write to slot 10; slots 9 and 11 should remain scale-zero (from createEmptyCellTile).
     const b = building({ x: 1, y: 2, h: 3, slotId: 10 });
-    writeBuildingToSlot(cell, b);
+    writeBuildingToSlot(cell, b, _res.buildings);
 
     // Slot 10 should have a real position.
     const m10 = new THREE.Matrix4();
@@ -214,7 +217,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot tags a 0-byte file as BuildingKind.Empty', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell);
+    attachBuildingMeshToCell(cell, _res.buildings);
 
     const emptyFile: FileNode = {
       name: '__init__.py',
@@ -228,7 +231,11 @@ describe('cellMesh factory', () => {
       created: '',
       modified: '',
     };
-    writeBuildingToSlot(cell, building({ slotId: 0, h: 0.8, floors: 0, file: emptyFile }));
+    writeBuildingToSlot(
+      cell,
+      building({ slotId: 0, h: 0.8, floors: 0, file: emptyFile }),
+      _res.buildings
+    );
 
     const iKind = cell.detailMesh.geometry.getAttribute('iKind');
     expect(iKind.getX(0)).toBe(BuildingKind.Empty);
@@ -247,7 +254,7 @@ describe('cellMesh shared-material stress test (300 cells)', () => {
     const cells: CellTile[] = [];
     for (let id = 0; id < CELL_COUNT; id++) {
       const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
-      attachBuildingMeshToCell(cell);
+      attachBuildingMeshToCell(cell, _res.buildings);
       cells.push(cell);
     }
 
@@ -271,7 +278,7 @@ describe('cellMesh shared-material stress test (300 cells)', () => {
     const start = performance.now();
     for (let id = 0; id < CELL_COUNT; id++) {
       const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
-      attachBuildingMeshToCell(cell);
+      attachBuildingMeshToCell(cell, _res.buildings);
     }
     const elapsed = performance.now() - start;
 

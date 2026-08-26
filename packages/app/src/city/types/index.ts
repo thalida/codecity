@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CameraRig } from '../render/cameraRig';
+import type { CityResources } from '../resources';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -17,6 +18,8 @@ export interface SceneContext {
   canvas: HTMLCanvasElement;
   picker: Picker;
   cityState: CityState;
+  /** GPU handles and caches this city owns alone — see city/resources.ts. */
+  resources: CityResources;
 }
 
 /** Per-frame state passed to each component's tick() method. */

@@ -8,7 +8,7 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient } from '@/types/index';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
-import { getBuildingMaterial, getIconAtlas } from './material';
+import type { BuildingMaterial } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
 import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
 import { BuildingKind } from './buildingKind';
@@ -47,7 +47,7 @@ function orientToIndex(orient: BuildingOrient): number {
 
 /** Give a cell the real geometry, the shared material, and attribute buffers
  *  for its capacity. The material belongs to material.ts: never dispose it. */
-export function attachBuildingMeshToCell(cell: CellTile): void {
+export function attachBuildingMeshToCell(cell: CellTile, material: BuildingMaterial): void {
   const geom = SHARED_BUILDING_GEOMETRY.clone();
 
   // Names and strides match the attributes building.vert.glsl declares.
@@ -92,7 +92,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 3), 3)
   );
 
-  const mat = getBuildingMaterial();
+  const mat = material.get();
 
   // Replace the placeholder mesh in-place.
   cell.detailMesh.geometry.dispose();
@@ -110,7 +110,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
 
 /** One building's attributes into its slot. cellId and slotId must be set, and
  *  the caller flags the buffers dirty once per batch rather than per write. */
-export function writeBuildingToSlot(cell: CellTile, b: Building): void {
+export function writeBuildingToSlot(cell: CellTile, b: Building, material: BuildingMaterial): void {
   const slot = b.slotId!;
   const mesh = cell.detailMesh;
 
@@ -176,7 +176,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
   let iconU = -1.0;
   let iconV = -1.0;
-  const atlas = getIconAtlas();
+  const atlas = material.getIconAtlas();
   if (atlas && b.file) {
     const iconName = getFileIconName(b.file);
     const uv = atlas.uvFor(iconName);

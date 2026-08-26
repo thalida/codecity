@@ -12,6 +12,9 @@ import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
+import { createTestCityResources } from '../../_helpers/cityResources';
+
+const _res = createTestCityResources();
 
 function mkBuilding(path: string, x: number, y: number): Building {
   return {
@@ -29,7 +32,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE);
+  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, _res);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {

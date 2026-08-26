@@ -78,7 +78,7 @@ export function createGem(ctx: SceneContext): Gem {
 
   function rebuild(street: Street): void {
     // Build the fresh inner gem, then swap it in and dispose the old one.
-    const gemGroup = createRootGem(street);
+    const gemGroup = createRootGem(street, ctx.resources.gem);
     const inner = (gemGroup.userData.gem as THREE.Group) || null;
 
     _disposeInnerGem();

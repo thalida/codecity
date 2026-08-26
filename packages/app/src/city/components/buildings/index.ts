@@ -20,7 +20,6 @@ import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
-import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { sourceOf } from '@/utils/manifest';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
@@ -122,7 +121,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     void BLOOM.value;
     void BUILDING_DIMENSIONS.value;
     void RUINS.value;
-    refreshBuildingMaterial();
+    ctx.resources.buildings.refresh();
     _facadePanels?.refresh();
   });
 
@@ -161,6 +160,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
         getFacadePanels: () => _facadePanels,
       },
       cityState: ctx.cityState,
+      material: ctx.resources.buildings,
       picker: ctx.picker!,
     });
     // Their overlays go straight on the scene: explicit renderOrders, so where
@@ -209,6 +209,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // Resolves meshes through the same accessors the tweens use, so a rebuild
   // swaps both onto the fresh cells at once.
   const applyScrub = createBuildingScrubApply({
+    material: ctx.resources.buildings,
     getBuildingIndex: () => _buildingIndex,
     getMeshForBuilding,
     getFacadePanels: () => _facadePanels,
@@ -386,7 +387,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const cellOut = buildCellsFromLayout(
       bounds,
       buildings,
-      sourceOf(ctx.cityState.manifest.peek())
+      sourceOf(ctx.cityState.manifest.peek()),
+      ctx.resources
     );
 
     // Grabbed before the swap reassigns them: the arrays stay readable through

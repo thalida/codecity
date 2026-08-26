@@ -20,6 +20,7 @@ import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import { createCityState } from './state';
+import { createCityResources } from './resources';
 import {
   runCollisionCheck,
   runStemPlacementDiagnostic,
@@ -44,7 +45,6 @@ import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
-import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
 export async function createCity(
   canvas: HTMLCanvasElement,
@@ -67,13 +67,15 @@ export async function createCity(
   // composer buffers past what their GPUs sustain.
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-  registerFacadePanelRenderer(renderer);
+  // Every GPU handle this city owns alone; registers the renderer for
+  // facade-panel uploads (cached <img> onloads can race construction).
+  const resources = createCityResources(renderer);
 
   const layoutClient = createLayoutClient();
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const cityState = createCityState(layoutClient, treePlacementClient);
+  const cityState = createCityState(layoutClient, treePlacementClient, resources);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
@@ -84,6 +86,7 @@ export async function createCity(
     scene,
     canvas,
     cityState,
+    resources,
     picker: null,
   } as unknown as SceneContext;
 
@@ -337,6 +340,7 @@ export async function createCity(
       treePlacementClient.dispose();
       // dispose() leaves the WebGL context alive; without forceContextLoss()
       // every teardown leaks one until Chrome's ~16-per-page cap blocks new.
+      resources.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },
