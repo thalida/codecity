@@ -118,17 +118,18 @@ Each package is independent: its own manifest, its own lockfile, its own
 installed dependencies. Lifting one into a repo of its own is a copy, not a
 untangling.
 
-- `packages/app/` (`codecity`), `packages/city/` (`@codecity/city`) and
-  `packages/client/` (`@codecity/client`) — three separate npm projects, each
-  with its own `package.json`, `package-lock.json`, `node_modules` and prettier.
+- `packages/app/` (`codecity`) and `packages/city/` (`@codecity/city`) — two
+  separate npm projects, each with its own `package.json`, `package-lock.json`,
+  `node_modules` and prettier.
   There is no npm project at the repo root, so nothing formats `README.md`,
   `AGENTS.md`, the compose files or the workflows: those belong to no package
   and are hand-formatted on purpose.
-- `packages/city/` and `packages/client/` are empty scaffolding for now.
-  `packages/app/src/city/` and `packages/app/src/api/` move into them over the
-  course of [#208](https://github.com/thalida/codecity/issues/208); until then
-  both hold a `src/index.ts` that exports nothing, and a temporary `@/*` alias
-  pointing back at `packages/app/src/` so code can move one family at a time.
+- `packages/city/` is empty scaffolding for now. `packages/app/src/city/` and
+  `packages/app/src/api/` both move into it over the course of
+  [#208](https://github.com/thalida/codecity/issues/208) — one package talks to
+  the api, and it is this one. Until then it holds a `src/index.ts` that exports
+  nothing, and a temporary `@/*` alias pointing back at `packages/app/src/` so
+  code can move one family at a time.
 - `packages/app/` — Preact + TypeScript frontend. Two routes, one view each:
   `/` is the landing (pick a project) and `/city?src=…` is a world. The URL is
   the source of truth for both — `router/` owns it, and `?src`, `?mode`,

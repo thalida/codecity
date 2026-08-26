@@ -102,7 +102,7 @@ jobs:
       # Prettier lives inside each package, so there is no repo-wide format
       # check — README, AGENTS.md, compose and these workflows belong to no
       # package and are hand-formatted.
-      - name: city/ + client/ typecheck + format check
+      - name: city/ typecheck + format check
         run: docker compose -f docker-compose.test.yml run --rm packages
 
       # Only the schema is written out here; the container owns everything node.

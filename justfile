@@ -113,7 +113,6 @@ fmt:
     uv run --project packages/api ruff format --isolated bin scripts
     cd packages/app && npm run format
     cd packages/city && npm run format
-    cd packages/client && npm run format
 
 # Every non-test check the pre-push gate runs, in containers, so the recipe and
 # the gate can't diverge. Split by package the way `test` is.
@@ -148,7 +147,7 @@ lint-app:
      docker compose -f docker-compose.test.yml run --rm vitest \
          sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
-# city/ and client/: typecheck + format check, one container for both.
+# city/: typecheck + format check.
 lint-packages:
     docker compose -f docker-compose.test.yml run --rm packages
 
@@ -247,7 +246,6 @@ demo-webp quality='50' fps='12':
 setup: install-hooks
     cd packages/app && npm install
     cd packages/city && npm install
-    cd packages/client && npm install
     cd packages/api && uv sync
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \

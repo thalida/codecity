@@ -8,7 +8,7 @@
 #   3. Python types (packages/api/) — pyright, strict
 #   4. Frontend tests (packages/app/) — vitest
 #   5. Frontend lint + typecheck (packages/app/)
-#   6. city/ + client/ — typecheck + prettier --check
+#   6. city/ — typecheck + prettier --check
 #   7. Generated TS types still match the Pydantic models
 #
 # Most of it runs in containers, so the gate doesn't depend on whatever the host
@@ -55,7 +55,7 @@ docker compose -f docker-compose.test.yml run --rm vitest \
 # Prettier lives inside each package now, so there is no repo-wide format check:
 # README, AGENTS.md, the compose files and the workflows belong to no package and
 # are deliberately hand-formatted.
-echo "[pre-push] 6/7  typecheck + prettier --check (city/, client/)"
+echo "[pre-push] 6/7  typecheck + prettier --check (city/)"
 docker compose -f docker-compose.test.yml run --rm packages >/dev/null
 
 # uv writes the schema on the host, the container regenerates and diffs it.
