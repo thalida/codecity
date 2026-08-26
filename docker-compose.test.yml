@@ -107,7 +107,7 @@ services:
 
   # Regenerates the TS types from a schema `just gen-types` already wrote to
   # .local/, and diffs. Its own service because it needs the app's node_modules
-  # and the repo root together, which neither vitest nor prettier mounts.
+  # and the repo root together, and vitest only mounts the app.
   gentypes:
     image: node:24-bookworm-slim
     working_dir: /repo/packages/app
@@ -115,20 +115,23 @@ services:
     command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
     volumes:
       - '.:/repo'
-      - '/repo/node_modules'
       - '/repo/packages/app/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
-  prettier:
+  # city/ and client/ get no service of their own — they are two typechecks and
+  # two format checks. Prettier lives inside each package now, so nothing at the
+  # repo root formats anything, and README/AGENTS/compose/workflows are
+  # deliberately unformatted: they belong to no package.
+  packages:
     image: node:24-bookworm-slim
     working_dir: /repo
     init: true
-    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx prettier --check ."
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && for p in city client; do (cd /repo/packages/$$p && npm ci && npm run typecheck && npm run format:check) || exit 1; done"
     volumes:
-      # Not :ro — same fresh-clone mountpoint problem as vitest. Check never writes.
+      # Not :ro — same fresh-clone mountpoint problem as vitest. Checks never write.
       - '.:/repo'
-      - '/repo/node_modules'
-      - '/repo/packages/app/node_modules'
+      - '/repo/packages/city/node_modules'
+      - '/repo/packages/client/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   vitest:

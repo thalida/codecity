@@ -19,12 +19,25 @@
   },
   "homepage": "https://github.com/thalida/codecity#readme",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@codecity/client": "file:../client"
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "semi": true,
+    "endOfLine": "lf",
+    "arrowParens": "always"
   }
 }

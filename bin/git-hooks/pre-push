@@ -8,7 +8,7 @@
 #   3. Python types (packages/api/) — pyright, strict
 #   4. Frontend tests (packages/app/) — vitest
 #   5. Frontend lint + typecheck (packages/app/)
-#   6. Formatting — prettier --check (whole repo, from the root)
+#   6. city/ + client/ — typecheck + prettier --check
 #   7. Generated TS types still match the Pydantic models
 #
 # Most of it runs in containers, so the gate doesn't depend on whatever the host
@@ -49,11 +49,14 @@ echo "[pre-push] 5/7  eslint + typecheck (packages/app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
     sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck \
+        && npm run format:check \
         && { [ -z '$CHANGED_APP' ] || npx eslint $CHANGED_APP; }" >/dev/null
 
-# Its own container: the app-scoped vitest service can't see the root config.
-echo "[pre-push] 6/7  prettier --check (repo root)"
-docker compose -f docker-compose.test.yml run --rm prettier >/dev/null
+# Prettier lives inside each package now, so there is no repo-wide format check:
+# README, AGENTS.md, the compose files and the workflows belong to no package and
+# are deliberately hand-formatted.
+echo "[pre-push] 6/7  typecheck + prettier --check (city/, client/)"
+docker compose -f docker-compose.test.yml run --rm packages >/dev/null
 
 # uv writes the schema on the host, the container regenerates and diffs it.
 echo "[pre-push] 7/7  generated types match the models"

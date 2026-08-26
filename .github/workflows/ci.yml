@@ -97,11 +97,13 @@ jobs:
       - name: Lint + typecheck
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
-      # Its own service: the app-scoped vitest service can't see the root config.
-      - name: Format check (prettier)
-        run: docker compose -f docker-compose.test.yml run --rm prettier
+      # Prettier lives inside each package, so there is no repo-wide format
+      # check — README, AGENTS.md, compose and these workflows belong to no
+      # package and are hand-formatted.
+      - name: city/ + client/ typecheck + format check
+        run: docker compose -f docker-compose.test.yml run --rm packages
 
       # Only the schema is written out here; the container owns everything node.
       # npm on the runner cannot work: compose mounts anonymous volumes over

@@ -120,9 +120,10 @@ untangling.
 
 - `packages/app/` (`codecity`), `packages/city/` (`@codecity/city`) and
   `packages/client/` (`@codecity/client`) — three separate npm projects, each
-  with its own `package.json`, `package-lock.json` and `node_modules`. The root
-  `package.json` holds prettier and nothing else, because prettier resolves its
-  config from the cwd and has to run from the root (#165).
+  with its own `package.json`, `package-lock.json`, `node_modules` and prettier.
+  There is no npm project at the repo root, so nothing formats `README.md`,
+  `AGENTS.md`, the compose files or the workflows: those belong to no package
+  and are hand-formatted on purpose.
 - `packages/city/` and `packages/client/` are empty scaffolding for now.
   `packages/app/src/city/` and `packages/app/src/api/` move into them over the
   course of [#208](https://github.com/thalida/codecity/issues/208); until then

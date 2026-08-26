@@ -106,16 +106,18 @@ test-app:
 
 # ── Format / lint / typecheck ────────────────────────────────────
 # Runs locally (like `gen-types`) so reformatted files stay owned by you, not
-# the container's root. Prettier only from the root: elsewhere it resolves a
-# different version and misses .prettierignore (#165).
+# the container's root. Each npm package owns its own prettier and runs it over
+# its own tree; nothing at the repo root formats anything.
 fmt:
     cd packages/api && uv run ruff format api
     uv run --project packages/api ruff format --isolated bin scripts
-    npx prettier --write .
+    cd packages/app && npm run format
+    cd packages/city && npm run format
+    cd packages/client && npm run format
 
 # Every non-test check the pre-push gate runs, in containers, so the recipe and
-# the gate can't diverge. Split api/app the way `test` is.
-lint: lint-api lint-app
+# the gate can't diverge. Split by package the way `test` is.
+lint: lint-api lint-app lint-packages
 
 # ruff = lint + format check; pyright = strict types over the api package. Both read their
 # config from pyproject.toml; pyright's binary version is pinned in .env.
@@ -141,13 +143,14 @@ check-types-fresh:
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
-# Prettier needs its own service: the app-scoped vitest one can't see the
-# root config.
 lint-app:
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
-         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
-    docker compose -f docker-compose.test.yml run --rm prettier
+         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+
+# city/ and client/: typecheck + format check, one container for both.
+lint-packages:
+    docker compose -f docker-compose.test.yml run --rm packages
 
 # ── Codegen ──────────────────────────────────────────────────────
 # Regenerate packages/app/src/types/manifest.generated.ts from the live OpenAPI schema.
@@ -237,15 +240,15 @@ demo-webp quality='50' fps='12':
      echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), {{fps}}fps, q={{quality}})"
 
 # ── Onboarding ───────────────────────────────────────────────────
-# One-shot bootstrap for a fresh clone or new worktree: installs node_modules
-# at the root (prettier) and in each npm project under src/ (so local vitest /
-# IDE intellisense work — runtime itself uses Docker via `just dev`), plus the
-# per-clone git hooks.
+# One-shot bootstrap for a fresh clone or new worktree: installs node_modules in
+# each npm package (so local vitest, prettier and IDE intellisense work — the
+# runtime itself uses Docker via `just dev`) and syncs the api's venv, plus the
+# per-clone git hooks. There is no npm project at the repo root.
 setup: install-hooks
-    npm install
     cd packages/app && npm install
     cd packages/city && npm install
     cd packages/client && npm install
+    cd packages/api && uv sync
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \
          echo "[just] seeded .env.local — your mount, flags and deploy credentials live there" ; \
