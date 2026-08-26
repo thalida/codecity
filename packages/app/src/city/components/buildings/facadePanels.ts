@@ -21,8 +21,6 @@ import {
   hasNoContentAtScrub,
   scrubbedBlobShaFor,
 } from '@/state/stores/timeline';
-import { ContentPendingError, fetchFileBlob, fileUrl, isContentPending } from '@/api/file';
-import { fingerprintUrl } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
 
@@ -30,6 +28,8 @@ import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
 import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
 import type { RendererRegistry } from './facadePanelTextureArray';
+import { ContentPendingError } from '@codecity/city';
+import { API } from '@/apiClient';
 
 // The only thing keeping the quad out of co-planar z-fighting with the wall:
 // depthWrite:false makes polygonOffset a no-op (see FACADE_PANELS.md).
@@ -611,7 +611,7 @@ function asyncLoadMediaForBuilding(
   if (kind === MediaKind.Image) {
     void _loadImageBuilding(ads, source, filePath, version, sha, layer, panelSlots);
   } else {
-    void _loadVideoBuilding(ads, fileUrl(source, filePath, version, sha), layer, panelSlots);
+    void _loadVideoBuilding(ads, API.fileUrl(source, filePath, version, sha), layer, panelSlots);
   }
 }
 
@@ -648,7 +648,7 @@ function asyncLoadDataFacadeForBuilding(
     default:
       void _loadFingerprintBuilding(
         ads,
-        fingerprintUrl(source, filePath, version),
+        API.fingerprintUrl(source, filePath, version),
         layer,
         panelSlots
       );
@@ -704,7 +704,7 @@ async function _loadImageBuilding(
   // keep the placeholder, not tint the building broken.
   let blob: Blob;
   try {
-    blob = await fetchFileBlob(source, filePath, version, sha);
+    blob = await API.fetchFileBlob(source, filePath, version, sha);
   } catch (err) {
     // Waiting resolves itself: the next rebuild picks the image up once the
     // fetch behind it lands. Anything else is a real failure.
@@ -748,7 +748,7 @@ async function _loadVideoBuilding(
   }
   // A <video> reports only that it didn't load, never a status. Ask, outside the
   // slot, before wearing the error tint for a file that is merely queued.
-  if (errored && !(await isContentPending(url))) ads.markBuildingErrored(panelSlots);
+  if (errored && !(await API.isContentPending(url))) ads.markBuildingErrored(panelSlots);
 }
 
 /** Promise-wrapped image load, resolving null on failure so callers can test

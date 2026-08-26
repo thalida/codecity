@@ -6,7 +6,6 @@ import './ReadmeTab.css';
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { fetchFileText } from '@/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -18,6 +17,7 @@ import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
 } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
+import { API } from '@/apiClient';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */
@@ -88,7 +88,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
       }
       setBody({ kind: InfoBodyKind.Loading });
       // mtime busts the browser cache after a live edit (doFetch re-runs per manifest).
-      fetchFileText(
+      API.fetchFileText(
         source,
         readmePath,
         (m as Manifest).readmeModified ?? undefined,

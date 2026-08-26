@@ -3,8 +3,7 @@
 // written by the app. Both shapes live in @/api, which must not depend on this.
 
 import { signal } from '@preact/signals';
-import { DEFAULT_SERVER_CONFIG, type ServerConfig } from '@/api/config';
-import type { DiscoverEntry } from '@/api/discover';
+import { DEFAULT_SERVER_CONFIG, DiscoverEntry, ServerConfig } from '@codecity/city';
 
 export type { ServerConfig, DiscoverEntry };
 export { DEFAULT_SERVER_CONFIG };

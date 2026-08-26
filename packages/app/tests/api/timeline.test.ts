@@ -1,30 +1,30 @@
 import { test, expect, describe, it } from 'vitest';
-import { timelineUrlFor, fetchTimelineBundle } from '@/api/timeline';
 import type { TimelineBundle } from '@/types';
 import { makeES } from '../_helpers/eventSource';
+import { API } from '@/apiClient';
 
 test('timelineUrlFor builds the endpoint URL with src', () => {
-  const u = timelineUrlFor('/repo', undefined);
+  const u = API.timelineUrlFor('/repo', undefined);
   expect(u).toContain('/api/timeline');
   expect(u).toContain('src=%2Frepo');
 });
 
 test('timelineUrlFor emits one repeated exclude param per path', () => {
-  const u = timelineUrlFor('/repo', undefined, ['a.txt', 'secrets']);
+  const u = API.timelineUrlFor('/repo', undefined, ['a.txt', 'secrets']);
   expect(u).toContain('exclude=a.txt');
   expect(u).toContain('exclude=secrets');
 });
 
 // The bundle caches per HEAD, so a Fresh scan is only fresh if it says so.
 test('timelineUrlFor forwards noCache, and omits the param otherwise', () => {
-  expect(timelineUrlFor('/repo', undefined, undefined, true)).toContain('no_cache=true');
-  expect(timelineUrlFor('/repo', undefined, undefined, false)).not.toContain('no_cache');
-  expect(timelineUrlFor('/repo', undefined)).not.toContain('no_cache');
+  expect(API.timelineUrlFor('/repo', undefined, undefined, true)).toContain('no_cache=true');
+  expect(API.timelineUrlFor('/repo', undefined, undefined, false)).not.toContain('no_cache');
+  expect(API.timelineUrlFor('/repo', undefined)).not.toContain('no_cache');
 });
 
 test('fetchTimelineBundle puts noCache on the stream URL', () => {
   const { ctor, last } = makeES();
-  void fetchTimelineBundle('/repo', undefined, undefined, {
+  void API.fetchTimelineBundle('/repo', undefined, undefined, {
     EventSourceImpl: ctor,
     noCache: true,
   });
@@ -40,11 +40,11 @@ const BUNDLE = {
   note: null,
 } as unknown as TimelineBundle;
 
-describe('fetchTimelineBundle (SSE)', () => {
+describe('API.fetchTimelineBundle (SSE)', () => {
   it('reports progress events and resolves with the bundle on timeline-complete', async () => {
     const { ctor, last } = makeES();
     const progress: unknown[] = [];
-    const promise = fetchTimelineBundle('/repo', undefined, (p) => progress.push(p), {
+    const promise = API.fetchTimelineBundle('/repo', undefined, (p) => progress.push(p), {
       EventSourceImpl: ctor,
     });
     const es = last();
@@ -63,7 +63,9 @@ describe('fetchTimelineBundle (SSE)', () => {
 
   it('rejects on a server-sent error event', async () => {
     const { ctor, last } = makeES();
-    const promise = fetchTimelineBundle('/repo', undefined, undefined, { EventSourceImpl: ctor });
+    const promise = API.fetchTimelineBundle('/repo', undefined, undefined, {
+      EventSourceImpl: ctor,
+    });
     last().emit('error', JSON.stringify({ error: 'boom' }));
     await expect(promise).rejects.toThrow(/boom/);
     expect(last().closed).toBe(true);
@@ -71,7 +73,9 @@ describe('fetchTimelineBundle (SSE)', () => {
 
   it('rejects on a transport-level error (bare error event, no data)', async () => {
     const { ctor, last } = makeES();
-    const promise = fetchTimelineBundle('/repo', undefined, undefined, { EventSourceImpl: ctor });
+    const promise = API.fetchTimelineBundle('/repo', undefined, undefined, {
+      EventSourceImpl: ctor,
+    });
     last().emit('error');
     await expect(promise).rejects.toThrow(/connection failed/i);
   });
@@ -79,7 +83,7 @@ describe('fetchTimelineBundle (SSE)', () => {
   it('skips straight to timeline-complete on a warm cache hit (no progress events)', async () => {
     const { ctor, last } = makeES();
     const progress: unknown[] = [];
-    const promise = fetchTimelineBundle('/repo', undefined, (p) => progress.push(p), {
+    const promise = API.fetchTimelineBundle('/repo', undefined, (p) => progress.push(p), {
       EventSourceImpl: ctor,
     });
     last().emit('timeline-complete', JSON.stringify({ bundle: BUNDLE }));

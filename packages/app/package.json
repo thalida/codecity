@@ -49,6 +49,7 @@
     "vitest": "^4.1.4"
   },
   "dependencies": {
+    "@codecity/city": "file:../city",
     "@preact/signals": "^2.9.1",
     "dompurify": "^3.4.14",
     "highlight.js": "^11.11.1",

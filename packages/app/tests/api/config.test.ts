@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchServerConfig, getServerConfig, _resetServerConfigForTests } from '@/api/config';
 import { DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
+import { API } from '@/apiClient';
 
 describe('fetchServerConfig', () => {
   beforeEach(() => {
-    _resetServerConfigForTests();
+    API._resetServerConfigForTests();
     vi.restoreAllMocks();
   });
 
@@ -12,7 +12,7 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: true }), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg).toEqual({ ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true });
   });
 
@@ -20,25 +20,25 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({}), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
   it('fails closed on a non-200 response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('oops', { status: 500 }));
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
   it('fails closed on a network error', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('offline'));
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
   it('fails closed on malformed JSON', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('not-json', { status: 200 }));
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
@@ -46,7 +46,7 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false, version: '1.3.0' }), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg.version).toBe('1.3.0');
   });
 
@@ -54,7 +54,7 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false, hosted: true }), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg.hosted).toBe(true);
   });
 
@@ -64,7 +64,7 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg.hosted).toBe(false);
   });
 
@@ -72,14 +72,14 @@ describe('fetchServerConfig', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })
     );
-    const cfg = await fetchServerConfig();
+    const cfg = await API.fetchServerConfig();
     expect(cfg.version).toBe('0.0.0+unknown');
   });
 });
 
 describe('getServerConfig', () => {
   beforeEach(() => {
-    _resetServerConfigForTests();
+    API._resetServerConfigForTests();
     vi.restoreAllMocks();
   });
 
@@ -87,9 +87,9 @@ describe('getServerConfig', () => {
     const spy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ allowLocalRepos: true }), { status: 200 }));
-    await getServerConfig();
-    await getServerConfig();
-    await getServerConfig();
+    await API.getServerConfig();
+    await API.getServerConfig();
+    await API.getServerConfig();
     expect(spy).toHaveBeenCalledTimes(1);
   });
 });

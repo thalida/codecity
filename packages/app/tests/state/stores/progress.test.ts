@@ -16,8 +16,8 @@ import {
 } from '@/state/stores/progress';
 
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase, CloneStage } from '@/api/manifest';
 import { LoadingStep, BuildStage } from '@/constants/progress';
+import { CloneStage, ScanPhase } from '@codecity/city';
 
 describe('loadingReactions', () => {
   let dispose: () => void;

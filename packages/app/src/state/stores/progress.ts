@@ -5,7 +5,6 @@
 
 import { signal, effect } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase, CloneStage } from '@/api/manifest';
 import type { Manifest } from '@/types';
 import {
   BuildStage,
@@ -19,6 +18,7 @@ import {
 } from '@/constants/progress';
 import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
+import { CloneStage, ScanPhase } from '@codecity/city';
 
 // ── What the server is doing ─────────────────────────────────────────
 

@@ -2,9 +2,9 @@
 // the overlay advances through, and the sub-stages that run inside its last row
 // once the stream has handed over to the build.
 
-import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
 import { TimelineStage } from '@/types';
+import { ScanPhase } from '@codecity/city';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 

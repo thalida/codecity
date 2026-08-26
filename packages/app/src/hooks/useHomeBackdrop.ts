@@ -8,13 +8,14 @@
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
-import { fetchCachedManifest, manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
 import { BACKDROP_HANDLE, type SceneHandle } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
 import type { Manifest } from '@/types';
+import { ScanPhase } from '@codecity/city';
+import { API } from '@/apiClient';
 
 interface Candidate {
   src: string;
@@ -28,7 +29,7 @@ interface Candidate {
 async function streamFeatured(src: string, signal: AbortSignal): Promise<Manifest | null> {
   let complete: Manifest | null = null;
   try {
-    for await (const event of streamManifest(manifestUrlFor({ src }), { signal })) {
+    for await (const event of API.streamManifest(API.manifestUrlFor({ src }), { signal })) {
       if (event.phase === ScanPhase.Error) return null;
       if (event.phase === ScanPhase.CompleteManifest) complete = event.manifest;
     }
@@ -69,7 +70,7 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
       src: recent.src,
       branch: recent.branch,
       kind: BackdropKind.Recent,
-      fetch: (signal) => fetchCachedManifest(recent.src, recent.branch, signal),
+      fetch: (signal) => API.fetchCachedManifest(recent.src, recent.branch, signal),
     });
   }
   // Skipped when it IS the recent one: it would only paint the same city again.

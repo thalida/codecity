@@ -22,9 +22,9 @@ import {
   UnreachableSource,
   NoticeReason,
 } from '@/components/sources/UnreachableSource/UnreachableSource';
-import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/types/ui';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
+import { ScanErrorCode } from '@codecity/city';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.

@@ -2,8 +2,8 @@
 // image path would resolve against the app origin and 404, so repo-relative
 // refs are rewritten through /api/file, against the README's own directory.
 
-import { fileUrl } from '@/api/file';
 import type { SourceRef } from '@/types';
+import { API } from '@/apiClient';
 
 // Already addressable as-is: a scheme, a protocol-relative //host, or a bare
 // #anchor.
@@ -26,7 +26,7 @@ export function resolveReadmeAssetUrl(source: SourceRef, href: string, readmePat
     }
     segs.push(part);
   }
-  return fileUrl(source, segs.join('/'));
+  return API.fileUrl(source, segs.join('/'));
 }
 
 // Matches the src="…" / src='…' of a raw-HTML <img> tag. The leading whitespace

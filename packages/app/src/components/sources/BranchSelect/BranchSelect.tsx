@@ -5,8 +5,8 @@
 import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
 import { LoaderCircle } from 'lucide-preact';
-import { fetchBranches } from '@/api/branches';
-import { ScanError, type ScanErrorCode } from '@/api/manifest';
+import { ScanError, ScanErrorCode } from '@codecity/city';
+import { API } from '@/apiClient';
 
 export interface BranchSelectProps {
   url: string; // a resolvable git URL, or '' to stay idle
@@ -42,7 +42,7 @@ export function BranchSelect({ url, value, onChange, onError }: BranchSelectProp
     let live = true;
     setState({ status: BranchStatus.Loading });
     onError(null);
-    fetchBranches(url).then(
+    API.fetchBranches(url).then(
       (r) => {
         if (!live) return;
         setState({ status: BranchStatus.Ready, branches: r.branches, def: r.default });

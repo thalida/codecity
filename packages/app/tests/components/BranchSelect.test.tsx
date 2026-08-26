@@ -4,9 +4,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
-import * as branchesApi from '@/api/branches';
-import { ScanError } from '@/api/manifest';
+import { API } from '@/apiClient';
 import { flush, drainAsync } from '../_helpers/preact';
+import { ScanError } from '@codecity/city';
 
 describe('BranchSelect', () => {
   let container: HTMLDivElement;
@@ -32,7 +32,7 @@ describe('BranchSelect', () => {
     // Manually settled, so the loading assertion below cannot race past the
     // resolution on the microtask queue.
     let resolveFetch!: (r: { branches: string[]; default: string | null }) => void;
-    vi.spyOn(branchesApi, 'fetchBranches').mockImplementation(
+    vi.spyOn(API, 'fetchBranches').mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveFetch = resolve;
@@ -64,7 +64,7 @@ describe('BranchSelect', () => {
   it('passes the server code up, so the form can offer a remedy', async () => {
     // The branch lookup is the first request to touch the remote, so an
     // unreachable repo fails HERE rather than on submit.
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/nope', 'repo-not-found')
     );
     const onError = vi.fn();
@@ -85,7 +85,7 @@ describe('BranchSelect', () => {
   });
 
   it('reports the server error to the parent (onError) and renders nothing itself', async () => {
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
     const onError = vi.fn();
 
     render(
@@ -107,7 +107,7 @@ describe('BranchSelect', () => {
   });
 
   it('re-resolves when the url prop changes (parent typically remounts via key instead)', async () => {
-    const resolve = vi.spyOn(branchesApi, 'fetchBranches');
+    const resolve = vi.spyOn(API, 'fetchBranches');
     resolve.mockResolvedValueOnce({ branches: ['main'], default: 'main' });
     const onChange = vi.fn();
 

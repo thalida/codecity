@@ -14,8 +14,8 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/remoteUrls';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
-import { fetchCommitDetail } from '@/api/commit';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
+import { API } from '@/apiClient';
 
 const SHORT_SHA_LEN = 7;
 
@@ -102,7 +102,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
     }
     setBodyState({ kind: CommitBodyKind.Loading });
     let cancelled = false;
-    fetchCommitDetail(source, sha).then(
+    API.fetchCommitDetail(source, sha).then(
       (detail) => {
         if (cancelled) return;
         const bodyText = detail.body ?? '';

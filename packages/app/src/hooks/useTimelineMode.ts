@@ -3,7 +3,6 @@
 // Every exit path only flips TIMELINE_MODE: the city layer (city/index.ts)
 // reacts to that and does the scene teardown itself.
 
-import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import {
   CURRENT_SOURCE,
@@ -54,6 +53,7 @@ import {
 } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
+import { API } from '@/apiClient';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
@@ -145,7 +145,7 @@ export async function loadTimelineSource({
   };
 
   try {
-    const bundle = await fetchTimelineBundle(src, branch, onProgress, {
+    const bundle = await API.fetchTimelineBundle(src, branch, onProgress, {
       signal: abort.signal,
       exclude: activeExcludePathsFor(src),
       noCache,

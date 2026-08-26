@@ -6,15 +6,6 @@
 import { useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
 
-import {
-  manifestUrlFor,
-  signatureUrlFor,
-  streamManifest,
-  ScanPhase,
-  ScanError,
-} from '@/api/manifest';
-import { getServerConfig } from '@/api/config';
-import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
 import {
   RECENTS,
@@ -46,6 +37,8 @@ import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
+import { ScanError, ScanPhase } from '@codecity/city';
+import { API } from '@/apiClient';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
@@ -65,7 +58,7 @@ async function pumpManifestStream(
   // applied `pending` forward rather than claiming its own as applied.
   let appliedPending: Manifest['pending'] | undefined;
 
-  for await (const event of streamManifest(url, { signal })) {
+  for await (const event of API.streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
 
     if ('label' in event && event.label) {
@@ -170,7 +163,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   }
 
   try {
-    const url = manifestUrlFor({
+    const url = API.manifestUrlFor({
       src: payload.src,
       branch,
       noCache: !!payload.skipCache,
@@ -249,12 +242,6 @@ function _clampPollSeconds(s: number | unknown): number {
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
 }
 
-interface SignatureResponse {
-  root: string;
-  scanned_at: string;
-  content_signature: string;
-}
-
 /** Start the live-update poll loop and the exclude-refresh reaction, returning
  *  a dispose for both. Exported so the reaction is directly testable. */
 export function setupLiveUpdates(): () => void {
@@ -264,8 +251,8 @@ export function setupLiveUpdates(): () => void {
   async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
     const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
     try {
-      for await (const event of streamManifest(
-        manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
+      for await (const event of API.streamManifest(
+        API.manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
       )) {
         if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
         // Skip the skeleton: the city is already drawn, and applying one would
@@ -294,11 +281,7 @@ export function setupLiveUpdates(): () => void {
     const applied = (current as Manifest).content_signature;
     inFlight = true;
     try {
-      const sigResp = await fetch(
-        signatureUrlFor(cur.src, cur.branch, activeExcludePathsFor(cur.src))
-      );
-      if (!sigResp.ok) return;
-      const sig: SignatureResponse | null = await sigResp.json();
+      const sig = await API.fetchSignature(cur.src, cur.branch, activeExcludePathsFor(cur.src));
       if (!sig?.content_signature || sig.content_signature === applied) return;
       await fetchAndApply(cur.src, cur.branch);
     } catch (_) {
@@ -422,7 +405,10 @@ export function useManifestSource(): void {
     (async () => {
       // Independent boot reads, so they go out together rather than making the
       // landing wait for two round trips in series.
-      const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
+      const [serverConfig, discover] = await Promise.all([
+        API.getServerConfig(),
+        API.getDiscover(),
+      ]);
       if (cancelled) return;
       SERVER_CONFIG.value = serverConfig;
       DISCOVER.value = discover;

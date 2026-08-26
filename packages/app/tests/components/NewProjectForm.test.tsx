@@ -4,11 +4,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
-import * as branchesApi from '@/api/branches';
-import { ScanError } from '@/api/manifest';
+import { API } from '@/apiClient';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
+import { ScanError } from '@codecity/city';
+import type { BranchList } from '@codecity/city';
 
 // Label-independent: the source field's label switches on allowLocalRepos.
 const FIELD = 'input.form-input';
@@ -45,7 +46,7 @@ describe('NewProjectForm', () => {
   });
 
   it('is one field (no tabs): a URL gets a branch dropdown, a local path does not', async () => {
-    vi.spyOn(branchesApi, 'fetchBranches').mockResolvedValue({
+    vi.spyOn(API, 'fetchBranches').mockResolvedValue({
       branches: ['main', 'dev'],
       default: 'main',
     });
@@ -67,7 +68,7 @@ describe('NewProjectForm', () => {
     // "https://github.com/o" already validates, so undebounced every character
     // after it is another git ls-remote. Typed at a real keystroke cadence.
     const resolve = vi
-      .spyOn(branchesApi, 'fetchBranches')
+      .spyOn(API, 'fetchBranches')
       .mockResolvedValue({ branches: ['main'], default: 'main' });
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
@@ -87,7 +88,7 @@ describe('NewProjectForm', () => {
   });
 
   it('resets the branch when the URL changes to a different repo (bug #2)', async () => {
-    const resolve = vi.spyOn(branchesApi, 'fetchBranches');
+    const resolve = vi.spyOn(API, 'fetchBranches');
     resolve.mockResolvedValueOnce({ branches: ['main', 'feat'], default: 'main' });
     const onSubmit = vi.fn();
 
@@ -121,7 +122,7 @@ describe('NewProjectForm', () => {
   });
 
   it('blocks submit and shows one inline field error when branch resolution fails (repo not found)', async () => {
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(
       new Error('repository not found at https://github.com/o/nope')
     );
     const onSubmit = vi.fn();
@@ -145,7 +146,7 @@ describe('NewProjectForm', () => {
 
   it('rejects a web-page URL (with a #anchor) inline, blocking submit and the branch lookup', async () => {
     const resolve = vi
-      .spyOn(branchesApi, 'fetchBranches')
+      .spyOn(API, 'fetchBranches')
       .mockResolvedValue({ branches: [], default: null });
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
@@ -210,7 +211,7 @@ describe('NewProjectForm', () => {
   it('shows exactly one notice for one failure, under the field', async () => {
     // Regression: the remedy rendered above the field while the raw server
     // message stayed below it, so a single failure spoke twice.
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
     );
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
@@ -230,7 +231,7 @@ describe('NewProjectForm', () => {
   it('offers the remedy when the branch lookup says the repo is unreachable', async () => {
     // A private repo URL failed at the branch lookup and showed raw git stderr,
     // because the code was only threaded through the manifest stream.
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(
       new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
     );
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
@@ -247,10 +248,10 @@ describe('NewProjectForm', () => {
     // Holding the next lookup open is what pins "straight away": a mock that
     // rejects every URL makes this pass only by winning a race.
     let arriveAtOther = () => {};
-    const other = new Promise<branchesApi.BranchList>((resolve) => {
+    const other = new Promise<BranchList>((resolve) => {
       arriveAtOther = () => resolve({ branches: ['main'], default: 'main' });
     });
-    vi.spyOn(branchesApi, 'fetchBranches').mockImplementation((url: string) =>
+    vi.spyOn(API, 'fetchBranches').mockImplementation((url: string) =>
       url.includes('/private') ? Promise.reject(new ScanError('nope', 'repo-not-found')) : other
     );
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
@@ -271,9 +272,7 @@ describe('NewProjectForm', () => {
   it('drops the remedy when the field turns into a local path', async () => {
     // The only route with nothing else to clear it: a path unmounts BranchSelect,
     // so its remount is not there to report the error away.
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
-      new ScanError('nope', 'repo-not-found')
-    );
+    vi.spyOn(API, 'fetchBranches').mockRejectedValue(new ScanError('nope', 'repo-not-found'));
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
     setInput(field(container), 'https://github.com/o/private');
@@ -359,7 +358,7 @@ describe('NewProjectForm', () => {
   });
 
   it('says nothing at rest, whatever is being typed', async () => {
-    vi.spyOn(branchesApi, 'fetchBranches').mockResolvedValue({
+    vi.spyOn(API, 'fetchBranches').mockResolvedValue({
       branches: ['main'],
       default: 'main',
     });

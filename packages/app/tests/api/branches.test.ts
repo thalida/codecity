@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fetchBranches } from '@/api/branches';
+import { API } from '@/apiClient';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -14,7 +14,7 @@ describe('fetchBranches', () => {
           })
       )
     );
-    const r = await fetchBranches('https://github.com/o/r');
+    const r = await API.fetchBranches('https://github.com/o/r');
     expect(r.branches).toEqual(['main', 'dev']);
     expect(r.default).toBe('main');
   });
@@ -32,7 +32,7 @@ describe('fetchBranches', () => {
           )
       )
     );
-    await expect(fetchBranches('https://github.com/o/nope')).rejects.toThrow(
+    await expect(API.fetchBranches('https://github.com/o/nope')).rejects.toThrow(
       /repository not found/i
     );
   });
@@ -42,6 +42,6 @@ describe('fetchBranches', () => {
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ detail: 'nope' }), { status: 400 }))
     );
-    await expect(fetchBranches('https://github.com/o/x')).rejects.toThrow(/nope/);
+    await expect(API.fetchBranches('https://github.com/o/x')).rejects.toThrow(/nope/);
   });
 });

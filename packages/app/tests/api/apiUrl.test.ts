@@ -1,29 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { apiUrl } from '@/api/apiUrl';
-import { manifestUrlFor, signatureUrlFor } from '@/api/manifest';
+import { API } from '@/apiClient';
 
 describe('apiUrl', () => {
   it('builds an absolute /api/<path> URL on the current origin', () => {
-    const u = apiUrl('branches');
+    const u = API.apiUrl('branches');
     expect(u).toContain('/api/branches');
     expect(u.startsWith('http')).toBe(true);
   });
 
   it('sets provided query params and skips undefined ones', () => {
-    const u = apiUrl('branches', { src: '/foo/bar', branch: undefined });
+    const u = API.apiUrl('branches', { src: '/foo/bar', branch: undefined });
     expect(u).toContain('src=%2Ffoo%2Fbar');
     expect(u).not.toContain('branch=');
   });
 
   it('emits repeated params for array values', () => {
-    const url = apiUrl('manifest', { src: 'x', exclude: ['a', 'b'] });
+    const url = API.apiUrl('manifest', { src: 'x', exclude: ['a', 'b'] });
     const params = new URL(url).searchParams;
     expect(params.getAll('exclude')).toEqual(['a', 'b']);
     expect(params.get('src')).toBe('x');
   });
 
   it('skips empty arrays and undefined', () => {
-    const url = apiUrl('manifest', { src: 'x', exclude: [], branch: undefined });
+    const url = API.apiUrl('manifest', { src: 'x', exclude: [], branch: undefined });
     const params = new URL(url).searchParams;
     expect(params.getAll('exclude')).toEqual([]);
     expect(params.has('branch')).toBe(false);
@@ -37,7 +36,7 @@ describe('apiUrl', () => {
 describe('explicit-source URL builders', () => {
   it('manifestUrlFor builds from the given src/branch, ignoring the page URL', () => {
     history.replaceState({}, '', '/?src=PAGE_SRC&branch=PAGE_BRANCH');
-    const u = manifestUrlFor({ src: 'https://github.com/o/r', branch: 'feat' });
+    const u = API.manifestUrlFor({ src: 'https://github.com/o/r', branch: 'feat' });
     expect(u).toContain('/api/manifest');
     expect(u).toContain('src=https%3A%2F%2Fgithub.com%2Fo%2Fr');
     expect(u).toContain('branch=feat');
@@ -46,20 +45,20 @@ describe('explicit-source URL builders', () => {
   });
 
   it('manifestUrlFor omits branch when absent and forwards noCache', () => {
-    const u = manifestUrlFor({ src: '/local/path', noCache: true });
+    const u = API.manifestUrlFor({ src: '/local/path', noCache: true });
     expect(u).toContain('src=%2Flocal%2Fpath');
     expect(u).not.toContain('branch=');
     expect(u).toContain('no_cache=true');
   });
 
   it('manifestUrlFor omits no_cache when noCache is false/undefined', () => {
-    expect(manifestUrlFor({ src: 'foo' })).not.toContain('no_cache');
-    expect(manifestUrlFor({ src: 'foo', noCache: false })).not.toContain('no_cache');
+    expect(API.manifestUrlFor({ src: 'foo' })).not.toContain('no_cache');
+    expect(API.manifestUrlFor({ src: 'foo', noCache: false })).not.toContain('no_cache');
   });
 
   it('signatureUrlFor builds from the given src/branch, ignoring the page URL', () => {
     history.replaceState({}, '', '/?src=PAGE_SRC&branch=PAGE_BRANCH');
-    const u = signatureUrlFor('https://github.com/o/r', 'feat');
+    const u = API.signatureUrlFor('https://github.com/o/r', 'feat');
     expect(u).toContain('/api/manifest/signature');
     expect(u).toContain('src=https%3A%2F%2Fgithub.com%2Fo%2Fr');
     expect(u).toContain('branch=feat');
@@ -67,12 +66,12 @@ describe('explicit-source URL builders', () => {
   });
 
   it('includes exclude params on the manifest url', () => {
-    const params = new URL(manifestUrlFor({ src: 's', exclude: ['sub', 'a.md'] })).searchParams;
+    const params = new URL(API.manifestUrlFor({ src: 's', exclude: ['sub', 'a.md'] })).searchParams;
     expect(params.getAll('exclude')).toEqual(['sub', 'a.md']);
   });
 
   it('includes exclude params on the signature url', () => {
-    const params = new URL(signatureUrlFor('s', undefined, ['sub'])).searchParams;
+    const params = new URL(API.signatureUrlFor('s', undefined, ['sub'])).searchParams;
     expect(params.getAll('exclude')).toEqual(['sub']);
   });
 });

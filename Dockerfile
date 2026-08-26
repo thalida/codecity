@@ -11,15 +11,19 @@ FROM node:24-bookworm-slim AS web-builder
 # it as an `env:` block. Bump all three together.
 ARG NPM_VERSION=11.6.2
 RUN npm install -g npm@${NPM_VERSION}
-WORKDIR /build
+WORKDIR /build/app
 # .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
 # vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
 COPY packages/app/package.json packages/app/package-lock.json packages/app/.npmrc ./
+# The app depends on @codecity/city through `file:../city`, so npm needs that
+# manifest present before it can link it.
+COPY packages/city/package.json /build/city/
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
+COPY packages/city/ /build/city/
 COPY packages/app/ ./
 RUN npm run build
-# Output: /build/dist/
+# Output: /build/app/dist/
 
 # ─────── Stage 2: runtime ───────
 FROM python:3.13-slim AS runtime
@@ -68,7 +72,7 @@ COPY packages/api/api/ ./api/
 
 # Built frontend → /srv/api/static (matches api/app.py DEFAULT_STATIC_DIR
 # resolution: Path(__file__).resolve().parent / "static"). No env var needed.
-COPY --from=web-builder /build/dist /srv/api/static
+COPY --from=web-builder /build/app/dist /srv/api/static
 
 # pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
 # but .dockerignore excludes .git to keep the build context small. Feed the

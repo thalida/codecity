@@ -18,11 +18,9 @@ export enum PreviewKind {
   Font = 'font',
   Text = 'text',
 }
-import { fileUrl, fetchFileText, fetchFileBytes, ContentPendingError } from '@/api/file';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
-import { fetchFingerprintBlob } from '@/api/fingerprint';
 import {
   IMAGE_EXTS,
   VIDEO_EXTS,
@@ -48,6 +46,8 @@ import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/fileKind';
+import { ContentPendingError } from '@codecity/city';
+import { API } from '@/apiClient';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.
@@ -124,7 +124,7 @@ function FileTextPreview({ file, source }: FileTextPreviewProps) {
   useEffect(() => {
     setTextState({ kind: TextStateKind.Loading });
     let cancelled = false;
-    fetchFileText(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
+    API.fetchFileText(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
       (text) => {
         if (cancelled) return;
         setTextState({ kind: TextStateKind.Text, text });
@@ -322,7 +322,7 @@ function FontPreview({ file, source }: FontPreviewProps) {
     // tries to delete a face that was never added.
     let added: FontFace | null = null;
 
-    fetchFileBytes(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
+    API.fetchFileBytes(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
       async (buf) => {
         if (cancelled) return;
         const reason = fontRejectReason(buf);
@@ -425,7 +425,7 @@ function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef })
     let cancelled = false;
     let objUrl: string | null = null;
     setFp({ kind: FpStateKind.Loading });
-    fetchFingerprintBlob(source, file.path, file.modified).then(
+    API.fetchFingerprintBlob(source, file.path, file.modified).then(
       (blob) => {
         if (cancelled) return;
         objUrl = URL.createObjectURL(blob);
@@ -493,7 +493,7 @@ function _previewBody(file: FileNode | null, source: SourceRef | null) {
 
   // Scrubbed commits pin a version; Live keys on mtime, so an edited
   // image/video/pdf re-fetches instead of being served from the browser cache.
-  const url = fileUrl(source, file.path, file.modified, scrubbedBlobShaFor(file.path));
+  const url = API.fileUrl(source, file.path, file.modified, scrubbedBlobShaFor(file.path));
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {

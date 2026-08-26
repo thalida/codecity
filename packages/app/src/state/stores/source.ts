@@ -7,7 +7,6 @@ import { signal, computed, effect, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
-import { URL_PARAMS } from '@/constants/urlParams';
 import { VIEW_PARAMS } from '@/router/params';
 import { ROUTES } from '@/router/paths';
 import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/router/location';
@@ -21,6 +20,7 @@ import {
   sameSourceIdentity,
 } from '@/utils/sources';
 import type { Manifest, SourceError } from '@/types';
+import { URL_PARAMS } from '@codecity/city';
 
 // ── Currently-loaded source ──────────────────────────────────────────
 

@@ -3,11 +3,11 @@
 // white-on-transparent like the server fingerprint, and browser-native, so the
 // backend needs no decoder for either.
 
-import { fetchFileBytes } from '@/api/file';
 import type { SourceRef } from '@/types';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
+import { API } from '@/apiClient';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 
@@ -43,7 +43,7 @@ export async function renderFontGlyphFacade(
   if (!surface) return null;
   let face: FontFace | null = null;
   try {
-    const buf = await fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
+    const buf = await API.fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
     const family = `cc-facade-font-${(_fontSeq += 1)}`;
     face = await new FontFace(family, buf).load();
     document.fonts.add(face);
@@ -85,7 +85,7 @@ export async function renderWaveformFacade(
   const surface = _canvas();
   if (!audioCtx || !surface) return null;
   try {
-    const buf = await fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
+    const buf = await API.fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
     // decodeAudioData detaches its input, so hand it a copy.
     const audio = await audioCtx.decodeAudioData(buf.slice(0));
     const data = audio.getChannelData(0);

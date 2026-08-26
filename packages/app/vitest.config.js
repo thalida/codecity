@@ -13,7 +13,13 @@ export default defineConfig({
   // Mirrors vite.config.js — must stay in sync so tests resolve `@/`
   // imports the same way the dev server does.
   resolve: {
-    alias: { '@': resolve(appDir, 'src') },
+    alias: {
+      '@': resolve(appDir, 'src'),
+      // @codecity/city ships TypeScript source, not a build, for as long as the
+      // extraction is in flight (#208). Vite will not process TS inside
+      // node_modules, so resolve the workspace link to the source directly.
+      '@codecity/city': resolve(appDir, '../city/src/index.ts'),
+    },
   },
   test: {
     projects: [

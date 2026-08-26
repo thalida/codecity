@@ -14,7 +14,13 @@ export default defineConfig({
   resolve: {
     // Mirrored in tsconfig.json paths + vitest.config.js so the editor and
     // test runner resolve `@/` identically.
-    alias: { '@': resolve(appDir, 'src') },
+    alias: {
+      '@': resolve(appDir, 'src'),
+      // @codecity/city ships TypeScript source, not a build, for as long as the
+      // extraction is in flight (#208). Vite will not process TS inside
+      // node_modules, so resolve the workspace link to the source directly.
+      '@codecity/city': resolve(appDir, '../city/src/index.ts'),
+    },
   },
   build: {
     outDir: resolve(appDir, 'dist'),
