@@ -1,5 +1,5 @@
-// src/app/scripts/screenshots.mjs — headless captures of codecity rendering a repo,
-// through the debug-gated ?shot= harness (app/src/city/capture). Run via
+// packages/app/scripts/screenshots.mjs — headless captures of codecity rendering a repo,
+// through the debug-gated ?shot= harness (app/packages/city/capture). Run via
 // `just screenshots` (README images) or `just hero-image` (the landing's
 // wallpaper); both need `just dev` up in another terminal.
 
@@ -9,7 +9,7 @@ import { dirname, join, relative } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// src/app/scripts/ -> repo root -> .github/readme
+// packages/app/scripts/ -> repo root -> .github/readme
 const OUT_DIR = join(HERE, '..', '..', '..', '.github', 'readme');
 // app/scripts/ -> app/public: shipped assets, not README images.
 const PUBLIC_DIR = join(HERE, '..', 'public');

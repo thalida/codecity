@@ -2,7 +2,7 @@
 
 <div align="center">
   <h1>
-    <img src="src/app/public/gem.svg" alt="" width="32" align="center" /> codecity
+    <img src="packages/app/public/gem.svg" alt="" width="32" align="center" /> codecity
   </h1>
   <p><a href="https://codecity.io">codecity.io</a></p>
 </div>

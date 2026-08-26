@@ -27,7 +27,7 @@
     "skipLibCheck": true,
 
     // Path alias mirrored in vite.config.js + vitest.config.js. `@/`
-    // maps to src/app/src so cross-directory imports stay short and survive
+    // maps to packages/app/src so cross-directory imports stay short and survive
     // file moves. Editor + tsc resolve through `paths`; bundler +
     // tests resolve through `resolve.alias`.
     "paths": {

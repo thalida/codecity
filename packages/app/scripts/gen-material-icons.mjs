@@ -1,5 +1,5 @@
 // Regenerate src/constants/materialIcons.ts, the name→URL map of the glyphs
-// utils/fileIcons.ts can resolve to. Run from src/app/ after editing
+// utils/fileIcons.ts can resolve to. Run from packages/app/ after editing
 // src/constants/fileIconMap.ts:  node scripts/gen-material-icons.mjs
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 

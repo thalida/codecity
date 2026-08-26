@@ -10,7 +10,7 @@ services:
       context: .
     # The image ENTRYPOINT is `/srv/.venv/bin/python -m api`; this `command:`
     # supplies just the flags appended to it. Adds `--reload` so source edits
-    # under ./src/api auto-restart uvicorn, and pins the port to 8000 for dev.
+    # under ./packages/api/api auto-restart uvicorn, and pins the port to 8000 for dev.
     # `--host` repeats the Dockerfile CMD's value because this replaces CMD
     # outright: without it the CLI's loopback default would make the api
     # unreachable from the app container.
@@ -18,7 +18,7 @@ services:
     volumes:
       # Bind source for auto-reload. Read-only inside the container — host
       # owns the files.
-      - './src/api:/srv/src/api:ro'
+      - './packages/api/api:/srv/api:ro'
       # The codecity-cache named volume holds clones + manifest cache.
       - 'codecity-cache:/cache'
     init: true
@@ -48,7 +48,7 @@ services:
       # Default 5173 covers ad-hoc `docker compose up` in a single worktree.
       - '${VITE_HOST_PORT:-5173}:5173'
     volumes:
-      - './src/app:/app'
+      - './packages/app:/app'
       - '/app/node_modules' # anonymous volume — npm-installed in container
     environment:
       - VITE_API_PROXY=http://api:8000

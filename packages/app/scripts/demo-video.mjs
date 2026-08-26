@@ -1,7 +1,7 @@
-// src/app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4, a looping
+// packages/app/scripts/demo-video.mjs — regenerate .github/readme/demo.mp4, a looping
 // orbit of codecity rendering its own repo. Run via `just demo-video` (needs
 // the app served and ffmpeg); it records the debug-gated `orbit` shot between
-// its data-cc-orbit-start/done marks. Under src/app/ so `playwright` resolves.
+// its data-cc-orbit-start/done marks. Under packages/app/ so `playwright` resolves.
 
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';

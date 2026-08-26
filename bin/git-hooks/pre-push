@@ -3,11 +3,11 @@
 # Bypass with: git push --no-verify
 #
 # What runs (in this order — fail fast):
-#   1. Python tests (src/api/) — pytest
+#   1. Python tests (packages/api/) — pytest
 #   2. Python lint + format — ruff check, ruff format --check, comment cap
-#   3. Python types (src/api/) — pyright, strict
-#   4. Frontend tests (src/app/) — vitest
-#   5. Frontend lint + typecheck (src/app/)
+#   3. Python types (packages/api/) — pyright, strict
+#   4. Frontend tests (packages/app/) — vitest
+#   5. Frontend lint + typecheck (packages/app/)
 #   6. Formatting — prettier --check (whole repo, from the root)
 #   7. Generated TS types still match the Pydantic models
 #
@@ -22,30 +22,30 @@ cd "$ROOT"
 
 echo "[pre-push] running quality gate..."
 
-echo "[pre-push] 1/7  pytest (src/api/)"
+echo "[pre-push] 1/7  pytest (packages/api/)"
 docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
 
-echo "[pre-push] 2/7  ruff check + format --check (src/api/)"
+echo "[pre-push] 2/7  ruff check + format --check (packages/api/)"
 docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
 # On the host: it is stdlib-only, and running it here costs nothing.
-uv run python bin/check-comments.py src/api bin scripts
+uv run --project packages/api python bin/check-comments.py packages/api/api bin scripts
 
-echo "[pre-push] 3/7  pyright (src/api/)"
+echo "[pre-push] 3/7  pyright (packages/api/)"
 docker compose -f docker-compose.test.yml run --rm pyright >/dev/null
 
-echo "[pre-push] 4/7  vitest (src/app/)"
+echo "[pre-push] 4/7  vitest (packages/app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
 # The app's comment cap runs over what this push changes, not the whole tree:
-# that rule arrived long after its comments did. src/api/ has no such backlog,
+# that rule arrived long after its comments did. packages/api/ has no such backlog,
 # so its cap above runs over everything. Listed here (git is on the host),
 # linted in there — paths are app-relative because that is the container's cwd.
-CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'src/app/**' \
-    | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^src/app/||' | tr '\n' ' ' || true)
+CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'packages/app/**' \
+    | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^packages/app/||' | tr '\n' ' ' || true)
 
 # One container for all of it: each is seconds of work behind a slow start.
 # Same command `just lint` runs, so the gate and the recipe can't diverge.
-echo "[pre-push] 5/7  eslint + typecheck (src/app/)"
+echo "[pre-push] 5/7  eslint + typecheck (packages/app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
     sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck \

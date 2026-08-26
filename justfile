@@ -109,14 +109,15 @@ test-app:
 # the container's root. Prettier only from the root: elsewhere it resolves a
 # different version and misses .prettierignore (#165).
 fmt:
-    uv run ruff format src/api bin scripts
+    cd packages/api && uv run ruff format api
+    uv run --project packages/api ruff format --isolated bin scripts
     npx prettier --write .
 
 # Every non-test check the pre-push gate runs, in containers, so the recipe and
 # the gate can't diverge. Split api/app the way `test` is.
 lint: lint-api lint-app
 
-# ruff = lint + format check; pyright = strict types over src/api/. Both read their
+# ruff = lint + format check; pyright = strict types over the api package. Both read their
 # config from pyproject.toml; pyright's binary version is pinned in .env.
 lint-api: comment-check
     docker compose -f docker-compose.test.yml run --rm ruff
@@ -124,8 +125,8 @@ lint-api: comment-check
 
 # The `#` half of the comment cap eslint enforces on the app. Runs over the whole
 # tree, not just what a push changes: unlike the JS side, there is no backlog.
-comment-check *paths='src/api bin scripts':
-    uv run python bin/check-comments.py {{paths}}
+comment-check *paths='packages/api/api bin scripts':
+    uv run --project packages/api python bin/check-comments.py {{paths}}
 
 # manifest.contract.ts guards manifest.ts against the generated types; this
 # guards the generated types against the models they come from. Same two steps
@@ -134,9 +135,9 @@ comment-check *paths='src/api bin scripts':
 # it and this diff reports the formatting rather than the models.
 check-types-fresh:
     @mkdir -p .local
-    @uv run python scripts/gen_openapi.py > .local/openapi.generated.json
+    @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
     @docker compose -f docker-compose.test.yml run --rm gentypes \
-        || (echo "[codecity] src/app/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
+        || (echo "[codecity] packages/app/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
@@ -149,8 +150,8 @@ lint-app:
     docker compose -f docker-compose.test.yml run --rm prettier
 
 # ── Codegen ──────────────────────────────────────────────────────
-# Regenerate src/app/src/types/manifest.generated.ts from the live OpenAPI schema.
-# Single source of truth: src/api/models/*.py -> OpenAPI -> TS. Run after changing
+# Regenerate packages/app/src/types/manifest.generated.ts from the live OpenAPI schema.
+# Single source of truth: packages/api/api/models/*.py -> OpenAPI -> TS. Run after changing
 # any wire model. The drift guard (manifest.contract.ts) fails typecheck if the
 # hand-written types in manifest.ts fall out of sync with this generated file.
 # .local/openapi.generated.json is the intermediate between the two steps,
@@ -158,9 +159,9 @@ lint-app:
 # else reads it. (Not to be confused with the live /api/openapi.json route.)
 gen-types:
     @mkdir -p .local
-    @uv run python scripts/gen_openapi.py > .local/openapi.generated.json
-    @cd src/app && npx openapi-typescript ../../.local/openapi.generated.json -o src/types/manifest.generated.ts
-    @echo "[codecity] regenerated src/app/src/types/manifest.generated.ts"
+    @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
+    @cd packages/app && npx openapi-typescript ../../.local/openapi.generated.json -o src/types/manifest.generated.ts
+    @echo "[codecity] regenerated packages/app/src/types/manifest.generated.ts"
 
 # ── Build ────────────────────────────────────────────────────────
 build:
@@ -178,7 +179,7 @@ build-multiarch:
 # ── Screenshots ──────────────────────────────────────────────────
 # Regenerate the README screenshots in .github/readme/ from a headless capture
 # of codecity rendering its own repo (github.com/thalida/codecity), via the
-# debug-gated ?shot= capture harness (src/app/src/city/capture). Needs `just dev`
+# debug-gated ?shot= capture harness (packages/app/packages/city/capture). Needs `just dev`
 # running in another terminal; reads its URL from `just url`. Installs the
 # Playwright Chromium build on first run. The animated demo.mp4 has its own
 # recipe (`just demo-video`). Pass shot names to redo only those:
@@ -186,10 +187,10 @@ build-multiarch:
 screenshots *shots='':
     @URL=$(just url) ; \
      echo "[codecity] capturing README screenshots from $URL" ; \
-     cd src/app && npx playwright install chromium && \
+     cd packages/app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/screenshots.mjs {{shots}}
 
-# Regenerate src/app/public/hero-city.webp: the wallpaper the landing paints before
+# Regenerate packages/app/public/hero-city.webp: the wallpaper the landing paints before
 # (and instead of) a city. Same headless harness as `just screenshots`, its own
 # recipe so a README regen never churns a shipped asset. Captured at 1920x1080
 # with a 2x device scale, so the file covers a 4K screen, then encoded to webp
@@ -199,11 +200,11 @@ hero-image quality='82':
      command -v cwebp >/dev/null || { echo "[just] error: cwebp not found (brew install webp)" >&2 ; exit 1 ; } ; \
      URL=$(just url) ; \
      echo "[codecity] capturing the landing wallpaper from $URL" ; \
-     cd src/app && npx playwright install chromium && \
+     cd packages/app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/screenshots.mjs hero ; \
      cwebp -q {{quality}} -m 6 -quiet public/hero-city.png -o public/hero-city.webp ; \
      rm public/hero-city.png ; \
-     echo "[codecity] wrote src/app/public/hero-city.webp ($(du -h public/hero-city.webp | cut -f1), q={{quality}})"
+     echo "[codecity] wrote packages/app/public/hero-city.webp ($(du -h public/hero-city.webp | cut -f1), q={{quality}})"
 
 # Regenerate the animated .github/readme/demo.mp4: a headless orbit of codecity
 # rendering its own repo, recorded with Playwright and encoded to a small h264
@@ -212,7 +213,7 @@ hero-image quality='82':
 demo-video: && demo-webp
     @URL=$(just url) ; \
      echo "[codecity] recording demo.mp4 from $URL" ; \
-     cd src/app && npx playwright install chromium && \
+     cd packages/app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/demo-video.mjs
 
 # GitHub strips <video> from markdown, so the README embeds this webp. Not a
@@ -242,9 +243,9 @@ demo-webp quality='50' fps='12':
 # per-clone git hooks.
 setup: install-hooks
     npm install
-    cd src/app && npm install
-    cd src/city && npm install
-    cd src/client && npm install
+    cd packages/app && npm install
+    cd packages/city && npm install
+    cd packages/client && npm install
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \
          echo "[just] seeded .env.local — your mount, flags and deploy credentials live there" ; \

@@ -110,24 +110,28 @@ leaving those containers pointing at a gone network (`just dev` then fails with
 
 ## Layout
 
-Everything the product is made of lives under `src/`. `bin/`, `scripts/` and
-`.github/` are how it gets built and shipped; the split is what stops the two
-kinds from interleaving alphabetically at the repo root.
+Everything the product is made of lives under `packages/`. `bin/`, `scripts/`
+and `.github/` are how it gets built and shipped; the split is what stops the
+two kinds from interleaving alphabetically at the repo root.
 
-`src/app`, `src/city` and `src/client` are three independent npm projects, each
-with its own `package.json`, `package-lock.json` and `node_modules`. The root
-`package.json` holds prettier and nothing else, because prettier resolves its
-config from the cwd and has to run from the root (#165).
+Each package is independent: its own manifest, its own lockfile, its own
+installed dependencies. Lifting one into a repo of its own is a copy, not a
+untangling.
 
-- `src/city/` (`@codecity/city`) and `src/client/` (`@codecity/client`) — empty
-  scaffolding. `src/app/src/city/` and `src/app/src/api/` move into them over the
+- `packages/app/` (`codecity`), `packages/city/` (`@codecity/city`) and
+  `packages/client/` (`@codecity/client`) — three separate npm projects, each
+  with its own `package.json`, `package-lock.json` and `node_modules`. The root
+  `package.json` holds prettier and nothing else, because prettier resolves its
+  config from the cwd and has to run from the root (#165).
+- `packages/city/` and `packages/client/` are empty scaffolding for now.
+  `packages/app/src/city/` and `packages/app/src/api/` move into them over the
   course of [#208](https://github.com/thalida/codecity/issues/208); until then
   both hold a `src/index.ts` that exports nothing, and a temporary `@/*` alias
-  pointing back at `src/app/src/` so code can move one family at a time.
-- `src/app/` — Preact + TypeScript frontend. Two routes, one view each: `/` is the
-  landing (pick a project) and `/city?src=…` is a world. The URL is the source of
-  truth for both — `router/` owns it, and `?src`, `?mode`, `?commit` and `?sel`
-  all survive Back and Forward.
+  pointing back at `packages/app/src/` so code can move one family at a time.
+- `packages/app/` — Preact + TypeScript frontend. Two routes, one view each:
+  `/` is the landing (pick a project) and `/city?src=…` is a world. The URL is
+  the source of truth for both — `router/` owns it, and `?src`, `?mode`,
+  `?commit` and `?sel` all survive Back and Forward.
   - `src/city/` — the 3D city, a signals-driven mini-app. Layout runs in a
     worker under `src/city/layout/` (snapshot-tested — keep output identical).
   - `src/state/` — seven stores under `stores/`, each named for the question it
@@ -135,13 +139,17 @@ config from the cwd and has to run from the root (#165).
     indicators over the fields they operate on.
   - `src/components/` — grouped by what a component is, not where it appears. A
     component used by exactly one thing lives beside that thing instead.
-- `src/api/` — FastAPI backend that walks the repo and serves the manifest. Layered,
-  and imports only ever point down: `routers/` → `scan/` → `git/` and `cache/` →
-  `models/`, `core/`, `utils/`.
+- `packages/api/` — the Python project: `pyproject.toml`, `uv.lock`, and its own
+  README and LICENSE (hatchling refuses paths outside the project directory).
+  The importable package is `packages/api/api/`, because Python resolves
+  `import api` by finding a directory named `api` and the manifest has to sit
+  above the directory it names. FastAPI backend that walks the repo and serves
+  the manifest. Layered, and imports only ever point down: `routers/` →
+  `scan/` → `git/` and `cache/` → `models/`, `core/`, `utils/`.
   - `routers/` — the whole HTTP surface, one module per route family. `sse.py`
     is the streaming plumbing the two SSE routes share, not a route.
   - `git/`, `scan/` and `cache/` each curate a barrel in `__init__`.
-    `src/api/tests/test_package_boundaries.py` fails if anything reaches past one.
+    `api/tests/test_package_boundaries.py` fails if anything reaches past one.
   - `models/` — Pydantic, and the only definition of each shape. The scanner
     builds these directly, so there is no second copy to drift from.
   - `core/` is codecity-specific (config, security, progress); `utils/` is the

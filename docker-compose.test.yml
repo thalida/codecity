@@ -24,7 +24,7 @@ services:
     entrypoint:
       ['sh', '-c', 'uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v "$@"', '--']
     environment:
-      # A couple of tests in src/api/tests/test_scan.py shell out to `git commit`
+      # A couple of tests in packages/api/api/tests/test_scan.py shell out to `git commit`
       # to test cache invalidation. On a developer's host this works via
       # ~/.gitconfig; in a fresh container there's no identity. Provide one.
       - GIT_AUTHOR_NAME=Test Runner
@@ -32,14 +32,14 @@ services:
       - GIT_COMMITTER_NAME=Test Runner
       - GIT_COMMITTER_EMAIL=test@codecity.local
     volumes:
-      # `./src/api` is read-write (not :ro) because several tests in
-      # src/api/tests/test_scan.py mutate its fixtures/sample-repo/ (writing
+      # `./packages/api/api` is read-write (not :ro) because several tests in
+      # its tests/test_scan.py mutate tests/fixtures/sample-repo/ (writing
       # cache-bust files, modifying tracked files to test stat-cache
       # invalidation). They clean up via addCleanup, but they need write
       # access. The manifests are read-only — they never change at runtime.
-      - './src/api:/srv/src/api'
-      - './uv.lock:/srv/uv.lock:ro'
-      - './pyproject.toml:/srv/pyproject.toml:ro'
+      - './packages/api/api:/srv/api'
+      - './packages/api/uv.lock:/srv/uv.lock:ro'
+      - './packages/api/pyproject.toml:/srv/pyproject.toml:ro'
 
   # Python's `npm run lint` + `prettier --check` in one service: `ruff check`
   # is the linter, `ruff format --check` the formatter. Lint first so a real
@@ -56,17 +56,20 @@ services:
       [
         'sh',
         '-c',
-        'uv sync --frozen && /srv/.venv/bin/ruff check src/api bin scripts && exec /srv/.venv/bin/ruff format --check src/api bin scripts "$@"',
+        'uv sync --frozen && /srv/.venv/bin/ruff check api && /srv/.venv/bin/ruff check --isolated /work/bin /work/scripts && /srv/.venv/bin/ruff format --check api && exec /srv/.venv/bin/ruff format --isolated --check /work/bin /work/scripts "$@"',
         '--',
       ]
     volumes:
-      - './src/api:/srv/src/api:ro'
-      - './bin:/srv/bin:ro'
-      - './scripts:/srv/scripts:ro'
-      - './uv.lock:/srv/uv.lock:ro'
-      - './pyproject.toml:/srv/pyproject.toml:ro'
+      - './packages/api/api:/srv/api:ro'
+      # bin/ and scripts/ sit ABOVE the api project, so they get stock ruff
+      # (--isolated below). Mounted outside /srv so config resolution matches
+      # the host, where no pyproject sits above them either.
+      - './bin:/work/bin:ro'
+      - './scripts:/work/scripts:ro'
+      - './packages/api/uv.lock:/srv/uv.lock:ro'
+      - './packages/api/pyproject.toml:/srv/pyproject.toml:ro'
 
-  # Python's `npm run typecheck`. pyproject.toml sets strict mode over src/api/.
+  # Python's `npm run typecheck`. pyproject.toml sets strict mode over the package.
   #
   # Run as `python -m pyright` from the synced venv (like the pytest service)
   # so pyright resolves fastapi/pydantic from that venv rather than guessing an
@@ -97,9 +100,9 @@ services:
     environment:
       - PYRIGHT_PYTHON_FORCE_VERSION=${PYRIGHT_VERSION:-1.1.409}
     volumes:
-      - './src/api:/srv/src/api:ro'
-      - './uv.lock:/srv/uv.lock:ro'
-      - './pyproject.toml:/srv/pyproject.toml:ro'
+      - './packages/api/api:/srv/api:ro'
+      - './packages/api/uv.lock:/srv/uv.lock:ro'
+      - './packages/api/pyproject.toml:/srv/pyproject.toml:ro'
       - 'codecity-test-pyright-cache:/root/.cache/pyright-python'
 
   # Regenerates the TS types from a schema `just gen-types` already wrote to
@@ -107,13 +110,13 @@ services:
   # and the repo root together, which neither vitest nor prettier mounts.
   gentypes:
     image: node:24-bookworm-slim
-    working_dir: /repo/src/app
+    working_dir: /repo/packages/app
     init: true
     command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
     volumes:
       - '.:/repo'
       - '/repo/node_modules'
-      - '/repo/src/app/node_modules'
+      - '/repo/packages/app/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   prettier:
@@ -125,7 +128,7 @@ services:
       # Not :ro — same fresh-clone mountpoint problem as vitest. Check never writes.
       - '.:/repo'
       - '/repo/node_modules'
-      - '/repo/src/app/node_modules'
+      - '/repo/packages/app/node_modules'
       - 'codecity-test-npm-cache:/root/.npm'
 
   vitest:
@@ -152,7 +155,7 @@ services:
       # read-only parent mount on a fresh checkout (no existing node_modules
       # dir to overlay on). Vitest tests are pure-functional and don't write
       # to source.
-      - './src/app:/app'
+      - './packages/app:/app'
       - '/app/node_modules' # anonymous volume — npm-installed in container
       - 'codecity-test-npm-cache:/root/.npm' # persist npm + prebuild-install cache
       - 'codecity-test-node-cache:/root/.cache' # prebuild-install may cache here too

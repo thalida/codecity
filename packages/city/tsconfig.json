@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
 
-    // strictNullChecks only, matching src/app — the other two are pending there
+    // strictNullChecks only, matching packages/app — the other two are pending there
     // (#186) and the packages are not going to be stricter than the code moving
     // into them.
     "strict": false,
@@ -26,7 +26,7 @@
     // Temporary, and the load-bearing piece of the extraction (#208): code
     // moved in here keeps resolving its `@/` imports against the app while
     // those imports are removed one family at a time. Deleted once
-    // `grep "@/" src/client/src` comes back empty.
+    // `grep "@/" packages/city/src` comes back empty.
     "paths": {
       "@/*": ["../app/src/*"]
     }

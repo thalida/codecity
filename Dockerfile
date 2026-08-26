@@ -14,12 +14,12 @@ RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build
 # .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
 # vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
-COPY src/app/package.json src/app/package-lock.json src/app/.npmrc ./src/app/
+COPY packages/app/package.json packages/app/package-lock.json packages/app/.npmrc ./
 RUN --mount=type=cache,target=/root/.npm \
-    cd src/app && npm ci --no-audit --no-fund
-COPY src/app/ ./src/app/
-RUN cd src/app && npm run build
-# Output: /build/src/app/dist/
+    npm ci --no-audit --no-fund
+COPY packages/app/ ./
+RUN npm run build
+# Output: /build/dist/
 
 # ─────── Stage 2: runtime ───────
 FROM python:3.13-slim AS runtime
@@ -56,18 +56,19 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /srv
 
 # Lockfile-first layering: a source change won't bust the dep install layer.
-# README.md + LICENSE are referenced by pyproject.toml and validated at
-# wheel-build time by hatchling — copy them alongside the manifests.
-COPY pyproject.toml uv.lock README.md LICENSE ./
+# packages/api has its own README.md + LICENSE because hatchling refuses
+# paths outside the project dir, and pyproject.toml references both —
+# validated at wheel-build time. Copy them alongside the manifests.
+COPY packages/api/pyproject.toml packages/api/uv.lock packages/api/README.md packages/api/LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
 # Python source
-COPY src/api/ ./src/api/
+COPY packages/api/api/ ./api/
 
-# Built frontend → /srv/src/api/static (matches api/app.py DEFAULT_STATIC_DIR
+# Built frontend → /srv/api/static (matches api/app.py DEFAULT_STATIC_DIR
 # resolution: Path(__file__).resolve().parent / "static"). No env var needed.
-COPY --from=web-builder /build/src/app/dist /srv/src/api/static
+COPY --from=web-builder /build/dist /srv/api/static
 
 # pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
 # but .dockerignore excludes .git to keep the build context small. Feed the
@@ -98,7 +99,7 @@ HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
 # script into /srv/.venv/bin (read-only for the non-root runtime user).
 # Zombie reaping + signal propagation are handled by Docker's --init.
 # `python -m api` launches a single uvicorn process (api.app:app) — single
-# process by design, see src/api/core/security.py (the allowed_roots trust set is
+# process by design, see packages/api/api/core/security.py (the allowed_roots trust set is
 # in-memory; multi-worker would split it).
 ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
 # --host is explicit because the CLI defaults to loopback (an unauthenticated

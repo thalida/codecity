@@ -47,21 +47,21 @@ jobs:
 
       - name: Run pytest with coverage
         # pyproject.toml's pytest addopts already include
-        # `--cov=src/api --cov-report=term --cov-fail-under=80`. The extra
-        # `--cov-report=xml:/srv/src/api/coverage.xml` lands the XML report
-        # inside the mounted `./src/api` dir so it's visible on the host for
-        # artifact upload (the compose service only mounts ./src/api, uv.lock,
+        # `--cov=api --cov-report=term --cov-fail-under=80`. The extra
+        # `--cov-report=xml:/srv/api/coverage.xml` lands the XML report
+        # inside the mounted `./packages/api/api` dir so it's visible on the host for
+        # artifact upload (the compose service only mounts ./packages/api/api, uv.lock,
         # and pyproject.toml — not the repo root).
         run: |
           docker compose -f docker-compose.test.yml run --rm pytest \
-            --cov-report=xml:/srv/src/api/coverage.xml
+            --cov-report=xml:/srv/api/coverage.xml
 
       - name: Python lint + format check (ruff)
         run: docker compose -f docker-compose.test.yml run --rm ruff
 
       # Stdlib-only, so it runs on the runner rather than paying for a container.
       - name: Python comment cap
-        run: python3 bin/check-comments.py src/api bin scripts
+        run: python3 bin/check-comments.py packages/api/api bin scripts
 
       # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
       # automatically — no `env:` mirror needed here, unlike NPM_VERSION
@@ -72,8 +72,8 @@ jobs:
       - name: Run vitest with coverage
         # Override the default compose command (which runs `npm test`) to
         # run `npm run coverage` instead. Same apt-get / npm bootstrap as
-        # the compose service. Output lands in src/app/coverage/ on the host
-        # via the ./src/app:/app bind mount.
+        # the compose service. Output lands in packages/app/coverage/ on the host
+        # via the ./packages/app:/app bind mount.
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
             sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pytest-coverage
-          path: src/api/coverage.xml
+          path: packages/api/api/coverage.xml
           if-no-files-found: warn
 
       - name: Upload vitest coverage report
@@ -91,7 +91,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
-          path: src/app/coverage/
+          path: packages/app/coverage/
           if-no-files-found: warn
 
       - name: Lint + typecheck
