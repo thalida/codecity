@@ -4,7 +4,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig, CameraMode, FocusMode, type CameraRig } from '@/city/render/cameraRig';
+import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
+import { BACKDROP_CAMERA, CameraTarget } from '@/city/settings/fields/camera';
 import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import type { CityState } from '@/city/state';
 import { Building, BuildingOrient } from '@/city/types/building';
@@ -314,16 +315,15 @@ describe('cameraRig recenter focus', () => {
   });
 });
 
-describe('cameraRig home backdrop orbit', () => {
-  // Every rig registers effects on the HOME_BACKDROP store, so a leaked one would
-  // keep answering the next test's slider writes.
+describe('cameraRig gem orbit', () => {
+  // Every rig registers effects on the CAMERA store, so a leaked one would keep
+  // answering the next test's slider writes.
   const rigs: CameraRig[] = [];
-  function makeRig(cityState: CityState, mode = CameraMode.Backdrop): CameraRig {
+  function makeRig(cityState: CityState): CameraRig {
     const rig = createCameraRig({
       canvas: makeCanvas(),
       deps: makeStubWorld(),
       cityState,
-      mode,
       settings: SETTINGS.signals,
     });
     rigs.push(rig);
@@ -331,7 +331,8 @@ describe('cameraRig home backdrop orbit', () => {
   }
 
   beforeEach(() => {
-    SETTINGS = settingsStore();
+    // A camera framing the gem: what the landing's wallpaper opens with.
+    SETTINGS = settingsStore({ CAMERA: BACKDROP_CAMERA });
   });
   afterEach(() => {
     while (rigs.length) rigs.pop()?.dispose();
@@ -342,7 +343,7 @@ describe('cameraRig home backdrop orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     const at = (t: number): number => {
-      SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 12, DISTANCE: t } });
+      SETTINGS.update({ CAMERA: { ELEVATION: 12, DISTANCE_SCALE: t } });
       return rig.camera.position.distanceTo(gem);
     };
 
@@ -361,7 +362,7 @@ describe('cameraRig home backdrop orbit', () => {
   it('puts a value at the same distance whatever the city sprawls to', () => {
     const at = (cs: CityState, t: number): number => {
       const rig = makeRig(cs);
-      SETTINGS.update({ HOME_BACKDROP: { DISTANCE: t } });
+      SETTINGS.update({ CAMERA: { DISTANCE_SCALE: t } });
       return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
     };
     // Same root street, wildly different sprawl: 20x the depth behind the gem.
@@ -375,7 +376,7 @@ describe('cameraRig home backdrop orbit', () => {
   it('is as close as the camera may ever sit at 0', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
-    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 0 } });
+    SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 0 } });
 
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(rig.controls.minDistance, 6);
@@ -388,25 +389,25 @@ describe('cameraRig home backdrop orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
 
-    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 1 } });
+    SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 1 } });
     const framed = rig.camera.position.distanceTo(gem);
 
-    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 2 } });
+    SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 2 } });
     const pulledBack = rig.camera.position.distanceTo(gem);
 
     expect(pulledBack).toBeGreaterThan(framed);
     expect(pulledBack).toBeLessThanOrEqual(rig.controls.maxDistance + 1e-6);
   });
 
-  // The bug the mode exists to kill: a pose snapped in before the first frame
+  // The bug TARGET exists to kill: a pose snapped in before the first frame
   // used to be overwritten by the still-pending opening framing a tick later.
   it('opens on the orbit, and every re-frame keeps it there', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
-    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 8, AZIMUTH: 120, DISTANCE: 1.6 } });
+    SETTINGS.update({ CAMERA: { ELEVATION: 8, AZIMUTH: 120, DISTANCE_SCALE: 1.6 } });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     // Held still, so anything that moves across a frame is a framing, not the orbit.
-    rig.setMode(CameraMode.Backdrop, { autoRotate: false });
+    rig.setAutoRotate(false);
     const placed = rig.camera.position.clone();
 
     rig.update(16);
@@ -424,29 +425,58 @@ describe('cameraRig home backdrop orbit', () => {
     const gem = cs.gemWorldPos.value as THREE.Vector3;
 
     const before = rig.camera.position.distanceTo(gem);
-    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 45, DISTANCE: 0.25 } });
+    SETTINGS.update({ CAMERA: { ELEVATION: 45, DISTANCE_SCALE: 0.25 } });
 
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
     expect(rig.camera.position.distanceTo(gem)).toBeLessThan(before);
   });
 
-  it('leaves a project camera alone when a backdrop slider moves', () => {
+  // Two cities on one page hold two cameras, so a wallpaper slider must not
+  // reach the project the reader is looking at. Same fields, separate values.
+  it('leaves the other city alone when this one is re-framed', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
-    const rig = makeRig(cs, CameraMode.Project);
-    rig.update(16); // the opening framing, the pose the user is actually sitting at
-    const opened = rig.camera.position.clone();
+    const scene = settingsStore();
+    const sceneRig = createCameraRig({
+      canvas: makeCanvas(),
+      deps: makeStubWorld(),
+      cityState: cs,
+      settings: scene.signals,
+    });
+    rigs.push(sceneRig);
+    sceneRig.update(16); // the opening framing, where the reader is sitting
+    const opened = sceneRig.camera.position.clone();
 
-    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 45, DISTANCE: 1.2 } });
-    expect(rig.camera.position.distanceTo(opened)).toBeLessThan(1e-6);
+    // The wallpaper's own camera, dragged the whole way across its range.
+    SETTINGS.update({ CAMERA: { ELEVATION: 70, AZIMUTH: -120, DISTANCE_SCALE: 0.4 } });
 
-    // …and again once a rig that WAS a backdrop has gone back to its project.
-    rig.setMode(CameraMode.Backdrop);
-    rig.setMode(CameraMode.Project);
+    expect(sceneRig.camera.position.distanceTo(opened)).toBeLessThan(1e-6);
+    expect(sceneRig.controls.autoRotate).toBe(false);
+  });
+
+  it('frames the whole city, not the gem, when TARGET says so', () => {
+    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+    const rig = makeRig(cs);
+    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const orbiting = rig.camera.position.distanceTo(gem);
+
+    SETTINGS.update({ CAMERA: { TARGET: CameraTarget.City } });
+
+    // The city fits itself: DISTANCE_SCALE stops applying, so the camera moves.
+    expect(rig.camera.position.distanceTo(gem)).not.toBeCloseTo(orbiting, 3);
+    const framed = rig.camera.position.clone();
+    SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 2 } });
+    expect(rig.camera.position.distanceTo(framed)).toBeLessThan(1e-6);
+  });
+
+  it('AUTO_ROTATE off holds the view still, and back on turns it again', () => {
+    const rig = makeRig(seedFramedCity({ xLength: 6000, zLength: 6000 }));
+    expect(rig.controls.autoRotate).toBe(true);
+
+    SETTINGS.update({ CAMERA: { AUTO_ROTATE: false } });
     expect(rig.controls.autoRotate).toBe(false);
-    const afterExit = rig.camera.position.clone();
 
-    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 70, DISTANCE: 0.4 } });
-    expect(rig.camera.position.distanceTo(afterExit)).toBeLessThan(1e-6);
+    SETTINGS.update({ CAMERA: { AUTO_ROTATE: true } });
+    expect(rig.controls.autoRotate).toBe(true);
   });
 
   it('applies rotation speed without yanking the orbit back to its start', () => {
@@ -457,7 +487,7 @@ describe('cameraRig home backdrop orbit', () => {
     rig.camera.position.set(0, 100, 500);
     const spun = rig.camera.position.clone();
 
-    SETTINGS.update({ HOME_BACKDROP: { ROTATE_SPEED: 2.5 } });
+    SETTINGS.update({ CAMERA: { ROTATE_SPEED: 2.5 } });
 
     expect(rig.controls.autoRotateSpeed).toBe(2.5);
     expect(rig.controls.autoRotate).toBe(true);

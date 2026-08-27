@@ -10,7 +10,6 @@ import { RAINBOW_FIELDS, BLOOM_FIELDS } from './fields/effects';
 import { FIREFLIES_FIELDS } from './fields/fireflies';
 import { FOOTPRINT_FIELDS } from './fields/footprint';
 import { GEM_FIELDS, GEM_SIZING_FIELDS, REPO_LABEL_FIELDS } from './fields/gem';
-import { HOME_BACKDROP_FIELDS } from './fields/homeBackdrop';
 import { ISLAND_FIELDS, WORLD_FIELDS } from './fields/island';
 import { RUINS_FIELDS } from './fields/ruins';
 import { SCENE_FIELDS } from './fields/scene';
@@ -29,7 +28,6 @@ export const CITY_FIELDS = {
   FOOTPRINT: FOOTPRINT_FIELDS,
   GEM: GEM_FIELDS,
   GEM_SIZING: GEM_SIZING_FIELDS,
-  HOME_BACKDROP: HOME_BACKDROP_FIELDS,
   ISLAND: ISLAND_FIELDS,
   RAINBOW: RAINBOW_FIELDS,
   REPO_LABEL: REPO_LABEL_FIELDS,

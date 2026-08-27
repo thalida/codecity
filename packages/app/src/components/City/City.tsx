@@ -7,9 +7,8 @@ import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@codecity/city';
-import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { CITY_SETTINGS } from '@/state/settings/cityValues';
+import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/cityValues';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/progress';
@@ -42,11 +41,12 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     let unsubSettings: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
-    // Start empty; the apply-effect below paints the first manifest. The variant
-    // is also what the camera is FOR, so the rig opens on the right pose itself.
-    createCity(canvas, {
-      cameraMode: variant === CityVariant.Backdrop ? CameraMode.Backdrop : CameraMode.Project,
-    })
+    // Which of the app's two cameras this city gets. A backdrop orbits the gem
+    // and turns; a scene fits the whole project. Both are the same fields.
+    const settings = variant === CityVariant.Backdrop ? BACKDROP_SETTINGS : CITY_SETTINGS;
+
+    // Start empty; the apply-effect below paints the first manifest.
+    createCity(canvas, { settings: settings.peek() })
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).
@@ -58,7 +58,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // The app holds the values and persists them; the instance holds its
         // own resolved copy. Pushed, never shared: two cities on one page can
         // hold different settings, and neither reads a global.
-        unsubSettings = effect(() => handle.updateSettings(CITY_SETTINGS.value));
+        unsubSettings = effect(() => handle.updateSettings(settings.value));
         // Published to its own slot: the two variants are independent cities.
         if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
         else BACKDROP_HANDLE.value = handle;

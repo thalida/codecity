@@ -30,7 +30,6 @@ export const CITY_SETTINGS = computed<CitySettings>(() => ({
   FOOTPRINT: FOOTPRINT.value,
   GEM: GEM.value,
   GEM_SIZING: GEM_SIZING.value,
-  HOME_BACKDROP: HOME_BACKDROP.value,
   ISLAND: ISLAND.value,
   RAINBOW: RAINBOW.value,
   REPO_LABEL: REPO_LABEL.value,
@@ -42,4 +41,12 @@ export const CITY_SETTINGS = computed<CitySettings>(() => ({
   STREET_TIERS: STREET_TIERS.value,
   TREES: TREES.value,
   WORLD: WORLD.value,
+}));
+
+/** The same settings with the landing wallpaper's own camera over the top. Two
+ *  cities on the page, two cameras: the package declares one camera vocabulary,
+ *  and the app keeps a set of values per city it mounts. */
+export const BACKDROP_SETTINGS = computed<CitySettings>(() => ({
+  ...CITY_SETTINGS.value,
+  CAMERA: HOME_BACKDROP.value,
 }));

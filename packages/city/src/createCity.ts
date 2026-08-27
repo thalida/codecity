@@ -39,7 +39,7 @@ import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
 import type { City, SceneComponent, SceneContext } from './types';
-import { createCameraRig, CameraMode } from './render/cameraRig';
+import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
@@ -49,10 +49,7 @@ import type { Manifest, RangeStat } from '@/city/types/manifest';
 
 export async function createCity(
   canvas: HTMLCanvasElement,
-  {
-    cameraMode = CameraMode.Project,
-    settings: initialSettings,
-  }: { cameraMode?: CameraMode; settings?: CitySettingsPatch } = {}
+  { settings: initialSettings }: { settings?: CitySettingsPatch } = {}
 ): Promise<City> {
   // Before anything that reads a setting: the material, the state pipeline and
   // every component resolve their values off this one instance's store.
@@ -137,7 +134,6 @@ export async function createCity(
     canvas,
     cityState,
     settings,
-    mode: cameraMode,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
       // the first tick, and framing that waits frames a different city (#62).

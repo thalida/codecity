@@ -4,7 +4,7 @@
 // in live before the numbers are baked in. Debug-only.
 
 import type { SceneHandle } from '@/city/sceneHandle';
-import { CameraMode } from '@/city/render/cameraRig';
+import { BACKDROP_CAMERA } from '@/city/settings/fields/camera';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 import { DirNode, Manifest, NodeKind } from '@/city/types/manifest';
@@ -102,9 +102,11 @@ export const SHOTS: Record<string, ShotPose> = {
   // pose: the landing swaps this image for a live backdrop city.
   hero: (handle) => {
     if (!handle.rig.captureAnchors().gem) return false; // no city yet
+    handle.updateSettings({ CAMERA: BACKDROP_CAMERA });
     // Still: a capture wants the frame the turntable opens on, not wherever a
-    // spin happened to be when the shutter fell.
-    handle.rig.setMode(CameraMode.Backdrop, { autoRotate: false });
+    // spin happened to be when the shutter fell. Not a settings write — the
+    // reader never asked for a still wallpaper, this one frame did.
+    handle.rig.setAutoRotate(false);
   },
 
   // The city part-built, at the defaults. The load is async, so this returns

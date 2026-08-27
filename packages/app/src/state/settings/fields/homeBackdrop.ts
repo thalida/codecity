@@ -1,6 +1,7 @@
-// The city declares these fields; the app owns their values, their
-// persistence and the signals the panel binds to.
+// The landing's wallpaper city is a second city, so it holds a second camera.
+// Same fields the scene's camera declares, opening on the backdrop's values:
+// the package has one camera vocabulary, and the app keeps a set per city.
 import { settingSignal } from '@/state/settings/schema';
-import { HOME_BACKDROP_FIELDS } from '@/city/settings/fields/homeBackdrop';
+import { BACKDROP_CAMERA_FIELDS } from '@/city/settings/fields/camera';
 
-export const HOME_BACKDROP = settingSignal('HOME_BACKDROP', HOME_BACKDROP_FIELDS);
+export const HOME_BACKDROP = settingSignal('HOME_BACKDROP', BACKDROP_CAMERA_FIELDS);

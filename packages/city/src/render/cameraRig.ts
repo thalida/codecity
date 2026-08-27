@@ -1,7 +1,7 @@
 // city/render/cameraRig.ts — the perspective camera, OrbitControls, the opening
-// pose, and the focus/reset animations. The rig knows what it is FOR: a project
-// opens at the gem framing, a backdrop at its turntable, and reset() puts
-// either back. The pose is never persisted; every load opens at its mode's.
+// pose, and the focus/reset animations. What the camera is for is a setting,
+// not a mode: CAMERA.TARGET picks between fitting the city and orbiting the
+// gem, and reset() puts either back. The pose itself is never persisted.
 
 import * as THREE from 'three';
 import { computed, effect, untracked } from '@preact/signals';
@@ -20,6 +20,7 @@ import {
   CAMERA_EASING_POWER,
 } from '@/city/constants/camera';
 import type { CityState } from '@/city/state';
+import { CameraTarget } from '@/city/settings/fields/camera';
 import { computeFramingDir } from './framingDir';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { backdropRadius } from './backdropRadius';
@@ -37,16 +38,6 @@ export enum FocusMode {
   /** Slide the node under the crosshair, leaving elevation, azimuth and distance
    *  exactly where they were: what a selection the page opened with gets. */
   Recenter = 'recenter',
-}
-
-/** What the camera is FOR. The opening pose, what reset() returns to, and which
- *  settings section steers the camera all follow from this. */
-export enum CameraMode {
-  /** The opened project: framed on the root gem, off the user's Project view. */
-  Project = 'project',
-  /** Wallpaper behind the landing: a turntable circling the gem, off Home
-   *  backdrop. Spins unless the user asked for less motion. */
-  Backdrop = 'backdrop',
 }
 
 /** Where a mode's opening pose puts the camera, and what it looks at. */
@@ -94,31 +85,23 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
-/** Only a backdrop spins, and only when the caller hasn't asked for a still
- *  frame (the wallpaper capture) or the user for less motion. */
-function _autoRotateFor(mode: CameraMode, wanted?: boolean): boolean {
-  return mode === CameraMode.Backdrop && (wanted ?? !prefersReducedMotion());
-}
-
 export function createCameraRig({
   canvas,
   deps,
   cityState,
   settings,
-  mode: initialMode = CameraMode.Project,
 }: {
   canvas: HTMLCanvasElement;
   deps: CameraRigDeps;
   cityState: CityState;
   settings: SettingSignals;
-  mode?: CameraMode;
 }) {
-  // The backdrop fields that PLACE the camera. Rotation speed is out: dragging
-  // it mid-spin should change the speed, not yank the orbit back to its start
-  // azimuth. Per rig, so a second city's backdrop pose is its own.
-  const backdropPose = computed(() => {
-    const s = settings.HOME_BACKDROP.value;
-    return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
+  // The fields that PLACE the camera. Rotation speed and the toggle are out:
+  // changing either mid-spin should do what it says, not yank the orbit back to
+  // its start azimuth. Per rig, so a second city's pose is its own.
+  const cameraPose = computed(() => {
+    const s = settings.CAMERA.value;
+    return `${s.TARGET}|${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE_SCALE}`;
   });
 
   const W = canvas.clientWidth;
@@ -143,8 +126,6 @@ export function createCameraRig({
     RIGHT: THREE.MOUSE.PAN,
   };
 
-  let mode = initialMode;
-  controls.autoRotate = _autoRotateFor(mode);
   // The opening pose lands on the first frame with a city to frame; after that
   // the camera is the user's (or the turntable's) until something resets it.
   let opened = false;
@@ -289,13 +270,11 @@ export function createCameraRig({
     untracked(_captureFraming);
   });
 
-  // A saved angle re-frames the project it steers: reset() reads it and snaps.
-  // On construction the bbox is empty, so this no-ops.
-  const _disposeCameraAngleEffect = effect(() => {
-    void settings.CAMERA.value;
-    untracked(() => {
-      if (mode === CameraMode.Project) reset();
-    });
+  // A saved angle re-frames the city it steers, running or not: reset() reads
+  // it and snaps. On construction the bbox is empty, so this no-ops.
+  const _disposeCameraPoseEffect = effect(() => {
+    void cameraPose.value;
+    untracked(reset);
   });
 
   function update(_dtMs: number): void {
@@ -333,16 +312,16 @@ export function createCameraRig({
     // Recapture every call: the final manifest is a reuse apply, so the bbox
     // effect never fires for it and a cached pose would be stale.
     if (!_captureFraming()) return false;
-    const pose = mode === CameraMode.Backdrop ? _backdropPose() : _projectPose();
+    const pose = settings.CAMERA.peek().TARGET === CameraTarget.Gem ? _gemPose() : _cityPose();
     if (!pose) return false;
     _snapTo(pose.target, pose.camPos, WORLD_UP);
     opened = true;
     return true;
   }
 
-  /** Framed on the root gem at the user's Project view angle: what _captureFraming
-   *  just worked out. */
-  function _projectPose(): CameraPlacement | null {
+  /** The whole city in frame at the configured angle: what _captureFraming just
+   *  worked out. */
+  function _cityPose(): CameraPlacement | null {
     if (!initialCamPos || !initialTarget) return null;
     return { target: initialTarget.clone(), camPos: initialCamPos.clone() };
   }
@@ -573,8 +552,8 @@ export function createCameraRig({
     return (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
   }
 
-  /** Where the backdrop orbit sits, in units of that framing distance. */
-  function _backdropRadius(distance: number): number {
+  /** Where the gem orbit sits, in units of that framing distance. */
+  function _orbitRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
     return backdropRadius(distance, controls, {
       gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, settings.GEM_SIZING.value) : null,
@@ -583,52 +562,43 @@ export function createCameraRig({
     });
   }
 
-  /** A ground-level orbit circling the root gem, sized from the city's own
-   *  geometry so every project is framed in proportion. */
-  function _backdropPose(): CameraPlacement | null {
+  /** An orbit circling the root gem, sized from the city's own geometry so
+   *  every project is framed in proportion. */
+  function _gemPose(): CameraPlacement | null {
     const gem = cityState.gemWorldPos.value;
     if (!gem) return null;
-    const backdrop = settings.HOME_BACKDROP.value;
+    const cam = settings.CAMERA.peek();
     const dir = computeFramingDir(
-      backdrop.ELEVATION,
-      backdrop.AZIMUTH,
+      cam.ELEVATION,
+      cam.AZIMUTH,
       cityState.rootStreet.value?.orientation ?? null
     );
     const target = gem.clone();
     return {
       target,
-      camPos: target.clone().addScaledVector(dir, _backdropRadius(backdrop.DISTANCE)),
+      camPos: target.clone().addScaledVector(dir, _orbitRadius(cam.DISTANCE_SCALE)),
     };
   }
 
-  /** Swap what the camera is for, opening on the new mode at once: the wallpaper
-   *  capture drives a project rig into a still backdrop with no frame to wait. */
-  function setMode(next: CameraMode, opts: { autoRotate?: boolean } = {}): void {
-    mode = next;
-    controls.autoRotate = _autoRotateFor(next, opts.autoRotate);
-    reset();
+  /** Hold the view still without touching the setting: the wallpaper capture
+   *  wants one frame of a turntable, not a user who no longer wants it to spin. */
+  function setAutoRotate(on: boolean): void {
+    controls.autoRotate = on;
   }
 
-  // Saving a Home backdrop draft re-frames a running turntable in place, so the
-  // wallpaper reflects the new pose without a reload.
-  const _disposeBackdropPoseEffect = effect(() => {
-    void backdropPose.value;
-    untracked(() => {
-      if (mode === CameraMode.Backdrop) reset();
-    });
-  });
-
-  // Sole writer of autoRotateSpeed: runs on construction and on every change, so
-  // no mode swap has to set it.
-  const _disposeBackdropSpeedEffect = effect(() => {
-    controls.autoRotateSpeed = settings.HOME_BACKDROP.value.ROTATE_SPEED;
+  // Sole writer of controls.autoRotate and its speed: runs on construction and
+  // on every change. A spin is exactly the motion reduced-motion asks us to
+  // drop, so the setting means "spin unless the reader asked us not to".
+  const _disposeRotationEffect = effect(() => {
+    const cam = settings.CAMERA.value;
+    controls.autoRotate = cam.AUTO_ROTATE && !prefersReducedMotion();
+    controls.autoRotateSpeed = cam.ROTATE_SPEED;
   });
 
   function dispose() {
     _disposeReframeEffect();
-    _disposeCameraAngleEffect();
-    _disposeBackdropPoseEffect();
-    _disposeBackdropSpeedEffect();
+    _disposeCameraPoseEffect();
+    _disposeRotationEffect();
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 
@@ -642,7 +612,7 @@ export function createCameraRig({
     captureAnchors,
     treeAnchor,
     streetAnchor,
-    setMode,
+    setAutoRotate,
     dispose,
   };
 }

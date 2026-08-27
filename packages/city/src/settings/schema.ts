@@ -91,3 +91,14 @@ export function defaultsOf<F extends FieldMap>(fields: F): ConfigOf<F> {
   for (const k in fields) out[k] = fields[k].default;
   return out as ConfigOf<F>;
 }
+
+/** The same fields at different stock values. What a preset IS: not a second
+ *  vocabulary, just another starting point in the first one. */
+export function withDefaults<F extends FieldMap>(fields: F, over: Partial<ConfigOf<F>>): F {
+  const out = {} as Record<string, FieldDef>;
+  for (const k in fields) {
+    const next = (over as Record<string, unknown>)[k];
+    out[k] = next === undefined ? fields[k] : { ...fields[k], default: next };
+  }
+  return out as F;
+}

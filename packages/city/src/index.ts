@@ -62,7 +62,6 @@ export * from './settings/fields/effects';
 export * from './settings/fields/fireflies';
 export * from './settings/fields/footprint';
 export * from './settings/fields/gem';
-export * from './settings/fields/homeBackdrop';
 export * from './settings/fields/island';
 export * from './settings/fields/ruins';
 export * from './settings/fields/scene';
