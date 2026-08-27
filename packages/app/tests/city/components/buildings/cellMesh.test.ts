@@ -18,6 +18,9 @@ import type { IconAtlas } from '@/city/components/buildings/atlas';
 import { building } from '../../../_helpers/buildingFixture';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import type { FileNode } from '@/city/types/manifest';
+import { settingSignals } from '../../../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
 
 const _res = createTestCityResources();
 
@@ -85,7 +88,7 @@ describe('cellMesh factory', () => {
     attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 5, y: 7, h: 4, slotId: 3 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const matrix = new THREE.Matrix4();
     cell.detailMesh.getMatrixAt(3, matrix);
@@ -101,7 +104,7 @@ describe('cellMesh factory', () => {
     attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, w: 3, d: 4, h: 6, slotId: 0 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const matrix = new THREE.Matrix4();
     cell.detailMesh.getMatrixAt(0, matrix);
@@ -118,7 +121,7 @@ describe('cellMesh factory', () => {
     attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 1 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const fadeAttr = cell.detailMesh.geometry.getAttribute(
       'iFade'
@@ -134,7 +137,7 @@ describe('cellMesh factory', () => {
     attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 2 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
       'iIconUV'
@@ -159,7 +162,7 @@ describe('cellMesh factory', () => {
     _res.buildings.setIconAtlas(atlas);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 4 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
       'iIconUV'
@@ -183,7 +186,7 @@ describe('cellMesh factory', () => {
     attachBuildingMeshToCell(cell, _res.buildings);
 
     const b = building({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     const doorAttr = cell.detailMesh.geometry.getAttribute(
       'iDoor'
@@ -198,7 +201,7 @@ describe('cellMesh factory', () => {
 
     // Write to slot 10; slots 9 and 11 should remain scale-zero (from createEmptyCellTile).
     const b = building({ x: 1, y: 2, h: 3, slotId: 10 });
-    writeBuildingToSlot(cell, b, _res.buildings);
+    writeBuildingToSlot(cell, b, _res.buildings, SETTINGS);
 
     // Slot 10 should have a real position.
     const m10 = new THREE.Matrix4();
@@ -235,7 +238,8 @@ describe('cellMesh factory', () => {
     writeBuildingToSlot(
       cell,
       building({ slotId: 0, h: 0.8, floors: 0, file: emptyFile }),
-      _res.buildings
+      _res.buildings,
+      SETTINGS
     );
 
     const iKind = cell.detailMesh.geometry.getAttribute('iKind');

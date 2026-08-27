@@ -8,14 +8,14 @@ import { signal } from '@preact/signals';
 import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { RUINS } from '@/state/settings/fields/ruins';
 import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
 import { TimelineBundle } from '@/city/types/timeline';
 import { PickTarget } from '@/city/types/picker';
+import { settingsStore } from '../../_helpers/citySettings';
 
-const _ruins = RUINS.peek();
+// Rebuilt per case, so a settings change in one does not leak into the next.
+let SETTINGS = settingsStore();
 
 const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
 const SCANNED_AT = Date.UTC(2024, 5, 1);
@@ -23,13 +23,13 @@ const SCANNED_AT = Date.UTC(2024, 5, 1);
 // SCRUB_POS clamps against the bundle, so a position past 0 needs one loaded,
 // with dates: the clamp runs a stop past the last commit.
 beforeEach(() => {
+  SETTINGS = settingsStore();
   TIMELINE_BUNDLE.value = {
     commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
     unionManifest: { scanned_at: new Date(SCANNED_AT).toISOString() },
   } as unknown as TimelineBundle;
 });
 afterEach(() => {
-  RUINS.value = _ruins;
   setScrubPos(0);
   TIMELINE_BUNDLE.value = null;
 });
@@ -54,6 +54,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
     trackEndMs: SCANNED_AT,
+    settings: SETTINGS.signals,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
     picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
@@ -87,10 +88,13 @@ describe('the scrub position', () => {
 
 describe('the ruin settings', () => {
   it('resolves the stub height into world units, uniform across every building', () => {
-    RUINS.value = { ..._ruins, ENABLED: true, STUB_HEIGHT: 0.5, BUILDING_OPACITY: 0.3 };
+    SETTINGS.update({ RUINS: { ENABLED: true, STUB_HEIGHT: 0.5, BUILDING_OPACITY: 0.3 } });
     const frame = at(0);
     expect(frame.ruinsOn).toBe(true);
-    expect(frame.ruinHeight).toBeCloseTo(0.5 * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT, 5);
+    expect(frame.ruinHeight).toBeCloseTo(
+      0.5 * SETTINGS.snapshot().BUILDING_DIMENSIONS.FLOOR_HEIGHT,
+      5
+    );
     expect(frame.ruinBuildingOpacity).toBe(0.3);
   });
 });

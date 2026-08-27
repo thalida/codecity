@@ -5,14 +5,13 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/fields/trees';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { ISLAND } from '@/state/settings/fields/island';
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
 import { gemAnchorXZ } from '../gem/anchor';
-import type { IslandConfig } from '@/city/settings/fields/island';
+import type { IslandConfig, WorldConfig } from '@/city/settings/fields/island';
+import type { TreesConfig } from '@/city/settings/fields/trees';
+import type { FootprintConfig } from '@/city/settings/fields/footprint';
 import { Building } from '@/city/types/building';
 import { CityBbox } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
@@ -40,14 +39,23 @@ export interface LayoutGeometry {
   bbox?: CityBbox;
 }
 
+/** The settings placeTrees reads, passed in rather than read from anywhere:
+ *  this runs on the main thread and in the placement worker, and the two must
+ *  scatter identically. ISLAND.ENABLED false skips the polygon rejection pass;
+ *  its shape still sets the sampling extent. */
+export interface TreePlacementConfig {
+  TREES: TreesConfig;
+  FOOTPRINT: FootprintConfig;
+  WORLD: WorldConfig;
+  ISLAND: IslandConfig;
+}
+
 export interface PlaceTreesOptions {
   /** Number of trees to plant — one per commit. */
   commitCount: number;
   /** Scene height, so a small but tall city gets a buffer to match. */
   cityHeight?: number;
-  /** The worker's copy of the island config, since it can't read the store.
-   *  Null disables the polygon rejection pass. */
-  islandGeoOverride?: IslandConfig | null;
+  settings: TreePlacementConfig;
 }
 
 /** Ceiling on grid resolution, so a multi-million-commit repo can't OOM the
@@ -112,10 +120,10 @@ function gemCenterFromLayout(layout: LayoutGeometry, bbox: CityBbox): { x: numbe
 
 export function placeTrees(
   layout: LayoutGeometry,
-  bboxOverride?: CityBbox,
-  options: PlaceTreesOptions = { commitCount: 0 }
+  bboxOverride: CityBbox | undefined,
+  options: PlaceTreesOptions
 ): TreePlacement[] {
-  const cfg = TREES.value;
+  const cfg = options.settings.TREES;
   if (!cfg.ENABLED) return [];
 
   const bbox = bboxOverride ?? layout.bbox;
@@ -124,7 +132,7 @@ export function placeTrees(
   const treeTarget = Math.max(0, options.commitCount | 0);
   if (treeTarget === 0) return [];
 
-  const footprint = FOOTPRINT.value;
+  const footprint = options.settings.FOOTPRINT;
   const halo = footprint.ENABLED ? Math.max(0, footprint.HALO_WIDTH) : 0;
 
   // Build rbush of every layout rect, inflated by the halo.
@@ -141,12 +149,12 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
+  const bounds = getWorldBounds(bbox, options.settings.WORLD, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
   // Sampled to the island polygon's extent, not the rect it circumscribes: the
   // ears past the rect corners would otherwise read as bare ground.
-  const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
+  const sides = options.settings.ISLAND.SIDES;
   // Jitter only shrinks vertices inward, so baseScale bounds the extent.
   const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
   const sampleHalfW = bounds.halfWidth * polygonScale;
@@ -181,36 +189,34 @@ export function placeTrees(
   // The same polygon islandMesh renders, pulled inward by the inset so the
   // clearance from the edge reads as uniform however irregular it is.
   let islandPolygon: THREE.Vector3[] | null = null;
-  if (options.islandGeoOverride !== null) {
-    const islandGeo = options.islandGeoOverride ?? ISLAND.value;
-    if (islandGeo.ENABLED) {
-      const rawPolygon = buildTopPolygon({
-        sides: islandGeo.SIDES,
-        irregularity: islandGeo.IRREGULARITY,
-        tiers: islandGeo.TIERS,
-        depth: islandGeo.DEPTH,
-        halfWidth: bounds.halfWidth,
-        halfDepth: bounds.halfDepth,
-        seed: islandSeedFromBounds(bounds),
-        roundness: islandGeo.ROUNDNESS,
-        grassThickness: islandGeo.GRASS_THICKNESS,
-      });
-      // Every vertex pulled radially inward by insetFrac, clamped in world
-      // units for the same reason the city clearance is.
-      const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
-      const [insetMin, insetMax] = cfg.EDGE_INSET_LIMITS;
-      islandPolygon = rawPolygon.map((v) => {
-        const r = Math.hypot(v.x, v.z);
-        if (r < 1e-6) return v.clone();
-        const inset = THREE.MathUtils.clamp(
-          r * insetFrac,
-          Math.max(0, insetMin),
-          Math.max(0, insetMax)
-        );
-        const scale = Math.max(0, r - inset) / r;
-        return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
-      });
-    }
+  const islandGeo = options.settings.ISLAND;
+  if (islandGeo.ENABLED) {
+    const rawPolygon = buildTopPolygon({
+      sides: islandGeo.SIDES,
+      irregularity: islandGeo.IRREGULARITY,
+      tiers: islandGeo.TIERS,
+      depth: islandGeo.DEPTH,
+      halfWidth: bounds.halfWidth,
+      halfDepth: bounds.halfDepth,
+      seed: islandSeedFromBounds(bounds),
+      roundness: islandGeo.ROUNDNESS,
+      grassThickness: islandGeo.GRASS_THICKNESS,
+    });
+    // Every vertex pulled radially inward by insetFrac, clamped in world
+    // units for the same reason the city clearance is.
+    const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+    const [insetMin, insetMax] = cfg.EDGE_INSET_LIMITS;
+    islandPolygon = rawPolygon.map((v) => {
+      const r = Math.hypot(v.x, v.z);
+      if (r < 1e-6) return v.clone();
+      const inset = THREE.MathUtils.clamp(
+        r * insetFrac,
+        Math.max(0, insetMin),
+        Math.max(0, insetMax)
+      );
+      const scale = Math.max(0, r - inset) / r;
+      return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
+    });
   }
 
   // Master seed from bbox dims for determinism.

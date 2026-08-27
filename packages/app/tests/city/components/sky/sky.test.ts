@@ -5,30 +5,30 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createSky } from '@/city/components/sky';
-import { SCENE } from '@/state/settings/fields/scene';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { FrameContext } from '@/city/types';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-function resetStores() {
-  SCENE.value = {
-    ...SCENE.value,
+const SKY_SETTINGS = {
+  SCENE: {
     SKY_COLOR: '#010005',
     STARS_ENABLED: true,
     STARS_DENSITY: 0.0075,
     AURORA_ENABLED: true,
     AURORA_INTENSITY: 0.022,
-  };
-}
+  },
+};
 
 // The sky uses nothing from ctx at construction; a minimal stub suffices.
 
 describe('createSky()', () => {
   let sky: ReturnType<typeof createSky>;
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    resetStores();
-    sky = createSky(makeSceneContext());
+    store = settingsStore(SKY_SETTINGS);
+    sky = createSky(makeSceneContext(undefined, store.signals));
   });
 
   afterEach(() => {
@@ -67,7 +67,7 @@ describe('createSky()', () => {
   });
 
   it('settings effect re-applies fresh config into uniforms on SCENE mutation', () => {
-    SCENE.value = { ...SCENE.value, STARS_DENSITY: 0.01, SKY_COLOR: '#ffffff' };
+    store.update({ SCENE: { STARS_DENSITY: 0.01, SKY_COLOR: '#ffffff' } });
     const mat = sky.group.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uStarDensity.value).toBeCloseTo(0.01);
     const sky_ = mat.uniforms.uSkyColor.value as THREE.Color;
@@ -78,18 +78,18 @@ describe('createSky()', () => {
 
   it('settings effect reflects STARS_ENABLED toggling into uStarsEnabled', () => {
     const mat = sky.group.material as THREE.ShaderMaterial;
-    SCENE.value = { ...SCENE.value, STARS_ENABLED: false };
+    store.update({ SCENE: { STARS_ENABLED: false } });
     expect(mat.uniforms.uStarsEnabled.value).toBe(0.0);
-    SCENE.value = { ...SCENE.value, STARS_ENABLED: true };
+    store.update({ SCENE: { STARS_ENABLED: true } });
     expect(mat.uniforms.uStarsEnabled.value).toBe(1.0);
   });
 
   it('settings effect reflects AURORA_ENABLED / AURORA_INTENSITY into uniforms', () => {
     const mat = sky.group.material as THREE.ShaderMaterial;
-    SCENE.value = { ...SCENE.value, AURORA_ENABLED: false, AURORA_INTENSITY: 0.05 };
+    store.update({ SCENE: { AURORA_ENABLED: false, AURORA_INTENSITY: 0.05 } });
     expect(mat.uniforms.uAuroraEnabled.value).toBe(0.0);
     expect(mat.uniforms.uAuroraIntensity.value).toBeCloseTo(0.05);
-    SCENE.value = { ...SCENE.value, AURORA_ENABLED: true };
+    store.update({ SCENE: { AURORA_ENABLED: true } });
     expect(mat.uniforms.uAuroraEnabled.value).toBe(1.0);
   });
 
@@ -137,7 +137,7 @@ describe('createSky()', () => {
     expect(before).not.toBe(0xabcdef); // otherwise the assertion below is vacuous
 
     sky.dispose();
-    SCENE.value = { ...SCENE.value, SKY_COLOR: '#abcdef' };
+    store.update({ SCENE: { SKY_COLOR: '#abcdef' } });
 
     expect((mat.uniforms.uSkyColor.value as THREE.Color).getHex()).toBe(before);
   });

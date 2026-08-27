@@ -18,6 +18,12 @@ import { Building } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { StreetAxis } from '@/city/types/street';
+import { layoutCfg } from '../_helpers/citySettings';
+import { settingSignals } from '../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
+
+const CFG = layoutCfg();
 
 function countFiles(node: any): number {
   let n = 0;
@@ -128,7 +134,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
 
   // ── 1. layout compute ──
   const t0 = performance.now();
-  const layout = layoutCity({ tree, stats } as any) as unknown as CityLayout;
+  const layout = layoutCity({ tree, stats } as any, CFG) as unknown as CityLayout;
   const t1 = performance.now();
 
   // ── 2. worker payload clone (full manifest-carrying layout vs geometry-only) ──
@@ -160,6 +166,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const plainBuildings = stripMedia(layout.buildings);
   const ta0 = performance.now();
   const cellOut = buildCellsFromLayout(
+    SETTINGS,
     bounds,
     plainBuildings,
     TEST_SOURCE,
@@ -178,7 +185,9 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     const tm0 = performance.now();
     // No-op loader: profile registration + LOD without firing real image loads.
-    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, { onStartLoad: () => {} });
+    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, SETTINGS, {
+      onStartLoad: () => {},
+    });
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
     const tm1 = performance.now();
     mediaRegMs = tm1 - tm0;
@@ -206,7 +215,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   // ── 6. street-label textures (one canvas + measureText + texture per street) ──
   const tl0 = performance.now();
   let labelCount = 0;
-  for (const s of layout.streets) labelCount += createStreetLabels(s).length;
+  for (const s of layout.streets) labelCount += createStreetLabels(s, SETTINGS).length;
   const tl1 = performance.now();
 
   // ── 7. picker raycast: THREE brute-force (old) vs ObjectBVH (now) ──

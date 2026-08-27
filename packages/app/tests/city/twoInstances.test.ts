@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { effect } from '@preact/signals';
 
 import { createCityResources } from '@/city/resources';
+import { createSettingsStore } from '@/city/settings/store';
+import { defaultCitySettings } from '@/city/settings';
 import { createMediaLoadLimiter, SHARED_MEDIA_LOAD_LIMITER } from '@/city/mediaLoadLimiter';
+import { settingSignals } from '../_helpers/citySettings';
 
 /** Two cities on one page must share no GPU resource.
  *
@@ -13,15 +17,15 @@ import { createMediaLoadLimiter, SHARED_MEDIA_LOAD_LIMITER } from '@/city/mediaL
  *  different routes and never coexist. */
 describe('two cities on one page', () => {
   it('own distinct building materials', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     expect(a.buildings).not.toBe(b.buildings);
     expect(a.buildings.get()).not.toBe(b.buildings.get());
   });
 
   it('own distinct icon atlases, and setting one does not reach the other', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     const atlas = { texture: null, slotSize: 16 } as never;
 
     a.buildings.setIconAtlas(atlas);
@@ -33,8 +37,8 @@ describe('two cities on one page', () => {
   });
 
   it('own distinct translucency, so a fade on one leaves the other opaque', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
 
     a.buildings.setTranslucent(true);
 
@@ -43,8 +47,8 @@ describe('two cities on one page', () => {
   });
 
   it('own distinct renderer registrations', async () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     const rendererA = { id: 'a' } as never;
 
     a.renderer.register(rendererA);
@@ -60,29 +64,128 @@ describe('two cities on one page', () => {
   });
 
   it('own distinct gem glow textures', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     expect(a.gem.glow()).not.toBe(b.gem.glow());
     // …but each caches its own, so a city uploads one texture, not one per gem.
     expect(a.gem.glow()).toBe(a.gem.glow());
   });
 
   it('own distinct capture latches', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     a.timelineKickedOff = true;
     expect(b.timelineKickedOff).toBe(false);
   });
 
   it('disposing one leaves the other usable', () => {
-    const a = createCityResources(null);
-    const b = createCityResources(null);
+    const a = createCityResources(null, settingSignals());
+    const b = createCityResources(null, settingSignals());
     const materialB = b.buildings.get();
 
     a.dispose();
 
     expect(b.buildings.get()).toBe(materialB);
     expect(() => b.buildings.refresh()).not.toThrow();
+  });
+});
+
+/** Settings are per city, not per page. The panel writes a value; each city
+ *  gets its own copy pushed in, so the backdrop and the scene can be tuned
+ *  differently and neither reads a global. */
+describe('two cities hold their own settings', () => {
+  it('start from the defaults, and an override reaches only the city given it', () => {
+    const a = createSettingsStore({ BUILDINGS: { HALF_LIFE_DAYS: 7 } });
+    const b = createSettingsStore();
+
+    expect(a.snapshot().BUILDINGS.HALF_LIFE_DAYS).toBe(7);
+    expect(b.snapshot().BUILDINGS.HALF_LIFE_DAYS).toBe(
+      defaultCitySettings().BUILDINGS.HALF_LIFE_DAYS
+    );
+  });
+
+  it('updateSettings on one leaves the other where it was', () => {
+    const a = createSettingsStore();
+    const b = createSettingsStore();
+
+    a.update({ TREES: { ENABLED: false } });
+
+    expect(a.snapshot().TREES.ENABLED).toBe(false);
+    expect(b.snapshot().TREES.ENABLED).toBe(true);
+  });
+
+  it('a change notifies the effects of that city only', () => {
+    const a = createSettingsStore();
+    const b = createSettingsStore();
+    let aRuns = 0;
+    let bRuns = 0;
+    const stopA = effect(() => {
+      void a.signals.BUILDINGS.value;
+      aRuns++;
+    });
+    const stopB = effect(() => {
+      void b.signals.BUILDINGS.value;
+      bRuns++;
+    });
+    // Effects fire once on subscribe.
+    expect([aRuns, bRuns]).toEqual([1, 1]);
+
+    a.update({ BUILDINGS: { HALF_LIFE_DAYS: 30 } });
+
+    expect(aRuns).toBe(2);
+    expect(bRuns).toBe(1);
+    stopA();
+    stopB();
+  });
+
+  it('an unchanged write notifies nothing: a repack costs seconds on a big repo', () => {
+    const store = createSettingsStore();
+    let runs = 0;
+    const stop = effect(() => {
+      void store.signals.BUILDINGS.value;
+      runs++;
+    });
+
+    store.update({ BUILDINGS: { HALF_LIFE_DAYS: store.snapshot().BUILDINGS.HALF_LIFE_DAYS } });
+
+    expect(runs).toBe(1);
+    stop();
+  });
+
+  it("a change to one store leaves the other stores' effects alone", () => {
+    const store = createSettingsStore();
+    let treeRuns = 0;
+    const stop = effect(() => {
+      void store.signals.TREES.value;
+      treeRuns++;
+    });
+
+    store.update({ BUILDINGS: { HALF_LIFE_DAYS: 30 } });
+
+    expect(treeRuns).toBe(1);
+    stop();
+  });
+
+  it('drops a value the field cannot take rather than passing it to the renderer', () => {
+    const store = createSettingsStore();
+    const stock = store.snapshot().BUILDINGS.HALF_LIFE_DAYS;
+
+    store.update({ BUILDINGS: { HALF_LIFE_DAYS: 'soon' as never } });
+
+    expect(store.snapshot().BUILDINGS.HALF_LIFE_DAYS).toBe(stock);
+  });
+
+  it('clamps a numeric field to its declared bounds', () => {
+    const store = createSettingsStore({ BUILDING_DIMENSIONS: { MIN_FLOORS: -5 } });
+    // MIN_FLOORS declares min: 1, and a 0-floor building is NaN geometry.
+    expect(store.snapshot().BUILDING_DIMENSIONS.MIN_FLOORS).toBe(1);
+  });
+
+  it('gives each city its own defaults object, not one everyone can edit', () => {
+    const one = defaultCitySettings();
+    const two = defaultCitySettings();
+    expect(one).not.toBe(two);
+    expect(one.BUILDINGS).not.toBe(two.BUILDINGS);
   });
 });
 

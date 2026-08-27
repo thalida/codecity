@@ -20,6 +20,9 @@ import { createLayoutClient } from './layout';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import { createCityState } from './state';
 import { createCityResources } from './resources';
+import { createSettingsStore } from './settings/store';
+import type { CitySettingsPatch } from './settings';
+import { layoutConfigFrom } from './layout/config';
 import {
   runCollisionCheck,
   runStemPlacementDiagnostic,
@@ -30,8 +33,6 @@ import { createSky } from './components/sky';
 import { createIsland, ISLAND_TOP_Y } from './components/island';
 import { createRepoLabel } from './components/repoLabel';
 import { repoLabelBounds } from './components/repoLabel/bounds';
-import { REPO_LABEL } from '@/state/settings/fields/gem';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createFootprint } from './components/footprint';
 import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
@@ -48,8 +49,16 @@ import type { Manifest, RangeStat } from '@/city/types/manifest';
 
 export async function createCity(
   canvas: HTMLCanvasElement,
-  { cameraMode = CameraMode.Project }: { cameraMode?: CameraMode } = {}
+  {
+    cameraMode = CameraMode.Project,
+    settings: initialSettings,
+  }: { cameraMode?: CameraMode; settings?: CitySettingsPatch } = {}
 ): Promise<City> {
+  // Before anything that reads a setting: the material, the state pipeline and
+  // every component resolve their values off this one instance's store.
+  const settingsStore = createSettingsStore(initialSettings);
+  const settings = settingsStore.signals;
+
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
 
@@ -69,13 +78,13 @@ export async function createCity(
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   // Every GPU handle this city owns alone; registers the renderer for
   // facade-panel uploads (cached <img> onloads can race construction).
-  const resources = createCityResources(renderer);
+  const resources = createCityResources(renderer, settings);
 
   const layoutClient = createLayoutClient();
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const cityState = createCityState(layoutClient, treePlacementClient, resources);
+  const cityState = createCityState(layoutClient, treePlacementClient, resources, settings);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
@@ -87,6 +96,7 @@ export async function createCity(
     canvas,
     cityState,
     resources,
+    settings,
     picker: null,
   } as unknown as SceneContext;
 
@@ -126,6 +136,7 @@ export async function createCity(
   const rig = createCameraRig({
     canvas,
     cityState,
+    settings,
     mode: cameraMode,
     deps: {
       // From the manifest + settings, never the label's meshes: those land on
@@ -134,8 +145,8 @@ export async function createCity(
         repoLabelBounds(
           cityState.manifest.peek()?.tree?.name,
           cityState.gemWorldPos.peek(),
-          REPO_LABEL.peek(),
-          BUILDING_DIMENSIONS.peek()
+          settings.REPO_LABEL.peek(),
+          settings.BUILDING_DIMENSIONS.peek()
         ),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
@@ -168,7 +179,7 @@ export async function createCity(
     });
   });
 
-  const postFx = createPostFx(renderer, scene, rig.camera);
+  const postFx = createPostFx(renderer, scene, rig.camera, settings);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
   const picker = createPicker({
@@ -273,6 +284,7 @@ export async function createCity(
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
         scannedAt: cityState.manifest.peek()?.scanned_at,
         streetsByDir: cityState.streetsByDirMap.peek(),
+        settings,
         scrubGates: [
           {
             setScrubCommit: (i) => trees.setScrubCommit(i),
@@ -310,6 +322,8 @@ export async function createCity(
     scene,
     picker,
     rig,
+    settings: settingsStore,
+    updateSettings: settingsStore.update,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
@@ -318,7 +332,8 @@ export async function createCity(
     world: {
       getTrees: () => trees.getRenderer(),
       runCollisionCheck: () => runCollisionCheck(cityState),
-      runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
+      runStemPlacementDiagnostic: () =>
+        runStemPlacementDiagnostic(cityState, layoutConfigFrom(settings)),
       runTreeGroundingDiagnostic: () =>
         runTreeGroundingDiagnostic(trees.getRenderer()?.group ?? null, ISLAND_TOP_Y),
     },

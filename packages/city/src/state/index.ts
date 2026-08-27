@@ -4,8 +4,6 @@
 // change counters, the rest are computed. Components rebuild off them.
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { TREES } from '@/state/settings/fields/trees';
 import {
   beginBuild,
   enterBuildStage,
@@ -20,6 +18,8 @@ import type { TreePlacementClient } from '../components/trees/treePlacementClien
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import type { createLayoutClient } from '../layout';
+import { layoutConfigFrom } from '../layout/config';
+import type { SettingSignals } from '../settings/store';
 import type { CityResources } from '../resources';
 import { Building } from '@/city/types/building';
 import { Manifest } from '@/city/types/manifest';
@@ -138,7 +138,8 @@ function sceneBboxOf(b: THREE.Box3): CityBbox {
 export function createCityState(
   layoutClient: ReturnType<typeof createLayoutClient>,
   treePlacementClient: TreePlacementClient,
-  resources: CityResources
+  resources: CityResources,
+  settings: SettingSignals
 ): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
@@ -150,7 +151,7 @@ export function createCityState(
   // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
   // the halo changes, not on every FOOTPRINT change (which would refit).
   const footprintHalo = computed<number>(() => {
-    const f = FOOTPRINT.value;
+    const f = settings.FOOTPRINT.value;
     return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
   });
 
@@ -176,7 +177,7 @@ export function createCityState(
   // structure change. null until the first apply.
   const latestWorldBounds = computed<WorldBounds | null>(() => {
     const sb = sceneBbox.value;
-    return sb ? getWorldBounds(sb, cityHeight.value) : null;
+    return sb ? getWorldBounds(sb, settings.WORLD.value, cityHeight.value) : null;
   });
 
   // The root-of-repo street, which gets the gem. Ref-stable on a reuse apply,
@@ -234,7 +235,7 @@ export function createCityState(
       BuildStage.Assemble,
       // The trees component ends a build: enabled, it decorates; off, it settles
       // straight to idle and this stage never comes.
-      ...(TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
+      ...(settings.TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
     ];
   }
 
@@ -287,11 +288,16 @@ export function createCityState(
     // Full envelope, not `.tree`: the worker contract stays typed against
     // Manifest. 'superseded' means a newer apply owns the swap.
     try {
-      newLayout = await layoutClient.compute(newManifest, reusedLayout, (percent) => {
-        // A superseded apply's worker keeps posting until it is told to stop;
-        // its percent must not walk over the live build's readout.
-        if (myGeneration === generation) setBuildStagePercent(percent);
-      });
+      newLayout = await layoutClient.compute(
+        newManifest,
+        layoutConfigFrom(settings),
+        reusedLayout,
+        (percent) => {
+          // A superseded apply's worker keeps posting until it is told to stop;
+          // its percent must not walk over the live build's readout.
+          if (myGeneration === generation) setBuildStagePercent(percent);
+        }
+      );
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
@@ -307,7 +313,7 @@ export function createCityState(
     // Placed against the finished layout, so the scan belongs to the build, not
     // to the component that draws them: the batch below publishes a whole city.
     let newPlacements: TreePlacement[] | null = null;
-    if (TREES.peek().ENABLED) {
+    if (settings.TREES.peek().ENABLED) {
       markDecorating();
       const newBbox = cityBbox(newLayout, footprintHalo.peek());
       try {
@@ -315,7 +321,13 @@ export function createCityState(
           newLayout,
           sceneBboxOf(newBbox),
           newManifest.commits?.length ?? 0,
-          newBbox.max.y - newBbox.min.y
+          newBbox.max.y - newBbox.min.y,
+          {
+            TREES: settings.TREES.peek(),
+            FOOTPRINT: settings.FOOTPRINT.peek(),
+            WORLD: settings.WORLD.peek(),
+            ISLAND: settings.ISLAND.peek(),
+          }
         );
       } catch (err) {
         if (err instanceof Error && err.message === 'superseded') return;

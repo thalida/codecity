@@ -11,6 +11,10 @@ import { buildStageTail } from '@/constants/progress';
 import { createTestCityResources } from '../../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
+import { settingSignals } from '../../_helpers/citySettings';
+import type { LayoutConfig } from '@/city/layout/config';
+
+const SETTINGS = settingSignals();
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,
@@ -37,6 +41,7 @@ function fakeLayoutClient(percents: number[] = []) {
     compute: vi.fn(
       async (
         _m: Manifest,
+        _cfg: LayoutConfig,
         reuseFrom?: CityLayout | null,
         onProgress?: (percent: number) => void
       ) => {
@@ -79,7 +84,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -92,7 +98,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
@@ -106,7 +113,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       fakeLayoutClient([7, 61]) as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -123,7 +131,12 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     let loserProgress: ((percent: number) => void) | undefined;
     const client = {
       compute: vi.fn(
-        (_m: Manifest, _reuse?: CityLayout | null, onProgress?: (p: number) => void) => {
+        (
+          _m: Manifest,
+          _cfg: LayoutConfig,
+          _reuse?: CityLayout | null,
+          onProgress?: (p: number) => void
+        ) => {
           loserProgress ??= onProgress;
           return new Promise<CityLayout>(() => {}); // never resolves
         }
@@ -133,7 +146,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
     const state = createCityState(
       client as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
 
     void state.applyManifest(manifest('sig-1'));

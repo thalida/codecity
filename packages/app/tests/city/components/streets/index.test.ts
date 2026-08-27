@@ -6,13 +6,13 @@ import * as THREE from 'three';
 
 import { createStreets } from '@/city/components/streets';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
-import { STREETS } from '@/state/settings/fields/streets';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
+import { settingsStore } from '../../../_helpers/citySettings';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',
@@ -28,10 +28,6 @@ const DEFAULTS = {
   HOVER_PATH_COLOR: '#ffffff',
   HOVER_PATH_OPACITY: 0.25,
 };
-
-function resetStreets() {
-  STREETS.value = { ...DEFAULTS };
-}
 
 // A SceneContext whose picker exposes controllable selection + hover signals.
 
@@ -92,9 +88,10 @@ function firstStreetDir(s: ReturnType<typeof createStreets>): unknown {
 
 describe('createStreets()', () => {
   let streets: ReturnType<typeof createStreets>;
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    resetStreets();
+    store = settingsStore({ STREETS: DEFAULTS });
   });
 
   afterEach(() => {
@@ -104,7 +101,7 @@ describe('createStreets()', () => {
   // Construction
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     expect(streets.group).toBeInstanceOf(THREE.Group);
     expect(streets.group.name).toBe('city-streets');
@@ -118,15 +115,16 @@ describe('createStreets()', () => {
       picker: null as unknown as Picker,
       camera: null as unknown as THREE.PerspectiveCamera,
       renderer: null as unknown as THREE.WebGLRenderer,
-      cityState: makeCityState(),
+      cityState: makeCityState(store.signals),
+      settings: store.signals,
     } as unknown as SceneContext;
     streets = createStreets(ctx);
-    STREETS.value = { ...STREETS.value };
+    store.update({ STREETS: { PATH_OPACITY: 0.5 } });
     expect(streets.group.children).toHaveLength(0);
   });
 
   it('rebuild() populates group.children, pickables, asphalt, and labels', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
@@ -139,7 +137,7 @@ describe('createStreets()', () => {
   });
 
   it("rebuild() gives a street's label repeats one geometry, material and texture", () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
 
@@ -154,7 +152,7 @@ describe('createStreets()', () => {
   // The planes opt out of disposing what they share, so if the street stops
   // freeing it the texture leaks silently — nothing else owns it.
   it('rebuild() frees the shared label texture rather than leaking it', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
 
@@ -170,7 +168,7 @@ describe('createStreets()', () => {
   });
 
   it('rebuild() builds the sidewalk lookup keyed by street dir.path', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(
       singleStreetLayout({
@@ -184,7 +182,7 @@ describe('createStreets()', () => {
   });
 
   it('rebuild() disposes the prior street set and rebuilds (no leak in group)', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const firstSidewalk = streets.getPickables()[0];
@@ -204,35 +202,35 @@ describe('createStreets()', () => {
   // Theme effect — recolors asphalt + sidewalk on STREETS Save
 
   it('theme effect recolors asphalt on STREETS.ASPHALT_COLOR mutation', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
-    STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#abcdef' };
+    store.update({ STREETS: { ASPHALT_COLOR: '#abcdef' } });
     const asphalt = asphaltMeshOf(streets)!;
     expect(asphalt.material.color.getHex()).toBe(new THREE.Color('#abcdef').getHex());
   });
 
   it('theme effect resets sidewalk origColor + tint on SIDEWALK_DEFAULT mutation', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
-    STREETS.value = { ...STREETS.value, SIDEWALK_DEFAULT: '#010203' };
+    store.update({ STREETS: { SIDEWALK_DEFAULT: '#010203' } });
     const expected = new THREE.Color('#010203').getHex();
     // No selection/hover → sidewalk paints the default.
     expect(sidewalkColorHex(streets)).toBe(expected);
   });
 
   it('theme effect rescales label height on LABEL_HEIGHT_FRAC mutation', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const label = labelsOf(streets)[0];
     const plane = label.children[0] as THREE.Mesh;
 
     // origHeightFrac is the default 0.5; doubling LABEL_HEIGHT_FRAC → scale 2.
-    STREETS.value = { ...STREETS.value, LABEL_HEIGHT_FRAC: 1.0 };
+    store.update({ STREETS: { LABEL_HEIGHT_FRAC: 1.0 } });
     expect(plane.scale.x).toBeCloseTo(1.0 / label.userData.origHeightFrac);
     expect(plane.scale.y).toBeCloseTo(1.0 / label.userData.origHeightFrac);
   });
@@ -240,7 +238,7 @@ describe('createStreets()', () => {
   // Picker-tint effects — ARMED on first tick (the arming-bug guard)
 
   it('does NOT re-tint on selection before the first tick (effects not yet armed)', () => {
-    const { ctx, selection } = makePickableSceneContext();
+    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -257,7 +255,7 @@ describe('createStreets()', () => {
   });
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
-    const { ctx, selection } = makePickableSceneContext();
+    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -282,7 +280,7 @@ describe('createStreets()', () => {
   });
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
-    const { ctx, hover } = makePickableSceneContext();
+    const { ctx, hover } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -298,7 +296,7 @@ describe('createStreets()', () => {
   });
 
   it('tick() hides labels that project too small (visibility LOD) and re-shows up close', () => {
-    const { ctx, size } = makePickableSceneContext();
+    const { ctx, size } = makePickableSceneContext(undefined, store.signals);
     size.h = 800;
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
@@ -325,7 +323,7 @@ describe('createStreets()', () => {
   // tick() — label camera-orientation hysteresis
 
   it('tick() flips a label past the −0.15 hysteresis and un-flips past +0.15', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout()); // X-oriented → uses rightX
     const label = labelsOf(streets)[0];
@@ -357,7 +355,7 @@ describe('createStreets()', () => {
   // Labels set matrixAutoUpdate = false, so a flip that writes rotation.y and
   // stops there would render at the old angle however right userData looks.
   it('tick() bakes the flip into the label matrix, not just rotation.y', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const label = labelsOf(streets)[0];
@@ -381,7 +379,7 @@ describe('createStreets()', () => {
   // dispose()
 
   it('dispose() empties the group and stops effects (later STREETS mutations no-op)', () => {
-    const { ctx, selection } = makePickableSceneContext();
+    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
@@ -397,7 +395,7 @@ describe('createStreets()', () => {
       sidewalk: sw,
       dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
+    store.update({ STREETS: { ASPHALT_COLOR: '#000000' } });
     expect(sidewalkColorHex(streets)).not.toBe(
       new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
     );

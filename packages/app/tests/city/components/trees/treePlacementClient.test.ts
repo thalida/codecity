@@ -5,6 +5,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/city/components/trees/treePlacementClient';
 import { bbox, emptyLayout } from '../../../_helpers/cityFixtures';
 import type { CityLayout } from '@/city/types/scene';
+import { treeCfg } from '../../../_helpers/citySettings';
+const TREE_CFG = treeCfg();
 
 describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;
@@ -21,15 +23,21 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('falls back to the sync path when Worker is unavailable', async () => {
     const client = createTreePlacementClient();
-    const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
+    const result = await client.compute(
+      emptyLayout(bbox(-100, -100, 100, 100)),
+      undefined,
+      0,
+      0,
+      TREE_CFG
+    );
     expect(result).toEqual([]);
     client.dispose();
   });
 
-  it('rejects the prior request with "superseded" when a new compute() arrives', async () => {
+  it('rejects the prior request with "superseded" when a new compute( TREE_CFG) arrives', async () => {
     const client = createTreePlacementClient();
-    const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
-    const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0, 0);
+    const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0, TREE_CFG);
+    const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0, 0, TREE_CFG);
     await expect(a).rejects.toThrow(/superseded/);
     await expect(b).resolves.toBeTruthy();
     client.dispose();
@@ -37,7 +45,7 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('rejects all pending requests after dispose()', async () => {
     const client = createTreePlacementClient();
-    const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
+    const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0, TREE_CFG);
     client.dispose();
     await expect(p).rejects.toThrow(/disposed/);
   });
@@ -62,7 +70,7 @@ describe('treePlacementClient (sync fallback path)', () => {
         depth: 4000,
       },
     };
-    const placements = await client.compute(layout, layout.bbox, 25, 0);
+    const placements = await client.compute(layout, layout.bbox, 25, 0, TREE_CFG);
     expect(placements.length).toBe(25);
     client.dispose();
   });

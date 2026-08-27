@@ -9,6 +9,7 @@ import type { LayoutOverlap } from './layout/overlaps';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
 import type { WorldRect } from './layout/occupancyIndex';
 import type { CityState } from './state';
+import type { LayoutConfig } from './layout/config';
 
 // Unexpected overlaps warn with a line each; a clean run logs a summary.
 export function runCollisionCheck(cityState: CityState): void {
@@ -32,13 +33,16 @@ export function runCollisionCheck(cityState: CityState): void {
 
 // Re-run layout with tracing on the current manifest and print the stem-
 // placement trace. No-ops with a warning when no manifest has been applied yet.
-export function runStemPlacementDiagnostic(cityState: CityState): void {
+export function runStemPlacementDiagnostic(cityState: CityState, cfg: LayoutConfig): void {
   const m = cityState.manifest.value;
   if (!m) {
     console.warn('[stem-diag] no manifest — apply one first');
     return;
   }
-  const { trace } = layoutCityWithTrace(m as unknown as Parameters<typeof layoutCityWithTrace>[0]);
+  const { trace } = layoutCityWithTrace(
+    m as unknown as Parameters<typeof layoutCityWithTrace>[0],
+    cfg
+  );
   for (const line of _formatStemDiagnostic(trace)) {
     console.log(line);
   }

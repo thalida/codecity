@@ -8,11 +8,11 @@ import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedFacadePanels } from './facadePanels';
 import { isDataBuilding, isEmptyFile, isMediaFile } from '@/city/utils/fileKind';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/city/types/building';
 import type { SourceRef } from '@/city/types/manifest';
 import type { CityResources } from '@/city/resources';
+import type { SettingSignals } from '@/city/settings/store';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;
@@ -26,6 +26,7 @@ export interface CellAssemblyOutput {
 /** Assemble a cell-based scene from a layout's buildings. Sparse: only occupied
  *  cells are allocated, so the count tracks directory density, not grid extent. */
 export function buildCellsFromLayout(
+  settings: SettingSignals,
   bounds: WorldBounds,
   buildings: Building[],
   source: SourceRef | null,
@@ -83,7 +84,7 @@ export function buildCellsFromLayout(
     b.cellId = cellId;
     b.slotId = slot;
     cell.buildings[slot] = b;
-    writeBuildingToSlot(cell, b, resources.buildings);
+    writeBuildingToSlot(cell, b, resources.buildings, settings);
     index.insert(b);
   }
 
@@ -103,20 +104,25 @@ export function buildCellsFromLayout(
 
   // One mesh serves both, so they share the LOD/streaming/fade machinery.
   // Textures load later: updateLOD streams in the ones actually on screen.
-  const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
+  const mediaBuildings = settings.BUILDINGS.value.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file) && !isEmptyFile(b.file))
     : [];
   // DATA_ENABLED gates only the facade texture; the windowless block still
   // renders from the building mesh (cellMesh) regardless.
-  const binaryBuildings = BUILDINGS.value.DATA_ENABLED
+  const binaryBuildings = settings.BUILDINGS.value.DATA_ENABLED
     ? buildings.filter((b) => isDataBuilding(b.file) && !isEmptyFile(b.file))
     : [];
   let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {
-    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)), source, {
-      rendererRegistry: resources.renderer,
-    });
+    facadePanels = new InstancedFacadePanels(
+      Math.max(64, Math.ceil(panelCount * 1.5)),
+      source,
+      settings,
+      {
+        rendererRegistry: resources.renderer,
+      }
+    );
     for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
     for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);
     sceneRoot.add(facadePanels.mesh);

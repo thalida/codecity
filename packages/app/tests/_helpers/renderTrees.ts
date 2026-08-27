@@ -9,13 +9,22 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commitStats } from './statsFixtures';
 import type { BusynessThresholds, CommitEntry } from '@/city/types/manifest';
+import { settingSignals } from './citySettings';
+import type { SettingSignals } from '@/city/settings/store';
 
 export function renderTrees(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
-  busyness: BusynessThresholds
+  busyness: BusynessThresholds,
+  settings: SettingSignals = settingSignals()
 ): Trees {
-  return createTreeRenderer(placements, commits, busyness, commits ? commitStats(commits) : null);
+  return createTreeRenderer(
+    settings,
+    placements,
+    commits,
+    busyness,
+    commits ? commitStats(commits) : null
+  );
 }
 
 /** The chunk mesh rendering `placementIndex`, and its slot within it. */

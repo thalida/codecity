@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { TREES } from '@/state/settings/fields/trees';
-
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createTreeRenderer, type Trees } from './treeRenderer';
@@ -72,13 +70,13 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     scannedAt?: string | null
   ): void {
     clear();
-    _inner = createTreeRenderer(placements, commits, busyness, stats, scannedAt);
+    _inner = createTreeRenderer(ctx.settings, placements, commits, busyness, stats, scannedAt);
     group.add(_inner.group);
   }
 
   // Reads only TREES, so it is safe at construction, before the picker.
   const stopTheme = effect(() => {
-    void TREES.value;
+    void ctx.settings.TREES.value;
     _inner?.refresh();
     _outline?.refreshMaterials();
   });
@@ -111,6 +109,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       scene: ctx.scene,
       picker: ctx.picker!,
       getTrees: () => _inner,
+      settings: ctx.settings,
     });
     return [
       () => {

@@ -4,7 +4,6 @@
 // vertex and index buffers stay shared.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingOrient } from '@/city/types/building';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/city/types/building';
@@ -14,6 +13,7 @@ import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/city/utils/file
 import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
+import type { SettingSignals } from '@/city/settings/store';
 
 // The unit box every building scales from, built once.
 
@@ -110,12 +110,17 @@ export function attachBuildingMeshToCell(cell: CellTile, material: BuildingMater
 
 /** One building's attributes into its slot. cellId and slotId must be set, and
  *  the caller flags the buffers dirty once per batch rather than per write. */
-export function writeBuildingToSlot(cell: CellTile, b: Building, material: BuildingMaterial): void {
+export function writeBuildingToSlot(
+  cell: CellTile,
+  b: Building,
+  material: BuildingMaterial,
+  settings: SettingSignals
+): void {
   const slot = b.slotId!;
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (read once per write, not per attribute) ---
-  const facade = BUILDINGS.value;
+  const facade = settings.BUILDINGS.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
@@ -136,7 +141,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building, material: Build
   _writeColor.set(
     getBuildingColorForRecency(
       b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      1
+      1,
+      facade
     )
   );
   const iRefColorAttr = mesh.geometry.getAttribute('iRefColor') as THREE.InstancedBufferAttribute;

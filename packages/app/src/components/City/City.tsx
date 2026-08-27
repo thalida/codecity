@@ -9,6 +9,7 @@ import { effect } from '@preact/signals';
 import { createCity } from '@codecity/city';
 import { CameraMode } from '@/city/render/cameraRig';
 import { attachSettingsReactions } from '@/state/settings/reactions';
+import { CITY_SETTINGS } from '@/state/settings/cityValues';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/progress';
@@ -38,6 +39,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     let disposed = false;
     let city: Awaited<ReturnType<typeof createCity>> | null = null;
     let unsubApply: (() => void) | null = null;
+    let unsubSettings: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
     // Start empty; the apply-effect below paints the first manifest. The variant
@@ -53,6 +55,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           return;
         }
         city = handle;
+        // The app holds the values and persists them; the instance holds its
+        // own resolved copy. Pushed, never shared: two cities on one page can
+        // hold different settings, and neither reads a global.
+        unsubSettings = effect(() => handle.updateSettings(CITY_SETTINGS.value));
         // Published to its own slot: the two variants are independent cities.
         if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
         else BACKDROP_HANDLE.value = handle;
@@ -90,6 +96,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     return () => {
       disposed = true;
       unsubApply?.();
+      unsubSettings?.();
       disposeReactions?.();
       // Tear the city down so a remount doesn't stack a second renderer +
       // frame loop on the same canvas (old city keeps rendering as a ghost).

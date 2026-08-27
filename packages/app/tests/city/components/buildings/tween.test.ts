@@ -5,12 +5,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { createBuildingTweens } from '@/city/components/buildings/tween';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { building } from '../../../_helpers/buildingFixture';
 import type { Building } from '@/city/types/building';
 import type { EnteringBuilding, StayingBuilding } from '@/city/types/scene';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const _origBuildings = BUILDINGS.value;
+const SETTINGS = settingsStore();
+
 const TRANSITION_MS = 400;
 
 let _now = 0;
@@ -54,20 +55,22 @@ function diffOf(opts: { entering?: EnteringBuilding[]; staying?: StayingBuilding
 
 describe('createBuildingTweens()', () => {
   beforeEach(() => {
-    BUILDINGS.value = { ..._origBuildings, BUILDING_TRANSITION_MS: TRANSITION_MS };
+    SETTINGS.update({ BUILDINGS: { BUILDING_TRANSITION_MS: TRANSITION_MS } });
     setNow(0);
     vi.spyOn(performance, 'now').mockImplementation(() => _now);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    BUILDINGS.value = { ..._origBuildings };
   });
 
   it('entering diff: first update writes the grow-in start (scaleY≈0.0001, posY 0); final transform lands at the duration and the tween is removed', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+    });
 
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
 
@@ -105,7 +108,10 @@ describe('createBuildingTweens()', () => {
   it('staying diff with identical old/new transform starts no tween', () => {
     const b = building({ cellId: 1, slotId: 1 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 1 }) });
+    const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
+      getMeshForBuilding: () => ({ mesh, slot: 1 }),
+    });
 
     tweens.onDiff(
       diffOf({
@@ -139,7 +145,10 @@ describe('createBuildingTweens()', () => {
   it('a second onDiff for the same Building identity supersedes targets but keeps startedAt', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+    });
 
     // First diff at t=0 targets h=8.
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
@@ -167,6 +176,7 @@ describe('createBuildingTweens()', () => {
     const mesh = makeMesh();
     let live = true;
     const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
       getMeshForBuilding: () => (live ? { mesh, slot: 0 } : null),
     });
 
@@ -187,6 +197,7 @@ describe('createBuildingTweens()', () => {
     const b1 = building({ cellId: 1, slotId: 1, file: { ...building().file, path: 'b.ts' } });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
       getMeshForBuilding: (b) => ({ mesh, slot: b === b0 ? 0 : 1 }),
     });
 
@@ -202,7 +213,10 @@ describe('createBuildingTweens()', () => {
   it('clear() empties the queue', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
-    const tweens = createBuildingTweens({ getMeshForBuilding: () => ({ mesh, slot: 0 }) });
+    const tweens = createBuildingTweens({
+      settings: SETTINGS.signals,
+      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+    });
 
     tweens.onDiff(diffOf({ entering: [entering(b, 0, 8)] }));
     tweens.clear();

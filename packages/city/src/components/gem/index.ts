@@ -6,14 +6,12 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { GEM } from '@/state/settings/fields/gem';
-import { BLOOM } from '@/state/settings/fields/effects';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
-import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
+import { createGemPalette, writeFaceColors, type Rgb } from './palette';
 import { NodeKind } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
 
@@ -55,6 +53,8 @@ export interface Gem extends SceneComponent {
 }
 
 export function createGem(ctx: SceneContext): Gem {
+  // Per city, so two gems never share a palette.
+  const gemFaceColors = createGemPalette(ctx.settings);
   const { cityState } = ctx;
   // Persistent outer group — added to the scene once. rebuild() swaps the
   // inner gem in and out of this group.
@@ -78,7 +78,7 @@ export function createGem(ctx: SceneContext): Gem {
 
   function rebuild(street: Street): void {
     // Build the fresh inner gem, then swap it in and dispose the old one.
-    const gemGroup = createRootGem(street, ctx.resources.gem);
+    const gemGroup = createRootGem(street, ctx.resources.gem, ctx.settings);
     const inner = (gemGroup.userData.gem as THREE.Group) || null;
 
     _disposeInnerGem();
@@ -92,7 +92,7 @@ export function createGem(ctx: SceneContext): Gem {
     if (inner) group.add(inner);
   }
 
-  // untracked() is load-bearing: createRootGem reads GEM.value, and a GEM
+  // untracked() is load-bearing: createRootGem reads ctx.settings.GEM.value, and a GEM
   // subscription would recreate the pickable body sans cityRevision bump.
   const stopLayout = effect(() => {
     const rootStreet = cityState.rootStreet.value;
@@ -101,8 +101,8 @@ export function createGem(ctx: SceneContext): Gem {
 
   // GEM Save → repaint in place. Safe at construction: null guards no-op
   // until the first rebuild.
-  const stopEffect = onSettings(GEM, () => {
-    const gemAppearance = GEM.value;
+  const stopEffect = onSettings(ctx.settings.GEM, () => {
+    const gemAppearance = ctx.settings.GEM.value;
 
     if (edges?.material?.color) {
       edges.material.color.set(gemAppearance.EDGE_COLOR);
@@ -150,7 +150,7 @@ export function createGem(ctx: SceneContext): Gem {
 
   function tick(_dt: number, frame: FrameContext): void {
     if (!gem) return;
-    const gemCfg = GEM.value;
+    const gemCfg = ctx.settings.GEM.value;
     // Absolute time (seconds since render-loop start), NOT dt.
     const t = frame.time;
     gem.rotation.y = t * gemCfg.ROTATION_SPEED;
@@ -189,7 +189,7 @@ export function createGem(ctx: SceneContext): Gem {
       }
       // HDR push: scaling the LDR halo color past 1.0 is what the bloom
       // threshold picks up; gated on BLOOM.ENABLED for the flat mode.
-      const gemEmission = BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
+      const gemEmission = ctx.settings.BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
       if (gemEmission !== 1) {
         if (inner) inner.material.color.multiplyScalar(gemEmission);
         if (outer) outer.material.color.multiplyScalar(gemEmission);

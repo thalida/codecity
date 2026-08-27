@@ -1,31 +1,43 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/settings/fields/trees';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { WORLD } from '@/state/settings/fields/island';
-import {
-  bbox,
-  emptyLayout,
-  resetTreesConfig,
-  resetBuildingsConfig,
-} from '../../../_helpers/cityFixtures';
+import type { CitySettingsPatch } from '@/city/settings';
+import { treeCfg } from '../../../_helpers/citySettings';
+import { bbox, emptyLayout, TEST_TREES } from '../../../_helpers/cityFixtures';
 import { building } from '../../../_helpers/buildingFixture';
 import type { CityLayout } from '@/city/types/scene';
 
 describe('placeTrees (commit-driven)', () => {
+  // The settings this test is currently placing under. Reset per case, then
+  // narrowed by tune() where a case is about one particular knob.
+  let over: CitySettingsPatch;
+
   beforeEach(() => {
-    resetTreesConfig();
-    resetBuildingsConfig();
-    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 0 };
+    over = { TREES: TEST_TREES, WORLD: { GROUND_BUFFER_PERCENT: 0 } };
   });
 
+  /** Narrow the settings for this case. Merges, so an earlier tune() stands. */
+  function tune(patch: CitySettingsPatch): void {
+    over = {
+      ...over,
+      ...Object.fromEntries(
+        Object.entries(patch).map(([k, v]) => [
+          k,
+          { ...(over[k as keyof CitySettingsPatch] as object), ...v },
+        ])
+      ),
+    };
+  }
+
+  /** placeTrees options at whatever tune() has left the settings. */
+  function opts(commitCount: number) {
+    return { commitCount, settings: treeCfg(over) };
+  }
+
   it('returns empty when ENABLED is false', () => {
-    TREES.value = { ...TREES.value, ENABLED: false };
-    expect(
-      placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })
-    ).toEqual([]);
+    tune({ TREES: { ENABLED: false } });
+    expect(placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, opts(10))).toEqual([]);
   });
 
   it('returns empty when bbox is missing', () => {
@@ -35,17 +47,17 @@ describe('placeTrees (commit-driven)', () => {
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
     };
-    expect(placeTrees(layout, undefined, { commitCount: 10 })).toEqual([]);
+    expect(placeTrees(layout, undefined, opts(10))).toEqual([]);
   });
 
   it('returns empty when commitCount is 0', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    expect(placeTrees(layout, layout.bbox, { commitCount: 0 })).toEqual([]);
+    expect(placeTrees(layout, layout.bbox, opts(0))).toEqual([]);
   });
 
   it('emits exactly commitCount tree placements', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 50 });
+    const placements = placeTrees(layout, layout.bbox, opts(50));
     expect(placements.length).toBe(50);
   });
 
@@ -58,7 +70,7 @@ describe('placeTrees (commit-driven)', () => {
       buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
     };
     for (const commitCount of [1, 2, 3]) {
-      const placements = placeTrees(layout, bb, { commitCount });
+      const placements = placeTrees(layout, bb, opts(commitCount));
       expect(placements.length).toBe(commitCount);
       // Each commit index appears exactly once.
       expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(commitCount);
@@ -68,21 +80,21 @@ describe('placeTrees (commit-driven)', () => {
   it('still places every commit at the maximum density falloff', () => {
     // At the top of the range falloff rejects nearly everything, so the thinned
     // positions are kept as spares and topped up to reach the commit count.
-    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 100 };
-    TREES.value = { ...TREES.value, DENSITY_FALLOFF: 50 };
+    tune({ WORLD: { GROUND_BUFFER_PERCENT: 100 } });
+    tune({ TREES: { DENSITY_FALLOFF: 50 } });
     const bb = bbox(-40, -40, 40, 40);
     const layout: CityLayout = {
       ...emptyLayout(bb),
       buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
     };
-    const placements = placeTrees(layout, bb, { commitCount: 200 });
+    const placements = placeTrees(layout, bb, opts(200));
     expect(placements.length).toBe(200);
     expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(200);
   });
 
   it('tree placements are sorted by distance from gem (closest first)', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });
+    const placements = placeTrees(layout, layout.bbox, opts(100));
     const gem = { x: 0, y: 0 };
     const d2 = (p: TreePlacement) => (p.x - gem.x) ** 2 + (p.y - gem.y) ** 2;
     for (let i = 1; i < placements.length; i++) {
@@ -92,15 +104,15 @@ describe('placeTrees (commit-driven)', () => {
 
   it('assigns commitIndex 0..N-1 in distance order', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 20 });
+    const placements = placeTrees(layout, layout.bbox, opts(20));
     placements.forEach((t, i) => {
       expect(t.commitIndex).toBe(i);
     });
   });
 
   it('is deterministic — same layout → identical placements', () => {
-    const a = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 30 });
-    const b = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 30 });
+    const a = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, opts(30));
+    const b = placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, opts(30));
     expect(a.length).toBe(b.length);
     for (let i = 0; i < a.length; i++) {
       expect(a[i].x).toBe(b[i].x);
@@ -116,7 +128,7 @@ describe('placeTrees (commit-driven)', () => {
       ...emptyLayout(bb),
       buildings: [building({ x: 0, y: 0, w: 400, d: 400, h: 10 })],
     };
-    const placements = placeTrees(layout, bb, { commitCount: 50 });
+    const placements = placeTrees(layout, bb, opts(50));
     for (const p of placements) {
       const inside = p.x > -200 && p.x < 200 && p.y > -200 && p.y < 200;
       expect(inside).toBe(false);
@@ -124,7 +136,7 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('rejects candidates inside the FOOTPRINT halo around a layout rect', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 100 };
+    tune({ FOOTPRINT: { HALO_WIDTH: 100 } });
 
     const bb = bbox(-500, -500, 500, 500);
     const layout: CityLayout = {
@@ -142,14 +154,12 @@ describe('placeTrees (commit-driven)', () => {
       ],
     };
 
-    const placements = placeTrees(layout, bb, { commitCount: 30 });
+    const placements = placeTrees(layout, bb, opts(30));
 
     for (const p of placements) {
       const dInf = Math.max(Math.abs(p.x), Math.abs(p.y));
       expect(dInf).toBeGreaterThan(110);
     }
-
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
   });
 
   describe('city clearance limits', () => {
@@ -164,22 +174,19 @@ describe('placeTrees (commit-driven)', () => {
       Math.min(...placements.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y)) - HALF_BLOCK));
 
     beforeEach(() => {
-      FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 0 };
-    });
-    afterEach(() => {
-      FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
+      tune({ FOOTPRINT: { HALO_WIDTH: 0 } });
     });
 
     it('caps the gap on a big island, where a small percentage clears a lot of ground', () => {
       const bb = bbox(-10_000, -10_000, 10_000, 10_000);
       const layout = cityBlock(bb);
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 10 };
+      tune({ TREES: { CITY_CLEARANCE_PERCENT: 10 } });
 
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
-      const unclamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+      tune({ TREES: { CITY_CLEARANCE_LIMITS: [0, 2000] } });
+      const unclamped = narrowestGap(placeTrees(layout, bb, opts(400)));
 
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 300] };
-      const clamped = narrowestGap(placeTrees(layout, bb, { commitCount: 400 }));
+      tune({ TREES: { CITY_CLEARANCE_LIMITS: [0, 300] } });
+      const clamped = narrowestGap(placeTrees(layout, bb, opts(400)));
 
       expect(clamped).toBeGreaterThanOrEqual(300);
       expect(clamped).toBeLessThan(unclamped);
@@ -188,13 +195,13 @@ describe('placeTrees (commit-driven)', () => {
     it('floors the gap on a small island, where the percentage barely clears anything', () => {
       const bb = bbox(-600, -600, 600, 600);
       const layout = cityBlock(bb);
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_PERCENT: 1 };
+      tune({ TREES: { CITY_CLEARANCE_PERCENT: 1 } });
 
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [0, 2000] };
-      const unfloored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+      tune({ TREES: { CITY_CLEARANCE_LIMITS: [0, 2000] } });
+      const unfloored = narrowestGap(placeTrees(layout, bb, opts(200)));
 
-      TREES.value = { ...TREES.value, CITY_CLEARANCE_LIMITS: [80, 2000] };
-      const floored = narrowestGap(placeTrees(layout, bb, { commitCount: 200 }));
+      tune({ TREES: { CITY_CLEARANCE_LIMITS: [80, 2000] } });
+      const floored = narrowestGap(placeTrees(layout, bb, opts(200)));
 
       expect(floored).toBeGreaterThanOrEqual(80);
       expect(floored).toBeGreaterThan(unfloored);
@@ -209,12 +216,8 @@ describe('placeTrees (commit-driven)', () => {
 
     const forest = (percent: number, limits: [number, number]): TreePlacement[] => {
       const bb = bbox(-5000, -5000, 5000, 5000);
-      TREES.value = {
-        ...TREES.value,
-        EDGE_INSET_PERCENT: percent,
-        EDGE_INSET_LIMITS: limits,
-      };
-      return placeTrees(emptyLayout(bb), bb, { commitCount: 600 });
+      tune({ TREES: { EDGE_INSET_PERCENT: percent, EDGE_INSET_LIMITS: limits } });
+      return placeTrees(emptyLayout(bb), bb, opts(600));
     };
 
     it('caps the inset, so a big island keeps its trees out at the rim', () => {

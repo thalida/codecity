@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   getHue,
   extHueColor,
@@ -7,12 +7,11 @@ import {
   getBuildingColorForRecency,
   getModifiedAge,
 } from '@/city/components/buildings/color';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
-import type { BuildingsConfig } from '@/city/settings/fields/buildings';
+import { citySettings } from '../../../_helpers/citySettings';
 import { NodeKind, RangeStat } from '@/city/types/manifest';
 
-// Test palette + saturation/lightness ranges. Mutated into the
-// BUILDINGS store by beforeEach; restored by afterEach.
+// Test palette + saturation/lightness ranges, stated rather than defaulted:
+// every expected hue and lightness below is derived from these.
 const TEST_HUE_EXT_MAP: Record<string, number> = {
   '.ts': 215,
   '.js': 220,
@@ -26,23 +25,16 @@ const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 // getHue's fallback hash for an extension outside the palette.
 const XYZ_HUE = 259;
 
-let _origPalette: BuildingsConfig | null = null;
-beforeEach(() => {
-  _origPalette = { ...BUILDINGS.value };
-  BUILDINGS.value = {
-    ...BUILDINGS.value,
+const CFG = citySettings({
+  BUILDINGS: {
     HUE_EXT_MAP: TEST_HUE_EXT_MAP,
     SATURATION_MIN: TEST_SAT_RANGE.min,
     SATURATION_MAX: TEST_SAT_RANGE.max,
     LIGHTNESS_MIN: TEST_LIGHT_RANGE.min,
     LIGHTNESS_MAX: TEST_LIGHT_RANGE.max,
     HALF_LIFE_DAYS: 30,
-  };
-});
-afterEach(() => {
-  if (!_origPalette) return;
-  BUILDINGS.value = _origPalette;
-});
+  },
+}).BUILDINGS;
 
 describe('getHue', () => {
   it.each(Object.entries(TEST_HUE_EXT_MAP))('reads %s straight off the palette', (ext, hue) => {
@@ -83,13 +75,15 @@ describe('getBuildingColorForRecency', () => {
     ['midpoint', 0.5, 'hsl(215, 60%, 48%)'],
     ['ceiling', 1, 'hsl(215, 100%, 70%)'],
   ])('drives both channels off one t (%s)', (_label, t, expected) => {
-    expect(getBuildingColorForRecency({ type: NodeKind.File, extension: '.ts' }, t)).toBe(expected);
+    expect(getBuildingColorForRecency({ type: NodeKind.File, extension: '.ts' }, t, CFG)).toBe(
+      expected
+    );
   });
 
   it('clamps a t outside the range rather than overshooting the bounds', () => {
     const f = { type: NodeKind.File, extension: '.ts' };
-    expect(getBuildingColorForRecency(f, -1)).toBe(getBuildingColorForRecency(f, 0));
-    expect(getBuildingColorForRecency(f, 2)).toBe(getBuildingColorForRecency(f, 1));
+    expect(getBuildingColorForRecency(f, -1, CFG)).toBe(getBuildingColorForRecency(f, 0, CFG));
+    expect(getBuildingColorForRecency(f, 2, CFG)).toBe(getBuildingColorForRecency(f, 1, CFG));
   });
 });
 
@@ -99,31 +93,30 @@ describe('modifiedRecency', () => {
     ['at the half-life', 30, 0.5],
     ['a year old', 365, 30 / 395],
   ])('%s', (_label, days, expected) => {
-    expect(modifiedRecency(at(new Date(NOW - days * DAY).toISOString()), NOW)).toBeCloseTo(
+    expect(modifiedRecency(at(new Date(NOW - days * DAY).toISOString()), NOW, CFG)).toBeCloseTo(
       expected,
       6
     );
   });
 
   it('takes the midpoint when the file has no date', () => {
-    expect(modifiedRecency(at(null), NOW)).toBe(0.5);
+    expect(modifiedRecency(at(null), NOW, CFG)).toBe(0.5);
   });
 
   it('depends on nothing but its own age, so one edit cannot restate another file', () => {
     const f = at(MIDPOINT);
-    expect(modifiedRecency(f, NOW)).toBe(modifiedRecency(f, NOW));
+    expect(modifiedRecency(f, NOW, CFG)).toBe(modifiedRecency(f, NOW, CFG));
   });
 
   it('stretches with the half-life instead of clipping at a horizon', () => {
-    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 365 };
-    const long = modifiedRecency(at(OLDEST), NOW);
-    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 30 };
-    expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW));
+    const slow = { ...CFG, HALF_LIFE_DAYS: 365 };
+    const long = modifiedRecency(at(OLDEST), NOW, slow);
+    expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW, CFG));
   });
 
   it('keeps a year and a decade apart, where a horizon would flatten both', () => {
-    const year = modifiedRecency(at(new Date(NOW - 365 * DAY).toISOString()), NOW);
-    const decade = modifiedRecency(at(new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    const year = modifiedRecency(at(new Date(NOW - 365 * DAY).toISOString()), NOW, CFG);
+    const decade = modifiedRecency(at(new Date(NOW - 3650 * DAY).toISOString()), NOW, CFG);
     expect(decade).toBeGreaterThan(0);
     expect(year / decade).toBeGreaterThan(3);
   });
@@ -132,7 +125,7 @@ describe('modifiedRecency', () => {
 describe('getModifiedAge', () => {
   it('is the colour axis inverted, so Live and Timeline cannot drift', () => {
     const f = at(MIDPOINT);
-    expect(getModifiedAge(f, NOW)).toBeCloseTo(1 - modifiedRecency(f, NOW), 10);
+    expect(getModifiedAge(f, NOW, CFG)).toBeCloseTo(1 - modifiedRecency(f, NOW, CFG), 10);
   });
 });
 
@@ -145,11 +138,11 @@ describe('getBuildingColor', () => {
   });
 
   it('sends a file touched now to both range ceilings', () => {
-    expect(getBuildingColor(file('.ts', NEWEST), NOW)).toBe('hsl(215, 100%, 70%)');
+    expect(getBuildingColor(file('.ts', NEWEST), NOW, CFG)).toBe('hsl(215, 100%, 70%)');
   });
 
   it('walks both channels down together as a file ages', () => {
-    const old = getBuildingColor(file('.ts', new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    const old = getBuildingColor(file('.ts', new Date(NOW - 3650 * DAY).toISOString()), NOW, CFG);
     expect(old).toBe('hsl(215, 21%, 25%)');
   });
 
@@ -157,6 +150,6 @@ describe('getBuildingColor', () => {
     ['.md', 275],
     ['.xyz', XYZ_HUE],
   ])('takes the hue from the extension (%s)', (ext, hue) => {
-    expect(getBuildingColor(file(ext, NEWEST), NOW)).toBe(`hsl(${hue}, 100%, 70%)`);
+    expect(getBuildingColor(file(ext, NEWEST), NOW, CFG)).toBe(`hsl(${hue}, 100%, 70%)`);
   });
 });

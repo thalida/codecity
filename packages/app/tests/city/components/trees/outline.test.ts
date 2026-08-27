@@ -2,14 +2,13 @@
 // transform snaps to the active tree's instance matrix, and rainbow
 // colors advance frame-over-frame.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
-import { TREES } from '@/state/settings/fields/trees';
-import { RAINBOW } from '@/state/settings/fields/effects';
 import type { PickTarget } from '@/city/types/picker';
+import { settingSignals, settingsStore } from '../../../_helpers/citySettings';
 import { commitTarget } from '../../../_helpers/cityFixtures';
 import { NodeKind } from '@/city/types/manifest';
 
@@ -50,18 +49,19 @@ function fakePicker() {
   return { hover, selection };
 }
 
-describe('treeOutlineRenderer', () => {
-  beforeEach(() => {
-    TREES.value = {
-      ...TREES.value,
-      OUTLINE_WIDTH: 3,
-      OUTLINE_HOVER_COLOR: '#ffffff',
-      OUTLINE_HOVER_OPACITY: 0.5,
-      OUTLINE_SELECTED_OPACITY: 1.0,
-    };
-    RAINBOW.value = { SPEED: 0.001, SATURATION: 1, LIGHTNESS: 0.5 };
-  });
+// Stated rather than defaulted: the outline widths and the rainbow speed are
+// what these assertions are about.
+const SETTINGS = settingSignals({
+  TREES: {
+    OUTLINE_WIDTH: 3,
+    OUTLINE_HOVER_COLOR: '#ffffff',
+    OUTLINE_HOVER_OPACITY: 0.5,
+    OUTLINE_SELECTED_OPACITY: 1.0,
+  },
+  RAINBOW: { SPEED: 0.001, SATURATION: 1, LIGHTNESS: 0.5 },
+});
 
+describe('treeOutlineRenderer', () => {
   it('hover outline is hidden when picker.hover is null', () => {
     const scene = new THREE.Scene();
     const picker = fakePicker();
@@ -71,6 +71,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', matrix),
+      settings: SETTINGS,
     });
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
@@ -87,6 +88,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', matrix),
+      settings: SETTINGS,
     });
     picker.hover.value = commitTarget('a');
     expect(r.hoverOutline.visible).toBe(true);
@@ -104,6 +106,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
+      settings: SETTINGS,
     });
     picker.hover.value = commitTarget('a');
     picker.hover.value = null;
@@ -119,6 +122,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4().makeTranslation(5, 0, 0)),
+      settings: SETTINGS,
     });
     expect(r.selectedOutline.visible).toBe(false);
     picker.selection.value = commitTarget('a');
@@ -136,6 +140,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
+      settings: SETTINGS,
     });
     picker.selection.value = commitTarget('a');
     picker.hover.value = commitTarget('a'); // same as selected
@@ -152,6 +157,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
+      settings: SETTINGS,
     });
     picker.hover.value = {
       kind: NodeKind.File,
@@ -166,19 +172,23 @@ describe('treeOutlineRenderer', () => {
   it('refreshMaterials pushes WIDTH and opacity updates into both materials', () => {
     const scene = new THREE.Scene();
     const picker = fakePicker();
+    // Its own store, written through update() — the same path a Save takes.
+    const store = settingsStore();
     const r = createTreeOutlineRenderer({
       canvas: fakeCanvas(),
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
+      settings: store.signals,
     });
-    TREES.value = {
-      ...TREES.value,
-      OUTLINE_WIDTH: 7,
-      OUTLINE_HOVER_COLOR: '#ff00ff',
-      OUTLINE_HOVER_OPACITY: 0.25,
-      OUTLINE_SELECTED_OPACITY: 0.9,
-    };
+    store.update({
+      TREES: {
+        OUTLINE_WIDTH: 7,
+        OUTLINE_HOVER_COLOR: '#ff00ff',
+        OUTLINE_HOVER_OPACITY: 0.25,
+        OUTLINE_SELECTED_OPACITY: 0.9,
+      },
+    });
     r.refreshMaterials();
     expect((r.hoverOutline.material as { linewidth: number }).linewidth).toBe(7);
     expect((r.hoverOutline.material as { opacity: number }).opacity).toBeCloseTo(0.25, 5);
@@ -195,6 +205,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
+      settings: SETTINGS,
     });
     picker.selection.value = commitTarget('a');
 

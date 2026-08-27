@@ -2,7 +2,7 @@
 // cares about as a literal rather than driving SCRUB_POS and four settings
 // stores into position.
 
-import { BUILDINGS } from '@/state/settings/fields/buildings';
+import { citySettings, layoutCfg } from './citySettings';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import type { ScrubFrame } from '@/city/timeline/scrubFrame';
@@ -30,7 +30,8 @@ export function makeScrubFrame(over: Partial<ScrubFrame> = {}): ScrubFrame {
     bldgTargetFile: null,
     dirTarget: null,
     hoverFile: null,
-    fadeCfg: BUILDINGS.peek(),
+    fadeCfg: citySettings().BUILDINGS,
+    layoutCfg: layoutCfg(),
     ...over,
   };
 }

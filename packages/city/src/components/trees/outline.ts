@@ -7,9 +7,9 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { TREES } from '@/state/settings/fields/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import type { SettingSignals } from '@/city/settings/store';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { buildCanopyEdges } from './treeRenderer';
@@ -35,10 +35,17 @@ interface CreateArgs {
   /** Late-bound: trees are built after this renderer is created. Returns
    *  null when no manifest has been applied yet. */
   getTrees: () => TreesHandle | null;
+  settings: SettingSignals;
 }
 
-export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
-  const _cfg = TREES.value;
+export function createTreeOutlineRenderer({
+  canvas,
+  scene,
+  picker,
+  getTrees,
+  settings,
+}: CreateArgs) {
+  const _cfg = settings.TREES.value;
 
   // One shared silhouette: every tree uses the same facet count, so there's
   // no per-tier geometry swap.
@@ -142,7 +149,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     if (!_selColorBuf) return;
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
-      const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount);
+      const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount, settings.RAINBOW.value);
       const k = i * FLOATS_PER_SEGMENT;
       _selColorBuf[k] = r;
       _selColorBuf[k + 1] = g;
@@ -172,7 +179,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   }
 
   function refreshMaterials(): void {
-    const c = TREES.value;
+    const c = settings.TREES.value;
     hoverLineMat.color.set(c.OUTLINE_HOVER_COLOR);
     hoverLineMat.linewidth = c.OUTLINE_WIDTH;
     hoverLineMat.opacity = c.OUTLINE_HOVER_OPACITY;

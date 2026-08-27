@@ -19,6 +19,9 @@ import { Building } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
+import { settingSignals } from '../../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
 
 const _res = createTestCityResources();
 
@@ -38,7 +41,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(bounds, buildings, TEST_SOURCE, _res);
+  const cellOut = buildCellsFromLayout(SETTINGS, bounds, buildings, TEST_SOURCE, _res);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {
@@ -253,7 +256,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
   function setup() {
     const streetA = mk('src', 0);
     const streetB = mk('lib', 200);
-    const built = createMergedSidewalkMesh([streetA, streetB] as never, 0)!;
+    const built = createMergedSidewalkMesh([streetA, streetB] as never, 0, SETTINGS)!;
     built.mesh.updateMatrixWorld(true);
 
     const cityState = makeCityState();

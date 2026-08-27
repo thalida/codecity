@@ -3,9 +3,7 @@
 // posts/receives them; index.ts builds the request + narrows the response) so
 // the two ends can never drift. Mirrors components/trees/treePlacementProtocol.ts.
 
-import type { StreetLayoutConfig, StreetTier } from '@/city/settings/fields/streets';
-import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
-import type { GemSizingConfig } from '@/city/settings/fields/gem';
+import type { LayoutConfig } from './config';
 import type { Manifest } from '@/city/types/manifest';
 import type { CityLayout } from '@/city/types/scene';
 
@@ -17,12 +15,9 @@ export interface LayoutRequest {
   type: 'layout';
   id: number;
   manifest: LayoutManifest;
-  configSnapshot: {
-    streetLayout: StreetLayoutConfig;
-    buildingDimensions: BuildingDimensionsConfig;
-    gemSizing: GemSizingConfig;
-    streetTiers: StreetTier[];
-  };
+  /** The sending city's own values, carried across unchanged — the worker
+   *  reads them as-is rather than rebuilding stores of its own. */
+  config: LayoutConfig;
 }
 
 export type LayoutResponse =

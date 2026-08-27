@@ -4,7 +4,6 @@
 // effect, its per-frame work and its GPU teardown.
 import * as THREE from 'three';
 
-import { SCENE } from '@/state/settings/fields/scene';
 import { CAMERA_FAR } from '@/city/constants/camera';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
@@ -47,7 +46,7 @@ export function createSky(ctx: SceneContext): Sky {
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
-  const cfg = SCENE.value;
+  const cfg = ctx.settings.SCENE.value;
 
   const material = new THREE.ShaderMaterial({
     vertexShader: skyVertSrc,
@@ -83,8 +82,8 @@ export function createSky(ctx: SceneContext): Sky {
 
   // Pushes SCENE into the uniforms with no rebuild. Runs once at construction
   // too, re-applying what the constructor already baked.
-  const stopEffect = onSettings(SCENE, () => {
-    const c = SCENE.value;
+  const stopEffect = onSettings(ctx.settings.SCENE, () => {
+    const c = ctx.settings.SCENE.value;
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
     material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = c.STARS_DENSITY;

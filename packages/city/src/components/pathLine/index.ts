@@ -3,8 +3,6 @@
 // picker-driven effects, so it is armed on the first tick, not at construction.
 import * as THREE from 'three';
 
-import { STREETS } from '@/state/settings/fields/streets';
-
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
@@ -36,6 +34,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
       scene: group,
       picker: ctx.picker!,
       cityState,
+      settings: ctx.settings,
     });
     return [
       () => {
@@ -47,7 +46,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
 
   // untracked, because refreshMaterials reads picker.hover/selection and this
   // effect must subscribe to STREETS alone.
-  const stopTheme = onSettings(STREETS, () => _inner?.refreshMaterials());
+  const stopTheme = onSettings(ctx.settings.STREETS, () => _inner?.refreshMaterials());
 
   // tick() — arms the renderer on the first call, then advances the rainbow
   // chase on the selection line.

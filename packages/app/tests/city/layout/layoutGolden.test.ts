@@ -10,6 +10,9 @@ import {
   statsFromTree,
 } from '../../_helpers/layoutTreeFixtures';
 import type { CityLayout } from '@/city/types/scene';
+import { layoutCfg } from '../../_helpers/citySettings';
+
+const CFG = layoutCfg();
 
 // Digest: round every coordinate to 4 decimals (below the layout's OVERLAP_EPS)
 // and roll buildings + streets into a 32-bit hash.
@@ -58,7 +61,7 @@ describe('layoutCity golden (bit-identical guard)', () => {
       const tree = genWeightedTree('root', 'root', budget, 0, rng);
       // Without the file-stat ranges (server-provided in production) dimensions
       // fall back to SAFE_RANGE and the guard covers only a uniform layout.
-      digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }));
+      digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }, CFG));
     }
     expect(digests).toEqual(EXPECTED);
   }, 60_000);

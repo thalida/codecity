@@ -13,6 +13,13 @@ import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRend
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
+import { layoutCfg, settingSignals, treeCfg } from '../_helpers/citySettings';
+
+const CFG = layoutCfg();
+const SETTINGS = settingSignals();
+// The polygon rejection pass off, its shape still setting the sampling
+// extent - what islandGeoOverride: null used to mean.
+const TREE_CFG = treeCfg({ ISLAND: { ENABLED: false } });
 
 describe('tree decoration profile', () => {
   function runOne(label: string, commitCount: number) {
@@ -23,25 +30,25 @@ describe('tree decoration profile', () => {
     // Derived outside the timed regions so they exclude the stats pass;
     // layoutCity needs the ranges or every building collapses to min-width.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
-    const layout = layoutCity({ tree, stats });
+    const layout = layoutCity({ tree, stats }, CFG);
     const bbox = bboxOf(layout);
 
     const t0 = performance.now();
-    const placements = placeTrees(layout as any, bbox, { commitCount, islandGeoOverride: null });
+    const placements = placeTrees(layout as any, bbox, { commitCount, settings: TREE_CFG });
     const t1 = performance.now();
-    createTreeRenderer(placements, commits, busyness, stats);
+    createTreeRenderer(SETTINGS, placements, commits, busyness, stats);
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();
-    createFireflyAssembly(placements, commits, stats);
+    createFireflyAssembly(SETTINGS, placements, commits, stats);
     const tf1 = performance.now();
     // Split fireflies into its three parts.
     const ts0 = performance.now();
-    const orbs = placeFireflies(placements, commits, stats);
+    const orbs = placeFireflies(SETTINGS, placements, commits, stats);
     const ts1 = performance.now();
-    createOrbitRings(orbs);
+    createOrbitRings(orbs, SETTINGS);
     const ts2 = performance.now();
-    createFireflyRenderer(orbs);
+    createFireflyRenderer(SETTINGS, orbs);
     const ts3 = performance.now();
 
     // Simulate the worker postMessage cost: structured-clone the full layout

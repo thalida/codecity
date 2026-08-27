@@ -3,9 +3,6 @@
 // files line the sides, its subdirectories branch off perpendicular, and each
 // placement takes the smallest stem that clears everything already placed.
 
-import { STREET_LAYOUT } from '@/state/settings/fields/streets';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { parentDirPath } from '../utils/path';
 import { rectOfBuilding, rectOfStreet } from './rect';
 import type { Rect } from './rect';
@@ -13,6 +10,7 @@ import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
 import { _profNow, _profEnd, _logLayoutProfile } from './profiling';
 import { computeFileStats, getBuildingDimensions, _streetWidthForDir } from './dimensions';
+import type { LayoutConfig } from './config';
 import type { DirLike, FileLike, TreeLike } from './dimensions';
 import { applyFlips, computeFlips, placeChild } from './stemSolver';
 import type { PlaceChildResult, StemPlacementTrace, VariantTrace } from './stemSolver';
@@ -52,6 +50,7 @@ export interface DirReaches {
 // tight UPPER bound: over-sizing is invisible, under-sizing brings the bug back.
 export function estimateDirReaches(
   dir: DirLike,
+  cfg: LayoutConfig,
   lineStats: RangeStat,
   byteStats: RangeStat,
   parentStreetWidth: number | undefined,
@@ -60,19 +59,19 @@ export function estimateDirReaches(
   const cached = cache.get(dir);
   if (cached) return cached;
 
-  const streetLayout = STREET_LAYOUT.value;
+  const streetLayout = cfg.STREET_LAYOUT;
   const buildingGap = streetLayout.BUILDING_GAP;
   const streetGap = streetLayout.STREET_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.value;
+  const bldgDims = cfg.BUILDING_DIMENSIONS;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
-  const gemSizing = GEM_SIZING.value;
+  const gemSizing = cfg.GEM_SIZING;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
 
   // Padding chain — mirrors _layoutDir exactly so the estimate matches the
   // real placement's bounds.
-  const myStreetWidth = _streetWidthForDir(dir);
+  const myStreetWidth = _streetWidthForDir(dir, cfg);
   const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
@@ -105,12 +104,19 @@ export function estimateDirReaches(
     // A building reserves buildingGap; a branching side street reserves streetGap.
     let myGap: number;
     if (child.type === NodeKind.File) {
-      const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
+      const dim = getBuildingDimensions(child as FileLike, cfg, lineStats, byteStats);
       alongContrib = dim.w;
       perpContrib = myStreetWidth / 2 + distFromRoad + dim.d;
       myGap = buildingGap;
     } else {
-      const sub = estimateDirReaches(child as DirLike, lineStats, byteStats, myStreetWidth, cache);
+      const sub = estimateDirReaches(
+        child as DirLike,
+        cfg,
+        lineStats,
+        byteStats,
+        myStreetWidth,
+        cache
+      );
       // A perpendicular subdir spans 2*perpReach along the parent's axis (both
       // sides of its road) and alongReach across it (join to end, one-sided).
       alongContrib = 2 * sub.perpReach;
@@ -214,6 +220,7 @@ function _recordPlacement(
 // rect into `occupancy` — global at the top level, subtree-local in recursion.
 function _layoutDir(
   dir: DirLike,
+  cfg: LayoutConfig,
   originX: number,
   originY: number,
   orientation: StreetAxis,
@@ -231,23 +238,23 @@ function _layoutDir(
    *  progress signal. See layoutCity. */
   onPlaced?: () => void
 ): void {
-  // ----- Tunables (one .value per call) -----
-  const streetLayout = STREET_LAYOUT.value;
+  // ----- Tunables (read once per call) -----
+  const streetLayout = cfg.STREET_LAYOUT;
   const buildingGap = streetLayout.BUILDING_GAP;
   const streetGap = streetLayout.STREET_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.value;
+  const bldgDims = cfg.BUILDING_DIMENSIONS;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
 
   // ----- Padding chain -----
-  const myStreetWidth = _streetWidthForDir(dir);
+  const myStreetWidth = _streetWidthForDir(dir, cfg);
   const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
     : Math.max(rootEndPad, openEndPad);
-  const gemSizing = GEM_SIZING.value;
+  const gemSizing = cfg.GEM_SIZING;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
   // Off the gem's own diameter, so the dead space scales with it. Same
   // MIN_RADIUS floor the gem mesh uses, or a narrow root street under-reserves.
@@ -284,7 +291,7 @@ function _layoutDir(
   for (const child of children) {
     if (child.type === NodeKind.File) {
       // ----- File leaf: compute rects in child-local frame -----
-      const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
+      const dim = getBuildingDimensions(child as FileLike, cfg, lineStats, byteStats);
       const along = dim.w;
       const perpDepth = dim.d;
       const perpCenter = myStreetWidth / 2 + distFromRoad + perpDepth / 2;
@@ -385,7 +392,7 @@ function _layoutDir(
       if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
     } else {
       // ----- Subdir: recurse in a local occupancy, then commit -----
-      const subStreetWidth = _streetWidthForDir(child as DirLike);
+      const subStreetWidth = _streetWidthForDir(child as DirLike, cfg);
       const childResult: SubtreeResult = {
         alongReach: subStreetWidth / 2,
         streets: [],
@@ -397,6 +404,7 @@ function _layoutDir(
       const myReaches = reachCache.get(dir);
       _layoutDir(
         child as DirLike,
+        cfg,
         0,
         0,
         subOrient,
@@ -553,21 +561,29 @@ function _layoutDir(
 // null: the renderer calls getBuildingColor before drawing.
 /** @param onPlaced Called once per node as the packer commits it, so a caller
  *  that knows the node count can turn the pack into a percent. */
-export function layoutCity(manifest: ManifestLike | DirLike, onPlaced?: () => void): CityLayout {
-  return _layoutCityInternal(manifest, undefined, onPlaced).layout;
+export function layoutCity(
+  manifest: ManifestLike | DirLike,
+  cfg: LayoutConfig,
+  onPlaced?: () => void
+): CityLayout {
+  return _layoutCityInternal(manifest, cfg, undefined, onPlaced).layout;
 }
 
 // Same layout output, plus the per-placeChild trace behind the "Diagnose stem
 // placement" debug button.
-export function layoutCityWithTrace(manifest: ManifestLike | DirLike): {
+export function layoutCityWithTrace(
+  manifest: ManifestLike | DirLike,
+  cfg: LayoutConfig
+): {
   layout: CityLayout;
   trace: StemPlacementTrace;
 } {
-  return _layoutCityInternal(manifest, { placements: [] });
+  return _layoutCityInternal(manifest, cfg, { placements: [] });
 }
 
 function _layoutCityInternal(
   manifest: ManifestLike | DirLike,
+  cfg: LayoutConfig,
   trace: StemPlacementTrace | undefined,
   onPlaced?: () => void
 ): { layout: CityLayout; trace: StemPlacementTrace } {
@@ -596,11 +612,12 @@ function _layoutCityInternal(
   // when its children seed their phantoms with the exact parent body extent.
   const _tReaches = _profNow();
   const reachCache = new Map<DirLike, DirReaches>();
-  estimateDirReaches(tree, stats.lines, stats.bytes, undefined, reachCache);
+  estimateDirReaches(tree, cfg, stats.lines, stats.bytes, undefined, reachCache);
   _profEnd('phase.estimateDirReaches', _tReaches);
   const _tPlace = _profNow();
   _layoutDir(
     tree,
+    cfg,
     0,
     0,
     StreetAxis.X,

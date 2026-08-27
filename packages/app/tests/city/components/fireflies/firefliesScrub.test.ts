@@ -1,15 +1,21 @@
 // Resizing the orb field to a scrub position: an author's orbs say how much of
 // the work is theirs, and that has to be the work done BY THAT DATE.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createFirefliesScrub } from '@/city/components/fireflies/firefliesScrub';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
-import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import { resetTreesConfig, treePlacement } from '../../../_helpers/cityFixtures';
+import { TEST_TREES, treePlacement } from '../../../_helpers/cityFixtures';
 import { parseDateMs } from '@/city/utils/dates';
+import { settingSignals } from '../../../_helpers/citySettings';
+
+// Canopy width follows height only with the age attenuation on, and the orb
+// scale range is what these assertions read.
+const SETTINGS = settingSignals({
+  TREES: { ...TEST_TREES, WIDTH_AGE_FLOOR: 0.2 },
+  FIREFLIES: { SCALE_MIN: 1, SCALE_MAX: 5 },
+});
 
 // Ada commits three times, Grace once, so their orbs differ at HEAD and Ada's
 // grows across the run while Grace's appears at the end.
@@ -26,21 +32,14 @@ const ms = (d: string) => parseDateMs(d);
 
 function field() {
   const placements = COMMITS.map((_, i) => treePlacement(i, i * 200, 0));
-  const orbs = placeFireflies(placements, COMMITS, STATS, SCANNED);
-  return { orbs, scrub: createFirefliesScrub(orbs, COMMITS, STATS, SCANNED) };
+  const orbs = placeFireflies(SETTINGS, placements, COMMITS, STATS, SCANNED);
+  return { orbs, scrub: createFirefliesScrub(SETTINGS, orbs, COMMITS, STATS, SCANNED) };
 }
 
 const scaleOf = (orbs: ReturnType<typeof field>['orbs'], author: string) =>
   orbs.find((o) => o.author === author)!.scale;
 
 describe('createFirefliesScrub', () => {
-  beforeEach(() => {
-    resetTreesConfig();
-    // Canopy width follows height only with the age attenuation on.
-    TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.2 };
-    FIREFLIES.value = { ...FIREFLIES.value, SCALE_MIN: 1, SCALE_MAX: 5 };
-  });
-
   it('sizes an author by the commits made so far, not their whole history', () => {
     const { orbs, scrub } = field();
     const atHead = scaleOf(orbs, 'Ada');
@@ -60,9 +59,9 @@ describe('createFirefliesScrub', () => {
   it('holds an author who has not committed yet at the floor', () => {
     const { orbs, scrub } = field();
     scrub.resize(1, ms('2026-02-01'));
-    expect(scaleOf(orbs, 'Grace')).toBe(FIREFLIES.value.SCALE_MIN);
+    expect(scaleOf(orbs, 'Grace')).toBe(SETTINGS.FIREFLIES.value.SCALE_MIN);
     scrub.resize(3, ms(SCANNED));
-    expect(scaleOf(orbs, 'Grace')).toBeGreaterThan(FIREFLIES.value.SCALE_MIN);
+    expect(scaleOf(orbs, 'Grace')).toBeGreaterThan(SETTINGS.FIREFLIES.value.SCALE_MIN);
   });
 
   it('scrubs the orbit onto the tree as it is at that date, not as it ends up', () => {
@@ -113,8 +112,13 @@ describe('createFirefliesScrub', () => {
       { date: '2026-02-01', files: 1, authors: ['Ada'] }
     );
     const stats = commitStats(shared);
-    const orbs = placeFireflies([treePlacement(0, 0, 0), treePlacement(1, 200, 0)], shared, stats);
-    const scrub = createFirefliesScrub(orbs, shared, stats, '2026-02-01');
+    const orbs = placeFireflies(
+      SETTINGS,
+      [treePlacement(0, 0, 0), treePlacement(1, 200, 0)],
+      shared,
+      stats
+    );
+    const scrub = createFirefliesScrub(SETTINGS, orbs, shared, stats, '2026-02-01');
     scrub.resize(0, ms('2026-01-01'));
     // One commit each after the first: Grace is not behind Ada yet.
     expect(scaleOf(orbs, 'Grace')).toBe(scaleOf(orbs, 'Ada'));
@@ -123,9 +127,9 @@ describe('createFirefliesScrub', () => {
   });
 
   it('leaves TREES untouched: it reads the config, it does not write it', () => {
-    const before = TREES.value;
+    const before = SETTINGS.TREES.value;
     const { scrub } = field();
     scrub.resize(1, ms('2026-02-01'));
-    expect(TREES.value).toBe(before);
+    expect(SETTINGS.TREES.value).toBe(before);
   });
 });

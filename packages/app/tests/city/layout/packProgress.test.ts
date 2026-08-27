@@ -5,6 +5,9 @@ import { describe, it, expect } from 'vitest';
 import { createPackReporter } from '@/city/layout/packProgress';
 import { layoutCity } from '@/city/layout/algorithm';
 import { makeRng, genNestedTree } from '../../_helpers/layoutTreeFixtures';
+import { layoutCfg } from '../../_helpers/citySettings';
+
+const CFG = layoutCfg();
 
 function run(total: number, ticks: number): number[] {
   const seen: number[] = [];
@@ -49,12 +52,12 @@ describe('layoutCity — onPlaced', () => {
     // The worker's denominator is the scanner's own descendants_count, so a
     // branch that forgot to tick would leave the percent short forever.
     let ticks = 0;
-    layoutCity({ tree }, () => ticks++);
+    layoutCity({ tree }, CFG, () => ticks++);
     expect(ticks).toBe(tree.descendants_count);
   });
 
   it('changes nothing about the layout it is measuring', () => {
-    const measured = layoutCity({ tree }, () => {});
-    expect(JSON.stringify(measured)).toBe(JSON.stringify(layoutCity({ tree })));
+    const measured = layoutCity({ tree }, CFG, () => {});
+    expect(JSON.stringify(measured)).toBe(JSON.stringify(layoutCity({ tree }, CFG)));
   });
 });

@@ -2,7 +2,7 @@
 // floor mesh and the tree scatter so they cannot drift apart. Centred on the
 // bbox rather than the gem, so a gem at one edge still gets even tree coverage.
 // A missing bbox falls back to a small rectangle at the origin.
-import { WORLD } from '@/state/settings/fields/island';
+import type { WorldConfig } from '@/city/settings/fields/island';
 import type { CityBbox } from '@/city/types/scene';
 
 /** Fallback half-extent when no bbox is available (pre-layout,
@@ -24,6 +24,7 @@ export interface WorldBounds {
  *  so a small-footprint repo with tall buildings is not cramped on screen. */
 export function getWorldBounds(
   bbox: CityBbox | null | undefined,
+  world: WorldConfig,
   cityHeight: number = 0
 ): WorldBounds {
   if (!bbox) {
@@ -34,7 +35,7 @@ export function getWorldBounds(
       halfDepth: FALLBACK_HALF_DIM,
     };
   }
-  const bufferFrac = WORLD.value.GROUND_BUFFER_PERCENT / 100;
+  const bufferFrac = world.GROUND_BUFFER_PERCENT / 100;
   const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
   const buffer = characteristicSize * bufferFrac;
   return {

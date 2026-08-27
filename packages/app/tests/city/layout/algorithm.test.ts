@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '@/city/layout/algorithm';
 import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
+import { layoutCfg } from '../../_helpers/citySettings';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 import type { StreetTier } from '@/city/settings/fields/streets';
 import {
@@ -33,8 +33,8 @@ const TEST_TIERS: StreetTier[] = [
   { min_descendants: 31, width: 52 },
 ];
 
-// Test-time config for getBuildingDimensions / layoutCity. Mutated into
-// the BUILDING_DIMENSIONS store by beforeEach; restored by afterEach.
+// Test-time config for getBuildingDimensions / layoutCity: round numbers, so
+// the expected dimensions below are readable rather than derived.
 const TEST_BUILDING_DIMS: Partial<BuildingDimensionsConfig> = {
   MIN_FLOORS: 1,
   MAX_FLOORS: 30,
@@ -43,15 +43,7 @@ const TEST_BUILDING_DIMS: Partial<BuildingDimensionsConfig> = {
   MAX_WIDTH: 40,
 };
 
-let _origBuildingDims: BuildingDimensionsConfig | null = null;
-beforeEach(() => {
-  _origBuildingDims = { ...BUILDING_DIMENSIONS.value };
-  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...TEST_BUILDING_DIMS };
-});
-afterEach(() => {
-  if (!_origBuildingDims) return;
-  BUILDING_DIMENSIONS.value = _origBuildingDims;
-});
+const CFG = layoutCfg({ BUILDING_DIMENSIONS: TEST_BUILDING_DIMS });
 
 const TEST_TREE = {
   name: 'project',
@@ -134,8 +126,8 @@ describe('getStreetWidth', () => {
   });
 
   it('falls back to the built-in tiers when none are given', () => {
-    expect(getStreetWidth(0)).toBe(32);
-    expect(getStreetWidth(100)).toBe(128);
+    expect(getStreetWidth(0, CFG.STREET_TIERS.TIERS)).toBe(32);
+    expect(getStreetWidth(100, CFG.STREET_TIERS.TIERS)).toBe(128);
   });
 });
 
@@ -143,19 +135,19 @@ describe('getStreetWidth', () => {
 // Height is sqrt-normalized over the line-count range; see README.md.
 describe('getBuildingDimensions', () => {
   it('null/zero data returns min_floors and min width', () => {
-    const dim = getBuildingDimensions({ lines: null, size: null });
+    const dim = getBuildingDimensions({ lines: null, size: null }, CFG);
     expect(dim.floors).toBe(1);
     expect(dim.h).toBe(10);
     expect(dim.w).toBe(6);
   });
 
   it('depth == width (square footprint)', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, CFG, { min: 10, max: 1000 });
     expect(dim.d).toBe(dim.w);
   });
 
   it('zero lines/bytes is the empty slab, with finite dimensions', () => {
-    const dim = getBuildingDimensions({ lines: 0, size: 0 });
+    const dim = getBuildingDimensions({ lines: 0, size: 0 }, CFG);
     expect(dim.floors).toBe(0);
     // EMPTY_SLAB_FLOORS 0.05 at FLOOR_HEIGHT 10.
     expect(dim.h).toBe(0.5);
@@ -169,6 +161,7 @@ describe('getBuildingDimensions', () => {
     // Math.log(byteStats.min) = -Infinity → NaN width → NaN geometry.
     const dim = getBuildingDimensions(
       { lines: 0, size: 0 },
+      CFG,
       { min: 1, max: 100 },
       { min: 0, max: 5000 }
     );
@@ -178,58 +171,62 @@ describe('getBuildingDimensions', () => {
   });
 
   it('smallest file in the project maps to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 10, size: 100 }, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 10, size: 100 }, CFG, { min: 10, max: 1000 });
     expect(dim.floors).toBe(1);
   });
 
   it('largest file maps to max_floors when the repo reaches the full-height line count', () => {
     // Biggest file at FULL_HEIGHT_LINES (2000) → the absolute ceiling is the cap.
-    const dim = getBuildingDimensions({ lines: 2000, size: 10000 }, { min: 10, max: 2000 });
+    const dim = getBuildingDimensions({ lines: 2000, size: 10000 }, CFG, { min: 10, max: 2000 });
     expect(dim.floors).toBe(TEST_BUILDING_DIMS.MAX_FLOORS);
   });
 
   it('caps the tallest building below max_floors when the biggest file is small', () => {
     // Repo whose largest file is 1000 lines (< FULL_HEIGHT_LINES 2000): even its
     // biggest file tops out below the cap at 1 + sqrt(1000/2000) * (30 - 1) ≈ 21.5.
-    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, CFG, { min: 10, max: 1000 });
     expect(dim.floors).toBeLessThan(TEST_BUILDING_DIMS.MAX_FLOORS as number);
     expect(dim.floors).toBe(22);
   });
 
   it('midrange file uses sqrt-interpolated floors within the repo ceiling', () => {
     // 6 floors: the worked derivation is in README.md.
-    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, CFG, { min: 10, max: 1000 });
     expect(dim.floors).toBe(6);
   });
 
   it('without lineStats falls back to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 });
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, CFG);
     expect(dim.floors).toBe(TEST_BUILDING_DIMS.MIN_FLOORS);
   });
 
   it('lineStats with min == max collapses everyone to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 50, size: 500 }, { min: 50, max: 50 });
+    const dim = getBuildingDimensions({ lines: 50, size: 500 }, CFG, { min: 50, max: 50 });
     expect(dim.floors).toBe(1);
   });
 
   it('huge files cap at max_floors (no runaway towers)', () => {
     // Without an upper cap the tallest file would dwarf the rest of the
     // city. Verify the cap is still enforced.
-    BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, MAX_FLOORS: 5 };
-    const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, { min: 1, max: 100000 });
+    const capped = layoutCfg({ BUILDING_DIMENSIONS: { ...TEST_BUILDING_DIMS, MAX_FLOORS: 5 } });
+    const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, capped, {
+      min: 1,
+      max: 100000,
+    });
     expect(dim.floors).toBeLessThanOrEqual(5);
   });
 
   // ---- Width / byteStats ----
   // Log-normalized over the byte range, mirroring floors-from-lines.
   it('without byteStats falls back to MIN_WIDTH', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, CFG, { min: 10, max: 1000 });
     expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
   });
 
   it('smallest file in the byte range maps to MIN_WIDTH', () => {
     const dim = getBuildingDimensions(
       { lines: 80, size: 100 },
+      CFG,
       { min: 10, max: 1000 },
       { min: 100, max: 100000 }
     );
@@ -239,6 +236,7 @@ describe('getBuildingDimensions', () => {
   it('largest file in the byte range maps to MAX_WIDTH', () => {
     const dim = getBuildingDimensions(
       { lines: 80, size: 100000 },
+      CFG,
       { min: 10, max: 1000 },
       { min: 100, max: 100000 }
     );
@@ -248,6 +246,7 @@ describe('getBuildingDimensions', () => {
   it('byteStats with min == max collapses width to MIN_WIDTH', () => {
     const dim = getBuildingDimensions(
       { lines: 80, size: 500 },
+      CFG,
       { min: 10, max: 1000 },
       { min: 500, max: 500 }
     );
@@ -266,6 +265,7 @@ describe('getBuildingDimensions — media files', () => {
   it('media file without dims falls back to square (aspect=1)', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG, mediaKind: IMAGE },
+      CFG,
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -285,6 +285,7 @@ describe('getBuildingDimensions — media files', () => {
         media_width: 100,
         media_height: 200,
       },
+      CFG,
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -301,6 +302,7 @@ describe('getBuildingDimensions — media files', () => {
         media_width: 200,
         media_height: 50,
       },
+      CFG,
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -320,6 +322,7 @@ describe('getBuildingDimensions — media files', () => {
         media_width: 500,
         media_height: 5000,
       },
+      CFG,
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -337,6 +340,7 @@ describe('getBuildingDimensions — media files', () => {
         media_width: 5000,
         media_height: 500,
       },
+      CFG,
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -348,6 +352,7 @@ describe('getBuildingDimensions — media files', () => {
     // Should follow the normal lines-based height path.
     const dim = getBuildingDimensions(
       { lines: 100, size: 1000, extension: '.ts', media_width: 9999, media_height: 1 },
+      CFG,
       { min: 10, max: 1000 },
       { min: 10, max: 10000 }
     );
@@ -405,31 +410,31 @@ describe('computeFileStats', () => {
 // ---- layoutCity ----
 describe('layoutCity', () => {
   it('has at least 1 street', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
   });
 
   it('produces 3 file buildings for the test tree', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     expect(layout.buildings.length).toBe(3);
   });
 
   it('every building carries the file node it was built from', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     for (const b of layout.buildings) {
       expect(b.file).toBeTruthy();
     }
   });
 
   it('every building starts with color = null', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     for (const b of layout.buildings) {
       expect(b.color).toBeNull();
     }
   });
 
   it('every street has positive extent, a known axis, and a direction', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     for (const s of layout.streets) {
       expect(s.length).toBeGreaterThan(0);
       expect(s.width).toBeGreaterThan(0);
@@ -439,7 +444,7 @@ describe('layoutCity', () => {
   });
 
   it('at least one street has a non-empty label', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     const hasLabel = layout.streets.some((s) => s.label && s.label.length > 0);
     expect(hasLabel).toBe(true);
   });
@@ -466,7 +471,7 @@ describe('layoutCity', () => {
       descendants_size: 3000,
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
     };
-    const layout = layoutCity({ tree: dir });
+    const layout = layoutCity({ tree: dir }, CFG);
     const orients = new Set(layout.buildings.map((b) => b.orient));
     // Both primary and secondary side orients should appear among 6 buildings.
     const primary = orients.has(BuildingOrient.South) || orients.has(BuildingOrient.East);
@@ -497,7 +502,7 @@ describe('layoutCity', () => {
       descendants_size: 2000,
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map(file),
     };
-    const layout = layoutCity({ tree: dir });
+    const layout = layoutCity({ tree: dir }, CFG);
     const street = layout.streets.find((s) => s.dir?.name === 'flat')!;
     const along = street.orientation === StreetAxis.X ? 'x' : 'y';
     const sideAxis = street.orientation === StreetAxis.X ? 'y' : 'x';
@@ -538,7 +543,7 @@ describe('layoutCity', () => {
       descendants_size: 2000,
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map(file),
     };
-    const layout = layoutCity({ tree: dir });
+    const layout = layoutCity({ tree: dir }, CFG);
     const street = layout.streets.find((s) => s.dir?.name === 'flat')!;
     const along = street.orientation === StreetAxis.X ? 'x' : 'y';
     const sideAxis = street.orientation === StreetAxis.X ? 'y' : 'x';
@@ -591,7 +596,7 @@ describe('orient correctness for mirrored subtrees', () => {
   // For each building, verify its door-facing direction actually points at its
   // adjacent street. We find the nearest street and check the direction matches.
   it('every building has orient pointing toward its adjacent street', () => {
-    const layout = layoutCity({ tree: TREE });
+    const layout = layoutCity({ tree: TREE }, CFG);
 
     for (const b of layout.buildings) {
       // Compute the door-face direction in world coords from orient.
@@ -642,11 +647,11 @@ describe('orient correctness for mirrored subtrees', () => {
 
 describe('layout invariants (current packer baseline)', () => {
   it('TEST_TREE has no overlapping rectangles', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     assertNoOverlap(layout);
   });
   it('TEST_TREE child streets are stem-ordered alphabetically', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     assertStemOrder(layout);
   });
   it('multi-subdir tree has stem-ordered child streets', () => {
@@ -656,7 +661,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('cccc', [mkFile('f4.ts')]),
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
     assertStemOrder(layout);
   });
   it('flat-files dir has no overlapping rectangles', () => {
@@ -679,7 +684,7 @@ describe('layout invariants (current packer baseline)', () => {
       descendants_size: 3000,
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
     };
-    const layout = layoutCity({ tree: dir });
+    const layout = layoutCity({ tree: dir }, CFG);
     assertNoOverlap(layout);
   });
   it('deeply-nested mirror tree has no overlapping rectangles', () => {
@@ -689,12 +694,12 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('cccc', [mkFile('f4.ts')]),
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
     assertNoOverlap(layout);
   });
   it('layout is deterministic (same input → identical output)', () => {
-    const a = layoutCity({ tree: TEST_TREE });
-    const b = layoutCity({ tree: TEST_TREE });
+    const a = layoutCity({ tree: TEST_TREE }, CFG);
+    const b = layoutCity({ tree: TEST_TREE }, CFG);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
@@ -711,7 +716,7 @@ describe('layout invariants (current packer baseline)', () => {
     ]);
     const small = mkDir('small', [mkFile('xx.ts')]);
     const root = mkDir('root', [mkFile('a.ts'), big, small]);
-    const layout = layoutCity({ tree: root });
+    const layout = layoutCity({ tree: root }, CFG);
 
     assertNoOverlap(layout);
     assertStemOrder(layout);
@@ -744,7 +749,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('ccc', [mkFile('y.ts')]),
       mkDir('ddd', [mkFile('z.ts')]),
     ]);
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
     assertNoOverlap(layout);
     assertStemOrder(layout);
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
@@ -754,12 +759,12 @@ describe('layout invariants (current packer baseline)', () => {
   });
 
   it('TEST_TREE is tree-respecting', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     assertTreeRespecting(layout);
   });
 
   it('TEST_TREE has valid T-junctions', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
+    const layout = layoutCity({ tree: TEST_TREE }, CFG);
     assertTJunctionsValid(layout);
   });
 });
@@ -809,7 +814,7 @@ describe('quickjs-scenario regression', () => {
       ]),
     ]);
 
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
 
     // Invariants must hold.
     assertNoOverlap(layout);
@@ -834,7 +839,7 @@ describe('layoutCity end-to-end', () => {
       mkFile('b.ts'),
       mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
     ]);
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
     assertNoOverlap(layout);
     assertStemOrder(layout);
     assertTreeRespecting(layout);
@@ -854,8 +859,8 @@ describe('layoutCity end-to-end', () => {
       ]);
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
-      const reaches = estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
+      const reaches = estimateDirReaches(tree, CFG, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree }, CFG);
       const root = layout.streets.find((s: any) => s.dir?.name === 'root');
       expect(root).toBeDefined();
       // The estimate must be at least as large as the actual road length —
@@ -874,8 +879,8 @@ describe('layoutCity end-to-end', () => {
       ]);
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
-      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
+      estimateDirReaches(tree, CFG, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree }, CFG);
 
       const mismatches: string[] = [];
       for (const street of layout.streets) {
@@ -896,8 +901,8 @@ describe('layoutCity end-to-end', () => {
       ]);
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
-      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
+      estimateDirReaches(tree, CFG, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree }, CFG);
       // Every street's length should be covered by its dir's estimate.
       for (const street of layout.streets) {
         if (!street.dir) continue;
@@ -954,7 +959,7 @@ describe('layoutCity end-to-end', () => {
         }),
       ]),
     ]);
-    const layout = layoutCity({ tree });
+    const layout = layoutCity({ tree }, CFG);
     const apps = layout.streets.find((s) => s.dir?.name === 'apps');
     expect(apps).toBeDefined();
     // apps' trunk must pass the old ~1000 reach, or a too-short phantom would
@@ -1000,8 +1005,8 @@ describe('layout worker payload slimming', () => {
     };
     const slice = { tree, stats };
 
-    const full = layoutCity(fullManifest as unknown as Parameters<typeof layoutCity>[0]);
-    const slim = layoutCity(slice as unknown as Parameters<typeof layoutCity>[0]);
+    const full = layoutCity(fullManifest as unknown as Parameters<typeof layoutCity>[0], CFG);
+    const slim = layoutCity(slice as unknown as Parameters<typeof layoutCity>[0], CFG);
 
     expect(slim.buildings.length).toBe(full.buildings.length);
     expect(slim.streets.length).toBe(full.streets.length);
@@ -1029,8 +1034,8 @@ describe('findSmallestValidStem: iterative-max scan matches the sorted scan', ()
   for (const [label, build] of cases) {
     it(label, () => {
       const tree = build();
-      const hot = layoutCity({ tree });
-      const traced = layoutCityWithTrace({ tree }).layout;
+      const hot = layoutCity({ tree }, CFG);
+      const traced = layoutCityWithTrace({ tree }, CFG).layout;
       expect(serialize(hot)).toEqual(serialize(traced));
     });
   }

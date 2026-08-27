@@ -4,11 +4,11 @@
 // active targets, so per-frame work is O(active) not O(buildings).
 
 import * as THREE from 'three';
+import type { SettingSignals } from '@/city/settings/store';
 import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
@@ -43,13 +43,15 @@ export function createOutlineRenderer({
   scene,
   world: _world,
   picker,
+  settings,
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
   world: OutlineWorld;
   picker: ReturnType<typeof createPicker>;
+  settings: SettingSignals;
 }) {
-  const _bo = BUILDINGS.value;
+  const _bo = settings.BUILDINGS.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new SafeLineSegmentsGeometry();
@@ -146,11 +148,11 @@ export function createOutlineRenderer({
   ): void {
     const k = segIdx * FLOATS_PER_SEGMENT;
     // Start RGB — consume the scratch tuple before the next call overwrites it.
-    const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart);
+    const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart, settings.RAINBOW.value);
     _selectedColors[k] = r0;
     _selectedColors[k + 1] = g0;
     _selectedColors[k + 2] = b0;
-    const [r1, g1, b1] = rainbowRgbAt(timeMs, fracEnd);
+    const [r1, g1, b1] = rainbowRgbAt(timeMs, fracEnd, settings.RAINBOW.value);
     _selectedColors[k + 3] = r1;
     _selectedColors[k + 4] = g1;
     _selectedColors[k + 5] = b1;
@@ -216,7 +218,7 @@ export function createOutlineRenderer({
   // BUILDINGS Save → push color/width/opacity into the two materials; the
   // construction-time first fire reproduces the seeded values (no-op).
   const _stopMaterials = effect(() => {
-    const outline = BUILDINGS.value;
+    const outline = settings.BUILDINGS.value;
     hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);
     hoverLineMat.linewidth = outline.OUTLINE_WIDTH;
     hoverLineMat.opacity = outline.OUTLINE_HOVER_OPACITY;

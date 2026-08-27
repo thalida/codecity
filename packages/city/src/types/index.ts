@@ -5,6 +5,8 @@ import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CameraRig } from '../render/cameraRig';
 import type { CityResources } from '../resources';
+import type { CitySettingsStore, SettingSignals } from '../settings/store';
+import type { CitySettingsPatch } from '../settings';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -20,6 +22,9 @@ export interface SceneContext {
   cityState: CityState;
   /** GPU handles and caches this city owns alone — see city/resources.ts. */
   resources: CityResources;
+  /** This city's own settings — see settings/store.ts. Never a module global:
+   *  two cities on one page hold different values. */
+  settings: SettingSignals;
 }
 
 /** Per-frame state passed to each component's tick() method. */
@@ -69,6 +74,13 @@ export interface City {
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;
+  /** This city's resolved settings. Read through `snapshot()`; write through
+   *  `updateSettings`. */
+  settings: CitySettingsStore;
+  /** The whole settings input surface: a plain patch, no reactive primitive of
+   *  the caller's. What it costs (a repack, a uniform refresh, nothing) is the
+   *  city's decision, off each field's declared route. */
+  updateSettings(patch: CitySettingsPatch): void;
   applyManifest(m: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
   /** The stages that apply would run, for a caller whose own work comes first. */
   buildStagesFor(m: Manifest): BuildStage[];

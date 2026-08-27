@@ -4,15 +4,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
-import { REPO_LABEL } from '@/state/settings/fields/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { resetBuildingsConfig, makeSceneContext } from '../../../_helpers/cityFixtures';
+import { TEST_BUILDING_DIMENSIONS, makeSceneContext } from '../../../_helpers/cityFixtures';
+import { settingsStore } from '../../../_helpers/citySettings';
 import type { FrameContext } from '@/city/types';
 
 // The positioning math assumes MAX_FLOORS=96 and FLOOR_HEIGHT=16 (maxBldgH
-// 1536); resetBuildingsConfig pins both against production defaults moving.
-function resetStore() {
-  REPO_LABEL.value = {
+// 1536), and a label at 85% of it. Stated, not defaulted: production defaults
+// have moved before.
+const LABEL_SETTINGS = {
+  REPO_LABEL: {
     ENABLED: true,
     HEIGHT_PCT: 85,
     FONT_SIZE: 128,
@@ -20,9 +21,9 @@ function resetStore() {
     OPACITY: 0.9,
     BEAM_COLOR: '#bfb3ff',
     TEXT_COLOR: '#ffffff',
-  };
-  resetBuildingsConfig();
-}
+  },
+  BUILDING_DIMENSIONS: TEST_BUILDING_DIMENSIONS,
+};
 
 // The repoLabel uses nothing from ctx at construction; a minimal stub suffices.
 
@@ -32,10 +33,11 @@ function makeFrame(camera: THREE.Camera): FrameContext {
 
 describe('createRepoLabel()', () => {
   let label: ReturnType<typeof createRepoLabel> | null = null;
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    resetStore();
-    label = createRepoLabel(makeSceneContext(), { getGem: () => null });
+    store = settingsStore(LABEL_SETTINGS);
+    label = createRepoLabel(makeSceneContext(undefined, store.signals), { getGem: () => null });
   });
 
   afterEach(() => {
@@ -70,7 +72,7 @@ describe('createRepoLabel()', () => {
   it('beam length tracks REPO_LABEL.HEIGHT_PCT via effect', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 100 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 50, FONT_SIZE: 100 } });
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
@@ -83,7 +85,7 @@ describe('createRepoLabel()', () => {
 
   it('panel scale tracks FONT_SIZE × textureAspect via effect', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 120 };
+    store.update({ REPO_LABEL: { FONT_SIZE: 120 } });
     const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
     ) as THREE.Mesh;
@@ -125,14 +127,14 @@ describe('createRepoLabel()', () => {
 
   it('settings effect hides the group when ENABLED is false', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, ENABLED: false };
+    store.update({ REPO_LABEL: { ENABLED: false } });
     expect(label!.group.visible).toBe(false);
   });
 
   it('setAnchor positions the group at anchor.x/z and lifts y by heightWorld + FONT_SIZE/2', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 80 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 50, FONT_SIZE: 80 } });
     label!.setAnchor(new THREE.Vector3(10, 0, 30));
     expect(label!.group.position.x).toBeCloseTo(10);
     // anchor.y (0) + heightWorld (768) + FONT_SIZE/2 (40) = 808
@@ -142,7 +144,7 @@ describe('createRepoLabel()', () => {
 
   it('raises the label from the anchor, not from y=0', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 80 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 50, FONT_SIZE: 80 } });
     label!.setAnchor(new THREE.Vector3(0, 40, 0));
     // anchor.y (40) + heightWorld (768) + FONT_SIZE/2 (40) = 848
     expect(label!.group.position.y).toBeCloseTo(848);
@@ -150,7 +152,7 @@ describe('createRepoLabel()', () => {
 
   it('HEIGHT_PCT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 0, FONT_SIZE: 100 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 0, FONT_SIZE: 100 } });
     label!.setAnchor(new THREE.Vector3(0, 0, 0));
     // Panel center = 0 + 0 + 50 = 50 → panel bottom = 0 (floor). ✓
     expect(label!.group.position.y).toBeCloseTo(50);
@@ -185,7 +187,7 @@ describe('createRepoLabel()', () => {
   it("setGem makes the beam track the gem's live world Y (hover + bob)", () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 100 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 50, FONT_SIZE: 100 } });
     // Stand-in for the gem's THREE.Group, whose position.y renderLoop mutates.
     const fakeGem = new THREE.Object3D();
     fakeGem.position.y = 25; // gem center, dynamic
@@ -205,7 +207,7 @@ describe('createRepoLabel()', () => {
   it('setGem(null) falls back to the constant inset above the anchor', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 60 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: 50, FONT_SIZE: 60 } });
     const fakeGem = new THREE.Object3D();
     fakeGem.position.y = 50;
     label!.setGem(fakeGem);
@@ -220,7 +222,7 @@ describe('createRepoLabel()', () => {
 
   it('settings effect re-applies opacity into uniforms on REPO_LABEL mutation', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, OPACITY: 0.5 };
+    store.update({ REPO_LABEL: { OPACITY: 0.5 } });
     const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
     ) as THREE.Mesh;
@@ -230,7 +232,7 @@ describe('createRepoLabel()', () => {
 
   it('settings effect re-applies colors into uniforms on REPO_LABEL mutation', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.value = { ...REPO_LABEL.value, TEXT_COLOR: '#ff0000', BEAM_COLOR: '#00ff00' };
+    store.update({ REPO_LABEL: { TEXT_COLOR: '#ff0000', BEAM_COLOR: '#00ff00' } });
     const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
     ) as THREE.Mesh;
@@ -250,7 +252,7 @@ describe('createRepoLabel()', () => {
 
     // HEIGHT_PCT writes group.position with no null guard, so a subscription
     // outliving dispose shows up here. OPACITY would not: it is guarded.
-    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: REPO_LABEL.value.HEIGHT_PCT + 25 };
+    store.update({ REPO_LABEL: { HEIGHT_PCT: store.snapshot().REPO_LABEL.HEIGHT_PCT + 25 } });
 
     expect(group.position.y).toBe(y);
   });

@@ -23,6 +23,9 @@ import {
 } from '../../../_helpers/scrub';
 import { FadeDetail } from '@/city/types/animation';
 import { FileNode } from '@/city/types/manifest';
+import { citySettings, layoutCfg } from '../../../_helpers/citySettings';
+
+const CFG = layoutCfg();
 
 const file = makeFile({ path: 'f.txt' });
 const NO_COMMIT_MS: readonly number[] = [];
@@ -39,7 +42,7 @@ function resolve(
 }
 
 const heightForLines = (lines: number, stats = LINE_STATS): number =>
-  getBuildingDimensions({ ...file, lines } as unknown as FileNode, stats, BYTE_STATS).h;
+  getBuildingDimensions({ ...file, lines } as unknown as FileNode, CFG, stats, BYTE_STATS).h;
 
 describe('lane', () => {
   it.each([
@@ -113,7 +116,7 @@ describe('floors', () => {
     const early = resolve(1).floors;
     const late = resolve(2).floors;
     expect(early).toBeLessThan(late);
-    expect(late).toBe(getBuildingDimensions(file, LINE_STATS, BYTE_STATS).floors);
+    expect(late).toBe(getBuildingDimensions(file, CFG, LINE_STATS, BYTE_STATS).floors);
   });
 
   it.each([['a ruin blanks its facade', 3, { ruinsOn: true }]])('%s', (_label, pos, over) => {
@@ -204,7 +207,9 @@ describe('weathering', () => {
     // modes call one function, so HEAD matches.
     const state = resolve(2, spread, commitMs);
     const recency = 1 - state.modifiedAge;
-    expect(state.colorBase).toBe(getBuildingColorForRecency(file, recency));
+    expect(state.colorBase).toBe(
+      getBuildingColorForRecency(file, recency, citySettings().BUILDINGS)
+    );
     expect(state.colorToward).toBeNull();
   });
 

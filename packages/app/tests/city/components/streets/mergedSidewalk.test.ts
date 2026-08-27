@@ -6,6 +6,9 @@ import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/componen
 import { STREETS } from '@/state/settings/fields/streets';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
+import { settingSignals } from '../../../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',
@@ -42,7 +45,7 @@ describe('merged sidewalk mesh', () => {
   });
 
   it('returns null for an empty street list', () => {
-    expect(createMergedSidewalkMesh([], 0)).toBeNull();
+    expect(createMergedSidewalkMesh([], 0, SETTINGS)).toBeNull();
   });
 
   it('merges all streets into one mesh with contiguous per-street ranges', () => {
@@ -51,7 +54,7 @@ describe('merged sidewalk mesh', () => {
       mkStreet('b', { x: 500, orientation: StreetAxis.Y }),
       mkStreet('c', { x: -500, length: 800 }),
     ];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, SETTINGS)!;
     expect(out).not.toBeNull();
     expect(out.ranges).toHaveLength(3);
 
@@ -71,7 +74,7 @@ describe('merged sidewalk mesh', () => {
 
   it('resolves any face of a street back to that street (picking)', () => {
     const streets = [mkStreet('a'), mkStreet('b', { x: 500 }), mkStreet('c', { x: -500 })];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, SETTINGS)!;
     const totalFaces = out.mesh.geometry.index!.count / 3;
 
     for (let i = 0; i < out.ranges.length; i++) {
@@ -86,7 +89,7 @@ describe('merged sidewalk mesh', () => {
 
   it('sidewalkStreetForFace returns null when the mesh has no map', () => {
     const streets = [mkStreet('a')];
-    const out = createMergedSidewalkMesh(streets, 0)!;
+    const out = createMergedSidewalkMesh(streets, 0, SETTINGS)!;
     delete out.mesh.userData.pickStreets;
     expect(sidewalkStreetForFace(out.mesh, 0)).toBeNull();
   });

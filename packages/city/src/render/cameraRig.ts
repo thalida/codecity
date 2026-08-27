@@ -21,22 +21,13 @@ import {
 } from '@/city/constants/camera';
 import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
-import { CAMERA } from '@/state/settings/fields/camera';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
-import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { backdropRadius } from './backdropRadius';
 import { Building } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
-
-// The backdrop fields that PLACE the camera. Rotation speed is out: dragging it
-// mid-spin should change the speed, not yank the orbit back to its start azimuth.
-const BACKDROP_POSE = computed(() => {
-  const s = HOME_BACKDROP.value;
-  return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
-});
+import type { SettingSignals } from '@/city/settings/store';
 
 /** How a focus command frames the node it looks at. */
 export enum FocusMode {
@@ -113,13 +104,23 @@ export function createCameraRig({
   canvas,
   deps,
   cityState,
+  settings,
   mode: initialMode = CameraMode.Project,
 }: {
   canvas: HTMLCanvasElement;
   deps: CameraRigDeps;
   cityState: CityState;
+  settings: SettingSignals;
   mode?: CameraMode;
 }) {
+  // The backdrop fields that PLACE the camera. Rotation speed is out: dragging
+  // it mid-spin should change the speed, not yank the orbit back to its start
+  // azimuth. Per rig, so a second city's backdrop pose is its own.
+  const backdropPose = computed(() => {
+    const s = settings.HOME_BACKDROP.value;
+    return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
+  });
+
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
   const camera = new THREE.PerspectiveCamera(
@@ -213,8 +214,8 @@ export function createCameraRig({
     // Behind the gem along the root street's axis (the gem sits at its low
     // end), lifted and swung by the user's angle. A CAMERA effect re-frames.
     const dir = computeFramingDir(
-      CAMERA.value.ELEVATION,
-      CAMERA.value.AZIMUTH,
+      settings.CAMERA.value.ELEVATION,
+      settings.CAMERA.value.AZIMUTH,
       rootStreet ? rootStreet.orientation : null
     );
 
@@ -291,7 +292,7 @@ export function createCameraRig({
   // A saved angle re-frames the project it steers: reset() reads it and snaps.
   // On construction the bbox is empty, so this no-ops.
   const _disposeCameraAngleEffect = effect(() => {
-    void CAMERA.value;
+    void settings.CAMERA.value;
     untracked(() => {
       if (mode === CameraMode.Project) reset();
     });
@@ -576,7 +577,7 @@ export function createCameraRig({
   function _backdropRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
     return backdropRadius(distance, controls, {
-      gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, GEM_SIZING.value) : null,
+      gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, settings.GEM_SIZING.value) : null,
       gemFitDistance: _gemFitDistance(),
       worldBounds: cityState.latestWorldBounds.value,
     });
@@ -587,7 +588,7 @@ export function createCameraRig({
   function _backdropPose(): CameraPlacement | null {
     const gem = cityState.gemWorldPos.value;
     if (!gem) return null;
-    const backdrop = HOME_BACKDROP.value;
+    const backdrop = settings.HOME_BACKDROP.value;
     const dir = computeFramingDir(
       backdrop.ELEVATION,
       backdrop.AZIMUTH,
@@ -611,7 +612,7 @@ export function createCameraRig({
   // Saving a Home backdrop draft re-frames a running turntable in place, so the
   // wallpaper reflects the new pose without a reload.
   const _disposeBackdropPoseEffect = effect(() => {
-    void BACKDROP_POSE.value;
+    void backdropPose.value;
     untracked(() => {
       if (mode === CameraMode.Backdrop) reset();
     });
@@ -620,7 +621,7 @@ export function createCameraRig({
   // Sole writer of autoRotateSpeed: runs on construction and on every change, so
   // no mode swap has to set it.
   const _disposeBackdropSpeedEffect = effect(() => {
-    controls.autoRotateSpeed = HOME_BACKDROP.value.ROTATE_SPEED;
+    controls.autoRotateSpeed = settings.HOME_BACKDROP.value.ROTATE_SPEED;
   });
 
   function dispose() {

@@ -5,7 +5,6 @@
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { BuildingMaterial } from './material';
@@ -15,6 +14,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import type { CityState } from '@/city/state';
 import { FadeDetail } from '@/city/types/animation';
 import { NodeKind } from '@/city/types/manifest';
+import type { SettingSignals } from '@/city/settings/store';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
 // handle; the street-by-dir lookup comes from cityState directly.
@@ -28,11 +28,13 @@ export function createBuildingFader({
   cityState,
   picker,
   material,
+  settings,
 }: {
   world: FaderWorld;
   cityState: CityState;
   picker: ReturnType<typeof createPicker>;
   material: BuildingMaterial;
+  settings: SettingSignals;
 }) {
   function _sweepAll(): void {
     // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
@@ -45,7 +47,7 @@ export function createBuildingFader({
     const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap.peek());
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = BUILDINGS.value;
+    const fadeCfg = settings.BUILDINGS.value;
 
     // Built here rather than inside applyBuildingFades' per-slot callback,
     // which would re-walk the tree per slot.
@@ -113,7 +115,7 @@ export function createBuildingFader({
   // Every value _sweepAll reads comes from BUILDINGS, so dragging a slider in
   // the controls pane has to re-sweep to show up.
   const _unsubCfg = effect(() => {
-    void BUILDINGS.value;
+    void settings.BUILDINGS.value;
     _sweepAll();
   });
 

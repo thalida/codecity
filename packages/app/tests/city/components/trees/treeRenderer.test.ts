@@ -2,16 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { buildCanopyEdges, type Trees } from '@/city/components/trees/treeRenderer';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { TREES } from '@/state/settings/fields/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../../_helpers/commits';
 import { renderTrees } from '../../../_helpers/renderTrees';
 import { epochDay, parseDateMs } from '@/city/utils/dates';
+import { settingsStore } from '../../../_helpers/citySettings';
+import type { CitySettingsPatch } from '@/city/settings';
 
-function resetStores() {
-  TREES.value = {
+// Stated, not defaulted: the heights, the trunk fraction and the shading
+// strength are what these buffer assertions are written against.
+const TREE_SETTINGS: CitySettingsPatch = {
+  TREES: {
     ENABLED: true,
     CITY_CLEARANCE_PERCENT: 5,
     CITY_CLEARANCE_LIMITS: [0, 2000],
@@ -35,8 +37,8 @@ function resetStores() {
     OUTLINE_HOVER_COLOR: '#ffffff',
     OUTLINE_HOVER_OPACITY: 0.5,
     OUTLINE_SELECTED_OPACITY: 0.75,
-  };
-  BUILDING_DIMENSIONS.value = {
+  },
+  BUILDING_DIMENSIONS: {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
     FLOOR_HEIGHT: 16,
@@ -47,8 +49,8 @@ function resetStores() {
     FULL_WIDTH_KB: 64,
     DISTANCE_FROM_ROAD: 8,
     DATA_HEIGHT_RATIO: 0.7,
-  };
-}
+  },
+};
 
 function placement(x: number, y: number, seed: number, commitIndex: number): TreePlacement {
   return { x, y, seed, commitIndex };
@@ -106,9 +108,10 @@ function treeExtent(
 
 describe('createTreeRenderer()', () => {
   let trees: Trees;
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    resetStores();
+    store = settingsStore(TREE_SETTINGS);
   });
 
   afterEach(() => {
@@ -117,7 +120,7 @@ describe('createTreeRenderer()', () => {
 
   it('builds one merged chunk mesh holding every tree', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = renderTrees(placements, commitSeries(3), BUSY);
+    trees = renderTrees(placements, commitSeries(3), BUSY, store.signals);
     const chunks = chunkMeshes(trees.group);
     expect(chunks.length).toBe(1);
     expect(trees.group.children.length).toBe(1);
@@ -127,14 +130,14 @@ describe('createTreeRenderer()', () => {
   });
 
   it('handles an empty placement list (no chunk meshes)', () => {
-    trees = renderTrees([], commitSeries(0), BUSY);
+    trees = renderTrees([], commitSeries(0), BUSY, store.signals);
     expect(trees.group.children.length).toBe(0);
   });
 
   it('splits big forests into chunks and resolves lookups across the boundary', () => {
     const many = Array.from({ length: 600 }, (_, i) => placement(i, 0, i + 1, i));
     const commits = commitSeries(600);
-    trees = renderTrees(many, commits, BUSY);
+    trees = renderTrees(many, commits, BUSY, store.signals);
     // 600 trees at 512 per chunk → two chunk meshes.
     const chunks = chunkMeshes(trees.group);
     expect(chunks.length).toBe(2);
@@ -151,7 +154,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('puts chunk meshes at PARK_FOLIAGE render order with the trees meshKind', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     for (const m of chunkMeshes(trees.group)) {
       expect(m.renderOrder).toBe(RENDER_ORDERS.PARK_FOLIAGE);
       expect(m.userData.meshKind).toBe('trees');
@@ -159,17 +162,17 @@ describe('createTreeRenderer()', () => {
   });
 
   it('honors ENABLED visibility toggle on build', () => {
-    TREES.value = { ...TREES.value, ENABLED: false };
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    store.update({ TREES: { ENABLED: false } });
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(false);
   });
 
   it('refresh() flips visibility on ENABLED change', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
-    TREES.value = { ...TREES.value, ENABLED: false };
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
+    store.update({ TREES: { ENABLED: false } });
     trees.refresh();
     for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(false);
-    TREES.value = { ...TREES.value, ENABLED: true };
+    store.update({ TREES: { ENABLED: true } });
     trees.refresh();
     for (const m of chunkMeshes(trees.group)) expect(m.visible).toBe(true);
   });
@@ -183,7 +186,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 5 }
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = renderTrees(placements, commits, BUSY);
+    trees = renderTrees(placements, commits, BUSY, store.signals);
 
     const trunkTop = (i: number) => {
       const { mesh, slot } = findTreeSlot(trees.group, i);
@@ -203,7 +206,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 9 }
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = renderTrees(placements, commits, BUSY);
+    trees = renderTrees(placements, commits, BUSY, store.signals);
 
     const trunkRadius = (i: number) => {
       const { mesh, slot } = findTreeSlot(trees.group, i);
@@ -222,7 +225,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 9 }
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
-    trees = renderTrees(placements, commits, BUSY);
+    trees = renderTrees(placements, commits, BUSY, store.signals);
 
     // Measured on Z: the 6-segment lathe places vertices at sin(phi) on X
     // (no vertex at ±1) but cos(phi) on Z spans the full diameter.
@@ -236,7 +239,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('canopy overlaps the top of the trunk by CANOPY_TRUNK_OVERLAP_FRAC', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const { mesh, slot } = findTreeSlot(trees.group, 0);
     const canopyBaseY = treeExtent(mesh, slot, 'canopy', 1).min;
     const trunkHeight = treeExtent(mesh, slot, 'trunk', 1).max;
@@ -245,8 +248,8 @@ describe('createTreeRenderer()', () => {
   });
 
   it('CANOPY_TRUNK_OVERLAP_FRAC=0 puts canopy base exactly on trunk top', () => {
-    TREES.value = { ...TREES.value, CANOPY_TRUNK_OVERLAP_FRAC: 0 };
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    store.update({ TREES: { CANOPY_TRUNK_OVERLAP_FRAC: 0 } });
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const { mesh, slot } = findTreeSlot(trees.group, 0);
     expect(treeExtent(mesh, slot, 'canopy', 1).min).toBeCloseTo(
       treeExtent(mesh, slot, 'trunk', 1).max,
@@ -256,7 +259,7 @@ describe('createTreeRenderer()', () => {
 
   it('bakes commit-day color into canopy vertices: SOLO vs BUSY endpoints, same day = same color', () => {
     // Shading off so canopy vertex colors ARE the tree color (byte-quantized).
-    TREES.value = { ...TREES.value, SHADING_STRENGTH: 0 };
+    store.update({ TREES: { SHADING_STRENGTH: 0 } });
     // Three days with 1, 2, and 4 commits. With thresholds {avg:2, busy:4}
     // the gradient anchors: solo day → COLOR_SOLO_DAY, busy day → COLOR_BUSY_DAY.
     const commits = buildCommits(
@@ -269,7 +272,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-20', files: 5 } // busy day, commit D
     );
     const placements = commits.map((_, i) => placement(i * 20, 0, i + 1, i));
-    trees = renderTrees(placements, commits, { avg: 2, busy: 4 });
+    trees = renderTrees(placements, commits, { avg: 2, busy: 4 }, store.signals);
 
     const vertexColor = (i: number): THREE.Color => {
       const { mesh, slot } = findTreeSlot(trees.group, i);
@@ -298,7 +301,7 @@ describe('createTreeRenderer()', () => {
 
   it('all trees render at midpoint values when commits is null', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
-    trees = renderTrees(placements, null, BUSY);
+    trees = renderTrees(placements, null, BUSY, store.signals);
     const midH = (48 + 144) / 2;
     for (let i = 0; i < placements.length; i++) {
       const { mesh, slot } = findTreeSlot(trees.group, i);
@@ -307,8 +310,8 @@ describe('createTreeRenderer()', () => {
   });
 
   it('vertex shading strength=0 yields uniform canopy color per tree', () => {
-    TREES.value = { ...TREES.value, SHADING_STRENGTH: 0 };
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    store.update({ TREES: { SHADING_STRENGTH: 0 } });
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const { mesh, slot } = findTreeSlot(trees.group, 0);
     const canopyVerts = mesh.userData.canopyVerts as number;
     const perTree = canopyVerts + (mesh.userData.trunkVerts as number);
@@ -322,7 +325,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('default shading strength bakes a real brightness spread across facets', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const { mesh, slot } = findTreeSlot(trees.group, 0);
     const canopyVerts = mesh.userData.canopyVerts as number;
     const perTree = canopyVerts + (mesh.userData.trunkVerts as number);
@@ -338,12 +341,12 @@ describe('createTreeRenderer()', () => {
   });
 
   it('refresh() updates colors in place without rebuilding meshes', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const meshesBefore = chunkMeshes(trees.group);
     const geomsBefore = meshesBefore.map((m) => m.geometry);
     const colorBefore = trees.colorForSha(commitSeries(1)[0].sha);
 
-    TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#000000', COLOR_SOLO_DAY: '#ffffff' };
+    store.update({ TREES: { COLOR_BUSY_DAY: '#000000', COLOR_SOLO_DAY: '#ffffff' } });
     trees.refresh();
 
     const meshesAfter = chunkMeshes(trees.group);
@@ -355,7 +358,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('dispose() releases every chunk geometry', () => {
-    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY);
+    trees = renderTrees([placement(0, 0, 1, 0)], commitSeries(1), BUSY, store.signals);
     const tracked: Array<{ disposed: boolean }> = [];
     for (const mesh of chunkMeshes(trees.group)) {
       const entry = { disposed: false };
@@ -379,7 +382,7 @@ describe('createTreeRenderer()', () => {
         placement(0, 20, 3, 2),
         placement(20, 20, 4, 3),
       ];
-      trees = renderTrees(placements, commits, BUSY);
+      trees = renderTrees(placements, commits, BUSY, store.signals);
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
 
       expect(material.uniforms.uScrubCommit.value).toBe(-1);
@@ -395,7 +398,12 @@ describe('createTreeRenderer()', () => {
 
     it('a scrub-hidden tree stops resolving through commitForFace', () => {
       const commits = commitSeries(2);
-      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], commits, BUSY);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(20, 0, 2, 1)],
+        commits,
+        BUSY,
+        store.signals
+      );
       const { mesh, slot } = findTreeSlot(trees.group, 1);
       expect(trees.commitForFace(mesh, firstFaceOf(mesh, slot))?.commit).toEqual(commits[1]);
       trees.setScrubCommit(0);
@@ -407,7 +415,8 @@ describe('createTreeRenderer()', () => {
       trees = renderTrees(
         [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)],
         commits,
-        BUSY
+        BUSY,
+        store.signals
       );
       trees.setScrubCommit(0);
       expect(trees.isScrubHidden(2)).toBe(true);
@@ -431,7 +440,12 @@ describe('createTreeRenderer()', () => {
         { date: '2024-01-01', files: 1 },
         { date: '2024-06-01', files: 1 }
       );
-      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(20, 0, 2, 1)],
+        history,
+        BUSY,
+        store.signals
+      );
       // Local epoch days, the scale treeEncoding bakes against, through the
       // shared helper so the expectation isn't the runner's timezone.
       expect(scrubbed(trees)).toBe(epochDay('2024-06-01'));
@@ -442,7 +456,12 @@ describe('createTreeRenderer()', () => {
         { date: '2024-01-01', files: 1 },
         { date: '2024-06-01', files: 1 }
       );
-      trees = renderTrees([placement(0, 0, 1, 0), placement(20, 0, 2, 1)], history, BUSY);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(20, 0, 2, 1)],
+        history,
+        BUSY,
+        store.signals
+      );
       const baked = scrubbed(trees);
       trees.setScrubNow(parseDateMs('2024-03-01'));
       expect(scrubbed(trees)).toBeCloseTo(epochDay('2024-03-01'), 5);
@@ -455,7 +474,12 @@ describe('createTreeRenderer()', () => {
         { date: '2024-01-01', files: 1 },
         { date: '2024-06-01', files: 1 }
       );
-      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(40, 0, 2, 1)],
+        history,
+        BUSY,
+        store.signals
+      );
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
       const texel = material.uniforms.uGrowth.value.image.data as Float32Array;
       const { mesh, slot } = findTreeSlot(trees.group, 1);
@@ -479,8 +503,13 @@ describe('createTreeRenderer()', () => {
         { date: '2024-06-01', files: 1 }
       );
       // Width follows height once the age attenuation is on.
-      TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.2 };
-      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 1)], history, BUSY);
+      store.update({ TREES: { WIDTH_AGE_FLOOR: 0.2 } });
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(40, 0, 2, 1)],
+        history,
+        BUSY,
+        store.signals
+      );
 
       const atHead = trees.getTreeBoundsBySha(history[0].sha)!;
       trees.setScrubNow(parseDateMs('2023-08-01'));
@@ -497,13 +526,21 @@ describe('createTreeRenderer()', () => {
 
     it('marks a placement with no commit behind it as one that cannot grow', () => {
       const history = buildCommits({ date: '2024-06-01', files: 1 });
-      trees = renderTrees([placement(0, 0, 1, 0), placement(40, 0, 2, 9)], history, BUSY);
+      trees = renderTrees(
+        [placement(0, 0, 1, 0), placement(40, 0, 2, 9)],
+        history,
+        BUSY,
+        store.signals
+      );
       const material = chunkMeshes(trees.group)[0].material as THREE.ShaderMaterial;
       const texel = material.uniforms.uGrowth.value.image.data as Float32Array;
 
       // No commit means no date to age from: treeHeight gave it the midpoint of
       // the height range, and a negative day tells the shader to leave it there.
-      const { min, max } = { min: TREES.value.MIN_HEIGHT, max: TREES.value.MAX_HEIGHT };
+      const { min, max } = {
+        min: store.signals.TREES.value.MIN_HEIGHT,
+        max: store.signals.TREES.value.MAX_HEIGHT,
+      };
       expect(texel[4]).toBe(-1);
       expect(texel[7]).toBeCloseTo((min + max) * 0.5, 5);
     });
@@ -517,7 +554,7 @@ describe('createTreeRenderer()', () => {
     it('commitForFace resolves every tree through its vertex range', () => {
       const commits = commitSeries(3);
       const placements = [seeded(0, 0), seeded(1, 1), seeded(2, 2)];
-      trees = renderTrees(placements, commits, BUSY);
+      trees = renderTrees(placements, commits, BUSY, store.signals);
       for (let i = 0; i < placements.length; i++) {
         const { mesh, slot } = findTreeSlot(trees.group, i);
         const hit = trees.commitForFace(mesh, firstFaceOf(mesh, slot));
@@ -527,7 +564,7 @@ describe('createTreeRenderer()', () => {
     });
 
     it('commitForFace returns null off the end, for null faces, and for a foreign mesh', () => {
-      trees = renderTrees([seeded(0, 0)], commitSeries(1), BUSY);
+      trees = renderTrees([seeded(0, 0)], commitSeries(1), BUSY, store.signals);
       const mesh = chunkMeshes(trees.group)[0];
       const perTree = (mesh.userData.canopyVerts as number) + (mesh.userData.trunkVerts as number);
       const stranger = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
@@ -538,7 +575,7 @@ describe('createTreeRenderer()', () => {
 
     it('findTreeBySha round-trips back through commitForFace', () => {
       const commits = commitSeries(3);
-      trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY);
+      trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY, store.signals);
 
       const got = trees.findTreeBySha(commits[1].sha);
       expect(got).not.toBeNull();
@@ -550,13 +587,13 @@ describe('createTreeRenderer()', () => {
 
     it('colorForSha returns the tree base colour as hex', () => {
       const commits = commitSeries(3);
-      trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY);
+      trees = renderTrees([seeded(0, 0), seeded(1, 1), seeded(2, 2)], commits, BUSY, store.signals);
       expect(trees.colorForSha(commits[1].sha)).toMatch(/^#[0-9a-f]{6}$/);
     });
 
     it('getInstanceTransform composes the canopy transform from placement data', () => {
       const commits = commitSeries(2);
-      trees = renderTrees([seeded(0, 0), seeded(3, 1)], commits, BUSY);
+      trees = renderTrees([seeded(0, 0), seeded(3, 1)], commits, BUSY, store.signals);
 
       const out = new THREE.Matrix4();
       expect(trees.getInstanceTransform(commits[1].sha, out)).toBe(true);
@@ -576,7 +613,12 @@ describe('createTreeRenderer()', () => {
 
     it('getTreeBoundsBySha reports the placement position and non-zero dims', () => {
       const commits = commitSeries(3);
-      trees = renderTrees([seeded(5, 0), seeded(11, 1), seeded(17, 2)], commits, BUSY);
+      trees = renderTrees(
+        [seeded(5, 0), seeded(11, 1), seeded(17, 2)],
+        commits,
+        BUSY,
+        store.signals
+      );
 
       const bounds = trees.getTreeBoundsBySha(commits[1].sha);
       expect(bounds).not.toBeNull();
@@ -592,7 +634,7 @@ describe('createTreeRenderer()', () => {
       ['a null commit list', 0, '0'.repeat(40)],
     ])('every sha lookup returns empty for %s', (_label, n, sha) => {
       const commits = n > 0 ? commitSeries(n) : null;
-      trees = renderTrees([seeded(0, 0)], commits, BUSY);
+      trees = renderTrees([seeded(0, 0)], commits, BUSY, store.signals);
       expect(trees.findTreeBySha(sha)).toBeNull();
       expect(trees.colorForSha(sha)).toBeNull();
       expect(trees.getTreeBoundsBySha(sha)).toBeNull();
@@ -600,8 +642,8 @@ describe('createTreeRenderer()', () => {
     });
 
     it('a degenerate height range leaves no NaN in the baked vertices', () => {
-      TREES.value = { ...TREES.value, MIN_HEIGHT: 32, MAX_HEIGHT: 32, WIDTH_AGE_FLOOR: 0.5 };
-      trees = renderTrees([seeded(0, 0), seeded(1, 1)], commitSeries(2), BUSY);
+      store.update({ TREES: { MIN_HEIGHT: 32, MAX_HEIGHT: 32, WIDTH_AGE_FLOOR: 0.5 } });
+      trees = renderTrees([seeded(0, 0), seeded(1, 1)], commitSeries(2), BUSY, store.signals);
       for (const mesh of chunkMeshes(trees.group)) {
         const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
         for (let v = 0; v < pos.count; v++) {

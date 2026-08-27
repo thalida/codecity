@@ -1,9 +1,8 @@
 // COLOR / CORNER_RADIUS / ENABLED reactivity belongs to the component's own
-// effect, so these tests drive it by mutating FOOTPRINT.value.
+// effect, so these tests drive it by mutating store.signals.FOOTPRINT.value.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import {
   BuildingLane,
   blankBuildingScrubState,
@@ -14,10 +13,13 @@ import type { ScrubStates } from '@/city/timeline/scrubPass';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-function resetFootprint() {
-  FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
-}
+// Stated, not defaulted: the halo width and corner radius are what the
+// geometry assertions below are written against.
+const FOOTPRINT_SETTINGS = {
+  FOOTPRINT: { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' },
+};
 
 // footprint reads ctx.cityState for its layout effect; layout stays null here
 // (effect no-ops) and tests drive rebuild() directly.
@@ -44,10 +46,11 @@ function singleBuildingLayout(): CityLayout {
 
 describe('createFootprint()', () => {
   let fp: ReturnType<typeof createFootprint>;
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    resetFootprint();
-    fp = createFootprint(makeSceneContext());
+    store = settingsStore(FOOTPRINT_SETTINGS);
+    fp = createFootprint(makeSceneContext(undefined, store.signals));
   });
 
   afterEach(() => {
@@ -64,7 +67,7 @@ describe('createFootprint()', () => {
   it('effect is inert before the first rebuild', () => {
     // No mesh yet, so the effect fires against a null material and its
     // `if (material)` guard is what holds.
-    FOOTPRINT.value = { ...FOOTPRINT.value };
+    store.update({ FOOTPRINT: { COLOR: '#123456' } });
     expect(fp.group.children).toHaveLength(0);
   });
 
@@ -103,7 +106,7 @@ describe('createFootprint()', () => {
   });
 
   it('rebuild() attaches a per-instance aHalfExtent attribute carrying inflated half-extents', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 50 };
+    store.update({ FOOTPRINT: { HALO_WIDTH: 50 } });
     const layout: CityLayout = {
       buildings: [
         {
@@ -131,7 +134,7 @@ describe('createFootprint()', () => {
   });
 
   it('rebuild() uses a ShaderMaterial whose uColor matches FOOTPRINT.COLOR at build time', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#abcdef' };
+    store.update({ FOOTPRINT: { COLOR: '#abcdef' } });
     fp.rebuild(singleBuildingLayout());
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
@@ -144,7 +147,7 @@ describe('createFootprint()', () => {
   });
 
   it('rebuild() sets uCornerRadius uniform to CORNER_RADIUS scaled by HALO_WIDTH', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 80, CORNER_RADIUS: 0.5 };
+    store.update({ FOOTPRINT: { HALO_WIDTH: 80, CORNER_RADIUS: 0.5 } });
     fp.rebuild(singleBuildingLayout());
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
@@ -152,7 +155,7 @@ describe('createFootprint()', () => {
   });
 
   it('rebuild() hides the group when FOOTPRINT.ENABLED is false', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, ENABLED: false };
+    store.update({ FOOTPRINT: { ENABLED: false } });
     fp.rebuild(singleBuildingLayout());
     expect(fp.group.visible).toBe(false);
   });
@@ -160,7 +163,7 @@ describe('createFootprint()', () => {
   // rebuild() — stub/empty case
 
   it('rebuild() leaves the group EMPTY when halo <= 0 (stub case — no mesh)', () => {
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 0 };
+    store.update({ FOOTPRINT: { HALO_WIDTH: 0 } });
     fp.rebuild(singleBuildingLayout());
     expect(fp.group.children).toHaveLength(0);
   });
@@ -185,7 +188,7 @@ describe('createFootprint()', () => {
     expect(firstMesh).toBeInstanceOf(THREE.InstancedMesh);
 
     // Second build with halo=0 → should remove & dispose the prior mesh, leave group empty.
-    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 0 };
+    store.update({ FOOTPRINT: { HALO_WIDTH: 0 } });
     fp.rebuild(singleBuildingLayout());
     expect(firstMesh.parent).toBeNull();
     expect(fp.group.children).toHaveLength(0);
@@ -193,7 +196,7 @@ describe('createFootprint()', () => {
 
   it('effect picks up COLOR change via FOOTPRINT signal mutation', () => {
     fp.rebuild(singleBuildingLayout());
-    FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#112233' };
+    store.update({ FOOTPRINT: { COLOR: '#112233' } });
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
     const color = mat.uniforms.uColor.value as THREE.Color;
@@ -206,7 +209,7 @@ describe('createFootprint()', () => {
   it('effect picks up CORNER_RADIUS change via FOOTPRINT signal mutation', () => {
     fp.rebuild(singleBuildingLayout());
     // HALO_WIDTH=32 (from resetFootprint), CORNER_RADIUS=0.25 → 0.25×32=8
-    FOOTPRINT.value = { ...FOOTPRINT.value, CORNER_RADIUS: 0.25 };
+    store.update({ FOOTPRINT: { CORNER_RADIUS: 0.25 } });
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uCornerRadius.value).toBeCloseTo(8);
@@ -214,15 +217,17 @@ describe('createFootprint()', () => {
 
   it('effect picks up ENABLED=false via FOOTPRINT signal mutation', () => {
     fp.rebuild(singleBuildingLayout());
-    FOOTPRINT.value = { ...FOOTPRINT.value, ENABLED: false };
+    store.update({ FOOTPRINT: { ENABLED: false } });
     expect(fp.group.visible).toBe(false);
-    FOOTPRINT.value = { ...FOOTPRINT.value, ENABLED: true };
+    store.update({ FOOTPRINT: { ENABLED: true } });
     expect(fp.group.visible).toBe(true);
   });
 
   it('effect applies COLOR + CORNER_RADIUS + ENABLED all at once on a single mutation', () => {
     fp.rebuild(singleBuildingLayout());
-    FOOTPRINT.value = { ENABLED: false, HALO_WIDTH: 32, CORNER_RADIUS: 0.25, COLOR: '#112233' };
+    store.update({
+      FOOTPRINT: { ENABLED: false, HALO_WIDTH: 32, CORNER_RADIUS: 0.25, COLOR: '#112233' },
+    });
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
     const color = mat.uniforms.uColor.value as THREE.Color;
@@ -244,7 +249,7 @@ describe('createFootprint()', () => {
     expect(secondMesh).not.toBe(firstMesh);
 
     // Now mutate — the effect must target the SECOND mesh's material.
-    FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#aabbcc' };
+    store.update({ FOOTPRINT: { COLOR: '#aabbcc' } });
     const mat = secondMesh.material as THREE.ShaderMaterial;
     const color = mat.uniforms.uColor.value as THREE.Color;
     const expected = new THREE.Color().setStyle('#aabbcc', THREE.LinearSRGBColorSpace);
@@ -261,7 +266,7 @@ describe('createFootprint()', () => {
     fp.rebuild(singleBuildingLayout());
     fp.dispose();
     expect(() => {
-      FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#abcdef' };
+      store.update({ FOOTPRINT: { COLOR: '#abcdef' } });
     }).not.toThrow();
   });
 

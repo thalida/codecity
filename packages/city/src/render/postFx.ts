@@ -9,7 +9,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { BLOOM } from '@/state/settings/fields/effects';
+import type { SettingSignals } from '@/city/settings/store';
 
 // Fraction of the DRAWING BUFFER, not the CSS box: composer.setSize already
 // applies the pixel ratio, so CSS sizing cost DPR-1 displays 4x per scene pixel.
@@ -24,9 +24,10 @@ export interface PostFx {
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
-  camera: THREE.PerspectiveCamera
+  camera: THREE.PerspectiveCamera,
+  settings: SettingSignals
 ): PostFx {
-  const bloomCfg = BLOOM.value;
+  const bloomCfg = settings.BLOOM.value;
   // Reused by setSize so the per-resize drawing-buffer read costs no alloc.
   const _drawingBuffer = new THREE.Vector2();
   // ACES squashes >1.0 back into display range: walls (already [0,1]) are
@@ -55,7 +56,7 @@ export function createPostFx(
   // BLOOM Save → live knobs, no renderer rebuild. ENABLED off bypasses the
   // pass entirely, pairing with the shader's clamped emission for a flat look.
   const stopBloom = effect(() => {
-    const cfg = BLOOM.value;
+    const cfg = settings.BLOOM.value;
     bloom.enabled = cfg.ENABLED;
     bloom.strength = cfg.STRENGTH;
     bloom.radius = cfg.RADIUS;

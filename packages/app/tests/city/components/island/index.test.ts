@@ -2,26 +2,36 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/city/components/island';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { ISLAND } from '@/state/settings/fields/island';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneContext } from '@/city/types';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-// Island reads only ctx.cityState at construction (latestWorldBounds starts
-// null → the bounds effect is a no-op until setBounds drives it directly here).
-const fakeCtx = { cityState: makeCityState() } as unknown as SceneContext;
+// The polygon assertions are written against a 12-sided island at these
+// proportions, so they are stated here rather than taken from the defaults.
+const ISLAND_SETTINGS = {
+  ISLAND: {
+    ENABLED: true,
+    SIDES: 12,
+    IRREGULARITY: 0.18,
+    TIERS: 2,
+    DEPTH: 0.6,
+    ROUNDNESS: 0.7,
+    GRASS_THICKNESS: 0.025,
+  },
+};
 
 describe('createIsland', () => {
+  let store: ReturnType<typeof settingsStore>;
+  // Island reads only settings and cityState at construction (latestWorldBounds
+  // starts null → the bounds effect no-ops until setBounds drives it here).
+  let fakeCtx: SceneContext;
+
   beforeEach(() => {
-    ISLAND.value = {
-      ...ISLAND.value,
-      ENABLED: true,
-      SIDES: 12,
-      IRREGULARITY: 0.18,
-      TIERS: 2,
-      DEPTH: 0.6,
-      ROUNDNESS: 0.7,
-      GRASS_THICKNESS: 0.025,
-    };
+    store = settingsStore(ISLAND_SETTINGS);
+    fakeCtx = {
+      cityState: makeCityState(store.signals),
+      settings: store.signals,
+    } as unknown as SceneContext;
   });
 
   it('returns a Group with island mesh', () => {
@@ -59,18 +69,18 @@ describe('createIsland', () => {
     expect(island.group.visible).toBe(true);
 
     // Disable via signal — effect re-runs synchronously in the test env.
-    ISLAND.value = { ...ISLAND.value, ENABLED: false };
+    store.update({ ISLAND: { ENABLED: false } });
     expect(island.group.visible).toBe(false);
 
     island.dispose();
   });
 
   it('hidden when ISLAND.ENABLED=false at construction', () => {
-    ISLAND.value = { ...ISLAND.value, ENABLED: false };
+    store.update({ ISLAND: { ENABLED: false } });
     const island = createIsland(fakeCtx);
     expect(island.group.visible).toBe(false);
     island.dispose();
-    ISLAND.value = { ...ISLAND.value, ENABLED: true };
+    store.update({ ISLAND: { ENABLED: true } });
   });
 
   it('effect re-applies material uniforms when ISLAND changes', () => {
@@ -80,7 +90,7 @@ describe('createIsland', () => {
     ) as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
 
     const newSkyColor = '#ff0000';
-    ISLAND.value = { ...ISLAND.value, HEMI_SKY_COLOR: newSkyColor };
+    store.update({ ISLAND: { HEMI_SKY_COLOR: newSkyColor } });
     const uSkyColor = islandMesh.material.uniforms.uHemiSkyColor?.value as THREE.Color;
     const expected = new THREE.Color(newSkyColor);
     expect(uSkyColor.r).toBeCloseTo(expected.r, 3);
@@ -106,9 +116,9 @@ describe('createIsland', () => {
     island.dispose();
     // The effect writes group.visible with no null guard, so a subscription
     // that outlived dispose would flip it here.
-    ISLAND.value = { ...ISLAND.value, ENABLED: false };
+    store.update({ ISLAND: { ENABLED: false } });
 
     expect(group.visible).toBe(true);
-    ISLAND.value = { ...ISLAND.value, ENABLED: true };
+    store.update({ ISLAND: { ENABLED: true } });
   });
 });

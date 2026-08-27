@@ -2,8 +2,9 @@
 // and the picker. Everything downstream takes a ScrubFrame value.
 
 import { SCRUB_POS } from '@/state/stores/timeline';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
-import { RUINS } from '@/state/settings/fields/ruins';
+import type { BuildingsConfig } from '@/city/settings/fields/buildings';
+import type { SettingSignals } from '@/city/settings/store';
+import { layoutConfigFrom, type LayoutConfig } from '@/city/layout/config';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/interaction/picker';
 import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
@@ -37,7 +38,10 @@ export interface ScrubFrame {
   bldgTargetFile: FileNode | null;
   dirTarget: ReturnType<typeof resolveDirTarget>;
   hoverFile: FileNode | null;
-  fadeCfg: ReturnType<typeof BUILDINGS.peek>;
+  fadeCfg: BuildingsConfig;
+  /** The packer's slice, so a scrubbed building re-derives its dimensions
+   *  through the same maths the layout used. */
+  layoutCfg: LayoutConfig;
 }
 
 export interface ScrubFrameDeps {
@@ -52,6 +56,7 @@ export interface ScrubFrameDeps {
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
+  settings: SettingSignals;
 }
 
 /** The date the handle sits on, interpolated toward the next commit so a quiet
@@ -69,8 +74,8 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
   // SCRUB_POS is clamped to the bundle; only the range arrays can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];
 
-  const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
-  const ruins = RUINS.peek();
+  const floorHeight = deps.settings.BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
+  const ruins = deps.settings.RUINS.peek();
 
   const dateRange =
     deps.commitDateRanges[Math.min(Math.floor(pos), deps.commitDateRanges.length - 1)];
@@ -95,6 +100,7 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
     dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
     hoverFile: hov?.kind === NodeKind.File ? hov.file : null,
-    fadeCfg: BUILDINGS.peek(),
+    fadeCfg: deps.settings.BUILDINGS.peek(),
+    layoutCfg: layoutConfigFrom(deps.settings),
   };
 }

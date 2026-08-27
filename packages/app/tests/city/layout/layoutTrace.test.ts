@@ -9,6 +9,9 @@ import type { VariantTrace } from '@/city/layout/stemSolver';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
 import { StreetAxis } from '@/city/types/street';
+import { layoutCfg } from '../../_helpers/citySettings';
+
+const CFG = layoutCfg();
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {
@@ -237,7 +240,8 @@ describe('layoutCityWithTrace', () => {
     };
 
     const { layout, trace } = layoutCityWithTrace(
-      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]
+      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0],
+      CFG
     );
 
     expect(layout.buildings).toHaveLength(2);
@@ -314,7 +318,8 @@ describe('layoutCityWithTrace', () => {
     };
 
     const { trace } = layoutCityWithTrace(
-      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]
+      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0],
+      CFG
     );
 
     expect(trace.placements).toHaveLength(2);

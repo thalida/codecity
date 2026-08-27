@@ -7,13 +7,15 @@ import * as THREE from 'three';
 import { createCameraRig, CameraMode, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import type { CityState } from '@/city/state';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
-import { getDefault } from '@/state/persist';
 import { Building, BuildingOrient } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
+import { settingsStore } from '../../_helpers/citySettings';
+
+// Rebuilt per case, so a backdrop tweak in one does not leak into the next.
+let SETTINGS = settingsStore();
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
@@ -120,7 +122,12 @@ describe('cameraRig top-down focus', () => {
 
   it('a file target lands the camera at ~80° elevation centered on the building', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16);
 
     const b = makeBuilding();
@@ -147,7 +154,12 @@ describe('cameraRig top-down focus', () => {
 
   it('a directory target lands the camera at ~80° elevation centered on the street', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16);
     const s = makeStreet();
     rig.focusSelection(dirTarget(s));
@@ -177,7 +189,12 @@ describe('cameraRig top-down focus', () => {
       getTreeBoundsBySha: (sha: string) =>
         sha === 'abc' ? { x: 250, y: 0, z: -180, height: 100, radius: 30 } : null,
     });
-    const rig = createCameraRig({ canvas, deps, cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps,
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16);
     rig.focusSelection(commitTarget('abc'));
     return new Promise<void>((resolve) => {
@@ -202,7 +219,12 @@ describe('cameraRig top-down focus', () => {
 
   it('a commit whose tree was never placed leaves the camera alone', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
     rig.focusSelection(commitTarget('missing-sha'));
@@ -220,7 +242,12 @@ describe('cameraRig top-down focus', () => {
 describe('cameraRig recenter focus', () => {
   it('centres the building with the camera angle and distance untouched', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16); // the opening framing, i.e. the pose a load rests at
 
     const before = rig.camera.position.clone().sub(rig.controls.target);
@@ -241,7 +268,12 @@ describe('cameraRig recenter focus', () => {
 
   it('centres the street the same way', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
     rig.update(16);
 
     const before = rig.camera.position.clone().sub(rig.controls.target);
@@ -262,7 +294,12 @@ describe('cameraRig recenter focus', () => {
   // frame, so the one-shot opening framing is still pending when it runs.
   it('survives the first-frame framing when it lands before it', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
+    const rig = createCameraRig({
+      canvas,
+      deps: makeStubWorld(),
+      cityState: seedFramedCity(),
+      settings: SETTINGS.signals,
+    });
 
     const b = makeBuilding();
     rig.focusSelection(fileTarget(b), FocusMode.Recenter);
@@ -282,17 +319,22 @@ describe('cameraRig home backdrop orbit', () => {
   // keep answering the next test's slider writes.
   const rigs: CameraRig[] = [];
   function makeRig(cityState: CityState, mode = CameraMode.Backdrop): CameraRig {
-    const rig = createCameraRig({ canvas: makeCanvas(), deps: makeStubWorld(), cityState, mode });
+    const rig = createCameraRig({
+      canvas: makeCanvas(),
+      deps: makeStubWorld(),
+      cityState,
+      mode,
+      settings: SETTINGS.signals,
+    });
     rigs.push(rig);
     return rig;
   }
 
   beforeEach(() => {
-    HOME_BACKDROP.value = { ...getDefault(HOME_BACKDROP) };
+    SETTINGS = settingsStore();
   });
   afterEach(() => {
     while (rigs.length) rigs.pop()?.dispose();
-    HOME_BACKDROP.value = { ...getDefault(HOME_BACKDROP) };
   });
 
   it('circles the gem at the configured elevation, part way out', () => {
@@ -300,7 +342,7 @@ describe('cameraRig home backdrop orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     const at = (t: number): number => {
-      HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 12, DISTANCE: t };
+      SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 12, DISTANCE: t } });
       return rig.camera.position.distanceTo(gem);
     };
 
@@ -319,7 +361,7 @@ describe('cameraRig home backdrop orbit', () => {
   it('puts a value at the same distance whatever the city sprawls to', () => {
     const at = (cs: CityState, t: number): number => {
       const rig = makeRig(cs);
-      HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: t };
+      SETTINGS.update({ HOME_BACKDROP: { DISTANCE: t } });
       return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
     };
     // Same root street, wildly different sprawl: 20x the depth behind the gem.
@@ -333,7 +375,7 @@ describe('cameraRig home backdrop orbit', () => {
   it('is as close as the camera may ever sit at 0', () => {
     const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 0 };
+    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 0 } });
 
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(rig.controls.minDistance, 6);
@@ -346,10 +388,10 @@ describe('cameraRig home backdrop orbit', () => {
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
 
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 1 };
+    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 1 } });
     const framed = rig.camera.position.distanceTo(gem);
 
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, DISTANCE: 2 };
+    SETTINGS.update({ HOME_BACKDROP: { DISTANCE: 2 } });
     const pulledBack = rig.camera.position.distanceTo(gem);
 
     expect(pulledBack).toBeGreaterThan(framed);
@@ -360,7 +402,7 @@ describe('cameraRig home backdrop orbit', () => {
   // used to be overwritten by the still-pending opening framing a tick later.
   it('opens on the orbit, and every re-frame keeps it there', () => {
     const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 8, AZIMUTH: 120, DISTANCE: 1.6 };
+    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 8, AZIMUTH: 120, DISTANCE: 1.6 } });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     // Held still, so anything that moves across a frame is a framing, not the orbit.
@@ -382,7 +424,7 @@ describe('cameraRig home backdrop orbit', () => {
     const gem = cs.gemWorldPos.value as THREE.Vector3;
 
     const before = rig.camera.position.distanceTo(gem);
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 45, DISTANCE: 0.25 };
+    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 45, DISTANCE: 0.25 } });
 
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(45, 3);
     expect(rig.camera.position.distanceTo(gem)).toBeLessThan(before);
@@ -394,7 +436,7 @@ describe('cameraRig home backdrop orbit', () => {
     rig.update(16); // the opening framing, the pose the user is actually sitting at
     const opened = rig.camera.position.clone();
 
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 45, DISTANCE: 1.2 };
+    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 45, DISTANCE: 1.2 } });
     expect(rig.camera.position.distanceTo(opened)).toBeLessThan(1e-6);
 
     // …and again once a rig that WAS a backdrop has gone back to its project.
@@ -403,7 +445,7 @@ describe('cameraRig home backdrop orbit', () => {
     expect(rig.controls.autoRotate).toBe(false);
     const afterExit = rig.camera.position.clone();
 
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ELEVATION: 70, DISTANCE: 0.4 };
+    SETTINGS.update({ HOME_BACKDROP: { ELEVATION: 70, DISTANCE: 0.4 } });
     expect(rig.camera.position.distanceTo(afterExit)).toBeLessThan(1e-6);
   });
 
@@ -415,7 +457,7 @@ describe('cameraRig home backdrop orbit', () => {
     rig.camera.position.set(0, 100, 500);
     const spun = rig.camera.position.clone();
 
-    HOME_BACKDROP.value = { ...HOME_BACKDROP.value, ROTATE_SPEED: 2.5 };
+    SETTINGS.update({ HOME_BACKDROP: { ROTATE_SPEED: 2.5 } });
 
     expect(rig.controls.autoRotateSpeed).toBe(2.5);
     expect(rig.controls.autoRotate).toBe(true);
@@ -440,6 +482,7 @@ describe('cameraRig start framing', () => {
 
   it('ignores repo-label width (only its top-edge height matters)', () => {
     const narrow = createCameraRig({
+      settings: SETTINGS.signals,
       canvas: makeCanvas(),
       deps: labelDeps(40),
       cityState: seedFramedCity(),
@@ -448,6 +491,7 @@ describe('cameraRig start framing', () => {
     const narrowPos = narrow.camera.position.clone();
 
     const wide = createCameraRig({
+      settings: SETTINGS.signals,
       canvas: makeCanvas(),
       deps: labelDeps(4000),
       cityState: seedFramedCity(),

@@ -3,7 +3,7 @@
 // numbered levels cover same-dir (L1), one-deeper (L2), deeper (L3),
 // and outside-subtree (L4).
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
@@ -11,19 +11,15 @@ import { createTestCityResources } from '../../../_helpers/cityResources';
 
 const _res = createTestCityResources();
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { FadeDetail } from '@/city/types/animation';
 import { Building } from '@/city/types/building';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const _originalFade = BUILDINGS.value;
-
-afterEach(() => {
-  BUILDINGS.value = _originalFade;
-});
+const SETTINGS = settingsStore();
 
 function makeFile(path: string): FileNode {
   return {
@@ -108,7 +104,13 @@ function makeFader(opts: {
     cityState.structureRevision.value++;
   }
 
-  const fader = createBuildingFader({ world, cityState, picker, material: _res.buildings });
+  const fader = createBuildingFader({
+    world,
+    cityState,
+    picker,
+    material: _res.buildings,
+    settings: SETTINGS.signals,
+  });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);
@@ -127,29 +129,30 @@ function makeFader(opts: {
 /** One distinct opacity per tier, so an assertion names exactly one tier.
  *  Detail and outline stay uniform so neither can confound the reading. */
 function setKnownFade() {
-  BUILDINGS.value = {
-    ..._originalFade,
-    DEFAULT_DETAIL: FadeDetail.Full,
-    DEFAULT_BODY_OPACITY: 1.0,
-    DEFAULT_OUTLINE: false,
-    DEFAULT_OUTLINE_OPACITY: 0.0,
-    LEVEL1_DETAIL: FadeDetail.Full,
-    LEVEL1_BODY_OPACITY: 0.8,
-    LEVEL1_OUTLINE: false,
-    LEVEL1_OUTLINE_OPACITY: 0.0,
-    LEVEL2_DETAIL: FadeDetail.Full,
-    LEVEL2_BODY_OPACITY: 0.6,
-    LEVEL2_OUTLINE: false,
-    LEVEL2_OUTLINE_OPACITY: 0.0,
-    LEVEL3_DETAIL: FadeDetail.Full,
-    LEVEL3_BODY_OPACITY: 0.4,
-    LEVEL3_OUTLINE: false,
-    LEVEL3_OUTLINE_OPACITY: 0.0,
-    LEVEL4_DETAIL: FadeDetail.Full,
-    LEVEL4_BODY_OPACITY: 0.2,
-    LEVEL4_OUTLINE: false,
-    LEVEL4_OUTLINE_OPACITY: 0.0,
-  };
+  SETTINGS.update({
+    BUILDINGS: {
+      DEFAULT_DETAIL: FadeDetail.Full,
+      DEFAULT_BODY_OPACITY: 1.0,
+      DEFAULT_OUTLINE: false,
+      DEFAULT_OUTLINE_OPACITY: 0.0,
+      LEVEL1_DETAIL: FadeDetail.Full,
+      LEVEL1_BODY_OPACITY: 0.8,
+      LEVEL1_OUTLINE: false,
+      LEVEL1_OUTLINE_OPACITY: 0.0,
+      LEVEL2_DETAIL: FadeDetail.Full,
+      LEVEL2_BODY_OPACITY: 0.6,
+      LEVEL2_OUTLINE: false,
+      LEVEL2_OUTLINE_OPACITY: 0.0,
+      LEVEL3_DETAIL: FadeDetail.Full,
+      LEVEL3_BODY_OPACITY: 0.4,
+      LEVEL3_OUTLINE: false,
+      LEVEL3_OUTLINE_OPACITY: 0.0,
+      LEVEL4_DETAIL: FadeDetail.Full,
+      LEVEL4_BODY_OPACITY: 0.2,
+      LEVEL4_OUTLINE: false,
+      LEVEL4_OUTLINE_OPACITY: 0.0,
+    },
+  });
 }
 
 describe('buildingFader 5-tier cascade', () => {
@@ -326,7 +329,7 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('selected file honors DEFAULT config (no hardcoded constants)', () => {
-    BUILDINGS.value = { ...BUILDINGS.value, DEFAULT_BODY_OPACITY: 0.5 };
+    SETTINGS.update({ BUILDINGS: { DEFAULT_BODY_OPACITY: 0.5 } });
 
     const a = makeFile('src/a.ts');
     const selBuilding = makeBuilding(a);
@@ -383,29 +386,30 @@ describe('buildingFader → material transparency', () => {
   });
 
   it('stays opaque for a cascade whose tiers are all fully opaque', () => {
-    BUILDINGS.value = {
-      ..._originalFade,
-      DEFAULT_DETAIL: FadeDetail.Full,
-      DEFAULT_BODY_OPACITY: 1.0,
-      DEFAULT_OUTLINE: false,
-      DEFAULT_OUTLINE_OPACITY: 0.0,
-      LEVEL1_DETAIL: FadeDetail.Full,
-      LEVEL1_BODY_OPACITY: 1.0,
-      LEVEL1_OUTLINE: false,
-      LEVEL1_OUTLINE_OPACITY: 0.0,
-      LEVEL2_DETAIL: FadeDetail.Full,
-      LEVEL2_BODY_OPACITY: 1.0,
-      LEVEL2_OUTLINE: false,
-      LEVEL2_OUTLINE_OPACITY: 0.0,
-      LEVEL3_DETAIL: FadeDetail.Full,
-      LEVEL3_BODY_OPACITY: 1.0,
-      LEVEL3_OUTLINE: false,
-      LEVEL3_OUTLINE_OPACITY: 0.0,
-      LEVEL4_DETAIL: FadeDetail.Full,
-      LEVEL4_BODY_OPACITY: 1.0,
-      LEVEL4_OUTLINE: false,
-      LEVEL4_OUTLINE_OPACITY: 0.0,
-    };
+    SETTINGS.update({
+      BUILDINGS: {
+        DEFAULT_DETAIL: FadeDetail.Full,
+        DEFAULT_BODY_OPACITY: 1.0,
+        DEFAULT_OUTLINE: false,
+        DEFAULT_OUTLINE_OPACITY: 0.0,
+        LEVEL1_DETAIL: FadeDetail.Full,
+        LEVEL1_BODY_OPACITY: 1.0,
+        LEVEL1_OUTLINE: false,
+        LEVEL1_OUTLINE_OPACITY: 0.0,
+        LEVEL2_DETAIL: FadeDetail.Full,
+        LEVEL2_BODY_OPACITY: 1.0,
+        LEVEL2_OUTLINE: false,
+        LEVEL2_OUTLINE_OPACITY: 0.0,
+        LEVEL3_DETAIL: FadeDetail.Full,
+        LEVEL3_BODY_OPACITY: 1.0,
+        LEVEL3_OUTLINE: false,
+        LEVEL3_OUTLINE_OPACITY: 0.0,
+        LEVEL4_DETAIL: FadeDetail.Full,
+        LEVEL4_BODY_OPACITY: 1.0,
+        LEVEL4_OUTLINE: false,
+        LEVEL4_OUTLINE_OPACITY: 0.0,
+      },
+    });
 
     const a = makeFile('src/foo/a.ts');
     const far = makeFile('other/deep/x.ts');

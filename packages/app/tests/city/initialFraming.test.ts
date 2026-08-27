@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
-import { STREET_TIERS } from '@/state/settings/fields/streets';
 import { mkDir } from '../_helpers/cityFixtures';
 
 vi.mock('three', async () => {
@@ -33,7 +32,6 @@ import type { Manifest } from '@/city/types/manifest';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
-  const DEFAULT_TIERS = STREET_TIERS.peek();
 
   beforeEach(() => {
     CURRENT_SOURCE.value = null;
@@ -48,7 +46,6 @@ describe('initial-load framing (issue #62)', () => {
   afterEach(() => {
     rafSpy.mockRestore();
     CURRENT_SOURCE.value = null;
-    STREET_TIERS.value = DEFAULT_TIERS;
     vi.clearAllMocks();
   });
 
@@ -77,8 +74,10 @@ describe('initial-load framing (issue #62)', () => {
 
   // Force every street (incl. the root) to a single width, so a rebuild after
   // changing it deterministically moves the framing.
-  function setRootWidth(width: number): void {
-    STREET_TIERS.value = { TIERS: [{ min_descendants: 0, width }] };
+  /** One tier, so the root street's width is exactly `width` and the framing
+   *  distance follows it. Pushed into the city, which holds its own settings. */
+  function rootWidth(width: number) {
+    return { STREET_TIERS: { TIERS: [{ min_descendants: 0, width }] } };
   }
 
   /** Apply, then wait out the decoration pass that ends the build: the framing
@@ -133,8 +132,7 @@ describe('initial-load framing (issue #62)', () => {
   });
 
   it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
-    setRootWidth(100);
-    const handle = await createCity(makeCanvas());
+    const handle = await createCity(makeCanvas(), { settings: rootWidth(100) });
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();
@@ -143,7 +141,7 @@ describe('initial-load framing (issue #62)', () => {
 
       // A same-source rebuild that moves the framing must leave the camera
       // where it is: the source key didn't change.
-      setRootWidth(500);
+      handle.updateSettings(rootWidth(500));
       handle.invalidateLayoutCache();
       await build(handle, m);
       expect(handle.rig.camera.position.distanceTo(posLoaded)).toBeLessThan(0.5);

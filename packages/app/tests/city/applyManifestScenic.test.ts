@@ -10,6 +10,10 @@ import { createTestCityResources } from '../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
+import { settingSignals } from '../_helpers/citySettings';
+import type { LayoutConfig } from '@/city/layout/config';
+
+const SETTINGS = settingSignals();
 
 function makeRootStreet(): Street {
   return {
@@ -46,7 +50,7 @@ function makeManifest(treeSig: string): Manifest {
 // the same reference, the worker's reuse contract that lets scenic effects skip.
 function makeLayoutClient(makeLayout: () => CityLayout) {
   return {
-    compute: vi.fn(async (_m: Manifest, reuseFrom?: CityLayout | null) => {
+    compute: vi.fn(async (_m: Manifest, _cfg: LayoutConfig, reuseFrom?: CityLayout | null) => {
       return reuseFrom ?? makeLayout();
     }),
     dispose: vi.fn(),
@@ -75,7 +79,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     const cityState = createCityState(
       layoutClient as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
@@ -110,8 +115,9 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     // layout.value not reassigned → the streets effect does NOT re-fire.
     await cityState.applyManifest(makeManifest('sig-1'));
 
-    // Reuse was actually exercised (compute got the prior layout to reuse on the 2nd call).
-    expect(layoutClient.compute.mock.calls[1][1]).toBe(layoutAfterFirst);
+    // Reuse was actually exercised (compute got the prior layout to reuse on
+    // the 2nd call — arg 3, after the manifest and the packer's settings).
+    expect(layoutClient.compute.mock.calls[1][2]).toBe(layoutAfterFirst);
     // No streets rebuild: same pickables array reference, same layout + bbox.
     expect(streets.getPickables()).toBe(pickablesAfterFirst);
     expect(cityState.layout.value).toBe(layoutAfterFirst);

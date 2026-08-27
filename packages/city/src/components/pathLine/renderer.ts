@@ -7,21 +7,21 @@ import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
-import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import type { SettingSignals } from '@/city/settings/store';
 import type { PickTarget } from '@/city/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CityState } from '@/city/state';
+import type { StreetTier } from '@/city/settings/fields/streets';
 import { NodeKind } from '@/city/types/manifest';
 
 /** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
  *  stays proportional to the streets at any zoom (worldUnits: false). */
-export function computePathLinewidthPixels(pct: number): number {
-  const tiers = STREET_TIERS.value.TIERS;
+export function computePathLinewidthPixels(pct: number, tiers: StreetTier[]): number {
   if (!tiers.length) return pct / 100; // degenerate fallback
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);
@@ -39,6 +39,7 @@ export function createPathLineRenderer({
   scene,
   picker,
   cityState,
+  settings,
 }: {
   canvas: HTMLCanvasElement;
   /** Parent for the two line meshes; draw order comes from
@@ -46,12 +47,16 @@ export function createPathLineRenderer({
   scene: THREE.Object3D;
   picker: PickerSignals;
   cityState: CityState;
+  settings: SettingSignals;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
-  const _pl = STREETS.value;
+  const _pl = settings.STREETS.value;
   const pathLineMat = createSafeLineMaterial({
     vertexColors: true,
-    linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT),
+    linewidth: computePathLinewidthPixels(
+      _pl.PATH_LINEWIDTH_PCT,
+      settings.STREET_TIERS.value.TIERS
+    ),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -72,8 +77,11 @@ export function createPathLineRenderer({
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
   const hoverPathLineMat = createSafeLineMaterial({
-    color: STREETS.value.HOVER_PATH_COLOR,
-    linewidth: computePathLinewidthPixels(STREETS.value.PATH_LINEWIDTH_PCT),
+    color: settings.STREETS.value.HOVER_PATH_COLOR,
+    linewidth: computePathLinewidthPixels(
+      settings.STREETS.value.PATH_LINEWIDTH_PCT,
+      settings.STREET_TIERS.value.TIERS
+    ),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -138,14 +146,14 @@ export function createPathLineRenderer({
     if (_pathColorsBuf.length !== pathSegmentCount * 6) {
       _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
     }
-    pathLineMat.opacity = STREETS.value.PATH_OPACITY;
+    pathLineMat.opacity = settings.STREETS.value.PATH_OPACITY;
     pathLine.visible = true;
   }
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
     const gemPos = cityState.gemWorldPos.peek();
-    const cfg = STREETS.value;
+    const cfg = settings.STREETS.value;
     function hide() {
       hoverPathLine.visible = false;
       hoverPathLineMat.opacity = 0;
@@ -203,11 +211,11 @@ export function createPathLineRenderer({
     const n = pathSegmentCount;
     for (let s = 0; s < n; s++) {
       // Consume the start RGB before the second call overwrites the scratch.
-      const [r0, g0, b0] = rainbowRgbAt(timeMs, s / n);
+      const [r0, g0, b0] = rainbowRgbAt(timeMs, s / n, settings.RAINBOW.value);
       _pathColorsBuf[s * 6] = r0;
       _pathColorsBuf[s * 6 + 1] = g0;
       _pathColorsBuf[s * 6 + 2] = b0;
-      const [r1, g1, b1] = rainbowRgbAt(timeMs, (s + 1) / n);
+      const [r1, g1, b1] = rainbowRgbAt(timeMs, (s + 1) / n, settings.RAINBOW.value);
       _pathColorsBuf[s * 6 + 3] = r1;
       _pathColorsBuf[s * 6 + 4] = g1;
       _pathColorsBuf[s * 6 + 5] = b1;
@@ -216,11 +224,17 @@ export function createPathLineRenderer({
   }
 
   function refreshMaterials(): void {
-    const pl = STREETS.value;
-    pathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    const pl = settings.STREETS.value;
+    pathLineMat.linewidth = computePathLinewidthPixels(
+      pl.PATH_LINEWIDTH_PCT,
+      settings.STREET_TIERS.value.TIERS
+    );
     if (pathLine.visible) pathLineMat.opacity = pl.PATH_OPACITY;
     hoverPathLineMat.color.set(pl.HOVER_PATH_COLOR);
-    hoverPathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(
+      pl.PATH_LINEWIDTH_PCT,
+      settings.STREET_TIERS.value.TIERS
+    );
     _updateHoverPathLine();
   }
 

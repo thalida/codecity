@@ -5,9 +5,11 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
-import { TREES } from '@/state/settings/fields/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
+import type { TreesConfig } from '@/city/settings/fields/trees';
+import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
+import type { SettingSignals } from '@/city/settings/store';
 import { createCityState, type CityState } from '@/city/state';
+import { settingSignals } from './citySettings';
 import { commits } from './commits';
 import { createTestCityResources } from '../_helpers/cityResources';
 import { CommitEntry, NodeKind } from '@/city/types/manifest';
@@ -28,11 +30,12 @@ export function stubPlacementClient(placements: unknown[] = []) {
 }
 
 /** cityState with no-op build workers, for tests that don't drive applyManifest. */
-export function makeCityState(): CityState {
+export function makeCityState(settings: SettingSignals = settingSignals()): CityState {
   return createCityState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
-    createTestCityResources()
+    createTestCityResources(settings),
+    settings
   );
 }
 
@@ -47,22 +50,33 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
 }
 
 /** SceneContext for components that never touch the picker; camera/renderer are
- *  null (jsdom can't build a WebGL renderer, and nothing under test reads them). */
-export function makeSceneContext(cityState: CityState = makeCityState()): SceneContext {
+ *  null (jsdom can't build a WebGL renderer, and nothing under test reads them).
+ *
+ *  Pass `settings` to both this and makeCityState when a test tunes one: the
+ *  state pipeline and the components read their own, exactly as two cities on
+ *  one page do. */
+export function makeSceneContext(
+  cityState?: CityState,
+  settings: SettingSignals = settingSignals()
+): SceneContext {
   return {
     scene: new THREE.Scene(),
     canvas: makeSizedCanvas().canvas,
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState,
-    resources: createTestCityResources(),
+    cityState: cityState ?? makeCityState(settings),
+    resources: createTestCityResources(settings),
+    settings,
   } as unknown as SceneContext;
 }
 
 /** SceneContext whose picker carries real signals, returned alongside them so a
  *  test can drive hover/selection and assert what the component does. */
-export function makePickableSceneContext(cityState: CityState = makeCityState()): {
+export function makePickableSceneContext(
+  cityState?: CityState,
+  settings: SettingSignals = settingSignals()
+): {
   ctx: SceneContext;
   selection: ReturnType<typeof signal<PickTarget | null>>;
   hover: ReturnType<typeof signal<PickTarget | null>>;
@@ -75,8 +89,9 @@ export function makePickableSceneContext(cityState: CityState = makeCityState())
     scene: new THREE.Scene(),
     canvas,
     picker: { selection, hover } as unknown as Picker,
-    cityState,
-    resources: createTestCityResources(),
+    cityState: cityState ?? makeCityState(settings),
+    resources: createTestCityResources(settings),
+    settings,
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }
@@ -137,50 +152,48 @@ export function mkDir(name: string, children: any[]): any {
   };
 }
 
-/** Resets the TREES config map to deterministic test defaults. */
-export function resetTreesConfig(): void {
-  TREES.value = {
-    ENABLED: true,
-    CITY_CLEARANCE_PERCENT: 1,
-    CITY_CLEARANCE_LIMITS: [0, 2000],
-    DENSITY_FALLOFF: 0,
-    EDGE_INSET_PERCENT: 1,
-    EDGE_INSET_LIMITS: [0, 2000],
-    MIN_HEIGHT: 48,
-    MAX_HEIGHT: 144,
-    MIN_WIDTH: 32,
-    MAX_WIDTH: 128,
-    TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC: 0.15,
-    CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    COLOR_BUSY_DAY: '#0a2613',
-    COLOR_SOLO_DAY: '#a8d68a',
-    SHADING_STRENGTH: 0.35,
-    TRUNK_COLOR: '#4a3220',
-    WIDTH_AGE_FLOOR: 1.0,
-    HALF_LIFE_DAYS: 180,
-    OUTLINE_WIDTH: 1,
-    OUTLINE_HOVER_COLOR: '#ffffff',
-    OUTLINE_HOVER_OPACITY: 0.5,
-    OUTLINE_SELECTED_OPACITY: 0.75,
-  };
-}
+/** Deterministic TREES values for a test that cares about placement geometry:
+ *  round clearances and no falloff, so a change in the shipped defaults cannot
+ *  move a placement out from under an assertion. */
+export const TEST_TREES: TreesConfig = {
+  ENABLED: true,
+  CITY_CLEARANCE_PERCENT: 1,
+  CITY_CLEARANCE_LIMITS: [0, 2000],
+  DENSITY_FALLOFF: 0,
+  EDGE_INSET_PERCENT: 1,
+  EDGE_INSET_LIMITS: [0, 2000],
+  MIN_HEIGHT: 48,
+  MAX_HEIGHT: 144,
+  MIN_WIDTH: 32,
+  MAX_WIDTH: 128,
+  TRUNK_HEIGHT_FRAC: 0.25,
+  TRUNK_RADIUS_FRAC: 0.15,
+  CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
+  COLOR_BUSY_DAY: '#0a2613',
+  COLOR_SOLO_DAY: '#a8d68a',
+  SHADING_STRENGTH: 0.35,
+  TRUNK_COLOR: '#4a3220',
+  WIDTH_AGE_FLOOR: 1.0,
+  HALF_LIFE_DAYS: 180,
+  OUTLINE_WIDTH: 1,
+  OUTLINE_HOVER_COLOR: '#ffffff',
+  OUTLINE_HOVER_OPACITY: 0.5,
+  OUTLINE_SELECTED_OPACITY: 0.75,
+};
 
-/** Resets the BUILDING_DIMENSIONS config map to deterministic test defaults. */
-export function resetBuildingsConfig(): void {
-  BUILDING_DIMENSIONS.value = {
-    MIN_FLOORS: 2,
-    MAX_FLOORS: 96,
-    FULL_HEIGHT_LINES: 2000,
-    FLOOR_HEIGHT: 16,
-    EMPTY_SLAB_FLOORS: 0.05,
-    MIN_WIDTH: 8,
-    MAX_WIDTH: 8,
-    FULL_WIDTH_KB: 64,
-    DISTANCE_FROM_ROAD: 8,
-    DATA_HEIGHT_RATIO: 0.7,
-  };
-}
+/** Deterministic BUILDING_DIMENSIONS, for the same reason. */
+export const TEST_BUILDING_DIMENSIONS: BuildingDimensionsConfig = {
+  MIN_FLOORS: 2,
+  MAX_FLOORS: 96,
+  FULL_HEIGHT_LINES: 2000,
+  FLOOR_HEIGHT: 16,
+  EMPTY_SLAB_FLOORS: 0.05,
+  MIN_WIDTH: 8,
+  MAX_WIDTH: 8,
+  FULL_WIDTH_KB: 64,
+  DISTANCE_FROM_ROAD: 8,
+  DATA_HEIGHT_RATIO: 0.7,
+};
 
 /** A TreePlacement at (x, y) for the given commit. Seed defaults to 0 so
  *  placements are deterministic unless a test varies it deliberately. */

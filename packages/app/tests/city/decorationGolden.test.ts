@@ -15,6 +15,13 @@ import {
   makeDigestHasher,
 } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
+import { layoutCfg, settingSignals, treeCfg } from '../_helpers/citySettings';
+
+const CFG = layoutCfg();
+const SETTINGS = settingSignals();
+// The polygon rejection pass off, its shape still setting the sampling
+// extent - what islandGeoOverride: null used to mean.
+const TREE_CFG = treeCfg({ ISLAND: { ENABLED: false } });
 
 // Settings-default-sensitive: TREES defaults legitimately move the hash, so it
 // gets recaptured (last: the world-unit ceiling on city clearance).
@@ -31,15 +38,15 @@ describe('decoration golden (bit-identical guard)', () => {
     // Backend-precomputed in production. layoutCity MUST get the file ranges or
     // every building collapses to min-width and tree placement drifts.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
-    const layout = layoutCity({ tree, stats });
+    const layout = layoutCity({ tree, stats }, CFG);
     const bbox = bboxOf(layout);
 
     const placements = placeTrees(layout as any, bbox, {
       commitCount: 43000,
-      islandGeoOverride: null,
+      settings: TREE_CFG,
     });
-    const orbs = placeFireflies(placements, commits, stats);
-    const renderer = createTreeRenderer(placements, commits, busyness, stats);
+    const orbs = placeFireflies(SETTINGS, placements, commits, stats);
+    const renderer = createTreeRenderer(SETTINGS, placements, commits, busyness, stats);
 
     const hasher = makeDigestHasher();
     for (const p of placements) {

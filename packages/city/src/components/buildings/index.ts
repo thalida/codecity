@@ -6,10 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { BLOOM } from '@/state/settings/fields/effects';
-import { SCENE } from '@/state/settings/fields/scene';
-import { RUINS } from '@/state/settings/fields/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -118,11 +114,11 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // Material theme. Reads each store's .value to subscribe to all of them; safe
   // at construction, since none of it is the picker, and it no-ops pre-rebuild.
   const stopMaterialEffect = effect(() => {
-    void BUILDINGS.value;
-    void SCENE.value;
-    void BLOOM.value;
-    void BUILDING_DIMENSIONS.value;
-    void RUINS.value;
+    void ctx.settings.BUILDINGS.value;
+    void ctx.settings.SCENE.value;
+    void ctx.settings.BLOOM.value;
+    void ctx.settings.BUILDING_DIMENSIONS.value;
+    void ctx.settings.RUINS.value;
     ctx.resources.buildings.refresh();
     _facadePanels?.refresh();
   });
@@ -163,6 +159,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       },
       cityState: ctx.cityState,
       material: ctx.resources.buildings,
+      settings: ctx.settings,
       picker: ctx.picker!,
     });
     // Their overlays go straight on the scene: explicit renderOrders, so where
@@ -172,6 +169,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       scene: ctx.scene,
       world: { getCells: () => _cells },
       picker: ctx.picker!,
+      settings: ctx.settings,
     });
     _ghost = createGhostRenderer({
       scene: ctx.scene,
@@ -206,7 +204,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
 
   // Enter/stay tween queue. No picker dep, so (unlike fader/outline/ghost) it is
   // created at construction, not armed.
-  const _tweens = createBuildingTweens({ getMeshForBuilding });
+  const _tweens = createBuildingTweens({ getMeshForBuilding, settings: ctx.settings });
 
   // Resolves meshes through the same accessors the tweens use, so a rebuild
   // swaps both onto the fresh cells at once.
@@ -352,7 +350,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
       // not buildings — see city/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        nowMs
+        nowMs,
+        ctx.settings.BUILDINGS.peek()
       );
       // Independent of colour: creation age, so grime can mark an old file
       // that was edited yesterday.
@@ -362,7 +361,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
       );
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        nowMs
+        nowMs,
+        ctx.settings.BUILDINGS.peek()
       );
     }
 
@@ -387,6 +387,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // ---- Assemble the cell scene (buildings only). ----
     // THIS city's source, not the app's: the landing's backdrop is another repo.
     const cellOut = buildCellsFromLayout(
+      ctx.settings,
       bounds,
       buildings,
       sourceOf(ctx.cityState.manifest.peek()),

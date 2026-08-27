@@ -3,8 +3,8 @@
 // three-co-author commit shows three orbits. Hover tints each ring with its
 // author's pastel; selected shares one vertexColors material for the chase.
 import * as THREE from 'three';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import type { SettingSignals } from '@/city/settings/store';
 import type { FireflyPlacement } from './firefliesPlacement';
 
 const TUBULAR_SEGMENTS = 96; // segments around the loop
@@ -91,14 +91,14 @@ function ensureColorBuffer(geom: THREE.BufferGeometry): Float32Array {
 
 /** TubeGeometry is indexed `j * radialSlices + i`. Every vertex on a tubular
  *  slice takes the same hue, so the chase rotates smoothly. */
-function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
+function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number, settings: SettingSignals): void {
   const geom = mesh.geometry as THREE.BufferGeometry;
   const buf = ensureColorBuffer(geom);
   const tubularSlices = TUBULAR_SEGMENTS + 1;
   const radialSlices = RADIAL_SEGMENTS + 1;
   for (let j = 0; j < tubularSlices; j++) {
     // One hue per tubular slice; all radial verts on the slice share it.
-    const [r, g, b] = rainbowRgbAt(timeMs, j / TUBULAR_SEGMENTS);
+    const [r, g, b] = rainbowRgbAt(timeMs, j / TUBULAR_SEGMENTS, settings.RAINBOW.value);
     for (let i = 0; i < radialSlices; i++) {
       const vertexIdx = j * radialSlices + i;
       const k = vertexIdx * 3;
@@ -115,11 +115,11 @@ function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
  *  graph without repeating the literal. */
 export const ORBIT_RINGS_GROUP = 'firefly-orbit-rings';
 
-export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
+export function createOrbitRings(orbs: FireflyPlacement[], settings: SettingSignals): OrbitRings {
   const group = new THREE.Group();
   group.name = ORBIT_RINGS_GROUP;
 
-  const cfg = FIREFLIES.value;
+  const cfg = settings.FIREFLIES.value;
 
   if (!cfg.ORBIT_RING_ENABLED || orbs.length === 0) {
     return {
@@ -200,7 +200,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildHoverMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
+    const thickness = settings.FIREFLIES.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       const mat = makeHoverMaterial(orb.lightRgb);
@@ -212,7 +212,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildSelectedMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
+    const thickness = settings.FIREFLIES.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       // Pre-allocate the color attribute so the renderer sees it on the
@@ -271,12 +271,12 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     update(timeMs: number) {
       if (selected.meshes.length === 0) return;
       for (const mesh of selected.meshes) {
-        writeRainbowToTube(mesh, timeMs);
+        writeRainbowToTube(mesh, timeMs, settings);
       }
     },
 
     refresh() {
-      const next = FIREFLIES.value;
+      const next = settings.FIREFLIES.value;
       group.visible = next.ORBIT_RING_ENABLED;
     },
 

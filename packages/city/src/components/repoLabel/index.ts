@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import { REPO_LABEL } from '@/state/settings/fields/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -103,11 +101,11 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   // world Y — recomputed on settings changes AND per frame (gem bob).
   function _updateBeamGeometry(): void {
     if (!beamMesh) return;
-    const cfg = REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL.value;
     const halfFont = cfg.FONT_SIZE / 2;
     const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
 
-    const dims = BUILDING_DIMENSIONS.value;
+    const dims = ctx.settings.BUILDING_DIMENSIONS.value;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
 
@@ -124,9 +122,9 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   }
 
   function _applyTransform(): void {
-    const cfg = REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL.value;
     const halfFont = cfg.FONT_SIZE / 2;
-    const dims = BUILDING_DIMENSIONS.value;
+    const dims = ctx.settings.BUILDING_DIMENSIONS.value;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
     // Group origin = panel center. Panel bottom = heightWorld above the
@@ -145,13 +143,13 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   }
 
   function _applyOpacity(): void {
-    const opacity = REPO_LABEL.value.OPACITY;
+    const opacity = ctx.settings.REPO_LABEL.value.OPACITY;
     if (panelMat) panelMat.uniforms.uOpacity.value = opacity;
     if (beamMat) beamMat.uniforms.uOpacity.value = opacity;
   }
 
   function _applyColors(): void {
-    const cfg = REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL.value;
     if (beamMat) (beamMat.uniforms.uColor.value as THREE.Color).set(cfg.BEAM_COLOR);
     if (panelMat) (panelMat.uniforms.uTint.value as THREE.Color).set(cfg.TEXT_COLOR);
   }
@@ -199,7 +197,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       side: THREE.DoubleSide,
       ...NEUTRAL_POLYGON_OFFSET,
       uniforms: {
-        uColor: { value: new THREE.Color(REPO_LABEL.value.BEAM_COLOR) },
+        uColor: { value: new THREE.Color(ctx.settings.REPO_LABEL.value.BEAM_COLOR) },
         uTime: { value: 0 },
         uOpacity: { value: 1.0 },
       },
@@ -220,7 +218,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       uniforms: {
         uMap: { value: textTex.texture },
         uTime: { value: 0 },
-        uTint: { value: new THREE.Color(REPO_LABEL.value.TEXT_COLOR) },
+        uTint: { value: new THREE.Color(ctx.settings.REPO_LABEL.value.TEXT_COLOR) },
         uOpacity: { value: 1.0 },
       },
     });
@@ -287,14 +285,14 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     _applyTransform();
   });
 
-  function tick(dt: number, ctx: FrameContext): void {
+  function tick(dt: number, frame: FrameContext): void {
     if (!panelMesh || !panelMat) return;
-    const cfg = REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL.value;
     if (!cfg.ENABLED) return;
     const dtScaled = dt * cfg.ANIMATION_SPEED;
     panelMat.uniforms.uTime.value += dtScaled;
     if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
-    _faceCamera(panelMesh, ctx.camera);
+    _faceCamera(panelMesh, frame.camera);
     // The gem bobs every frame; keep the beam foot glued to it.
     _updateBeamGeometry();
   }
@@ -314,8 +312,8 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     return repoLabelBounds(
       repoName,
       { x: anchorX, y: anchorY, z: anchorZ },
-      REPO_LABEL.value,
-      BUILDING_DIMENSIONS.value
+      ctx.settings.REPO_LABEL.value,
+      ctx.settings.BUILDING_DIMENSIONS.value
     );
   }
 

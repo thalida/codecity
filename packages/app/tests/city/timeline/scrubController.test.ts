@@ -24,6 +24,9 @@ import {
 import type { RangeStat } from '@/city/types/manifest';
 import type { Street } from '@/city/types/street';
 import type { PickTarget } from '@/city/types/picker';
+import { settingSignals } from '../../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
 
 afterEach(() => {
   TIMELINE_BUNDLE.value = null;
@@ -49,6 +52,7 @@ function setup(scrubGates: ScrubGate[] = []) {
   const footprintSlices: ScrubStates[] = [];
 
   const controller = createScrubController({
+    settings: SETTINGS,
     buildings: {
       getBuildingIndex: () => index,
       applyScrub: (s) => void buildingSlices.push(s),

@@ -1,14 +1,13 @@
 // city/components/trees/treePlacementClient.ts — the main-thread end: spins the
 // worker up on first compute, supersedes a pending request when a new one
 // arrives, and falls back to a synchronous call where Worker is unavailable.
-import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
+import {
+  placeTrees,
+  type TreePlacement,
+  type TreePlacementConfig,
+  type LayoutGeometry,
+} from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES } from '@/state/settings/fields/trees';
-import { type TreesConfig } from '@/city/settings/fields/trees';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { type FootprintConfig } from '@/city/settings/fields/footprint';
-import { ISLAND, WORLD } from '@/state/settings/fields/island';
-import { type IslandConfig, type WorldConfig } from '@/city/settings/fields/island';
 import type { CityBbox, CityLayout } from '@/city/types/scene';
 
 interface PendingRequest {
@@ -16,19 +15,13 @@ interface PendingRequest {
   reject(err: Error): void;
 }
 
-interface ConfigSnapshot {
-  trees: TreesConfig;
-  footprint: FootprintConfig;
-  islandGeo: IslandConfig;
-  world: WorldConfig;
-}
-
 export interface TreePlacementClient {
   compute(
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
-    cityHeight: number
+    cityHeight: number,
+    settings: TreePlacementConfig
   ): Promise<TreePlacement[]>;
   dispose(): void;
 }
@@ -47,15 +40,6 @@ function _slimLayout(layout: CityLayout): LayoutGeometry {
     })),
     buildings: layout.buildings.map((b) => ({ x: b.x, y: b.y, w: b.w, d: b.d })),
     bbox: layout.bbox,
-  };
-}
-
-function _snapshot(): ConfigSnapshot {
-  return {
-    trees: TREES.value,
-    footprint: FOOTPRINT.value,
-    islandGeo: ISLAND.value,
-    world: WORLD.value,
   };
 }
 
@@ -113,11 +97,12 @@ export function createTreePlacementClient(): TreePlacementClient {
     bbox: CityBbox | undefined,
     commitCount: number,
     cityHeight: number,
+    settings: TreePlacementConfig,
     resolve: PendingRequest['resolve'],
     reject: PendingRequest['reject']
   ): void {
     try {
-      const placements = placeTrees(layout, bbox, { commitCount, cityHeight });
+      const placements = placeTrees(layout, bbox, { commitCount, cityHeight, settings });
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -136,7 +121,8 @@ export function createTreePlacementClient(): TreePlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
-    cityHeight: number
+    cityHeight: number,
+    settings: TreePlacementConfig
   ): Promise<TreePlacement[]> {
     if (disposed) {
       return Promise.reject(new Error('treePlacementClient disposed'));
@@ -147,7 +133,7 @@ export function createTreePlacementClient(): TreePlacementClient {
       pending.set(id, { resolve, reject });
       const w = _ensureWorker();
       if (!w) {
-        _computeSync(id, layout, bbox, commitCount, cityHeight, resolve, reject);
+        _computeSync(id, layout, bbox, commitCount, cityHeight, settings, resolve, reject);
         return;
       }
       w.postMessage({
@@ -157,7 +143,7 @@ export function createTreePlacementClient(): TreePlacementClient {
         bbox,
         commitCount,
         cityHeight,
-        configSnapshot: _snapshot(),
+        settings,
       });
     });
   }

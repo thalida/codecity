@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/city/layout';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
 import { FileNode, Manifest, NodeKind, RepoStats } from '@/city/types/manifest';
+import { layoutCfg } from '../../_helpers/citySettings';
+
+const CFG = layoutCfg();
 
 function makeMinimalManifest(): Manifest {
   return {
@@ -64,22 +67,22 @@ describe('layoutClient', () => {
 
   it('compute() resolves with a populated CityLayout', async () => {
     const m = makeMinimalManifest();
-    const layout = await client.compute(m);
+    const layout = await client.compute(m, CFG);
     expect(layout.buildings.length).toBeGreaterThan(0);
     expect(layout.streets.length).toBeGreaterThan(0);
   });
 
   it('supersede: when a second compute() starts, the first promise rejects', async () => {
     const m = makeMinimalManifest();
-    const first = client.compute(m);
-    const second = client.compute(m);
+    const first = client.compute(m, CFG);
+    const second = client.compute(m, CFG);
     await expect(first).rejects.toThrow(/superseded/i);
     await expect(second).resolves.toBeDefined();
   });
 
   it('dispose() makes subsequent compute() calls reject', async () => {
     client.dispose();
-    await expect(client.compute(makeMinimalManifest())).rejects.toThrow();
+    await expect(client.compute(makeMinimalManifest(), CFG)).rejects.toThrow();
   });
 
   it('reuseLayoutFrom: skips the worker and returns a layout with same positions, fresh metadata', async () => {
@@ -147,7 +150,7 @@ describe('layoutClient', () => {
         descendants_ext_breakdown: [],
       },
     };
-    const priorLayout = await client.compute(m1);
+    const priorLayout = await client.compute(m1, CFG);
     expect(priorLayout.buildings.length).toBe(2);
 
     // In the new manifest, swap size/lines so the previously-small file becomes
@@ -164,7 +167,7 @@ describe('layoutClient', () => {
       },
     };
 
-    const reusedLayout = await client.compute(m2, priorLayout);
+    const reusedLayout = await client.compute(m2, CFG, priorLayout);
     expect(reusedLayout.buildings.length).toBe(priorLayout.buildings.length);
 
     // All positions are preserved from the prior layout.
@@ -185,9 +188,9 @@ describe('layoutClient', () => {
 
   it('reuseLayoutFrom: supersede protocol still works on the reuse path', async () => {
     const m = makeMinimalManifest();
-    const priorLayout = await client.compute(m);
-    const first = client.compute(m, priorLayout);
-    const second = client.compute(m, priorLayout);
+    const priorLayout = await client.compute(m, CFG);
+    const first = client.compute(m, CFG, priorLayout);
+    const second = client.compute(m, CFG, priorLayout);
     await expect(first).rejects.toThrow(/superseded/i);
     await expect(second).resolves.toBeDefined();
   });

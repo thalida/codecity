@@ -1,14 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createGem } from '@/city/components/gem';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
-import { GEM } from '@/state/settings/fields/gem';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
+import { settingsStore } from '../../../_helpers/citySettings';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the
 // gem only reads geometry fields (x/y/width/length/orientation).
@@ -30,6 +30,11 @@ const CAMERA = new THREE.PerspectiveCamera();
 
 describe('createGem()', () => {
   let gem: ReturnType<typeof createGem> | null = null;
+  let store: ReturnType<typeof settingsStore>;
+
+  beforeEach(() => {
+    store = settingsStore();
+  });
 
   afterEach(() => {
     gem?.dispose();
@@ -43,18 +48,19 @@ describe('createGem()', () => {
       scene: new THREE.Scene(),
       canvas: document.createElement('canvas'),
       picker: null as unknown as Picker,
-      cityState: makeCityState(),
+      cityState: makeCityState(store.signals),
+      settings: store.signals,
     } as unknown as SceneContext;
     expect(() => {
       gem = createGem(ctx);
       // Mutating GEM re-runs the effect; must not throw with null refs.
-      GEM.value = { ...GEM.value };
+      store.update({ GEM: { EDGE_COLOR: '#123456' } });
     }).not.toThrow();
     expect(gem!.getRootGroup()).toBeNull();
   });
 
   it('rebuild(street) builds an inner gem with a Gem-typed body and per-face color attribute', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 
@@ -68,7 +74,7 @@ describe('createGem()', () => {
   });
 
   it('rebuild disposes the prior inner gem and swaps in the new one', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
     const first = gem.getRootGroup()!;
@@ -79,7 +85,7 @@ describe('createGem()', () => {
   });
 
   it('tick lerps gem.scale toward HOVER_SCALE when a Gem is hovered', () => {
-    const { ctx, hover } = makePickableSceneContext();
+    const { ctx, hover } = makePickableSceneContext(undefined, store.signals);
     hover.value = { kind: NodeKind.Gem } as PickTarget;
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
@@ -89,19 +95,21 @@ describe('createGem()', () => {
     for (let i = 0; i < 5; i++) gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: CAMERA });
     // HOVER_SCALE default is 1.25; scale should have moved up toward it.
     expect(gem.getRootGroup()!.scale.x).toBeGreaterThan(start);
-    expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
+    expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(
+      store.signals.GEM.value.HOVER_SCALE + 1e-6
+    );
   });
 
   // This pins the guards, not the teardown: dispose nulls edges/body, so a
   // leaked effect would be absorbed and look identical from here.
   it('a GEM mutation after dispose() is absorbed by the null guards', () => {
-    const { ctx } = makePickableSceneContext();
+    const { ctx } = makePickableSceneContext(undefined, store.signals);
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
     gem.dispose();
     gem = null;
     expect(() => {
-      GEM.value = { ...GEM.value, EDGE_COLOR: '#abcdef' };
+      store.update({ GEM: { EDGE_COLOR: '#abcdef' } });
     }).not.toThrow();
   });
 });

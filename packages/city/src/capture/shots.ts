@@ -4,16 +4,16 @@
 // in live before the numbers are baked in. Debug-only.
 
 import type { SceneHandle } from '@/city/sceneHandle';
-import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 import { DirNode, Manifest, NodeKind } from '@/city/types/manifest';
 
-/** Set the default-view angle (degrees); the rig re-frames the whole city to
- *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
-function angle(elevation: number, azimuth: number): void {
-  CAMERA.value = { ...CAMERA.value, ELEVATION: elevation, AZIMUTH: azimuth };
+/** Set the default-view angle (degrees) on the city being shot; the rig
+ *  re-frames the whole city to it. Elevation is height above the horizon,
+ *  azimuth the swing around the gem. */
+function angle(handle: SceneHandle, elevation: number, azimuth: number): void {
+  handle.updateSettings({ CAMERA: { ELEVATION: elevation, AZIMUTH: azimuth } });
 }
 
 /** Live overrides from ?elev=&az=&dist=, undefined when absent/non-numeric. */
@@ -94,7 +94,7 @@ export const SHOTS: Record<string, ShotPose> = {
   },
   // Whole-city framing: the rig fits the entire city to the chosen angle.
   overview: (handle, _m, o) => {
-    angle(o.elev ?? 46, o.az ?? 34);
+    angle(handle, o.elev ?? 46, o.az ?? 34);
     handle.rig.reset();
   },
 
@@ -120,7 +120,7 @@ export const SHOTS: Record<string, ShotPose> = {
     const bundle = TIMELINE_BUNDLE.peek();
     if (!bundle || bundle.commits.length === 0) return false;
     setScrubPos(Math.floor(SCRUB_MAX.peek() * 0.5));
-    angle(o.elev ?? 44, o.az ?? 32);
+    angle(handle, o.elev ?? 44, o.az ?? 32);
     handle.rig.reset();
   },
 

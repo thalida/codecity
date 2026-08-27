@@ -10,7 +10,7 @@ import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
-import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
+import { citySettings, settingsStore } from '../../../_helpers/citySettings';
 import type { PickTarget } from '@/city/types/picker';
 import { NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
@@ -78,9 +78,12 @@ function lines(comp: ReturnType<typeof createPathLine>): LineSegments2[] {
 
 describe('createPathLine() component door', () => {
   let comp: ReturnType<typeof createPathLine>;
+  // A fresh store per case: each starts at stock values, so nothing has to be
+  // restored afterwards.
+  let store: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
-    STREETS.value = { ...DEFAULTS };
+    store = settingsStore();
   });
 
   afterEach(() => {
@@ -89,7 +92,7 @@ describe('createPathLine() component door', () => {
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
@@ -100,13 +103,13 @@ describe('createPathLine() component door', () => {
     // A selection set before the first tick produces no line (not armed) —
     // and a STREETS Save is safe (theme effect no-ops over the null inner).
     selection.value = dirTarget();
-    STREETS.value = { ...STREETS.value };
+    store.update({ STREETS: { PATH_LINEWIDTH_PCT: 30 } });
     expect(comp.group.children).toHaveLength(0);
   });
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState);
+    const { ctx } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
@@ -122,7 +125,7 @@ describe('createPathLine() component door', () => {
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
     const { cityState } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
@@ -141,11 +144,11 @@ describe('createPathLine() component door', () => {
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
     const { cityState } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState);
+    const { ctx } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
-    STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
-    const expected = computePathLinewidthPixels(25);
+    store.update({ STREETS: { PATH_LINEWIDTH_PCT: 25 } });
+    const expected = computePathLinewidthPixels(25, store.snapshot().STREET_TIERS.TIERS);
     for (const line of lines(comp)) {
       expect((line.material as unknown as { linewidth: number }).linewidth).toBeCloseTo(
         expected,
@@ -156,7 +159,7 @@ describe('createPathLine() component door', () => {
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, hover } = makePickableSceneContext(cityState);
+    const { ctx, hover } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -169,7 +172,7 @@ describe('createPathLine() component door', () => {
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -183,17 +186,12 @@ describe('createPathLine() component door', () => {
     // And picker/theme writes over the disposed inner are inert.
     expect(() => {
       selection.value = dirTarget();
-      STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 30 };
+      store.update({ STREETS: { PATH_LINEWIDTH_PCT: 30 } });
     }).not.toThrow();
   });
 });
 
 describe('computePathLinewidthPixels', () => {
-  const _originalTiers = STREET_TIERS.value;
-  afterEach(() => {
-    STREET_TIERS.value = _originalTiers;
-  });
-
   // The linewidth tracks the NARROWEST street, not the first tier, so a tier
   // list whose smallest width is not first still reads correctly.
   it.each([
@@ -201,14 +199,12 @@ describe('computePathLinewidthPixels', () => {
     ['default percentage', [10, 4], 10, 0.4],
     ['no tiers at all falls back to pct/100', [], 50, 0.5],
   ])('%s', (_label, widths, pct, expected) => {
-    STREET_TIERS.value = {
-      TIERS: widths.map((width, i) => ({ min_descendants: i * 4, width })),
-    };
-    expect(computePathLinewidthPixels(pct)).toBeCloseTo(expected);
+    const tiers = widths.map((width, i) => ({ min_descendants: i * 4, width }));
+    expect(computePathLinewidthPixels(pct, tiers)).toBeCloseTo(expected);
   });
 
   it('uses the shipped tiers when nothing overrides them', () => {
     // Default widths are 32, 48, 80, 96, 128, so the narrowest is 32.
-    expect(computePathLinewidthPixels(10)).toBeCloseTo(3.2);
+    expect(computePathLinewidthPixels(10, citySettings().STREET_TIERS.TIERS)).toBeCloseTo(3.2);
   });
 });

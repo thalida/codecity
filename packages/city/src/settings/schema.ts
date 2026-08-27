@@ -83,3 +83,11 @@ export function coerceField(value: unknown, def: FieldDef): unknown | undefined 
         : undefined;
   }
 }
+
+/** A field map's defaults as a plain config object. The one place that knows a
+ *  store's stock value comes from its declarations, not a parallel literal. */
+export function defaultsOf<F extends FieldMap>(fields: F): ConfigOf<F> {
+  const out = {} as Record<string, unknown>;
+  for (const k in fields) out[k] = fields[k].default;
+  return out as ConfigOf<F>;
+}

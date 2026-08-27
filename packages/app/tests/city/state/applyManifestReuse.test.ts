@@ -9,6 +9,10 @@ import { createCityState } from '@/city/state';
 import { createTestCityResources } from '../../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
+import { settingSignals } from '../../_helpers/citySettings';
+import type { LayoutConfig } from '@/city/layout/config';
+
+const SETTINGS = settingSignals();
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,
@@ -47,7 +51,7 @@ function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z
 // the real client's reuse contract (see applyManifestScenic.test.ts).
 function fakeLayoutClient() {
   return {
-    compute: vi.fn(async (_m: Manifest, reuseFrom?: CityLayout | null) => {
+    compute: vi.fn(async (_m: Manifest, _cfg: LayoutConfig, reuseFrom?: CityLayout | null) => {
       return (
         reuseFrom ??
         ({
@@ -68,7 +72,8 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -82,7 +87,8 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
-      createTestCityResources()
+      createTestCityResources(),
+      SETTINGS
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;

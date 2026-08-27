@@ -6,6 +6,7 @@ import {
   type RendererRegistry,
 } from './components/buildings/facadePanelTextureArray';
 import { createGemTextures, type GemTextures } from './components/gem/mesh';
+import type { SettingSignals } from './settings/store';
 
 /** Everything one city owns that used to be a module-level `let`.
  *
@@ -34,8 +35,11 @@ export interface CityResources {
   dispose(): void;
 }
 
-export function createCityResources(renderer: THREE.WebGLRenderer | null): CityResources {
-  const buildings = createBuildingMaterial();
+export function createCityResources(
+  renderer: THREE.WebGLRenderer | null,
+  settings: SettingSignals
+): CityResources {
+  const buildings = createBuildingMaterial(settings);
   const gem = createGemTextures();
   const rendererRegistry = createRendererRegistry();
   // Null only in tests: jsdom has no WebGL, and an unregistered slot makes

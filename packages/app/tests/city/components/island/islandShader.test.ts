@@ -1,10 +1,13 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { createIslandMaterial } from '@/city/components/island/islandShader';
+import { settingSignals } from '../../../_helpers/citySettings';
+
+const SETTINGS = settingSignals();
 
 describe('createIslandMaterial', () => {
   it('returns a ShaderMaterial with all required uniforms', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat).toBeInstanceOf(THREE.ShaderMaterial);
     const u = mat.uniforms;
     expect(u.uHemiSkyColor).toBeDefined();
@@ -13,14 +16,14 @@ describe('createIslandMaterial', () => {
   });
 
   it('uHemiSkyColor and uHemiGroundColor are THREE.Color instances', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat.uniforms.uHemiSkyColor!.value).toBeInstanceOf(THREE.Color);
     expect(mat.uniforms.uHemiGroundColor!.value).toBeInstanceOf(THREE.Color);
     mat.dispose();
   });
 
   it('vertex + fragment shader sources reference vColor, vNormalWorld, and vAO', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat.vertexShader).toMatch(/vColor/);
     expect(mat.vertexShader).toMatch(/vNormalWorld/);
     expect(mat.vertexShader).toMatch(/vAO/);
@@ -31,7 +34,7 @@ describe('createIslandMaterial', () => {
   });
 
   it('carries no ground-haze plumbing — the island opts out of fog entirely', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat.fragmentShader).not.toMatch(/applyFog|uFog/);
     expect(Object.keys(mat.uniforms)).not.toContain('uFogColor');
     mat.dispose();
@@ -40,7 +43,7 @@ describe('createIslandMaterial', () => {
   // World position is the texture's sample coordinate, so the pattern belongs
   // to the ground rather than swimming with the camera.
   it('samples its texture on world position, per surface', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat.vertexShader).toMatch(/vWorldPos/);
     expect(mat.vertexShader).toMatch(/aSurface/);
     expect(mat.fragmentShader).toMatch(/vWorldPos\.xz/);
@@ -51,7 +54,7 @@ describe('createIslandMaterial', () => {
   });
 
   it('fragment shader uses hemispheric blend (uHemiSkyColor, uHemiGroundColor)', () => {
-    const mat = createIslandMaterial();
+    const mat = createIslandMaterial(SETTINGS);
     expect(mat.fragmentShader).toMatch(/uHemiSkyColor/);
     expect(mat.fragmentShader).toMatch(/uHemiGroundColor/);
     // Old sun-direction model must not be present.
