@@ -110,7 +110,7 @@ test-app:
 # its own tree; nothing at the repo root formats anything.
 fmt:
     cd packages/api && uv run ruff format api
-    uv run --project packages/api ruff format --isolated bin scripts
+    uv run --project packages/api ruff format --isolated bin
     cd packages/app && npm run format
     cd packages/city && npm run format
 
@@ -126,7 +126,7 @@ lint-api: comment-check
 
 # The `#` half of the comment cap eslint enforces on the app. Runs over the whole
 # tree, not just what a push changes: unlike the JS side, there is no backlog.
-comment-check *paths='packages/api/api bin scripts':
+comment-check *paths='packages/api/api packages/api/scripts bin':
     uv run --project packages/api python bin/check-comments.py {{paths}}
 
 # manifest.contract.ts guards manifest.ts against the generated types; this
@@ -136,7 +136,7 @@ comment-check *paths='packages/api/api bin scripts':
 # it and this diff reports the formatting rather than the models.
 check-types-fresh:
     @mkdir -p .local
-    @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
+    @uv run --project packages/api python packages/api/scripts/gen_openapi.py > .local/openapi.generated.json
     @docker compose -f docker-compose.test.yml run --rm gentypes \
         || (echo "[codecity] packages/city/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
 
@@ -161,7 +161,7 @@ lint-packages:
 # else reads it. (Not to be confused with the live /api/openapi.json route.)
 gen-types:
     @mkdir -p .local
-    @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
+    @uv run --project packages/api python packages/api/scripts/gen_openapi.py > .local/openapi.generated.json
     @cd packages/city && npx openapi-typescript ../../.local/openapi.generated.json -o src/types/manifest.generated.ts
     @echo "[codecity] regenerated packages/city/src/types/manifest.generated.ts"
 

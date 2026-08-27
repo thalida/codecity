@@ -30,7 +30,7 @@ raw-options = { search_parent_directories = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["api"]
-exclude = ["api/tests"]
+exclude = ["api/tests", "scripts"]
 
 [dependency-groups]
 dev = [
@@ -60,7 +60,7 @@ addopts = "-ra --strict-markers -n auto --cov=api --cov-report=term --cov-fail-u
 
 [tool.pyright]
 include = ["api"]
-exclude = ["api/tests"]
+exclude = ["api/tests", "scripts"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 # Without this pyright resolves imports against whatever `python` is first on

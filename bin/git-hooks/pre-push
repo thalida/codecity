@@ -28,7 +28,7 @@ docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
 echo "[pre-push] 2/7  ruff check + format --check (packages/api/)"
 docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
 # On the host: it is stdlib-only, and running it here costs nothing.
-uv run --project packages/api python bin/check-comments.py packages/api/api bin scripts
+uv run --project packages/api python bin/check-comments.py packages/api/api packages/api/scripts bin
 
 echo "[pre-push] 3/7  pyright (packages/api/)"
 docker compose -f docker-compose.test.yml run --rm pyright >/dev/null

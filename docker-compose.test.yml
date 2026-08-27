@@ -56,16 +56,16 @@ services:
       [
         'sh',
         '-c',
-        'uv sync --frozen && /srv/.venv/bin/ruff check api && /srv/.venv/bin/ruff check --isolated /work/bin /work/scripts && /srv/.venv/bin/ruff format --check api && exec /srv/.venv/bin/ruff format --isolated --check /work/bin /work/scripts "$@"',
+        'uv sync --frozen && /srv/.venv/bin/ruff check api scripts && /srv/.venv/bin/ruff check --isolated /work/bin && /srv/.venv/bin/ruff format --check api scripts && exec /srv/.venv/bin/ruff format --isolated --check /work/bin "$@"',
         '--',
       ]
     volumes:
       - './packages/api/api:/srv/api:ro'
-      # bin/ and scripts/ sit ABOVE the api project, so they get stock ruff
-      # (--isolated below). Mounted outside /srv so config resolution matches
-      # the host, where no pyproject sits above them either.
+      - './packages/api/scripts:/srv/scripts:ro'
+      # bin/ sits ABOVE the api project, so it gets stock ruff (--isolated
+      # below). Mounted outside /srv so config resolution matches the host,
+      # where no pyproject sits above it either.
       - './bin:/work/bin:ro'
-      - './scripts:/work/scripts:ro'
       - './packages/api/uv.lock:/srv/uv.lock:ro'
       - './packages/api/pyproject.toml:/srv/pyproject.toml:ro'
 

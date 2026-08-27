@@ -61,7 +61,7 @@ jobs:
 
       # Stdlib-only, so it runs on the runner rather than paying for a container.
       - name: Python comment cap
-        run: python3 bin/check-comments.py packages/api/api bin scripts
+        run: python3 bin/check-comments.py packages/api/api packages/api/scripts bin
 
       # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
       # automatically — no `env:` mirror needed here, unlike NPM_VERSION
@@ -112,7 +112,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           mkdir -p .local
-          "$HOME/.local/bin/uv" run python scripts/gen_openapi.py > .local/openapi.generated.json
+          "$HOME/.local/bin/uv" run --project packages/api python packages/api/scripts/gen_openapi.py > .local/openapi.generated.json
           docker compose -f docker-compose.test.yml run --rm gentypes
 
       - name: Trivy scan

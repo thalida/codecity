@@ -110,9 +110,9 @@ leaving those containers pointing at a gone network (`just dev` then fails with
 
 ## Layout
 
-Everything the product is made of lives under `packages/`. `bin/`, `scripts/`
-and `.github/` are how it gets built and shipped; the split is what stops the
-two kinds from interleaving alphabetically at the repo root.
+Everything the product is made of lives under `packages/`. `bin/` and
+`.github/` are how it gets built and shipped; the split is what stops the two
+kinds from interleaving alphabetically at the repo root.
 
 Each package is independent: its own manifest, its own lockfile, its own
 installed dependencies. Lifting one into a repo of its own is a copy, not a
