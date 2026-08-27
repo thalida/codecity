@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated test fixtures
+#   run `bash api/tests/fixtures/setup.sh` to regenerate
+api/tests/fixtures/sample-repo/
+api/tests/fixtures/.sample-repo-ready
+api/tests/fixtures/.sample-repo-setup.lock
+#   run `bash api/tests/fixtures/large-repo-setup.sh` to regenerate
+api/tests/fixtures/large-repo/
+
+# pytest-cov output
+#   .coverage   = SQLite data file (default)
+#   coverage.xml = Cobertura XML (CI artifact, written into api/ via
+#                  --cov-report=xml:/srv/api/coverage.xml in ci.yml)
+.coverage
+coverage.xml
+api/coverage.xml

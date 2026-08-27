@@ -1,0 +1,28 @@
+# The api's dev service. Paths are relative to this file; the root
+# docker-compose.dev.yml includes it and adds the cross-package wiring.
+services:
+  api:
+    image: codecity:dev
+    build:
+      context: ../..
+    # Replaces CMD outright, so --host has to repeat it or the CLI's loopback
+    # default makes the api unreachable from the app container.
+    command: ['--reload', '--port', '8000', '--host', '0.0.0.0']
+    volumes:
+      # Read-only: the host owns the source.
+      - './api:/srv/api:ro'
+      - 'codecity-cache:/cache'
+    init: true
+    environment:
+      - CODECITY_QUIET=0
+    # The image bakes a healthcheck against 8080; dev serves 8000.
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8000/api/health']
+      interval: 10s
+      timeout: 2s
+      start_period: 3s
+      retries: 3
+
+volumes:
+  # Compose-project-scoped, so worktrees don't share a clone cache.
+  codecity-cache:

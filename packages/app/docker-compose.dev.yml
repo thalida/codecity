@@ -1,0 +1,19 @@
+# The app's dev service: Vite with HMR. Paths are relative to this file; what it
+# talks to is wiring, and lives in the root docker-compose.dev.yml.
+services:
+  app:
+    image: node:24-bookworm-slim
+    working_dir: /app
+    # npm pinned to the version both lockfiles were generated with (see .env).
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      # `just dev` picks a free port per worktree; 5173 covers ad-hoc runs.
+      - '${VITE_HOST_PORT:-5173}:5173'
+    volumes:
+      - '.:/app'
+      # @codecity/city resolves to /app/../city through both the workspace link
+      # and the vite alias, so it has to be mounted as a sibling.
+      - '../city:/city'
+      - '/city/node_modules'
+      # Anonymous: npm-installed in the container, never the host's binaries.
+      - '/app/node_modules'

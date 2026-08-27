@@ -1,33 +1,29 @@
-# Version control + CI scaffolding
+# At the build-context root, because that is what `docker build .` sends.
+# Globs, not package paths: a new package inherits them.
+
 .git
 .github
 
-# Python local
-.venv
-.mypy_cache
-.pytest_cache
-.ruff_cache
-packages/api/api/__pycache__
+# Python
+**/.venv
 **/__pycache__
 **/*.pyc
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
 
-# Node local
+# Node
 **/node_modules
-packages/app/dist
-packages/app/.vite
+**/dist
+**/.vite
 
-# Codecity local artifacts
+
+# Local-run scratch and tool artifacts
 .local
-.codecity
 .codecityignore
-
-# Tool artifacts
 .claude
-.superpowers
 docs
-
-# Stale static dir (legacy)
-packages/api/api/static
+TODO.md
 
 # OS / editors
 **/.DS_Store
@@ -37,9 +33,3 @@ packages/api/api/static
 *~
 .idea
 .vscode
-
-# Repo-level scaffolding not needed at build time
-TODO.md
-# NOTE: README.md and LICENSE are NOT ignored — pyproject.toml references
-# them (`readme = "README.md"`, `license = { file = "LICENSE" }`), and
-# hatchling validates their existence during the wheel build.
