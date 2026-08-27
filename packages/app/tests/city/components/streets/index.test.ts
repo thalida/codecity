@@ -9,8 +9,10 @@ import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityF
 import { STREETS } from '@/state/settings/fields/streets';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
-import { CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { Street, StreetAxis } from '@/city/types/street';
+import { PickTarget } from '@/city/types/picker';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

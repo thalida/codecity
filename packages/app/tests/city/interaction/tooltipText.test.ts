@@ -5,8 +5,8 @@ import {
   middleTruncatePath,
 } from '@/city/interaction/tooltipText';
 import { commits as buildCommits } from '../../_helpers/commits';
-import { DirNode, FileNode, NodeKind } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
+import { PickTarget } from '@/city/types/picker';
 
 // The formatter reads a handful of fields but the types want the whole shape,
 // so the rest are inert defaults.

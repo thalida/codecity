@@ -1,4 +1,4 @@
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 // router/params.ts — the query params that never leave the browser: what you
 // were looking at. Their own vocabulary, so renaming a NodeKind cannot change
 // what a link someone is already holding means. The params the server also

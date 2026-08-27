@@ -7,7 +7,7 @@ import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { setLayoutProfiling, getLayoutProfile } from '@/city/layout/profiling';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 function countFilesDirs(node: any): { files: number; dirs: number } {
   let files = 0;

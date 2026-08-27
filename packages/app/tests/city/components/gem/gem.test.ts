@@ -6,8 +6,9 @@ import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityF
 import { GEM } from '@/state/settings/fields/gem';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
-import { NodeKind, Street, StreetAxis } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { NodeKind } from '@/city/types/manifest';
+import { Street, StreetAxis } from '@/city/types/street';
+import { PickTarget } from '@/city/types/picker';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the
 // gem only reads geometry fields (x/y/width/length/orientation).

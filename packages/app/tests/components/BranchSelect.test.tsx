@@ -6,7 +6,7 @@ import { render } from 'preact';
 import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
 import { API } from '@/apiClient';
 import { flush, drainAsync } from '../_helpers/preact';
-import { ScanError } from '@codecity/city';
+import { ScanError } from '@/city/client/manifest';
 
 describe('BranchSelect', () => {
   let container: HTMLDivElement;

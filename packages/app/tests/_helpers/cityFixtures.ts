@@ -10,8 +10,9 @@ import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
 import { createTestCityResources } from '../_helpers/cityResources';
-import { CityBbox, CityLayout, CommitEntry, NodeKind } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { CommitEntry, NodeKind } from '@/city/types/manifest';
+import { CityBbox, CityLayout } from '@/city/types/scene';
+import { PickTarget } from '@/city/types/picker';
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.

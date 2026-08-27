@@ -31,16 +31,29 @@
     // file moves. Editor + tsc resolve through `paths`; bundler +
     // tests resolve through `resolve.alias`.
     "paths": {
+      // The renderer lives in @codecity/city now. Mapping the old prefix keeps
+      // every existing import valid until the alias is cut (#208 step 10).
+      "@/city/*": ["../city/src/*"],
+      // One copy of three's declarations, or the app's Mesh stops being
+      // assignable to the package's.
+      "three": ["../city/node_modules/@types/three"],
+      "three/addons/*": ["../city/node_modules/@types/three/examples/jsm/*"],
+      "three/*": ["../city/node_modules/@types/three/*"],
+      "three-mesh-bvh": ["../city/node_modules/three-mesh-bvh"],
+      // The package declares signals as a peer, so it has no copy of its own;
+      // its files resolve against this one.
+      "@preact/signals": ["./node_modules/@preact/signals"],
+      "@preact/signals-core": ["./node_modules/@preact/signals-core"],
       "@/*": ["./src/*"]
     },
 
     // Explicit allowlist prevents auto-inclusion of every package under
     // node_modules/@types/ (the TS default). Without this, @types/node
     // bleeds into browser source after it was installed for tests/visual.
-    // "three" is required because three.js ships no bundled .d.ts files;
-    // "webxr" is @types/three's declared dependency and referenced in its
-    // declarations (XRSession etc.), so it must be listed here too.
-    "types": ["three", "webxr"]
+    // Empty: @types/three lives with the renderer now, and the tests that
+    // import three reach it through the "three" path mapping above, not
+    // through this allowlist.
+    "types": []
   },
   "include": ["**/*.js", "**/*.ts", "**/*.tsx", "tests/**/*"],
   "exclude": [

@@ -21,7 +21,8 @@ import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { createTestCityResources } from '../../../_helpers/cityResources';
-import { NodeKind, StreetAxis } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
+import { StreetAxis } from '@/city/types/street';
 
 const SHA_A = 'a'.repeat(40);
 

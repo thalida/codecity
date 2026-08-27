@@ -3,9 +3,9 @@ import { render } from 'preact';
 import { signal, type Signal } from '@preact/signals';
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
-import { ROOT_PATH } from '@codecity/city';
+import { ROOT_PATH } from '@/city/constants/manifest';
 import { flush } from '../../../_helpers/preact';
-import { DirNode, ExtBreakdownEntry, FileNode, NodeKind } from '@codecity/city';
+import { DirNode, ExtBreakdownEntry, FileNode, NodeKind } from '@/city/types/manifest';
 
 function f(name: string, ext: string, size: number, lines = 0): FileNode {
   return {

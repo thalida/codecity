@@ -12,7 +12,7 @@ import {
   resetBuildingsConfig,
 } from '../../../_helpers/cityFixtures';
 import { building } from '../../../_helpers/buildingFixture';
-import type { CityLayout } from '@codecity/city';
+import type { CityLayout } from '@/city/types/scene';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {

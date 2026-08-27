@@ -19,7 +19,8 @@ import {
   TIMELINE_MODE,
   setScrubPos,
 } from '@/state/stores/timeline';
-import { FileNode, NodeKind, TimelineBundle } from '@codecity/city';
+import { FileNode, NodeKind } from '@/city/types/manifest';
+import { TimelineBundle } from '@/city/types/timeline';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

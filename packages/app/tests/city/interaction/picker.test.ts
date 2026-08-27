@@ -6,8 +6,10 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { makeCityState } from '../../_helpers/cityFixtures';
-import { Building, DirNode, FileNode, NodeKind, Street } from '@codecity/city';
-import { DirTarget, FileTarget, PickerWorld } from '@/types/picker';
+import { Building } from '@/city/types/building';
+import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
+import { Street } from '@/city/types/street';
+import { DirTarget, FileTarget, PickerWorld } from '@/city/types/picker';
 
 // Minimal building / street fixture shapes for the fake scene.
 interface FakeBuildingFixture {

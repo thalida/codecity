@@ -5,7 +5,7 @@
 import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
 import { LoaderCircle } from 'lucide-preact';
-import { ScanError, ScanErrorCode } from '@codecity/city';
+import { ScanError, ScanErrorCode } from '@/city/client/manifest';
 import { API } from '@/apiClient';
 
 export interface BranchSelectProps {

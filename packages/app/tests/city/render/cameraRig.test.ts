@@ -9,8 +9,11 @@ import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
 import type { CityState } from '@/city/state';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { getDefault } from '@/state/persist';
-import { Building, BuildingOrient, CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { Building, BuildingOrient } from '@/city/types/building';
+import { NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { Street, StreetAxis } from '@/city/types/street';
+import { PickTarget } from '@/city/types/picker';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };

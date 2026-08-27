@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 // stylesheets hands back empty strings. Node-side, hence the tsconfig pair.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC = resolve(__dirname, '../../src');
+// The renderer's stylesheets live in @codecity/city now, and they read these
+// same tokens — scanning only the app would report them unused.
+const CITY_SRC = resolve(__dirname, '../../../city/src');
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -16,9 +19,12 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-const SOURCES = sourceFiles(SRC).map(
-  (path) => [path.slice(SRC.length + 1), readFileSync(path, 'utf8')] as const
-);
+const SOURCES = [
+  ...sourceFiles(SRC).map((p) => [p.slice(SRC.length + 1), readFileSync(p, 'utf8')] as const),
+  ...sourceFiles(CITY_SRC).map(
+    (p) => [p.slice(CITY_SRC.length + 1), readFileSync(p, 'utf8')] as const
+  ),
+];
 const TOKENS_CSS = SOURCES.find(([path]) => path === join('styles', 'tokens.css'))?.[1] ?? '';
 
 const DECLARED = /^\s*(--cc-[a-z0-9-]+)\s*:/gm;

@@ -11,8 +11,8 @@ import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import type { Trees } from '@/city/components/trees/treeRenderer';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
-import { NodeKind } from '@codecity/city';
-import { CommitTarget, PickerWorld } from '@/types/picker';
+import { NodeKind } from '@/city/types/manifest';
+import { CommitTarget, PickerWorld } from '@/city/types/picker';
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 const BUSY = { avg: 1, busy: 1 };

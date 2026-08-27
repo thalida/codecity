@@ -1,7 +1,7 @@
 import { test, expect, describe, it } from 'vitest';
 import { makeES } from '../_helpers/eventSource';
 import { API } from '@/apiClient';
-import type { TimelineBundle } from '@codecity/city';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 test('timelineUrlFor builds the endpoint URL with src', () => {
   const u = API.timelineUrlFor('/repo', undefined);

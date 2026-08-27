@@ -11,10 +11,10 @@ import {
   setScrubPos,
   setTodayMs,
 } from '@/state/stores/timeline';
-import { parseDateMs } from '@codecity/city';
+import { parseDateMs } from '@/city/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
 import { commits as buildCommits } from '../_helpers/commits';
-import type { TimelineBundle } from '@codecity/city';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 const [old, mid, head] = buildCommits(
   { date: '2026-01-01', files: 1, subject: 'oldest', authors: ['Someone'] },

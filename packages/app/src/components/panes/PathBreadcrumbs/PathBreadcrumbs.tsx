@@ -9,7 +9,7 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { PaneTitleBudgetContext } from '@/components/panes/PaneHeader/PaneHeader';
 import { buildPathCrumbs } from '@/components/panes/PathBreadcrumbs/pathCrumbs';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */

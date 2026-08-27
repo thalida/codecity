@@ -8,8 +8,8 @@ import {
   getModifiedAge,
 } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import type { BuildingsConfig } from '@codecity/city';
-import { NodeKind, RangeStat } from '@codecity/city';
+import type { BuildingsConfig } from '@/city/settings/fields/buildings';
+import { NodeKind, RangeStat } from '@/city/types/manifest';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDINGS store by beforeEach; restored by afterEach.

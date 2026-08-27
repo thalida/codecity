@@ -14,7 +14,7 @@ import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeClust
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import type { Manifest } from '@codecity/city';
+import type { Manifest } from '@/city/types/manifest';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */

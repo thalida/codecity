@@ -1,9 +1,11 @@
 // @codecity/city — public surface.
 //
-// createCity and the 3D scene land here over the course of #208. What is here
-// today: the api client (every call to the codecity backend goes through it,
-// including the four endpoints the city never makes itself) and the types it
-// produces — the wire format, and the geometry the layout builds from it.
+// createCity and everything that produces the scene: the renderer, the api
+// client every backend call goes through, the types it produces, and the
+// settings schema that says what is tunable.
+
+export { createCity } from './createCity';
+export type { City, SceneComponent, SceneContext, FrameContext } from './types';
 
 export { createClient, type ClientOptions, type CodecityClient } from './client/index';
 export type { ApiUrl } from './client/url';
@@ -53,6 +55,7 @@ export * from './constants/manifest';
 // changing it costs (ChangeRoute). Values, persistence and any signals the
 // consumer binds to are the consumer's — the package never holds them.
 export * from './settings/schema';
+export * from './types/picker';
 export * from './settings/fields/buildings';
 export * from './settings/fields/camera';
 export * from './settings/fields/effects';

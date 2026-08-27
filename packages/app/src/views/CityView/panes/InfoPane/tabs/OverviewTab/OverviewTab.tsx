@@ -11,7 +11,7 @@ import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
-import { DirNode, Manifest, NodeKind } from '@codecity/city';
+import { DirNode, Manifest, NodeKind } from '@/city/types/manifest';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.

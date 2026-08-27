@@ -9,7 +9,10 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const SRC = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), '../../../../src/city/utils/shaders/hsl.glsl'),
+  resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '../../../../../city/src/utils/shaders/hsl.glsl'
+  ),
   'utf-8'
 );
 

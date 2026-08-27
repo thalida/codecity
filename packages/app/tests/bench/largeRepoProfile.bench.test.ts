@@ -9,12 +9,15 @@ import { layoutCity } from '@/city/layout/algorithm.js';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { createStreetLabels } from '@/city/components/streets/streetLabels';
-import { isMediaFile } from '@codecity/city';
+import { isMediaFile } from '@/city/utils/fileKind';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
-import { Building, CityLayout, NodeKind, StreetAxis } from '@codecity/city';
+import { Building } from '@/city/types/building';
+import { NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { StreetAxis } from '@/city/types/street';
 
 function countFiles(node: any): number {
   let n = 0;

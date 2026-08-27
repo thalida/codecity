@@ -6,7 +6,7 @@
 import { useId } from 'preact/hooks';
 import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settings/drafts';
-import type { StreetTier } from '@codecity/city';
+import type { StreetTier } from '@/city/settings/fields/streets';
 import { RotateCcw } from 'lucide-preact';
 import { SliderField } from '@/components/fields/SliderField/SliderField';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';

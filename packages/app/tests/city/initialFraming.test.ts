@@ -29,7 +29,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 
 import { createCity } from '@/city/index';
 import type { City } from '@/city/types';
-import type { Manifest } from '@codecity/city';
+import type { Manifest } from '@/city/types/manifest';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

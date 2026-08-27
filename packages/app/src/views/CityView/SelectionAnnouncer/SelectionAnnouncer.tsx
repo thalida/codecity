@@ -3,8 +3,8 @@
 // a graphic and cannot announce its own (WCAG 4.1.3).
 import { useComputed } from '@preact/signals';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { NodeKind } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { NodeKind } from '@/city/types/manifest';
+import { PickTarget } from '@/city/types/picker';
 
 function describe(sel: PickTarget | null): string {
   if (!sel) return '';

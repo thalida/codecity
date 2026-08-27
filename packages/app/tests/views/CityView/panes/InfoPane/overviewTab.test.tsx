@@ -26,7 +26,7 @@ import { OverviewTab } from '@/views/CityView/panes/InfoPane/tabs/OverviewTab/Ov
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { commits as buildCommits } from '../../../../_helpers/commits';
 import { uniformFileStats } from '../../../../_helpers/statsFixtures';
-import { Manifest, NodeKind } from '@codecity/city';
+import { Manifest, NodeKind } from '@/city/types/manifest';
 
 const tree = {
   name: 'repo',

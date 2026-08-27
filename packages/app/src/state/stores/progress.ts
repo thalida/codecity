@@ -17,8 +17,8 @@ import {
 } from '@/constants/progress';
 import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
-import { CloneStage, ScanPhase } from '@codecity/city';
-import type { Manifest } from '@codecity/city';
+import { CloneStage, ScanPhase } from '@/city/client/manifest';
+import type { Manifest } from '@/city/types/manifest';
 
 // ── What the server is doing ─────────────────────────────────────────
 

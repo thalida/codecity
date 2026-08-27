@@ -5,7 +5,8 @@ import {
   computePathPoints,
   streetEndOpposite,
 } from '@/city/layout/streetPath';
-import { NodeKind, StreetAxis } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
+import { StreetAxis } from '@/city/types/street';
 
 // Local minimal-shape type matches the StreetLike structural contract that
 // scene/path.ts reads (orientation, position, dimensions, dir.path).

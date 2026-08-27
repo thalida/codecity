@@ -4,7 +4,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { STREETS } from '@/state/settings/fields/streets';
-import { NodeKind, Street, StreetAxis } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
+import { Street, StreetAxis } from '@/city/types/street';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

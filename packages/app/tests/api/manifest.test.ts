@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 // Minimal EventSource stub: records listeners; the test drives events via emit().
 import { makeES } from '../_helpers/eventSource';
-import { ScanPhase, ScanStreamEvent } from '@codecity/city';
+import { ScanPhase, ScanStreamEvent } from '@/city/client/manifest';
 import { API } from '@/apiClient';
 
 const fakeManifest = { root: '/r', tree: { type: 'directory' } };

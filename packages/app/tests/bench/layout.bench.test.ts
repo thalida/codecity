@@ -5,7 +5,7 @@
 
 import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 function mkFile(name: string, depth: number) {
   return {

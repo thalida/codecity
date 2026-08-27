@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
-import { DirNode, FileNode, NodeKind } from '@codecity/city';
+import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 
 const NOW = Date.UTC(2024, 2, 25);
 

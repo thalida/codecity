@@ -6,7 +6,7 @@ import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { flush } from '../../../_helpers/preact';
 import { popoverPanel } from '../../../_helpers/popover';
-import type { Manifest } from '@codecity/city';
+import type { Manifest } from '@/city/types/manifest';
 
 const LOADED: Manifest = {
   ...EMPTY_MANIFEST,

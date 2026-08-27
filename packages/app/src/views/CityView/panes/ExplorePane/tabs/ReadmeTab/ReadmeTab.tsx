@@ -10,14 +10,14 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { sourceOf } from '@codecity/city';
+import { sourceOf } from '@/city/utils/manifest';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
 } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
 import { API } from '@/apiClient';
-import type { DirNode, Manifest, SourceRef } from '@codecity/city';
+import type { DirNode, Manifest, SourceRef } from '@/city/types/manifest';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */

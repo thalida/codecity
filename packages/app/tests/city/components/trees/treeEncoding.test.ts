@@ -16,11 +16,11 @@ import {
   type AgeRange,
   type SizeRange,
 } from '@/city/components/trees/treeEncoding';
-import type { TreesConfig } from '@codecity/city';
+import type { TreesConfig } from '@/city/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import { epochDay } from '@codecity/city';
-import type { CommitEntry } from '@codecity/city';
+import { epochDay } from '@/city/utils/dates';
+import type { CommitEntry } from '@/city/types/manifest';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },

@@ -76,7 +76,7 @@ jobs:
         # via the ./packages/app:/app bind mount.
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run coverage"
 
       - name: Upload pytest coverage report
         if: always()
@@ -97,7 +97,7 @@ jobs:
       - name: Lint + typecheck
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
       # Prettier lives inside each package, so there is no repo-wide format
       # check — README, AGENTS.md, compose and these workflows belong to no

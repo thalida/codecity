@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 
 // The backdrop canvas: jsdom has no WebGL, and none of this is about the scene.
-vi.mock('@/city/City', () => ({
+vi.mock('@/components/City/City', () => ({
   City: () => null,
   CityVariant: { Scene: 'scene', Backdrop: 'backdrop' },
 }));

@@ -10,7 +10,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { DirNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
+import { DirNode, Manifest, NodeKind, TreeNode } from '@/city/types/manifest';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

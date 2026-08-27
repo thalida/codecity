@@ -19,9 +19,9 @@ import {
   scrubbedDirFor,
 } from '@/state/stores/timeline';
 import { SOURCE_INFO, addExclude } from '@/state/stores/source';
-import { ROOT_PATH } from '@codecity/city';
+import { ROOT_PATH } from '@/city/constants/manifest';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { findNodeByPath, sourceOf } from '@codecity/city';
+import { findNodeByPath, sourceOf } from '@/city/utils/manifest';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
@@ -30,7 +30,7 @@ import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
-import { CommitEntry, DirNode, FileNode, Manifest, NodeKind } from '@codecity/city';
+import { CommitEntry, DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

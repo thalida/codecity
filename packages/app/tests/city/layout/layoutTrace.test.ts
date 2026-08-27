@@ -7,7 +7,8 @@ import { layoutCityWithTrace } from '@/city/layout/algorithm';
 import { findSmallestValidStem, placeChild } from '@/city/layout/stemSolver';
 import type { VariantTrace } from '@/city/layout/stemSolver';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
-import { DirNode, FileNode, Manifest, NodeKind, StreetAxis } from '@codecity/city';
+import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
+import { StreetAxis } from '@/city/types/street';
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {

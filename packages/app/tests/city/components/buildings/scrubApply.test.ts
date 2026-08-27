@@ -16,7 +16,7 @@ import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { makeBuilding, makeFile } from '../../../_helpers/scrub';
 import { createTestCityResources } from '../../../_helpers/cityResources';
-import type { Building } from '@codecity/city';
+import type { Building } from '@/city/types/building';
 
 const _res = createTestCityResources();
 

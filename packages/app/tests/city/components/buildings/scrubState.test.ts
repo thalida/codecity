@@ -21,7 +21,8 @@ import {
   makeScrubFrame,
   scrubSubject,
 } from '../../../_helpers/scrub';
-import { FadeDetail, FileNode } from '@codecity/city';
+import { FadeDetail } from '@/city/types/animation';
+import { FileNode } from '@/city/types/manifest';
 
 const file = makeFile({ path: 'f.txt' });
 const NO_COMMIT_MS: readonly number[] = [];

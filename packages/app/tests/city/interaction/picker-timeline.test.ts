@@ -15,8 +15,10 @@ import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import { Building, NodeKind, Street, StreetAxis } from '@codecity/city';
-import { PickerWorld } from '@/types/picker';
+import { Building } from '@/city/types/building';
+import { NodeKind } from '@/city/types/manifest';
+import { Street, StreetAxis } from '@/city/types/street';
+import { PickerWorld } from '@/city/types/picker';
 
 const _res = createTestCityResources();
 

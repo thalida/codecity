@@ -1,5 +1,5 @@
 import { EMPTY_REPO_STATS } from '../_helpers/manifestFixtures';
-import type { CommitEntry, FileLeader, RangeStat, RepoStats } from '@codecity/city';
+import type { CommitEntry, FileLeader, RangeStat, RepoStats } from '@/city/types/manifest';
 
 interface TreeLike {
   type?: string;

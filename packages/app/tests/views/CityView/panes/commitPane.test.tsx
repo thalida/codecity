@@ -9,7 +9,7 @@ import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
-import type { CommitEntry } from '@codecity/city';
+import type { CommitEntry } from '@/city/types/manifest';
 
 const [COMMIT] = buildCommits({
   date: '2026-03-12',

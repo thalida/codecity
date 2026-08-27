@@ -48,7 +48,7 @@ CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'pac
 echo "[pre-push] 5/7  eslint + typecheck (packages/app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
-    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck \
+    sh -c "npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run lint && npm run typecheck \
         && npm run format:check \
         && { [ -z '$CHANGED_APP' ] || npx eslint $CHANGED_APP; }" >/dev/null
 

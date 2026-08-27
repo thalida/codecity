@@ -4,7 +4,14 @@
 
 import { formatShortDate } from '@/utils/dates';
 import { formatBytes, formatCount, pluralize } from '@/utils/format';
-import { CommitLeader, DirLeader, DirNode, FileLeader, Manifest, NodeKind } from '@codecity/city';
+import {
+  CommitLeader,
+  DirLeader,
+  DirNode,
+  FileLeader,
+  Manifest,
+  NodeKind,
+} from '@/city/types/manifest';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;
 

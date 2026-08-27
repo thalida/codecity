@@ -21,8 +21,9 @@ import {
   makeBuilding,
   makeFile,
 } from '../../_helpers/scrub';
-import type { RangeStat, Street } from '@codecity/city';
-import type { PickTarget } from '@/types/picker';
+import type { RangeStat } from '@/city/types/manifest';
+import type { Street } from '@/city/types/street';
+import type { PickTarget } from '@/city/types/picker';
 
 afterEach(() => {
   TIMELINE_BUNDLE.value = null;

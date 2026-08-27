@@ -9,8 +9,8 @@ import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { flush, drainAsync } from '../../../_helpers/preact';
-import { DirNode, FileNode, Manifest, NodeKind } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
+import { PickTarget } from '@/city/types/picker';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

@@ -3,8 +3,8 @@
 // once the stream has handed over to the build.
 
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase } from '@codecity/city';
-import { TimelineStage } from '@codecity/city';
+import { ScanPhase } from '@/city/client/manifest';
+import { TimelineStage } from '@/city/types/timeline';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 

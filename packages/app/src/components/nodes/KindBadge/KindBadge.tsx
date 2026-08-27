@@ -13,7 +13,7 @@ import {
 } from '@/utils/colors';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { STREETS } from '@/state/settings/fields/streets';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 // The luminance check reads the same saturation and lightness the CSS paints,
 // so it judges the colour actually on screen.

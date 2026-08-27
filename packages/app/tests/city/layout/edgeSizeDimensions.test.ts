@@ -10,7 +10,7 @@ import {
   makeRng,
   statsFromTree,
 } from '../../_helpers/layoutTreeFixtures';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 const NUMERIC_FIELDS = ['x', 'y', 'w', 'd', 'h', 'floors'] as const;
 const POSITIVE_FIELDS = ['w', 'd', 'h'] as const;

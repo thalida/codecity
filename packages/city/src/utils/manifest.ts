@@ -1,4 +1,4 @@
-import { DirNode, Manifest, NodeKind, SourceRef, TreeNode } from '@codecity/city';
+import { DirNode, Manifest, NodeKind, SourceRef, TreeNode } from '@/city/types/manifest';
 // utils/manifest.ts — Pure predicates over, and lookups into, the Manifest shape.
 
 // Locate the tree node at `path` (file or directory) in a manifest/DirNode.

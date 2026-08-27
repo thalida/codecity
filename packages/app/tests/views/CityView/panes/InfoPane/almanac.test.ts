@@ -3,7 +3,7 @@ import { computeAlmanac } from '@/views/CityView/panes/InfoPane/almanac';
 import { EMPTY_REPO_STATS } from '../../../../_helpers/manifestFixtures';
 import { commits as buildCommits } from '../../../../_helpers/commits';
 import { fileLeader, uniformFileStats } from '../../../../_helpers/statsFixtures';
-import { DirNode, FileNode, Manifest, NodeKind, RepoStats } from '@codecity/city';
+import { DirNode, FileNode, Manifest, NodeKind, RepoStats } from '@/city/types/manifest';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {

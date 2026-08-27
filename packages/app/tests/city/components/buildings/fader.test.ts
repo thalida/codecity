@@ -12,16 +12,12 @@ import { createTestCityResources } from '../../../_helpers/cityResources';
 const _res = createTestCityResources();
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import {
-  Building,
-  CityLayout,
-  DirNode,
-  FadeDetail,
-  FileNode,
-  NodeKind,
-  Street,
-} from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { FadeDetail } from '@/city/types/animation';
+import { Building } from '@/city/types/building';
+import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { Street } from '@/city/types/street';
+import { PickTarget } from '@/city/types/picker';
 
 const _originalFade = BUILDINGS.value;
 

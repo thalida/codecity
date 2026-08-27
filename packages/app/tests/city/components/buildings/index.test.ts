@@ -16,8 +16,10 @@ import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
-import { Building, CityLayout, DateRanges, NodeKind } from '@codecity/city';
-import { FileTarget } from '@/types/picker';
+import { Building } from '@/city/types/building';
+import { DateRanges, NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { FileTarget } from '@/city/types/picker';
 
 const _origBuildings = BUILDINGS.value;
 const _origScene = SCENE.value;

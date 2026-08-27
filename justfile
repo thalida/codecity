@@ -145,7 +145,7 @@ check-types-fresh:
 lint-app:
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
-         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+         sh -c "npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
 # city/: typecheck + format check.
 lint-packages:

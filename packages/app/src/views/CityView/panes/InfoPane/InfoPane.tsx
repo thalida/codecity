@@ -16,7 +16,7 @@ import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
-import type { DirNode, Manifest } from '@codecity/city';
+import type { DirNode, Manifest } from '@/city/types/manifest';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 

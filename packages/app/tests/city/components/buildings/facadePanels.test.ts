@@ -8,8 +8,9 @@ import {
 } from '@/city/components/buildings/facadePanelTextureArray';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { BuildingOrient, NodeKind } from '@codecity/city';
-import type { Building } from '@codecity/city';
+import { BuildingOrient } from '@/city/types/building';
+import { NodeKind } from '@/city/types/manifest';
+import type { Building } from '@/city/types/building';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeBundle } from '../../../_helpers/scrub';
 import {
@@ -19,7 +20,7 @@ import {
   scrubbedBlobShaFor,
   setScrubPos,
 } from '@/state/stores/timeline';
-import type { TimelineBundle } from '@codecity/city';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 // Only the fields registerMediaBuilding reads.
 function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {

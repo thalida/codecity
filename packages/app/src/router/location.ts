@@ -6,7 +6,7 @@
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
 import { ROUTES } from './paths';
-import { URL_PARAMS } from '@codecity/city';
+import { URL_PARAMS } from '@/city/client/urlParams';
 
 function readHref(): string {
   return `${window.location.pathname}${window.location.search}`;

@@ -14,7 +14,9 @@ import { createStreets } from '@/city/components/streets';
 import { createGem } from '@/city/components/gem';
 import { createIsland } from '@/city/components/island';
 import { createRepoLabel } from '@/city/components/repoLabel';
-import { CityLayout, Manifest, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { Manifest, NodeKind } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { Street, StreetAxis } from '@/city/types/street';
 
 function makeRootStreet(): Street {
   return {

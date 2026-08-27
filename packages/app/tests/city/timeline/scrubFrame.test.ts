@@ -10,8 +10,10 @@ import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
-import { FileNode, NodeKind, RangeStat, Street, TimelineBundle } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
+import { Street } from '@/city/types/street';
+import { TimelineBundle } from '@/city/types/timeline';
+import { PickTarget } from '@/city/types/picker';
 
 const _ruins = RUINS.peek();
 

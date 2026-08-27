@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '@/city/layout/algorithm';
 import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import type { BuildingDimensionsConfig } from '@codecity/city';
+import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
-import type { StreetTier } from '@codecity/city';
+import type { StreetTier } from '@/city/settings/fields/streets';
 import {
   assertNoOverlap,
   assertStemOrder,
@@ -20,7 +20,10 @@ import {
   genNestedTree,
 } from '../../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../../_helpers/statsFixtures';
-import { BuildingOrient, CityLayout, NodeKind, RepoStats, StreetAxis } from '@codecity/city';
+import { BuildingOrient } from '@/city/types/building';
+import { NodeKind, RepoStats } from '@/city/types/manifest';
+import { CityLayout } from '@/city/types/scene';
+import { StreetAxis } from '@/city/types/street';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

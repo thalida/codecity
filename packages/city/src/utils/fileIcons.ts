@@ -2,7 +2,7 @@
 // the tables in constants/fileIconMap. The roof atlas and the tree/preview
 // <img> renderers share it, so both key off the same names.
 
-import type { DirNode, FileNode } from '@codecity/city';
+import type { DirNode, FileNode } from '@/city/types/manifest';
 import { isDataBuilding } from './fileKind';
 import {
   EXT_ICON,

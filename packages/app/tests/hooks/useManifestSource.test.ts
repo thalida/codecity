@@ -18,7 +18,7 @@ import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import type { TimelineBundle } from '@codecity/city';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;

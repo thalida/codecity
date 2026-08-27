@@ -3,8 +3,8 @@
 // main-thread visual knob. Each field states its own route.
 
 import { FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '../schema';
-import { DEFAULT_HUE_EXT_MAP } from '../../index';
-import { FadeDetail } from '../../index';
+import { DEFAULT_HUE_EXT_MAP } from '../../constants/buildings';
+import { FadeDetail } from '../../types/animation';
 
 const FADE_DETAIL_OPTIONS = [
   { value: FadeDetail.Full, label: 'Full' },

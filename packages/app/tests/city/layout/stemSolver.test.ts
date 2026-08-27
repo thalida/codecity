@@ -7,7 +7,7 @@ import {
   isMirrorInvariant,
   placeChild,
 } from '@/city/layout/stemSolver';
-import { StreetAxis } from '@codecity/city';
+import { StreetAxis } from '@/city/types/street';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHADERS = resolve(__dirname, '../../../../src/city/components/buildings');
+const SHADERS = resolve(__dirname, '../../../../../city/src/components/buildings');
 
 describe('building.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'building.vert.glsl'), 'utf-8');

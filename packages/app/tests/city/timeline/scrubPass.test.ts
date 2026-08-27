@@ -10,7 +10,8 @@ import { StreetTint } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { makeBuilding, makeBundle, makeFile, makeScrubFrame } from '../../_helpers/scrub';
-import type { Street, TimelineBundle } from '@codecity/city';
+import type { Street } from '@/city/types/street';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 const street = (path: string, over: Partial<Street> = {}): Street =>
   ({ dir: { path }, ...over }) as unknown as Street;

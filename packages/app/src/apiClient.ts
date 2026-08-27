@@ -6,7 +6,7 @@
 // Vite-ism and a package cannot depend on its consumer's bundler. The base is a
 // path, never an origin — same-origin only, see the package's client/url.ts.
 
-import { createClient } from '@codecity/city';
+import { createClient } from '@/city/client/index';
 
 const DEPLOY_BASE = import.meta.env.BASE_URL || '/';
 

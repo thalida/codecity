@@ -19,7 +19,7 @@ vi.mock('@/city/render/postFx', async () =>
 );
 
 import { createCity } from '@/city/index';
-import { NodeKind } from '@codecity/city';
+import { NodeKind } from '@/city/types/manifest';
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

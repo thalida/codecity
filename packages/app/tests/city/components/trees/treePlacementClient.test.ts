@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/city/components/trees/treePlacementClient';
 import { bbox, emptyLayout } from '../../../_helpers/cityFixtures';
-import type { CityLayout } from '@codecity/city';
+import type { CityLayout } from '@/city/types/scene';
 
 describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;

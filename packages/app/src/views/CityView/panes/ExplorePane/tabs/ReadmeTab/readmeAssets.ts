@@ -3,7 +3,7 @@
 // refs are rewritten through /api/file, against the README's own directory.
 
 import { API } from '@/apiClient';
-import type { SourceRef } from '@codecity/city';
+import type { SourceRef } from '@/city/types/manifest';
 
 // Already addressable as-is: a scheme, a protocol-relative //host, or a bare
 // #anchor.

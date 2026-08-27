@@ -12,15 +12,35 @@ export default defineConfig({
   base: './',
   plugins: [preact()],
   resolve: {
+    // One Signal identity across both packages, or an effect on one side never
+    // sees a write from the other.
+    dedupe: ['@preact/signals', '@preact/signals-core', 'three'],
     // Mirrored in tsconfig.json paths + vitest.config.js so the editor and
     // test runner resolve `@/` identically.
-    alias: {
-      '@': resolve(appDir, 'src'),
+    // Array form: order matters, and '@/city' has to win over '@'.
+    alias: [
+      { find: /^@\/city\//, replacement: `${resolve(appDir, '../city/src')}/` },
+      { find: /^@\//, replacement: `${resolve(appDir, 'src')}/` },
       // @codecity/city ships TypeScript source, not a build, for as long as the
       // extraction is in flight (#208). Vite will not process TS inside
       // node_modules, so resolve the workspace link to the source directly.
-      '@codecity/city': resolve(appDir, '../city/src/index.ts'),
-    },
+      { find: '@codecity/city', replacement: resolve(appDir, '../city/src/index.ts') },
+      // three lives in the package now. The app's own tests still import it, so
+      // point them at that one copy rather than installing a second.
+      // `three/addons/*` is an exports-map alias for examples/jsm; aliasing the
+      // package path directly bypasses that map, so make the hop explicit.
+      {
+        find: /^three\/addons\/(.*)/,
+        replacement: `${resolve(appDir, '../city/node_modules/three/examples/jsm')}/$1`,
+      },
+      { find: /^three\/(.*)/, replacement: `${resolve(appDir, '../city/node_modules/three')}/$1` },
+      // The entry file, not the directory: aliasing the directory bypasses
+      // three's exports map, and a second entry means a second Vector3.
+      {
+        find: /^three$/,
+        replacement: resolve(appDir, '../city/node_modules/three/build/three.module.js'),
+      },
+    ],
   },
   build: {
     outDir: resolve(appDir, 'dist'),

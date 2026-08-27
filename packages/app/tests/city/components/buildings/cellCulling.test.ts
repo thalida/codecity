@@ -12,7 +12,7 @@ import { createBuildingTweens } from '@/city/components/buildings/tween';
 import { building } from '../../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
-import type { Building } from '@codecity/city';
+import type { Building } from '@/city/types/building';
 
 const _res = createTestCityResources();
 

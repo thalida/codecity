@@ -8,17 +8,22 @@ export { ChangeRoute, FieldKind };
 import { persistedSignal, getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
 import {
-  coerceField,
   ChangeRoute,
   FieldKind,
+  coerceField,
+  type ConfigOf,
   type FieldDef,
   type FieldMap,
-  type ConfigOf,
-} from '@codecity/city';
+} from '@/city/settings/schema';
 
 // Re-exported so the panel and the app's own fields (theme, syntaxTheme,
 // updates) declare themselves the same way the city's do.
-export { type SelectOption, type FieldDef, type FieldMap, type ConfigOf } from '@codecity/city';
+export {
+  type SelectOption,
+  type FieldDef,
+  type FieldMap,
+  type ConfigOf,
+} from '@/city/settings/schema';
 
 // store signal → its field map. A Map, not WeakMap, so it is iterable; the
 // stores are module-level singletons and are never collected.

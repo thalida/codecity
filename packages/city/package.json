@@ -24,6 +24,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@types/three": "^0.184.0",
     "material-icon-theme": "^5.30.0",
     "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.6",
@@ -38,5 +39,13 @@
     "semi": true,
     "endOfLine": "lf",
     "arrowParens": "always"
+  },
+  "dependencies": {
+    "rbush": "^4.0.1",
+    "three": "^0.184.0",
+    "three-mesh-bvh": "^0.9.11"
+  },
+  "peerDependencies": {
+    "@preact/signals": "^2.9.1"
   }
 }

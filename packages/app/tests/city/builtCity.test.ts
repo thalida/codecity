@@ -33,7 +33,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
-import { Manifest, NodeKind } from '@codecity/city';
+import { Manifest, NodeKind } from '@/city/types/manifest';
 
 const W = 800;
 const H = 600;

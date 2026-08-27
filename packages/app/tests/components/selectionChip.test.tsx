@@ -9,8 +9,8 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { flush } from '../_helpers/preact';
-import { FileNode, NodeKind } from '@codecity/city';
-import { PickTarget } from '@/types/picker';
+import { FileNode, NodeKind } from '@/city/types/manifest';
+import { PickTarget } from '@/city/types/picker';
 
 const FILE: FileNode = {
   name: 'index.ts',

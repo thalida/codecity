@@ -12,7 +12,8 @@ import {
 import { StreetTint, type StreetScrubState } from '@/city/components/streets/scrubState';
 import type { ScrubStates } from '@/city/timeline/scrubPass';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
-import { CityLayout, Street, StreetAxis } from '@codecity/city';
+import { CityLayout } from '@/city/types/scene';
+import { Street, StreetAxis } from '@/city/types/street';
 
 function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };

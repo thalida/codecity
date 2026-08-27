@@ -1,7 +1,7 @@
 // utils/syntaxLanguages.ts — a file to its hljs language id, and an id to its
 // label, over the tables in constants/syntaxLanguageMap.
 
-import type { FileNode } from '@codecity/city';
+import type { FileNode } from '@/city/types/manifest';
 import { EXT_LANG, NAME_LANG, LANGUAGE_LABELS } from '../constants/syntaxLanguageMap';
 
 /** A file's hljs language id by extension, then exact filename. null is the

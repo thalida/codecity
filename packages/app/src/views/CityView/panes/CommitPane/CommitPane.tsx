@@ -14,7 +14,7 @@ import { commitUrl } from '@/utils/remoteUrls';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { API } from '@/apiClient';
-import { CommitEntry, NodeKind, SourceRef } from '@codecity/city';
+import { CommitEntry, NodeKind, SourceRef } from '@/city/types/manifest';
 
 const SHORT_SHA_LEN = 7;
 

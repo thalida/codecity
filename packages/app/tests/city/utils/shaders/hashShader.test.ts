@@ -8,7 +8,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
-const CITY_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../src/city');
+const CITY_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../city/src');
 
 function glslFiles(dir: string): string[] {
   const out: string[] = [];

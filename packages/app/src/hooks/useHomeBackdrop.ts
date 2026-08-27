@@ -13,9 +13,9 @@ import { BACKDROP_HANDLE, type SceneHandle } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
-import { ScanPhase } from '@codecity/city';
+import { ScanPhase } from '@/city/client/manifest';
 import { API } from '@/apiClient';
-import type { Manifest } from '@codecity/city';
+import type { Manifest } from '@/city/types/manifest';
 
 interface Candidate {
   src: string;
