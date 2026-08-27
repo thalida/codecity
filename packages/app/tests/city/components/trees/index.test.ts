@@ -25,6 +25,7 @@ import { StreetAxis } from '@/city/types/street';
 import { settingSignals } from '../../../_helpers/citySettings';
 import { settingsStore } from '../../../_helpers/citySettings';
 import type { SettingSignals } from '@/city/settings/store';
+import { createEmitter } from '../../../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
 
@@ -126,7 +127,8 @@ describe('createTrees() component door', () => {
       layoutClientFor(TREE_LAYOUT) as never,
       stubPlacementClient(PLACEMENTS) as never,
       createTestCityResources(SETTINGS),
-      SETTINGS
+      SETTINGS,
+      createEmitter()
     );
     const { ctx } = makePickableSceneContext(cityState);
     trees = createTrees(ctx);

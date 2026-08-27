@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { effect } from '@preact/signals';
+
+import { createEmitter } from '@/city/events';
+import { BuildStage } from '@/city/types/build';
+import {
+  attachBuildProgress,
+  BUILD_PROGRESS,
+  REBUILD_STATUS,
+  RebuildStatus,
+} from '@/state/stores/progress';
 
 import { createCityResources } from '@/city/resources';
 import { createSettingsStore } from '@/city/settings/store';
@@ -186,6 +195,58 @@ describe('two cities hold their own settings', () => {
     const two = defaultCitySettings();
     expect(one).not.toBe(two);
     expect(one.BUILDINGS).not.toBe(two.BUILDINGS);
+  });
+});
+
+/** A city reports to its own subscribers, and the overlay above the project you
+ *  are reading subscribes to exactly one of them. The landing mounts a wallpaper
+ *  city that builds behind the page; before events, its build wrote the same
+ *  global the project's overlay read. */
+describe('two cities report to their own subscribers', () => {
+  const stages = [BuildStage.Layout, BuildStage.Assemble];
+
+  afterEach(() => {
+    BUILD_PROGRESS.value = null;
+    REBUILD_STATUS.value = RebuildStatus.Pending;
+  });
+
+  it('the overlay follows the city it was attached to', () => {
+    const scene = createEmitter();
+    const detach = attachBuildProgress(scene.on);
+
+    scene.emit('build:start', { stages });
+    scene.emit('build:stage', { stage: BuildStage.Assemble });
+
+    expect(BUILD_PROGRESS.value?.stages).toEqual(stages);
+    expect(BUILD_PROGRESS.value?.index).toBe(1);
+    detach();
+  });
+
+  it('a second city building does not touch it', () => {
+    const scene = createEmitter();
+    const backdrop = createEmitter();
+    const detach = attachBuildProgress(scene.on);
+    scene.emit('build:start', { stages });
+    const mid = BUILD_PROGRESS.value;
+
+    // The whole of a wallpaper's build, start to finish, behind the page.
+    backdrop.emit('build:start', { stages: [BuildStage.Icons] });
+    backdrop.emit('build:stage', { stage: BuildStage.Icons });
+    backdrop.emit('build:progress', { percent: 80 });
+    backdrop.emit('build:done', {});
+
+    expect(BUILD_PROGRESS.value).toBe(mid);
+    expect(REBUILD_STATUS.value).not.toBe(RebuildStatus.Idle);
+    detach();
+  });
+
+  it('detaching stops the reports, so an unmounted city cannot drive it', () => {
+    const scene = createEmitter();
+    attachBuildProgress(scene.on)();
+
+    scene.emit('build:start', { stages });
+
+    expect(BUILD_PROGRESS.value).toBeNull();
   });
 });
 

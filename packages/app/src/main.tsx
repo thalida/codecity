@@ -22,5 +22,5 @@ if (mount) {
 // Debug-only README screenshot capture: only when opened with ?shot=<name>.
 // Dynamically imported so the harness never ships in a normal session.
 if (new URLSearchParams(window.location.search).has('shot')) {
-  void import('@/city/capture/captureHarness').then((m) => m.initCaptureHarness());
+  void import('@/capture/captureHarness').then((m) => m.initCaptureHarness());
 }

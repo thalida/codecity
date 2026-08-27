@@ -12,6 +12,7 @@ import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
 import { settingSignals } from '../_helpers/citySettings';
 import type { LayoutConfig } from '@/city/layout/config';
+import { createEmitter } from '../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
 
@@ -80,7 +81,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
       layoutClient as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      createEmitter()
     );
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());

@@ -3,7 +3,7 @@ import {
   hoverTooltipContent,
   isDeletedTarget,
   middleTruncatePath,
-} from '@/city/interaction/tooltipText';
+} from '@/components/CityTooltip/tooltipContent';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
@@ -81,21 +81,15 @@ describe('hoverTooltipContent', () => {
     expect(c.stats.some((s) => s.startsWith('created'))).toBe(false);
   });
 
-  it('prefers the scrubbed line count (Timeline) over the static FileNode.lines', () => {
-    const t = fileTarget({ name: 'main.ts', path: 'app/main.ts', lines: 42 }); // union max
-    expect(hoverTooltipContent(t, 'codecity', 7)!.stats).toContain('7 lines');
-    // null (Live / no timeline) falls back to FileNode.lines.
-    expect(hoverTooltipContent(t, 'codecity', null)!.stats).toContain('42 lines');
-  });
-
-  it('renders a deleted file the count it is given (the at-deletion value)', () => {
+  // The Timeline line count is fileStatItems' own lookup off the path — see
+  // its test — so hovering and selecting a ruin cannot disagree. What is
+  // asserted here is the badge, which is the tooltip's own decision.
+  it('leads a deleted file with the ruin flag', () => {
     const t = {
       ...fileTarget({ name: 'gone.py', path: 'app/gone.py', lines: 0 }),
       isRuin: true,
     } as PickTarget;
-    const c = hoverTooltipContent(t, 'codecity', 214)!;
-    expect(c.stats).toContain('214 lines');
-    expect(c.deleted).toBe(true);
+    expect(hoverTooltipContent(t, 'codecity')!.deleted).toBe(true);
   });
 
   it('shows pixel dimensions instead of line count for an image file', () => {

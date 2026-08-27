@@ -1,4 +1,4 @@
-// city/capture/captureHarness.ts — debug-only. With ?shot=<name>, wait for the
+// capture/captureHarness.ts — debug-only. With ?shot=<name>, wait for the
 // first render, pose the camera, let the tween settle, then mark
 // <html data-cc-capture-ready="1"> for the screenshot script. Lazy-loaded from
 // main.tsx only when ?shot is present, so it never ships in a normal session.

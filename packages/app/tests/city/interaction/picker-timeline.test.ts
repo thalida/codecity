@@ -20,6 +20,7 @@ import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
 import { settingSignals } from '../../_helpers/citySettings';
+import { createEmitter } from '../../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
 
@@ -79,7 +80,13 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     camera.position.set(target.x, 400, target.y);
     camera.lookAt(target.x, 0, target.y);
     camera.updateMatrixWorld(true);
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+    });
     const building = world.cellOut.index.byPath.get('src/a.ts')!;
     const cell = world.cellOut.cells.get(building.cellId!)!;
     const iFade = cell.detailMesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
@@ -184,6 +191,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       getTrees: () => trees,
     };
     const picker = createPicker({
+      events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
       world: api,
@@ -279,7 +287,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState });
+    const picker = createPicker({ events: createEmitter(), canvas, camera, world, cityState });
     const rangeB = built.ranges.find((r) => r.path === 'lib')!;
     const aOpacity = built.mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
     return { picker, aOpacity, rangeB };

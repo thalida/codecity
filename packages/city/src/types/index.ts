@@ -10,7 +10,8 @@ import type { CitySettingsPatch } from '../settings';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
-import type { BuildStage } from '@/constants/progress';
+import type { BuildStage } from './build';
+import type { CityEmitter } from '../events';
 import type { Manifest, RangeStat } from '@/city/types/manifest';
 
 /** What a component needs to wire itself in. picker is null until after the
@@ -74,6 +75,9 @@ export interface City {
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;
+  /** Subscribe to what this city is doing. Everything the consumer used to get
+   *  by reading a global it now gets here, per instance. */
+  on: CityEmitter['on'];
   /** This city's resolved settings. Read through `snapshot()`; write through
    *  `updateSettings`. */
   settings: CitySettingsStore;

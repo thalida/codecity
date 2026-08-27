@@ -1,6 +1,6 @@
-// city/interaction/tooltipText.ts — the hover tooltip's content, given a pick
-// target and the root's name. Side-effect-free so it tests in isolation, and it
-// shares the selection pane's stat builders, so hovering a building and
+// components/CityTooltip/tooltipContent.ts — the hover tooltip's content, given
+// a pick target and the root's name. Side-effect-free so it tests in isolation,
+// and it shares the selection pane's stat builders, so hovering a building and
 // selecting it cannot report different numbers.
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/city/constants/manifest';
@@ -56,9 +56,7 @@ export function middleTruncatePath(path: string, budget = PATH_BUDGET_CHARS): st
 
 export function hoverTooltipContent(
   target: PickTarget | null,
-  rootName: string | null,
-  // Timeline: lines at the scrubbed commit, or at deletion for a file already gone.
-  scrubLines?: number | null
+  rootName: string | null
 ): TooltipContent | null {
   if (!target) return null;
   const deleted = isDeletedTarget(target);
@@ -83,12 +81,12 @@ export function hoverTooltipContent(
     const f = target.file;
     const rel = f.path || f.name || 'file';
     const parent = parentOf(rel);
-    // scrubLines wins where the replay has a value for this commit.
-    const node = scrubLines != null ? { ...f, lines: scrubLines } : f;
     return {
       title: f.name || rel,
+      // In Timeline, fileStatItems resolves the replayed line count off the
+      // path itself, so what is hovered and what is selected agree.
       path: middleTruncatePath(withRoot(parent, rootName)),
-      stats: fileStatItems(node, { dates: false }).map((i) => i.text),
+      stats: fileStatItems(f, { dates: false }).map((i) => i.text),
       deleted,
     };
   }

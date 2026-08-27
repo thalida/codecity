@@ -19,6 +19,7 @@ import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 import { CloneStage, ScanPhase } from '@/city/client/manifest';
 import type { Manifest } from '@/city/types/manifest';
+import type { City } from '@/city/types';
 
 // ── What the server is doing ─────────────────────────────────────────
 
@@ -303,4 +304,29 @@ function attachScanReaction(): () => void {
     // p.phase === null: just-started; showLoadingOverlay already set the
     // kind-based initial step — nothing more to do until a real event.
   });
+}
+
+// ── Where a build's own reports come in ──────────────────────────────
+
+/** Route one city's build events into the overlay above it. This is the app's
+ *  answer to "whose build is this": only the city whose chrome this is
+ *  subscribes, so the landing's wallpaper can build behind the page without
+ *  moving a readout that belongs to the project you are reading.
+ *
+ *  Returns the unsubscribe; call it when that city goes away. */
+export function attachBuildProgress(on: City['on']): () => void {
+  const offs = [
+    on('build:start', ({ stages }) => beginBuild(stages)),
+    on('build:stage', ({ stage }) => {
+      // Decoration is a stage AND a status: the city is up while it runs.
+      if (stage === BuildStage.Decorate) markDecorating();
+      else enterBuildStage(stage);
+    }),
+    on('build:progress', ({ percent }) => setBuildStagePercent(percent)),
+    on('build:done', () => markIdle()),
+    on('build:error', ({ error }) => markError(error)),
+  ];
+  return () => {
+    for (const off of offs) off();
+  };
 }

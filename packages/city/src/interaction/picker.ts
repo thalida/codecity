@@ -11,6 +11,7 @@ import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeli
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { CityState } from '@/city/state';
+import type { CityEmitter } from '../events';
 import { CommitEntry, NodeKind } from '@/city/types/manifest';
 import { PickTarget, PickerSelectionKey, PickerWorld } from '@/city/types/picker';
 
@@ -23,11 +24,13 @@ export function createPicker({
   camera,
   world,
   cityState,
+  events,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   world: PickerWorld;
   cityState: CityState;
+  events: CityEmitter;
 }) {
   const hover = signal<PickTarget | null>(null);
   const selection = signal<PickTarget | null>(null);
@@ -193,13 +196,18 @@ export function createPicker({
     hover.value = h;
   }
 
+  /** Every path to a selection runs through here — a pointer, a tree row, a
+   *  deep link — so this is where a subscriber hears about all of them. Only on
+   *  a real change: re-picking what is already picked is not a new selection. */
   function setSelection(sel: PickTarget | null): void {
+    if (selection.peek() === sel) return;
     selection.value = sel;
+    events.emit('select', { target: sel });
   }
 
   /** setSelection(null) with a self-documenting verb for view code. */
   function clearSelection(): void {
-    selection.value = null;
+    setSelection(null);
   }
 
   // The ONE place a path maps to scene internals, so view code never

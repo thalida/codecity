@@ -10,6 +10,7 @@ import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings'
 import type { SettingSignals } from '@/city/settings/store';
 import { createCityState, type CityState } from '@/city/state';
 import { settingSignals } from './citySettings';
+import { createEmitter } from '@/city/events';
 import { commits } from './commits';
 import { createTestCityResources } from '../_helpers/cityResources';
 import { CommitEntry, NodeKind } from '@/city/types/manifest';
@@ -35,7 +36,8 @@ export function makeCityState(settings: SettingSignals = settingSignals()): City
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
     createTestCityResources(settings),
-    settings
+    settings,
+    createEmitter()
   );
 }
 

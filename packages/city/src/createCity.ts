@@ -8,7 +8,6 @@ import { effect, untracked } from '@preact/signals';
 
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { markIdle } from '@/state/stores/progress';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -21,6 +20,7 @@ import { createTreePlacementClient } from './components/trees/treePlacementClien
 import { createCityState } from './state';
 import { createCityResources } from './resources';
 import { createSettingsStore } from './settings/store';
+import { createEmitter } from './events';
 import type { CitySettingsPatch } from './settings';
 import { layoutConfigFrom } from './layout/config';
 import {
@@ -42,7 +42,6 @@ import type { City, SceneComponent, SceneContext } from './types';
 import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
-import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import type { Manifest, RangeStat } from '@/city/types/manifest';
@@ -55,6 +54,9 @@ export async function createCity(
   // every component resolve their values off this one instance's store.
   const settingsStore = createSettingsStore(initialSettings);
   const settings = settingsStore.signals;
+  // This city's own subscribers. A second city on the page emits to its own,
+  // so its build cannot move the overlay above the one being read.
+  const events = createEmitter();
 
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -81,10 +83,21 @@ export async function createCity(
   // Both off-thread build workers, owned here and handed to the store that runs
   // the build. Lazy: neither spawns until its first compute().
   const treePlacementClient = createTreePlacementClient();
-  const cityState = createCityState(layoutClient, treePlacementClient, resources, settings);
+  const cityState = createCityState(layoutClient, treePlacementClient, resources, settings, events);
   // Pulled off cityState for the City handle; components never wire into
   // these — they rebuild reactively off cityState's signals.
-  const { applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
+  const { applyManifest: _applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
+
+  /** applyManifest, with a failure reported to this city's subscribers rather
+   *  than left for every caller to catch and route somewhere. */
+  async function applyManifest(...args: Parameters<typeof _applyManifest>): Promise<void> {
+    try {
+      await _applyManifest(...args);
+    } catch (err) {
+      events.emit('build:error', { error: err });
+      throw err;
+    }
+  }
 
   // picker is backfilled below (built after the components it reads);
   // armOnFirstTick defers picker-dependent setup, so the null cast is safe.
@@ -170,7 +183,7 @@ export async function createCity(
       void buildings.whenSettled().then(() => {
         // Two frames: render() only issues the GL commands, and the pixels land
         // a compositor pass later.
-        requestAnimationFrame(() => requestAnimationFrame(() => markIdle()));
+        requestAnimationFrame(() => requestAnimationFrame(() => events.emit('build:done', {})));
       });
     });
   });
@@ -182,6 +195,7 @@ export async function createCity(
     canvas,
     camera: rig.camera,
     cityState,
+    events,
     world: {
       getStreetPickables: () => streets.getPickables(),
       getRootGem: () => gem.getRootGroup(),
@@ -203,8 +217,7 @@ export async function createCity(
     rig,
     renderer,
     cityState,
-    showTooltip,
-    hideTooltip,
+    events,
     onResize() {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
@@ -318,6 +331,7 @@ export async function createCity(
     scene,
     picker,
     rig,
+    on: events.on,
     settings: settingsStore,
     updateSettings: settingsStore.update,
     applyManifest,
@@ -337,6 +351,9 @@ export async function createCity(
     /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a
      *  ghost city whose picker still answers raycasts. */
     dispose(): void {
+      // Listeners first: nothing below may call back into a view that is on its
+      // way out, and a torn-down city has nothing left worth reporting.
+      events.clear();
       stopFrameLoop();
       stopReframe();
       stopOnScreen();

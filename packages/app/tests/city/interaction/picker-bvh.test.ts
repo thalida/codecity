@@ -16,6 +16,7 @@ import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
 import { settingSignals } from '../../_helpers/citySettings';
+import { createEmitter } from '../../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
 
@@ -80,7 +81,13 @@ describe('picker BVH raycast', () => {
     camera.lookAt(target.x, 0, target.y);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+    });
 
     // Screen center → the target building.
     const hit = picker.pickAt(400, 300);
@@ -117,7 +124,13 @@ describe('picker BVH raycast', () => {
     camera.position.set(2000, 400, 2000);
     camera.lookAt(2000, 0, 2000);
     camera.updateMatrixWorld(true);
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+    });
     expect(picker.pickAt(400, 300)).toBeNull();
     picker.dispose();
   });
@@ -162,7 +175,7 @@ describe('picker BVH raycast', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ canvas, camera, world, cityState });
+    const picker = createPicker({ events: createEmitter(), canvas, camera, world, cityState });
     const hit = picker.pickAt(400, 300);
     expect(hit).not.toBeNull();
     const t = picker.interpretHit(hit);
@@ -175,7 +188,13 @@ describe('picker BVH raycast', () => {
     const world = makeCellWorld([]);
     const camera = new THREE.PerspectiveCamera(50, 800 / 600, 1, 100000);
     camera.updateMatrixWorld(true);
-    const picker = createPicker({ canvas, camera, world, cityState: world.cityState });
+    const picker = createPicker({
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState: world.cityState,
+    });
     expect(picker.pickAt(400, 300)).toBeNull();
     picker.dispose();
   });

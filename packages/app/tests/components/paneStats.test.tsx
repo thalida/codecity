@@ -3,7 +3,9 @@ import { render } from 'preact';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
+import { TIMELINE_BUNDLE, TIMELINE_MODE, setScrubPos } from '@/state/stores/timeline';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
+import type { TimelineBundle } from '@/city/types/timeline';
 
 const NOW = Date.UTC(2024, 2, 25);
 
@@ -36,6 +38,52 @@ const DIR: DirNode = {
   descendants_modified_max: '2024-02-01T00:00:00Z',
   descendants_ext_breakdown: [{ ext: '.ts', count: 9, size: 4096 }],
 };
+
+// In Timeline a node carries max-over-history values, so what the row must
+// show is the replayed count for the commit under the scrubber. The tooltip
+// and the pane both read it through here, which is what keeps them agreeing.
+describe('statItems in Timeline', () => {
+  const PATH = 'src/index.ts';
+
+  beforeEach(() => {
+    TIMELINE_BUNDLE.value = {
+      commits: [
+        { sha: 'a', date: '2024-01-01T00:00:00Z' },
+        { sha: 'b', date: '2024-01-02T00:00:00Z' },
+      ],
+      deltas: [
+        { sha: 'a', changes: [{ path: PATH, sha: 's1' }] },
+        { sha: 'b', changes: [{ path: PATH, sha: 's2' }] },
+      ],
+      blobLines: { s1: 7, s2: 42 },
+      blobSizes: { s1: 100, s2: 900 },
+      notes: [],
+    } as unknown as TimelineBundle;
+    TIMELINE_MODE.value = true;
+    setScrubPos(0);
+  });
+
+  afterEach(() => {
+    TIMELINE_MODE.value = false;
+    TIMELINE_BUNDLE.value = null;
+    setScrubPos(0);
+  });
+
+  it('shows the count at the scrubbed commit, not the union maximum', () => {
+    // The static node carries 50, the union max across every commit.
+    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('7 lines');
+  });
+
+  it('follows the scrubber forward', () => {
+    setScrubPos(1);
+    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('42 lines');
+  });
+
+  it('falls back to the node itself outside Timeline', () => {
+    TIMELINE_MODE.value = false;
+    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('50 lines');
+  });
+});
 
 describe('statItems', () => {
   it('describes a file by language, size, and age', () => {

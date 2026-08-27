@@ -1,4 +1,4 @@
-// city/capture/shots.ts — camera poses for the README shots, keyed by ?shot=.
+// capture/shots.ts — camera poses for the README shots, keyed by ?shot=.
 // Distances are relative to the city's own scale, so they hold as the demo repo
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.

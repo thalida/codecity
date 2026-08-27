@@ -3,18 +3,23 @@
 // the count beside it has to come from the stages this apply actually runs.
 
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createCityState } from '@/city/state';
-import { BUILD_PROGRESS } from '@/state/stores/progress';
+import { BUILD_PROGRESS, attachBuildProgress } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
 import { createTestCityResources } from '../../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { settingSignals } from '../../_helpers/citySettings';
 import type { LayoutConfig } from '@/city/layout/config';
+import { createEmitter } from '../../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
+
+// One emitter per test file's cities, wired to the overlay's stores exactly as
+// City.tsx wires them; re-attached per case so nothing leaks between them.
+const events = createEmitter();
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,
@@ -62,7 +67,9 @@ function fakeLayoutClient(percents: number[] = []) {
   };
 }
 
-/** Every tail the readout showed, in order, for the apply run inside. */
+/** Every tail the readout showed, in order, for the apply run inside. The
+ *  events are routed the way City.tsx routes them, so this covers the seam
+ *  between what the city reports and what the overlay makes of it. */
 async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
   BUILD_PROGRESS.value = null; // markRebuilding opens every real build this way
   const seen: string[] = [];
@@ -76,16 +83,22 @@ async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
 }
 
 describe('cityState.applyManifest — the build says where it is (#185)', () => {
+  let detach: () => void;
+
   beforeEach(() => {
     BUILD_PROGRESS.value = null;
+    detach = attachBuildProgress(events.on);
   });
+
+  afterEach(() => detach());
 
   it('walks the stages it is going to run', async () => {
     const state = createCityState(
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      events
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -99,7 +112,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      events
     );
     await state.applyManifest(manifest('sig-1'));
     // Same structure signature: the atlas is already right for this tree, so
@@ -114,7 +128,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
       fakeLayoutClient([7, 61]) as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      events
     );
     const tails = await tailsDuring(() => state.applyManifest(manifest('sig-1')));
 
@@ -147,7 +162,8 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
       client as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      events
     );
 
     void state.applyManifest(manifest('sig-1'));

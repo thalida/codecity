@@ -11,6 +11,7 @@ import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { settingSignals } from '../../_helpers/citySettings';
 import type { LayoutConfig } from '@/city/layout/config';
+import { createEmitter } from '../../_helpers/cityEvents';
 
 const SETTINGS = settingSignals();
 
@@ -73,7 +74,8 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      createEmitter()
     );
     await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
@@ -88,7 +90,8 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
       fakeLayoutClient() as never,
       stubPlacementClient() as never,
       createTestCityResources(),
-      SETTINGS
+      SETTINGS,
+      createEmitter()
     );
     await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;

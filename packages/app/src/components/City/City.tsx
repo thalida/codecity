@@ -11,7 +11,9 @@ import { attachSettingsReactions } from '@/state/settings/reactions';
 import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/cityValues';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
-import { markRebuilding, markError } from '@/state/stores/progress';
+import { attachBuildProgress, markError, markRebuilding } from '@/state/stores/progress';
+import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
+import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 import type { Manifest } from '@/city/types/manifest';
@@ -40,6 +42,8 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     let unsubApply: (() => void) | null = null;
     let unsubSettings: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
+    const unsubEvents: Array<() => void> = [];
+    let tooltip: ReturnType<typeof createCityTooltip> | null = null;
 
     // Which of the app's two cameras this city gets. A backdrop orbits the gem
     // and turns; a scene fits the whole project. Both are the same fields.
@@ -72,8 +76,25 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         });
 
         // A backdrop shows what its view decided to show, which is not the
-        // opened project: useHomeBackdrop drives that canvas itself.
+        // opened project: useHomeBackdrop drives that canvas itself. Nor does
+        // it get any chrome — this is where "each instance has its own" stops
+        // being a claim about the package and becomes a fact about the page.
         if (variant !== CityVariant.Scene) return;
+
+        // The overlay is a reduction over what THIS city reports. A backdrop
+        // building behind the landing never reaches it, because a backdrop
+        // never subscribes.
+        unsubEvents.push(attachBuildProgress(handle.on));
+
+        // The card the cursor drags around. The city says what is under the
+        // pointer; drawing something about it is the view's decision.
+        tooltip = createCityTooltip(canvas);
+        unsubEvents.push(
+          handle.on('hover', ({ target }) => {
+            const rootName = (MANIFEST.peek() as Manifest | null)?.tree?.name ?? null;
+            tooltip?.show(hoverTooltipContent(target, rootName));
+          })
+        );
 
         // Only kicks off the apply and surfaces its error: reaching Idle belongs
         // to the decoration pass, and reframing to the city composer.
@@ -84,7 +105,9 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           // city. Peeked, so leaving the mode doesn't repack what it committed.
           if (TIMELINE_MODE.peek()) return;
           markRebuilding();
-          void handle.applyManifest(m).catch(markError);
+          // The failure reaches markError through build:error; this only keeps
+          // the rejection from surfacing as an unhandled one.
+          void handle.applyManifest(m).catch(() => {});
         });
       })
       .catch((err) => {
@@ -98,6 +121,8 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
       unsubApply?.();
       unsubSettings?.();
       disposeReactions?.();
+      for (const off of unsubEvents) off();
+      tooltip?.dispose();
       // Tear the city down so a remount doesn't stack a second renderer +
       // frame loop on the same canvas (old city keeps rendering as a ghost).
       city?.dispose();

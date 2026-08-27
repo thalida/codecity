@@ -484,7 +484,7 @@ export function createCameraRig({
   }
 
   /** Debug/capture only: world anchor points + scales the shot poses frame
-   *  against (see city/capture/shots.ts). */
+   *  against (see the app's capture/shots.ts). */
   function captureAnchors(): {
     gem: THREE.Vector3 | null;
     tallestBuilding: THREE.Vector3 | null;

@@ -13,11 +13,10 @@ const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
 import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/chrome';
 import { focusSelection } from '@/city/sceneHandle';
-import { scrubbedStatsFor } from '@/state/stores/timeline';
-import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
+import type { CityEmitter } from '../events';
 import { NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
 
@@ -27,8 +26,7 @@ export function createInputHandlers({
   rig,
   renderer,
   cityState,
-  showTooltip,
-  hideTooltip,
+  events,
   onResize,
   onResetView,
 }: {
@@ -37,8 +35,7 @@ export function createInputHandlers({
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   cityState: CityState;
-  showTooltip: (content: TooltipContent, x: number, y: number) => void;
-  hideTooltip: () => void;
+  events: CityEmitter;
   onResize: () => void;
   /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
    *  manifest — a page reload is required for that. */
@@ -90,20 +87,11 @@ export function createInputHandlers({
       newHover = null;
     }
 
-    // peek: a hover handler wants the current name, never a subscription.
-    const rootName = cityState.manifest.peek()?.tree?.name ?? null;
-    const scrubLines =
-      newHover?.kind === NodeKind.File && newHover.file?.path != null
-        ? (scrubbedStatsFor(newHover.file.path)?.lines ?? null)
-        : null;
-    const tooltipText = hoverTooltipContent(newHover, rootName, scrubLines);
-    if (tooltipText) {
-      showTooltip(tooltipText, e.clientX, e.clientY);
-      canvas.style.cursor = 'pointer';
-    } else {
-      hideTooltip();
-      canvas.style.cursor = 'grab';
-    }
+    // Told the moment the pointer resolves, not on the debounced commit below:
+    // a tooltip that lags the cursor by a frame reads as broken. The cursor is
+    // the city's own affordance, so it stays here.
+    canvas.style.cursor = newHover ? 'pointer' : 'grab';
+    _emitHover(newHover);
 
     if (_sameHover(newHover, picker.hover.value)) {
       if (_hoverCommitId) {
@@ -122,6 +110,16 @@ export function createInputHandlers({
       _hoverPending = null;
       if (!_sameHover(toCommit, picker.hover.value)) picker.setHover(toCommit);
     }, INPUT_HOVER_COMMIT_MS);
+  }
+
+  // The target the last `hover` event named, so a pointer sliding across one
+  // building does not re-emit it every move.
+  let _emittedHover: PickTarget | null = null;
+
+  function _emitHover(target: PickTarget | null): void {
+    if (_sameHover(target, _emittedHover)) return;
+    _emittedHover = target;
+    events.emit('hover', { target });
   }
 
   function _handlePick(clientX: number, clientY: number): void {
@@ -188,7 +186,7 @@ export function createInputHandlers({
   });
 
   _on(canvas, 'pointerleave', () => {
-    hideTooltip();
+    _emitHover(null);
     if (_hoverRafId) {
       cancelAnimationFrame(_hoverRafId);
       _hoverRafId = 0;
@@ -237,7 +235,7 @@ export function createInputHandlers({
     }
     _hoverPending = null;
     if (picker.hover.value) picker.setHover(null);
-    hideTooltip();
+    _emitHover(null);
     canvas.style.cursor = 'grabbing';
   };
   const _cameraEndHandler = () => {

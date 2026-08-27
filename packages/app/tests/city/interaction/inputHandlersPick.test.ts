@@ -12,6 +12,7 @@ import {
 } from '@/state/stores/chrome';
 import { FileNode, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
+import { createEmitter } from '../../_helpers/cityEvents';
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,
@@ -69,8 +70,7 @@ describe('canvas pick → selection pane', () => {
       } as never,
       renderer: { setSize() {} } as never,
       cityState: {} as never,
-      showTooltip() {},
-      hideTooltip() {},
+      events: createEmitter(),
       onResize() {},
       onResetView() {},
     });

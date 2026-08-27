@@ -9,7 +9,6 @@ import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { attachViewUrlReactions } from '@/router/viewBinding';
@@ -34,6 +33,8 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 
 import { createCity } from '@/city/index';
 import { Manifest, NodeKind } from '@/city/types/manifest';
+import { nextBuild } from '../_helpers/cityEvents';
+import { attachBuildProgress } from '@/state/stores/progress';
 
 const W = 800;
 const H = 600;
@@ -90,8 +91,9 @@ describe('a built city is pickable', () => {
     const handle = await createCity(makeCanvas());
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
+      const built = nextBuild(handle);
       await handle.applyManifest(makeManifest());
-      await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+      await built;
 
       // Where the city put that file, so the ray has something to aim at. The
       // pick itself goes through the meshes, which is what is under test.
@@ -120,16 +122,22 @@ describe('a built city is pickable', () => {
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
     const handle = await createCity(makeCanvas());
+    let detachProgress: (() => void) | null = null;
     try {
       SCENE_HANDLE.value = handle;
+      // The URL follow waits on BUILT_MANIFEST, which the app sets when the
+      // city reports it is up: this is the whole path, so it needs the app's
+      // half of it wired the way City.tsx wires it.
+      detachProgress = attachBuildProgress(handle.on);
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });
       stopUrlBinding = attachViewUrlReactions();
 
       const manifest = makeManifest();
       commitSource('test://repo', undefined, manifest);
       MANIFEST.value = manifest;
+      const built = nextBuild(handle);
       await handle.applyManifest(manifest);
-      await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+      await built;
 
       const framedOffset = handle.rig.camera.position.clone().sub(handle.rig.controls.target);
       await vi.waitFor(() =>
@@ -147,6 +155,7 @@ describe('a built city is pickable', () => {
       expect(restoredOffset.y).toBeCloseTo(framedOffset.y, 1);
       expect(restoredOffset.z).toBeCloseTo(framedOffset.z, 1);
     } finally {
+      detachProgress?.();
       handle.dispose();
     }
   });

@@ -132,23 +132,11 @@ export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
 }
 
 // ── Inside "Building city" ───────────────────────────────────────────
-export enum BuildStage {
-  /** Timeline only: the SERVER assembling the union bundle. Not the client's
-   *  work at all, but the same row's wait, so it counts as the first stage. */
-  Assembling = 'assembling',
-  /** Timeline only: the bundle replayed into per-path timelines, ahead of the
-   *  pack. Declared by the caller that runs it, not by the apply. */
-  Replay = 'replay',
-  /** The roof-icon atlas, rebuilt only when the structure signature changed. */
-  Icons = 'icons',
-  /** The packer: the worker on a structure change, a cheap in-JS reuse otherwise. */
-  Layout = 'layout',
-  /** The batch that swaps manifest + layout, and the mesh rebuilds it fires. */
-  Assemble = 'assemble',
-  /** The deferred pass: tree placement off-thread, then its meshes. Runs with
-   *  the city already up, and outlives the overlay in Live. */
-  Decorate = 'decorate',
-}
+// The stages themselves are the city's: it is the thing running them. What
+// they are CALLED is ours (BUILD_STAGE_LABELS), and so is the whole reduction
+// into LoadingSteps below.
+import { BuildStage } from '@/city/types/build';
+export { BuildStage };
 
 /** How far one build has got. The stage list is per-build (see buildStageTail). */
 export interface BuildProgress {

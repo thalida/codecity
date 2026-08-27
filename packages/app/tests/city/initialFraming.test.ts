@@ -6,7 +6,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { CURRENT_SOURCE } from '@/state/stores/source';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 import { mkDir } from '../_helpers/cityFixtures';
 
 vi.mock('three', async () => {
@@ -29,6 +28,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 import { createCity } from '@/city/index';
 import type { City } from '@/city/types';
 import type { Manifest } from '@/city/types/manifest';
+import { nextBuild } from '../_helpers/cityEvents';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -81,10 +81,12 @@ describe('initial-load framing (issue #62)', () => {
   }
 
   /** Apply, then wait out the decoration pass that ends the build: the framing
-   *  rides the finished city, and the tree placement lands a few ticks later. */
+   *  rides the finished city, and the tree placement lands a few ticks later.
+   *  The city says when it is on screen; nothing here reads a store. */
   async function build(handle: City, m: Manifest): Promise<void> {
+    const built = nextBuild(handle);
     await handle.applyManifest(m);
-    await vi.waitFor(() => expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle));
+    await built;
   }
 
   it('frames the city on initial load, not the empty boot', async () => {
