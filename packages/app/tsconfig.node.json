@@ -12,6 +12,9 @@
     "types": ["node"]
   },
   "include": [
+    // @codecity/city declares its own `?url` / `?raw` asset modules; this
+    // config's own `include` means it would not otherwise see them.
+    "../city/src/assets.d.ts",
     "vite.config.js",
     "vitest.config.js",
     "tests/visual/**/*",

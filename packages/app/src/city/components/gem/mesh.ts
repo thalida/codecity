@@ -4,7 +4,8 @@
 // plaza, so no separate pad mesh exists.
 
 import * as THREE from 'three';
-import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/settings/fields/gem';
+import { GEM, GEM_SIZING } from '@/state/settings/fields/gem';
+import { type GemSizingConfig } from '@codecity/city';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { BYTE_MAX } from '@/city/utils/bufferLayout';
 import { gemAnchorXZ } from './anchor';

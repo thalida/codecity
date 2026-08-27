@@ -47,3 +47,22 @@ export * from './constants/materialIcons';
 export * from './constants/buildings';
 export * from './constants/gem';
 export * from './constants/manifest';
+
+// ── Settings schema ──────────────────────────────────────────────────────
+// The city declares what is tunable, what each field's bounds are, and what
+// changing it costs (ChangeRoute). Values, persistence and any signals the
+// consumer binds to are the consumer's — the package never holds them.
+export * from './settings/schema';
+export * from './settings/fields/buildings';
+export * from './settings/fields/camera';
+export * from './settings/fields/effects';
+export * from './settings/fields/fireflies';
+export * from './settings/fields/footprint';
+export * from './settings/fields/gem';
+export * from './settings/fields/homeBackdrop';
+export * from './settings/fields/island';
+export * from './settings/fields/ruins';
+export * from './settings/fields/scene';
+export * from './settings/fields/scrubber';
+export * from './settings/fields/streets';
+export * from './settings/fields/trees';

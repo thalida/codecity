@@ -6,9 +6,9 @@
 import { STREET_LAYOUT, STREET_TIERS } from '@/state/settings/fields/streets';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { GEM_SIZING } from '@/state/settings/fields/gem';
-import type { StreetLayoutConfig, StreetTier } from '@/state/settings/fields/streets';
-import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
-import type { GemSizingConfig } from '@/state/settings/fields/gem';
+import type { StreetLayoutConfig, StreetTier } from '@codecity/city';
+import type { BuildingDimensionsConfig } from '@codecity/city';
+import type { GemSizingConfig } from '@codecity/city';
 import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';

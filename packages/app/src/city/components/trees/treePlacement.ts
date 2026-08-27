@@ -12,7 +12,7 @@ import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
 import { gemAnchorXZ } from '../gem/anchor';
-import type { IslandConfig } from '@/state/settings/fields/island';
+import type { IslandConfig } from '@codecity/city';
 import { Building, CityBbox, Street, StreetAxis } from '@codecity/city';
 
 interface Rect {

@@ -1,26 +1,6 @@
-// state/settings/fields/scrubber.ts — how the Timeline scrubber lays commits
-// along its track. World-tab (draft-backed) store; ChangeRoute.Live.
-
-import {
-  settingSignal,
-  FieldKind,
-  ChangeRoute,
-  type ConfigOf,
-  type FieldMap,
-} from '@/state/settings/schema';
-
-const SCRUBBER_FIELDS = {
-  INDEX_WEIGHT: {
-    route: ChangeRoute.Live,
-    kind: FieldKind.SliderField,
-    default: 0,
-    min: 0,
-    max: 1,
-    step: 0.05,
-    label: 'Even spacing',
-    tip: '0 places each commit by when it happened, so busy bursts bunch tight. 1 gives every commit the same width. In between keeps the shape of time, still grabbable.',
-  },
-} satisfies FieldMap;
+// The city declares these fields; the app owns their values, their
+// persistence and the signals the panel binds to.
+import { settingSignal } from '@/state/settings/schema';
+import { SCRUBBER_FIELDS } from '@codecity/city';
 
 export const SCRUBBER = settingSignal('SCRUBBER', SCRUBBER_FIELDS);
-export type ScrubberConfig = ConfigOf<typeof SCRUBBER_FIELDS>;

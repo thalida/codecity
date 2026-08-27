@@ -3,7 +3,7 @@
 // here, since the trees and the firefly orbits would each redo it. Every
 // degenerate case (no stats, no commits, no spread) collapses to the midpoint.
 
-import type { TreesConfig } from '@/state/settings/fields/trees';
+import type { TreesConfig } from '@codecity/city';
 import { recencyT } from '@/city/utils/recency';
 import { epochDay } from '@codecity/city';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@codecity/city';

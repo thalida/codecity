@@ -2,10 +2,13 @@
 // placement: a slim layout plus a config snapshot in, TreePlacement[] out.
 // Pure compute, no DOM and no three.js.
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
-import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
-import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
-import { WORLD, type WorldConfig } from '@/state/settings/fields/island';
-import type { IslandConfig } from '@/state/settings/fields/island';
+import { TREES } from '@/state/settings/fields/trees';
+import { type TreesConfig } from '@codecity/city';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { type FootprintConfig } from '@codecity/city';
+import { WORLD } from '@/state/settings/fields/island';
+import { type WorldConfig } from '@codecity/city';
+import type { IslandConfig } from '@codecity/city';
 
 type TreesValue = TreesConfig;
 type FootprintValue = FootprintConfig;

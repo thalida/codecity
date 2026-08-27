@@ -3,7 +3,7 @@
 
 import { STREET_TIERS } from '@/state/settings/fields/streets';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
-import type { StreetTier } from '@/state/settings/fields/streets';
+import type { StreetTier } from '@codecity/city';
 import { isMediaFile, isEmptyFile, isDataBuilding } from '@codecity/city';
 import type { RangeStat, RepoStats } from '@codecity/city';
 

@@ -1,7 +1,7 @@
 // city/components/buildings/fadeTiers.ts — the one fade-tier decision, shared by
 // the live fader and the timeline scrub controller, so a hover dims the city the
 // same way whether or not you are time-travelling.
-import type { BuildingsConfig } from '@/state/settings/fields/buildings';
+import type { BuildingsConfig } from '@codecity/city';
 import { parentDirPath } from '@/city/utils/path';
 import { ROOT_PATH } from '@codecity/city';
 import { DirNode, FadeDetail, FileNode, NodeKind, Street } from '@codecity/city';

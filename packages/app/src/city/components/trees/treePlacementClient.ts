@@ -3,9 +3,12 @@
 // arrives, and falls back to a synchronous call where Worker is unavailable.
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
-import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
-import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/settings/fields/island';
+import { TREES } from '@/state/settings/fields/trees';
+import { type TreesConfig } from '@codecity/city';
+import { FOOTPRINT } from '@/state/settings/fields/footprint';
+import { type FootprintConfig } from '@codecity/city';
+import { ISLAND, WORLD } from '@/state/settings/fields/island';
+import { type IslandConfig, type WorldConfig } from '@codecity/city';
 import type { CityBbox, CityLayout } from '@codecity/city';
 
 interface PendingRequest {
