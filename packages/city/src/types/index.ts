@@ -12,6 +12,8 @@ import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { BuildStage } from './build';
 import type { CityEmitter } from '../events';
+import type { SourceLoader } from '../loadSource';
+import type { CodecityClient } from '../client';
 import type { Manifest, RangeStat } from '@/city/types/manifest';
 
 /** What a component needs to wire itself in. picker is null until after the
@@ -78,6 +80,16 @@ export interface City {
   /** Subscribe to what this city is doing. Everything the consumer used to get
    *  by reading a global it now gets here, per instance. */
   on: CityEmitter['on'];
+  /** Show a repo. The city fetches it, applies what comes back and reports the
+   *  scan as it goes; the manifest arrives on `scan:manifest`. */
+  loadSource: SourceLoader['load'];
+  /** Stop whatever is loading. A load already superseded by another needs no
+   *  cancelling: the next one does it. */
+  cancelLoad(): void;
+  /** This city's own API client, on the base URL it was given. Exposed because
+   *  a consumer's chrome (a file pane, a branch picker) talks to the same
+   *  server about the same repo, and should not build a second one. */
+  client: CodecityClient;
   /** This city's resolved settings. Read through `snapshot()`; write through
    *  `updateSettings`. */
   settings: CitySettingsStore;

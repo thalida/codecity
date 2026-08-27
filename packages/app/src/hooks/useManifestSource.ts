@@ -39,35 +39,33 @@ import type { SourcePayload } from '@/types/ui';
 import { ScanError, ScanPhase } from '@/city/client/manifest';
 import { API } from '@/apiClient';
 import type { Manifest } from '@/city/types/manifest';
+import type { City } from '@/city/types';
+import { SCENE_HANDLE, whenSceneHandle } from '@/city/sceneHandle';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
-/** Consume a manifest stream, publishing SCAN_PROGRESS per event and handing
- *  each skeleton/final to onManifest. Returns the final; throws without one. */
-async function pumpManifestStream(
-  url: string,
-  meta: { kind: SourceKind; branch?: string },
-  onManifest: (
-    manifest: Manifest,
-    phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
-  ) => Promise<void> | void,
-  signal?: AbortSignal
-): Promise<Manifest> {
-  let lastManifest: Manifest | null = null;
-  // Only partials are applied in here, so the complete event carries the last
+/** Route one city's scan reports into the overlay and the app's own manifest.
+ *  The city does the fetching now, so what is left here is the reduction: what
+ *  the readout shows, what the project is called, and the tree every pane reads.
+ *
+ *  Attached to the scene city only. The landing's wallpaper scans its own repo
+ *  and reaches none of this, which is what stopped the two of them fighting
+ *  over one MANIFEST. */
+export function attachScanProgress(on: City['on']): () => void {
+  let meta: { kind: SourceKind; branch?: string } = { kind: srcKind('') };
+  // Only partials are applied here, so a complete event carries the last
   // applied `pending` forward rather than claiming its own as applied.
   let appliedPending: Manifest['pending'] | undefined;
 
-  for await (const event of API.streamManifest(url, { signal })) {
-    if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
-
-    if ('label' in event && event.label) {
-      // Server-side, so the document title and the overlay header name the
-      // project the same way instead of each deriving it from the src.
-      PENDING_SOURCE_LABEL.value = event.label;
-    }
-
-    if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
+  const offs = [
+    on('scan:start', ({ src, branch }) => {
+      meta = { kind: srcKind(src), branch };
+      appliedPending = undefined;
+    }),
+    // Server-side, so the document title and the overlay header name the
+    // project the same way instead of each deriving it from the src.
+    on('scan:label', ({ label }) => void (PENDING_SOURCE_LABEL.value = label)),
+    on('scan:progress', ({ event }) => {
       SCAN_PROGRESS.value = {
         ...meta,
         phase: event.phase,
@@ -79,22 +77,24 @@ async function pumpManifestStream(
         mib: event.phase === ScanPhase.CloneProgress ? event.mib : undefined,
         filesScanned: event.phase === ScanPhase.ScanProgress ? event.files_scanned : undefined,
       };
-      continue;
-    }
-
-    // tree.name beats the src basename, which for a working tree is whatever
-    // the folder is called (e.g. a git-worktree dir).
-    if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
-    await onManifest(event.manifest, event.phase);
-    lastManifest = event.manifest;
-    if (event.phase === ScanPhase.PartialManifest) appliedPending = event.manifest.pending;
-    // After onManifest, so the overlay reaction can never see "heights final"
-    // ahead of the paint that shows them.
-    SCAN_PROGRESS.value = { ...meta, phase: event.phase, appliedPending };
-  }
-
-  if (!lastManifest) throw new Error('No manifest received');
-  return lastManifest;
+    }),
+    on('scan:manifest', ({ manifest, phase }) => {
+      // The city already applied it; this is the copy every pane reads. The
+      // complete one is published by loadSource, with the source it belongs to.
+      // No generation guard: a superseded load's stream is aborted by the city
+      // that owns it, so nothing arrives here from a load that lost.
+      if (phase === ScanPhase.PartialManifest) {
+        setManifest(manifest);
+        appliedPending = manifest.pending;
+      }
+      // Emitted after the apply, so the overlay can never see "heights final"
+      // ahead of the paint that shows them.
+      SCAN_PROGRESS.value = { ...meta, phase, appliedPending };
+    }),
+  ];
+  return () => {
+    for (const off of offs) off();
+  };
 }
 
 // Injected, not imported (importing useTimelineMode back was a cycle); it
@@ -163,22 +163,19 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   }
 
   try {
-    const url = API.manifestUrlFor({
+    // The city fetches its own repo and applies what comes back; the skeleton
+    // reaches MANIFEST through attachScanProgress on the way past. Peeked
+    // first, so only a cold boot waits: an await here would push the stream a
+    // microtask out, and the overlay with it.
+    const city = SCENE_HANDLE.peek() ?? (await whenSceneHandle());
+    if (myGen !== loadGeneration) return; // superseded while waiting for the canvas
+    controller.signal.addEventListener('abort', () => city.cancelLoad());
+    const manifest = await city.loadSource({
       src: payload.src,
       branch,
       noCache: !!payload.skipCache,
       exclude: activeExcludePathsFor(payload.src),
     });
-    // Skeleton streams out here; the final is published below, after the
-    // source is committed.
-    const manifest = await pumpManifestStream(
-      url,
-      meta,
-      (m, phase) => {
-        if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
-      },
-      controller.signal
-    );
     // A newer load superseded this one: it owns MANIFEST now, don't touch.
     if (myGen !== loadGeneration) return;
     // An aborted stream ends as done, not a throw, so a cancel arrives here
@@ -248,19 +245,23 @@ export function setupLiveUpdates(): () => void {
   let timer: number | null = null;
   let inFlight = false;
 
+  // Not city.loadSource: a poll is a REFRESH, and a refresh shows no overlay
+  // and skips the skeleton. Applying one would animate every building down to
+  // placeholder heights and back on each save.
   async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
     const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
     try {
+      const city = SCENE_HANDLE.peek() ?? (await whenSceneHandle());
       for await (const event of API.streamManifest(
         API.manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
       )) {
         if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
-        // Skip the skeleton: the city is already drawn, and applying one would
-        // animate every building to placeholder heights and back on each save.
         if (event.phase !== ScanPhase.CompleteManifest) continue;
         if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
         const m = event.manifest;
-        if (m?.content_signature) setManifest(m);
+        if (!m?.content_signature) continue;
+        setManifest(m);
+        await city.applyManifest(m);
       }
     } catch (err) {
       if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface

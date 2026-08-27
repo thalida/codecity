@@ -8,8 +8,26 @@
 
 import type { BuildStage } from './types/build';
 import type { PickTarget } from './types/picker';
+import type { ScanPhase, ScanProgressEvent } from './client/manifest';
+import type { Manifest } from './types/manifest';
 
 export interface CityEvents {
+  /** This city started loading a repo. Everything below until scan:done or
+   *  scan:error belongs to this load. */
+  'scan:start': { src: string; branch?: string };
+  /** The server's own account of what it is doing: cloning at a percent, or
+   *  scanning at a file count. Passed through rather than restated, because
+   *  the consumer's readout is written against these phases already. */
+  'scan:progress': { event: ScanProgressEvent };
+  /** What to call this repo, as soon as anything knows: the server's label
+   *  first, then the scanned tree's own name. */
+  'scan:label': { label: string };
+  /** A manifest arrived and has been applied to this city. A scan sends a
+   *  skeleton first and the complete tree after, so this fires more than once. */
+  'scan:manifest': { manifest: Manifest; phase: ScanPhase };
+  /** The load finished, carrying the manifest the city settled on. */
+  'scan:done': { manifest: Manifest };
+  'scan:error': { error: unknown };
   /** A build began, with the stages it will run through, in order. A consumer
    *  that knows the whole list can show a denominator from the first frame. */
   'build:start': { stages: readonly BuildStage[] };

@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -21,6 +19,8 @@ import { createCityState } from './state';
 import { createCityResources } from './resources';
 import { createSettingsStore } from './settings/store';
 import { createEmitter } from './events';
+import { createClient } from './client';
+import { createSourceLoader } from './loadSource';
 import type { CitySettingsPatch } from './settings';
 import { layoutConfigFrom } from './layout/config';
 import {
@@ -48,7 +48,10 @@ import type { Manifest, RangeStat } from '@/city/types/manifest';
 
 export async function createCity(
   canvas: HTMLCanvasElement,
-  { settings: initialSettings }: { settings?: CitySettingsPatch } = {}
+  {
+    settings: initialSettings,
+    baseUrl = '/api',
+  }: { settings?: CitySettingsPatch; baseUrl?: string } = {}
 ): Promise<City> {
   // Before anything that reads a setting: the material, the state pipeline and
   // every component resolve their values off this one instance's store.
@@ -57,6 +60,9 @@ export async function createCity(
   // This city's own subscribers. A second city on the page emits to its own,
   // so its build cannot move the overlay above the one being read.
   const events = createEmitter();
+  // Same-origin only, and a path rather than an origin: a city fetches from the
+  // server that served the page it is on.
+  const client = createClient({ baseUrl });
 
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -88,16 +94,25 @@ export async function createCity(
   // these — they rebuild reactively off cityState's signals.
   const { applyManifest: _applyManifest, buildStagesFor, invalidateLayoutCache } = cityState;
 
+  // The last manifest applied at HEAD. Held because leaving Timeline has to
+  // rebuild from it, and the union city on screen is not it.
+  let liveManifest: Manifest | null = null;
+
   /** applyManifest, with a failure reported to this city's subscribers rather
    *  than left for every caller to catch and route somewhere. */
   async function applyManifest(...args: Parameters<typeof _applyManifest>): Promise<void> {
     try {
       await _applyManifest(...args);
+      if (!TIMELINE_MODE.peek()) liveManifest = args[0];
     } catch (err) {
       events.emit('build:error', { error: err });
       throw err;
     }
   }
+
+  // Fetches this city's own repo and applies what comes back. Declared after
+  // applyManifest so the stream reaches the error reporting too.
+  const sourceLoader = createSourceLoader({ client, events, applyManifest });
 
   // picker is backfilled below (built after the components it reads);
   // armOnFirstTick defers picker-dependent setup, so the null cast is safe.
@@ -160,12 +175,13 @@ export async function createCity(
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe only on a real source change. cityRevision bumps after the apply's
-  // batch flushed, so the camera is aimed at a built city, not half of one.
+  // Reframe only on a real source change — this city's own, not the page's.
+  // cityRevision bumps after the apply's batch flushed, so the camera is aimed
+  // at a built city, not half of one.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
-    const key = CURRENT_SOURCE_KEY.peek();
+    const key = sourceLoader.key();
     if (key === null || key === lastReframedSourceKey) return;
     // No city yet: claiming the key here would make the first real one, which
     // is what there is to frame, skip its reframe.
@@ -317,11 +333,12 @@ export async function createCity(
   };
 
   // Every Timeline exit. The union city holds buildings that do not exist at
-  // HEAD, so only a rebuild from the live MANIFEST is a valid live city.
+  // HEAD, so only a rebuild from this city's own live manifest is a valid live
+  // city — the app's would be a different repo on the landing.
   const stopTimelineTeardown = effect(() => {
     if (TIMELINE_MODE.value || !_scrubController) return;
     timelineApi.uninstallScrubController();
-    const live = MANIFEST.peek() as Manifest | null;
+    const live = liveManifest;
     // Best-effort: a dispose or a newer apply can supersede this mid-flight,
     // and neither is a failure worth surfacing from a teardown.
     if (live) void applyManifest(live).catch(() => {});
@@ -332,6 +349,9 @@ export async function createCity(
     picker,
     rig,
     on: events.on,
+    client,
+    loadSource: sourceLoader.load,
+    cancelLoad: sourceLoader.cancel,
     settings: settingsStore,
     updateSettings: settingsStore.update,
     applyManifest,
@@ -354,6 +374,7 @@ export async function createCity(
       // Listeners first: nothing below may call back into a view that is on its
       // way out, and a torn-down city has nothing left worth reporting.
       events.clear();
+      sourceLoader.dispose();
       stopFrameLoop();
       stopReframe();
       stopOnScreen();

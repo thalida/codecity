@@ -20,6 +20,7 @@ import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
+import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { API } from '@/apiClient';
 import { TimelineBundle, TimelineProgress, TimelineStage } from '@/city/types/timeline';
@@ -79,6 +80,16 @@ function fakeHandle() {
     setFootprintsTransparent,
   };
 }
+
+// Leaving Timeline reloads live HEAD, and a live load goes through the city
+// now, so this file needs one published.
+let city: StubSceneCity;
+beforeEach(() => {
+  city = stubSceneCity();
+});
+afterEach(() => {
+  city.dispose();
+});
 
 describe('loadTimelineScene', () => {
   beforeEach(() => {

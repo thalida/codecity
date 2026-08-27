@@ -3,8 +3,9 @@
 // had cached for it, then the featured repo. Neither scans, and every failure
 // is silent, since the hero image underneath is already a complete answer.
 
-// Applies the manifest STRAIGHT TO THE SCENE, never writing MANIFEST: that
-// signal means "the project you opened", which a backdrop is not.
+// It applies to its own city, which is now the only thing it could do: a city
+// holds the manifest it was given, so a wallpaper cannot reach the project you
+// opened. That used to be a rule to remember; it is a fact about the shape now.
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';

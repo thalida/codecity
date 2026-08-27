@@ -8,10 +8,11 @@ import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@codecity/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
+import { attachScanProgress } from '@/hooks/useManifestSource';
 import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/cityValues';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
-import { attachBuildProgress, markError, markRebuilding } from '@/state/stores/progress';
+import { attachBuildProgress, markError } from '@/state/stores/progress';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -39,7 +40,6 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     if (!canvas) return;
     let disposed = false;
     let city: Awaited<ReturnType<typeof createCity>> | null = null;
-    let unsubApply: (() => void) | null = null;
     let unsubSettings: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
     const unsubEvents: Array<() => void> = [];
@@ -96,19 +96,11 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
           })
         );
 
-        // Only kicks off the apply and surfaces its error: reaching Idle belongs
-        // to the decoration pass, and reframing to the city composer.
-        unsubApply = effect(() => {
-          const m = MANIFEST.value as Manifest;
-          if (!m) return; // nothing to build yet
-          // Live's bridge from manifest to scene; Timeline packs its own union
-          // city. Peeked, so leaving the mode doesn't repack what it committed.
-          if (TIMELINE_MODE.peek()) return;
-          markRebuilding();
-          // The failure reaches markError through build:error; this only keeps
-          // the rejection from surfacing as an unhandled one.
-          void handle.applyManifest(m).catch(() => {});
-        });
+        // No manifest→scene effect: the city fetches its own repo, so what
+        // used to arrive by watching a global now arrives by the same call that
+        // asked for it. Two cities on one page each build what they were asked
+        // to build, which one shared MANIFEST could never express.
+        unsubEvents.push(attachScanProgress(handle.on));
       })
       .catch((err) => {
         // No WebGL, or a context the driver refused. The landing has its
@@ -118,7 +110,6 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
 
     return () => {
       disposed = true;
-      unsubApply?.();
       unsubSettings?.();
       disposeReactions?.();
       for (const off of unsubEvents) off();

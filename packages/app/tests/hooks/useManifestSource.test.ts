@@ -15,10 +15,22 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
+import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { TimelineBundle } from '@/city/types/timeline';
+
+// The city does the fetching now, so every load in this file needs one to load
+// into. The real source loader over the real client, so the stream still runs
+// through the stubbed EventSource and every phase assertion still bites.
+let city: StubSceneCity;
+beforeEach(() => {
+  city = stubSceneCity();
+});
+afterEach(() => {
+  city.dispose();
+});
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;

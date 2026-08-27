@@ -6,9 +6,13 @@ import { BuildStage } from '@/city/types/build';
 import {
   attachBuildProgress,
   BUILD_PROGRESS,
+  PENDING_SOURCE_LABEL,
   REBUILD_STATUS,
   RebuildStatus,
+  SCAN_PROGRESS,
 } from '@/state/stores/progress';
+import { attachScanProgress } from '@/hooks/useManifestSource';
+import { ScanPhase } from '@/city/client/manifest';
 
 import { createCityResources } from '@/city/resources';
 import { createSettingsStore } from '@/city/settings/store';
@@ -247,6 +251,53 @@ describe('two cities report to their own subscribers', () => {
     scene.emit('build:start', { stages });
 
     expect(BUILD_PROGRESS.value).toBeNull();
+  });
+});
+
+/** Scan progress is the other half of the same problem, and the one the plan
+ *  warned about: the overlay folds SERVER scan progress and BUILD progress into
+ *  one reduction, so a wallpaper scanning its own repo behind the landing had a
+ *  second route into the readout above the project you are reading. */
+describe('two cities scan their own repos', () => {
+  afterEach(() => {
+    SCAN_PROGRESS.value = null;
+    PENDING_SOURCE_LABEL.value = null;
+  });
+
+  it('the overlay follows the city it was attached to', () => {
+    const scene = createEmitter();
+    const detach = attachScanProgress(scene.on);
+
+    scene.emit('scan:start', { src: 'https://github.com/o/r' });
+    scene.emit('scan:progress', {
+      event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
+    });
+
+    expect(SCAN_PROGRESS.value?.filesScanned).toBe(900);
+    detach();
+  });
+
+  it('a wallpaper scanning a different repo does not touch it', () => {
+    const scene = createEmitter();
+    const backdrop = createEmitter();
+    const detach = attachScanProgress(scene.on);
+    scene.emit('scan:start', { src: 'https://github.com/o/r' });
+    scene.emit('scan:progress', {
+      event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
+    });
+    const mid = SCAN_PROGRESS.value;
+
+    // A whole load of somebody else's repo, behind the page.
+    backdrop.emit('scan:start', { src: 'https://github.com/other/repo' });
+    backdrop.emit('scan:label', { label: 'other/repo' });
+    backdrop.emit('scan:progress', {
+      event: { phase: ScanPhase.CloneProgress, percent: 12 } as never,
+    });
+
+    expect(SCAN_PROGRESS.value).toBe(mid);
+    // And it does not rename the project in the header either.
+    expect(PENDING_SOURCE_LABEL.value).toBeNull();
+    detach();
   });
 });
 
