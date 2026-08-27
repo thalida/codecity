@@ -4,11 +4,11 @@
 // in live before the numbers are baked in. Debug-only.
 
 import type { SceneHandle } from '@/city/sceneHandle';
-import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { CameraMode } from '@/city/render/cameraRig';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
+import { DirNode, Manifest, NodeKind } from '@codecity/city';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */

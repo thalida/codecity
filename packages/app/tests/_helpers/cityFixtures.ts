@@ -3,8 +3,6 @@
 
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/settings/fields/trees';
@@ -12,6 +10,8 @@ import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
 import { createTestCityResources } from '../_helpers/cityResources';
+import { CityBbox, CityLayout, CommitEntry, NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.

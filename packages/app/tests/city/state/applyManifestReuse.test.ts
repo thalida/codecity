@@ -6,9 +6,8 @@
 import { stubPlacementClient } from '../../_helpers/cityFixtures';
 import { describe, it, expect, vi } from 'vitest';
 import { createCityState } from '@/city/state';
-import { NodeKind } from '@/types';
-import type { CityLayout, DateRanges, Manifest } from '@/types';
 import { createTestCityResources } from '../../_helpers/cityResources';
+import { CityLayout, DateRanges, Manifest, NodeKind } from '@codecity/city';
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,

@@ -7,13 +7,12 @@ import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
+import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

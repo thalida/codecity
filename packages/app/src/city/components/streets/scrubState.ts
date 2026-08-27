@@ -1,8 +1,7 @@
+import type { Street } from '@codecity/city';
 // How a street renders at a scrub position, from the rollup over its descendant
 // buildings. No meshes, no signals: the pass gathers, this decides, the
 // component applies.
-
-import type { Street } from '@/types';
 
 // The picker rejects hits on these; buildings use iKind instead. Republished by
 // the streets component every scrub frame.

@@ -33,7 +33,7 @@ import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/st
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
-import type { DirNode, Manifest } from '@/types';
+import type { DirNode, Manifest } from '@codecity/city';
 
 /** Enough of a loaded project for the chrome bars to render everything they
  *  have: the project cluster, the freshness readout and the refresh control. */

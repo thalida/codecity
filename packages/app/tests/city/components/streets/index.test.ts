@@ -7,10 +7,10 @@ import * as THREE from 'three';
 import { createStreets } from '@/city/components/streets';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/settings/fields/streets';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, PickTarget, Street } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
+import { CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

@@ -12,8 +12,6 @@ import {
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
-import { FadeDetail } from '@/types';
-import type { FileNode } from '@/types';
 import {
   BYTE_STATS,
   LINE_STATS,
@@ -23,6 +21,7 @@ import {
   makeScrubFrame,
   scrubSubject,
 } from '../../../_helpers/scrub';
+import { FadeDetail, FileNode } from '@codecity/city';
 
 const file = makeFile({ path: 'f.txt' });
 const NO_COMMIT_MS: readonly number[] = [];

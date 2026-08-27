@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
-import { NodeKind } from '@/types';
 import { flush } from '../../../_helpers/preact';
+import { NodeKind } from '@codecity/city';
 
 // Only the fields the search pane reads, plus enough extras to pass as a
 // FileNode where one is wanted.

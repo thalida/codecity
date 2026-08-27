@@ -8,7 +8,6 @@ import { useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 import type { Signal, ReadonlySignal } from '@preact/signals';
 import { FolderTree, BookOpen } from 'lucide-preact';
-import type { DirNode, Manifest, TreeNode } from '@/types';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
@@ -16,6 +15,7 @@ import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
+import type { DirNode, Manifest, TreeNode } from '@codecity/city';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.

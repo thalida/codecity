@@ -1,6 +1,5 @@
+import { DirNode, Manifest, NodeKind, SourceRef, TreeNode } from '@codecity/city';
 // utils/manifest.ts — Pure predicates over, and lookups into, the Manifest shape.
-
-import { NodeKind, type Manifest, type DirNode, type SourceRef, type TreeNode } from '@/types';
 
 // Locate the tree node at `path` (file or directory) in a manifest/DirNode.
 // Iterative DFS — called on selection change (rare), so O(nodes) is fine.

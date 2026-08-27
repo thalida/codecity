@@ -4,8 +4,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
 import {
   BuildingLane,
   blankBuildingScrubState,
@@ -14,6 +12,7 @@ import {
 import { StreetTint, type StreetScrubState } from '@/city/components/streets/scrubState';
 import type { ScrubStates } from '@/city/timeline/scrubPass';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
+import { CityLayout, Street, StreetAxis } from '@codecity/city';
 
 function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };

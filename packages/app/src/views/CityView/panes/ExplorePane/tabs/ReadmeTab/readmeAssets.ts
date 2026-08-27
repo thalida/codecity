@@ -2,8 +2,8 @@
 // image path would resolve against the app origin and 404, so repo-relative
 // refs are rewritten through /api/file, against the README's own directory.
 
-import type { SourceRef } from '@/types';
 import { API } from '@/apiClient';
+import type { SourceRef } from '@codecity/city';
 
 // Already addressable as-is: a scheme, a protocol-relative //host, or a bare
 // #anchor.

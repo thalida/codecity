@@ -8,9 +8,8 @@ import { effect } from '@preact/signals';
 import { createCityState } from '@/city/state';
 import { BUILD_PROGRESS } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
-import { NodeKind } from '@/types';
-import type { CityLayout, DateRanges, Manifest } from '@/types';
 import { createTestCityResources } from '../../_helpers/cityResources';
+import { CityLayout, DateRanges, Manifest, NodeKind } from '@codecity/city';
 
 const EMPTY_DATE_RANGES: DateRanges = {
   minCreated: null,

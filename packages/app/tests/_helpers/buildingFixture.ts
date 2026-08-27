@@ -1,8 +1,6 @@
+import { Building, BuildingOrient, FileNode, NodeKind } from '@codecity/city';
 // Overrides are merged field by field rather than spread: spreading a
 // Partial<Building> defeats TS narrowing and forces a cast at every call site.
-
-import { BuildingOrient, NodeKind } from '@/types';
-import type { Building, FileNode } from '@/types';
 
 const DEFAULT_FILE: FileNode = {
   name: 'file.ts',

@@ -13,13 +13,13 @@ const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
 import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/chrome';
 import { focusSelection } from '@/city/sceneHandle';
-import { NodeKind } from '@/types';
 import { scrubbedStatsFor } from '@/state/stores/timeline';
-import type { PickTarget } from '@/types';
 import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
+import { NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 export function createInputHandlers({
   canvas,

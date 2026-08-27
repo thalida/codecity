@@ -15,8 +15,6 @@ import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { NodeKind } from '@/types';
-import type { Manifest } from '@/types';
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
@@ -35,6 +33,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 });
 
 import { createCity } from '@/city/index';
+import { Manifest, NodeKind } from '@codecity/city';
 
 const W = 800;
 const H = 600;

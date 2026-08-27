@@ -1,3 +1,4 @@
+import { Building, Street, StreetAxis } from '@codecity/city';
 // city/layout/rect.ts — the city's canonical 2D footprint rectangle, plus the
 // ONE place that knows how a Street/Building maps onto it.
 //
@@ -10,9 +11,6 @@
 // one into a Rect requires the orientation swap below. Keep that swap here so
 // every consumer (layout occupancy, layout invariant checks, the footprint
 // slab) can never disagree.
-
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
 
 /** Axis-aligned rectangle on the layout plane. (x, y) is the CENTER;
  *  w/d are the full width/depth (matches Building/Street conventions). */

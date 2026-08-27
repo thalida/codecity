@@ -12,11 +12,11 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
-import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import { effect } from '@preact/signals';
+import { NodeKind } from '@codecity/city';
 
 interface TreesHandle {
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;

@@ -35,10 +35,10 @@ import {
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/types/ui';
 import { ScanError, ScanPhase } from '@codecity/city';
 import { API } from '@/apiClient';
+import type { Manifest } from '@codecity/city';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

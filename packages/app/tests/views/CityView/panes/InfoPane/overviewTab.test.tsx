@@ -24,10 +24,9 @@ vi.mock('@/state/settings/fields/trees', () => ({
 
 import { OverviewTab } from '@/views/CityView/panes/InfoPane/tabs/OverviewTab/OverviewTab';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
-import { NodeKind } from '@/types';
-import type { Manifest } from '@/types';
 import { commits as buildCommits } from '../../../../_helpers/commits';
 import { uniformFileStats } from '../../../../_helpers/statsFixtures';
+import { Manifest, NodeKind } from '@codecity/city';
 
 const tree = {
   name: 'repo',

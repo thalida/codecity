@@ -3,7 +3,6 @@
 // that is itself younger here. Placements are resized in place, so the hover
 // rings read the same numbers when one is built.
 
-import type { CommitEntry, RepoStats } from '@/types';
 import { TREES } from '@/state/settings/fields/trees';
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import {
@@ -15,6 +14,7 @@ import {
 } from '@/city/components/trees/treeEncoding';
 import { epochDayAt } from '@/utils/dates';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
+import type { CommitEntry, RepoStats } from '@codecity/city';
 
 export interface FirefliesScrub {
   /** The commit in effect and the date. Either null restores the live sizes;

@@ -12,11 +12,11 @@ import {
 } from '@/city/components/buildings/cellMesh';
 
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { BuildingOrient, NodeKind } from '@/types/index';
+import { BuildingOrient, NodeKind } from '@codecity/city';
 import type { IconAtlas } from '@/city/components/buildings/atlas';
-import type { FileNode } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
 import { createTestCityResources } from '../../../_helpers/cityResources';
+import type { FileNode } from '@codecity/city';
 
 const _res = createTestCityResources();
 

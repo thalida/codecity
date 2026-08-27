@@ -5,10 +5,9 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 
 import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
 import { makeSceneContext, stubPlacementClient } from '../_helpers/cityFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
+import { CityLayout, DateRanges, Manifest, NodeKind, Street, StreetAxis } from '@codecity/city';
 
 function makeRootStreet(): Street {
   return {

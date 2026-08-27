@@ -9,9 +9,9 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
 import { TREES } from '@/state/settings/fields/trees';
 import { RAINBOW } from '@/state/settings/fields/effects';
-import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types/picker';
 import { commitTarget } from '../../../_helpers/cityFixtures';
+import { NodeKind } from '@codecity/city';
 
 function fakeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');

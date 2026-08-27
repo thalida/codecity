@@ -1,7 +1,7 @@
 // client/file.ts — endpoint helpers for /api/file (raw file content reads).
 
-import type { components } from '@/types/manifest.generated';
-import type { SourceRef } from '@/types';
+import type { components } from '../types/manifest.generated';
+import type { SourceRef } from '../types/manifest';
 import type { ApiUrl } from './url';
 
 // The server knows the file and hasn't got its bytes yet: an unpulled Git LFS

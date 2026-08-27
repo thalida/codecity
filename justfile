@@ -138,7 +138,7 @@ check-types-fresh:
     @mkdir -p .local
     @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
     @docker compose -f docker-compose.test.yml run --rm gentypes \
-        || (echo "[codecity] packages/app/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
+        || (echo "[codecity] packages/city/src/types/manifest.generated.ts is stale — run \`just gen-types\`" && exit 1)
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
@@ -152,7 +152,7 @@ lint-packages:
     docker compose -f docker-compose.test.yml run --rm packages
 
 # ── Codegen ──────────────────────────────────────────────────────
-# Regenerate packages/app/src/types/manifest.generated.ts from the live OpenAPI schema.
+# Regenerate packages/city/src/types/manifest.generated.ts from the live OpenAPI schema.
 # Single source of truth: packages/api/api/models/*.py -> OpenAPI -> TS. Run after changing
 # any wire model. The drift guard (manifest.contract.ts) fails typecheck if the
 # hand-written types in manifest.ts fall out of sync with this generated file.
@@ -162,8 +162,8 @@ lint-packages:
 gen-types:
     @mkdir -p .local
     @uv run --project packages/api python scripts/gen_openapi.py > .local/openapi.generated.json
-    @cd packages/app && npx openapi-typescript ../../.local/openapi.generated.json -o src/types/manifest.generated.ts
-    @echo "[codecity] regenerated packages/app/src/types/manifest.generated.ts"
+    @cd packages/city && npx openapi-typescript ../../.local/openapi.generated.json -o src/types/manifest.generated.ts
+    @echo "[codecity] regenerated packages/city/src/types/manifest.generated.ts"
 
 # ── Build ────────────────────────────────────────────────────────
 build:

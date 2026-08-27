@@ -22,8 +22,8 @@ import {
 } from '@/state/stores/timeline';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { NodeKind } from '@/types';
-import type { PickerSelectionKey } from '@/types';
+import { NodeKind } from '@codecity/city';
+import { PickerSelectionKey } from '@/types/picker';
 
 const REPLACE: NavigateOptions = { replace: true };
 

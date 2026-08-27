@@ -7,13 +7,12 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
-import { NodeKind } from '@/types';
-import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createFireflyAssembly, type Fireflies } from './fireflies';
+import { CommitEntry, NodeKind, RepoStats } from '@codecity/city';
 
 export type { Fireflies };
 

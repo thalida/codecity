@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { computeAlmanac } from '@/views/CityView/panes/InfoPane/almanac';
-import { NodeKind } from '@/types';
-import type { Manifest, FileNode, DirNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '../../../../_helpers/manifestFixtures';
 import { commits as buildCommits } from '../../../../_helpers/commits';
 import { fileLeader, uniformFileStats } from '../../../../_helpers/statsFixtures';
+import { DirNode, FileNode, Manifest, NodeKind, RepoStats } from '@codecity/city';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {

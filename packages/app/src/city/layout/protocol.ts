@@ -6,7 +6,7 @@
 import type { StreetLayoutConfig, StreetTier } from '@/state/settings/fields/streets';
 import type { BuildingDimensionsConfig } from '@/state/settings/fields/buildings';
 import type { GemSizingConfig } from '@/state/settings/fields/gem';
-import type { Manifest, CityLayout } from '@/types';
+import type { CityLayout, Manifest } from '@codecity/city';
 
 /** The only slice the worker needs. Sending the whole Manifest structured-
  *  clones its commits array across postMessage every apply, for nothing. */

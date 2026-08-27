@@ -3,9 +3,9 @@ import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
-import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
+import { NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 describe('SelectionAnnouncer', () => {
   let container: HTMLDivElement;

@@ -3,12 +3,12 @@
 // offset (and side/mirror variant) that avoids overlap with everything already
 // placed. Pure data; no DOM or Three.js.
 
-import { StreetAxis } from '@/types';
 import { OVERLAP_EPS } from './rect';
 import type { Rect } from './rect';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
 import { _profNow, _profEnd, _profCount } from './profiling';
+import { StreetAxis } from '@codecity/city';
 
 // findSmallestValidStem's sort-free scan grows the stem one forbidden-interval
 // link per round (O(F·chain)). Past this many rounds the chain is long enough

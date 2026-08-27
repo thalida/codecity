@@ -4,8 +4,6 @@
 // resetting the mode moves it, so splitting them would make the two files cyclic.
 
 import { signal, batch, computed, effect, type ReadonlySignal } from '@preact/signals';
-import type { DirNode, Manifest, TimelineBundle, TreeNode } from '@/types';
-import { NodeKind } from '@/types';
 import { parseDateMs, epochDayAt } from '@/utils/dates';
 import { findNodeByPath } from '@/utils/manifest';
 import { MANIFEST, type ManifestValue } from './manifest';
@@ -19,6 +17,7 @@ import {
   lastModifiedIndexAt,
 } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
+import { DirNode, Manifest, NodeKind, TimelineBundle, TreeNode } from '@codecity/city';
 
 // ── Mode, history, and where you are in it ───────────────────────────
 

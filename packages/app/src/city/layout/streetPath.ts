@@ -3,8 +3,8 @@
 // on purpose: tests pass minimal mocks, real Streets/PickTargets satisfy
 // them without casts.
 
-import { NodeKind, StreetAxis } from '@/types';
 import { parentDirPath } from '../utils/path';
+import { NodeKind, StreetAxis } from '@codecity/city';
 
 /** Minimal street shape these helpers read. Real Streets satisfy this. */
 interface StreetLike {

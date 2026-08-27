@@ -1,7 +1,7 @@
 // One-shot memoized fetch of /api/config. Failures fail closed: better the
 // "local is disabled" UI than a path input the server will reject.
 
-import type { components } from '@/types/manifest.generated';
+import type { components } from '../types/manifest.generated';
 import type { ApiUrl } from './url';
 
 // Derived from the OpenAPI schema rather than re-declared, so a field added to

@@ -19,8 +19,9 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
-import type { Manifest, SourceError } from '@/types';
 import { URL_PARAMS } from '@codecity/city';
+import type { Manifest } from '@codecity/city';
+import type { SourceError } from '@/types/ui';
 
 // ── Currently-loaded source ──────────────────────────────────────────
 

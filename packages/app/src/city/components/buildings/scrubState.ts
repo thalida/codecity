@@ -2,8 +2,6 @@
 // decision table is exercisable without a scene; scrubApply.ts does the writes.
 
 import { getBuildingDimensions } from '@/city/layout/dimensions';
-import type { Building, FileNode } from '@/types';
-import { FadeDetail } from '@/types';
 import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
 import type { PathTimeline } from '@/city/timeline/replay';
 import {
@@ -19,6 +17,7 @@ import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
 import { parseDateMs } from '@/utils/dates';
+import { Building, FadeDetail, FileNode } from '@codecity/city';
 
 /** PathState read through the ruin settings.
  *  Absent is still driven every frame, or a Live fade sweep lingers on it. */

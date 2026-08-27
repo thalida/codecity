@@ -3,8 +3,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/city/components/trees/treePlacementClient';
-import type { CityLayout } from '@/types';
 import { bbox, emptyLayout } from '../../../_helpers/cityFixtures';
+import type { CityLayout } from '@codecity/city';
 
 describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;

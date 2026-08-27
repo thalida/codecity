@@ -2,9 +2,7 @@
 // raycaster and consumed by every selection-driven renderer.
 
 import type * as THREE from 'three';
-import type { Building } from './building';
-import type { Street } from './street';
-import type { CommitEntry, DirNode, FileNode, NodeKind } from './manifest';
+import type { Building, CommitEntry, DirNode, FileNode, NodeKind, Street } from '@codecity/city';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { CellTile } from '@/city/components/buildings/cellTile';
 

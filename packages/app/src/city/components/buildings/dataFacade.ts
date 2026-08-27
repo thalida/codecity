@@ -3,11 +3,11 @@
 // white-on-transparent like the server fingerprint, and browser-native, so the
 // backend needs no decoder for either.
 
-import type { SourceRef } from '@/types';
 import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 import { API } from '@/apiClient';
+import type { SourceRef } from '@codecity/city';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 

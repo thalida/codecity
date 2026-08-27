@@ -7,13 +7,13 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { TREES } from '@/state/settings/fields/trees';
-import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
 import type { TreePlacement } from './treePlacement';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '@codecity/city';
 
 export type { Trees };
 

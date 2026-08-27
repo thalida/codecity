@@ -19,11 +19,11 @@ import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/pro
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import { TimelineStage } from '@/types';
-import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { API } from '@/apiClient';
+import { TimelineBundle, TimelineProgress, TimelineStage } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).

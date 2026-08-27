@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
+import type { Building, EnteringBuilding, StayingBuilding } from '@codecity/city';
 
 /** Narrow resolver surface the tween queue needs from the buildings
  *  component (re-resolved per frame so tweens survive rebuilds). */

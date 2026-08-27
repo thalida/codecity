@@ -2,11 +2,11 @@
 // target and the root's name. Side-effect-free so it tests in isolation, and it
 // shares the selection pane's stat builders, so hovering a building and
 // selecting it cannot report different numbers.
-import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import { ROOT_PATH } from '@/constants/manifest';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import { NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 /** Longest path rendered before the middle segments collapse to an ellipsis. */
 const PATH_BUDGET_CHARS = 44;

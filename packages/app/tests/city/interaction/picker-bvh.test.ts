@@ -9,10 +9,10 @@ import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { makeCityState } from '../../_helpers/cityFixtures';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
+import { Building, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickerWorld } from '@/types/picker';
 
 const _res = createTestCityResources();
 

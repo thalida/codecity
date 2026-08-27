@@ -13,10 +13,10 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
-import { NodeKind } from '@/types';
 import type { CellTile } from './cellTile';
 import type { createPicker } from '@/city/interaction/picker';
-import type { FileTarget } from '@/types';
+import { NodeKind } from '@codecity/city';
+import { FileTarget } from '@/types/picker';
 
 // Narrow world surface the outline renderer needs (cell lookup only). Supplied
 // by the buildings component (cells are component-local).

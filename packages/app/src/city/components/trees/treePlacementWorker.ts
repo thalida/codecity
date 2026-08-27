@@ -6,13 +6,13 @@ import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
 import { WORLD, type WorldConfig } from '@/state/settings/fields/island';
 import type { IslandConfig } from '@/state/settings/fields/island';
-import type { CityBbox } from '@/types';
 
 type TreesValue = TreesConfig;
 type FootprintValue = FootprintConfig;
 type WorldValue = WorldConfig;
 
 import { MSG } from './treePlacementProtocol';
+import type { CityBbox } from '@codecity/city';
 
 interface PlaceRequest {
   type: typeof MSG.REQUEST;

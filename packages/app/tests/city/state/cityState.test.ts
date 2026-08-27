@@ -5,9 +5,8 @@
 // orientation-aware gem anchor math for BOTH axes and the null cases.
 
 import { describe, it, expect } from 'vitest';
-import { StreetAxis, NodeKind } from '@/types';
-import type { Building, CityLayout, Street } from '@/types';
 import { makeCityState } from '../../_helpers/cityFixtures';
+import { Building, CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads
 // x/y/width/length/orientation. The rest is cast away.

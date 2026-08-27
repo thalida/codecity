@@ -3,13 +3,13 @@ import { render } from 'preact';
 import { signal, type Signal } from '@preact/signals';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
 import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
-import type { CommitEntry } from '@/types';
 // Settling this render crosses two schedulers, the fetch chain and Preact, so
 // drainAsync alternates microtask and macrotask yields to cover both.
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
+import type { CommitEntry } from '@codecity/city';
 
 const [COMMIT] = buildCommits({
   date: '2026-03-12',

@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { TREES } from '@/state/settings/fields/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
-import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -28,6 +27,7 @@ import treeFragSrc from './tree.frag.glsl?raw';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/city/constants/lighting';
 import { epochDay, epochDayAt } from '@/utils/dates';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '@codecity/city';
 
 export interface Trees {
   group: THREE.Group;

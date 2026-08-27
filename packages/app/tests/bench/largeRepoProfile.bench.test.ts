@@ -10,12 +10,11 @@ import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { createStreetLabels } from '@/city/components/streets/streetLabels';
 import { isMediaFile } from '@/utils/fileKind';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout } from '@/types';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
+import { Building, CityLayout, NodeKind, StreetAxis } from '@codecity/city';
 
 function countFiles(node: any): number {
   let n = 0;

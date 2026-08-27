@@ -4,9 +4,9 @@ import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
-import type { Manifest } from '@/types';
 import { flush } from '../../../_helpers/preact';
 import { popoverPanel } from '../../../_helpers/popover';
+import type { Manifest } from '@codecity/city';
 
 const LOADED: Manifest = {
   ...EMPTY_MANIFEST,

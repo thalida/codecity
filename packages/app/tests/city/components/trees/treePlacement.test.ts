@@ -5,7 +5,6 @@ import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlac
 import { TREES } from '@/state/settings/fields/trees';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { WORLD } from '@/state/settings/fields/island';
-import type { CityLayout } from '@/types';
 import {
   bbox,
   emptyLayout,
@@ -13,6 +12,7 @@ import {
   resetBuildingsConfig,
 } from '../../../_helpers/cityFixtures';
 import { building } from '../../../_helpers/buildingFixture';
+import type { CityLayout } from '@codecity/city';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {

@@ -4,10 +4,9 @@
 import { SCRUB_POS } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { RUINS } from '@/state/settings/fields/ruins';
-import { NodeKind } from '@/types';
-import type { FileNode, RangeStat, Street, TimelineBundle } from '@/types';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/interaction/picker';
+import { FileNode, NodeKind, RangeStat, Street, TimelineBundle } from '@codecity/city';
 
 export type CommitDateRange = NonNullable<TimelineBundle['commitDateRanges']>[number];
 

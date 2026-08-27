@@ -3,7 +3,7 @@
 // history walk is slow enough to need heartbeats before it.
 
 import { URL_PARAMS } from './urlParams';
-import type { TimelineBundle, TimelineProgress } from '@/types';
+import type { TimelineBundle, TimelineProgress } from '../types/timeline';
 
 import type { ApiUrl } from './url';
 

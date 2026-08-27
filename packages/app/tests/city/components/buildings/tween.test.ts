@@ -6,8 +6,8 @@ import * as THREE from 'three';
 
 import { createBuildingTweens } from '@/city/components/buildings/tween';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
+import type { Building, EnteringBuilding, StayingBuilding } from '@codecity/city';
 
 const _origBuildings = BUILDINGS.value;
 const TRANSITION_MS = 400;

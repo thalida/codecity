@@ -7,13 +7,13 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
 import type { CityState } from '@/city/state';
+import { FadeDetail, NodeKind } from '@codecity/city';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
 // handle; the street-by-dir lookup comes from cityState directly.

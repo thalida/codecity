@@ -14,9 +14,9 @@ import {
 } from '@/city/components/buildings/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
-import type { Building } from '@/types';
 import { makeBuilding, makeFile } from '../../../_helpers/scrub';
 import { createTestCityResources } from '../../../_helpers/cityResources';
+import type { Building } from '@codecity/city';
 
 const _res = createTestCityResources();
 

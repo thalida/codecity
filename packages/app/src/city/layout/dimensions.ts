@@ -4,8 +4,8 @@
 import { STREET_TIERS } from '@/state/settings/fields/streets';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import type { StreetTier } from '@/state/settings/fields/streets';
-import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile, isEmptyFile, isDataBuilding } from '@/utils/fileKind';
+import type { RangeStat, RepoStats } from '@codecity/city';
 
 // Lenient on purpose, so a fixture omitting fields these helpers never read
 // still satisfies them structurally.

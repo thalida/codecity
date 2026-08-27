@@ -5,9 +5,8 @@
 
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { recencyT } from '@/city/utils/recency';
-import { NodeKind } from '@/types';
-import type { DateRanges } from '@/types';
 import { parseDateMs } from '@/utils/dates';
+import { DateRanges, NodeKind } from '@codecity/city';
 
 // created/modified stay optional so a sparse mock still reaches the no-date
 // branches; a real FileNode always carries both.

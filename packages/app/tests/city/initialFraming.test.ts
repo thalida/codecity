@@ -8,7 +8,6 @@ import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 import { STREET_TIERS } from '@/state/settings/fields/streets';
-import type { Manifest } from '@/types';
 import { mkDir } from '../_helpers/cityFixtures';
 
 vi.mock('three', async () => {
@@ -30,6 +29,7 @@ vi.mock('@/city/components/buildings/atlas', async () => {
 
 import { createCity } from '@/city/index';
 import type { City } from '@/city/types';
+import type { Manifest } from '@codecity/city';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

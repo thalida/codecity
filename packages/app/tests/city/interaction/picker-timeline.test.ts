@@ -13,10 +13,10 @@ import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickerWorld, Street } from '@/types';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
+import { Building, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickerWorld } from '@/types/picker';
 
 const _res = createTestCityResources();
 

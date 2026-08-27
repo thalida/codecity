@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
-import type { Manifest } from '@/types';
+import type { Manifest } from '@codecity/city';
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];

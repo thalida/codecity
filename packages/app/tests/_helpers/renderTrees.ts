@@ -6,9 +6,9 @@
 import * as THREE from 'three';
 import { createTreeRenderer, type Trees } from '@/city/components/trees/treeRenderer';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import type { CommitEntry, BusynessThresholds } from '@/types';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commitStats } from './statsFixtures';
+import type { BusynessThresholds, CommitEntry } from '@codecity/city';
 
 export function renderTrees(
   placements: TreePlacement[],

@@ -6,7 +6,6 @@ import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import type { FileNode, SourceRef } from '@/types';
 
 /** Which preview a file gets, by extension. Text is the catch-all, and falls
  *  back to a binary notice when the bytes don't decode as UTF-8. */
@@ -48,6 +47,7 @@ import { languageFor } from '@/utils/syntaxLanguages';
 import { isDataBuilding } from '@/utils/fileKind';
 import { ContentPendingError } from '@codecity/city';
 import { API } from '@/apiClient';
+import type { FileNode, SourceRef } from '@codecity/city';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.

@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { createGem } from '@/city/components/gem';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { GEM } from '@/state/settings/fields/gem';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Street, PickTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
+import { NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the
 // gem only reads geometry fields (x/y/width/length/orientation).

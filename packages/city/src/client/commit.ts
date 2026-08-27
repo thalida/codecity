@@ -3,7 +3,7 @@
 // the commit pane. Author + subject are already in the manifest;
 // body comes from /api/commit on demand to keep the manifest small.
 
-import type { SourceRef } from '@/types';
+import type { SourceRef } from '../types/manifest';
 import type { ApiUrl } from './url';
 
 export interface CommitDetail {

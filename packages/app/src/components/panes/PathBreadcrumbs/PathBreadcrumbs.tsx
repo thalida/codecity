@@ -5,11 +5,11 @@
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
 import { useContext } from 'preact/hooks';
-import { NodeKind } from '@/types';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { PaneTitleBudgetContext } from '@/components/panes/PaneHeader/PaneHeader';
 import { buildPathCrumbs } from '@/components/panes/PathBreadcrumbs/pathCrumbs';
+import { NodeKind } from '@codecity/city';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */

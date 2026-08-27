@@ -3,7 +3,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
-import { NodeKind } from '@/types';
 import {
   edgeCaseFiles,
   mkDir,
@@ -11,6 +10,7 @@ import {
   makeRng,
   statsFromTree,
 } from '../../_helpers/layoutTreeFixtures';
+import { NodeKind } from '@codecity/city';
 
 const NUMERIC_FIELDS = ['x', 'y', 'w', 'd', 'h', 'floors'] as const;
 const POSITIVE_FIELDS = ['w', 'd', 'h'] as const;

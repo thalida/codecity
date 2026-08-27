@@ -9,8 +9,7 @@ import {
 } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import type { BuildingsConfig } from '@/state/settings/fields/buildings';
-import { NodeKind } from '@/types';
-import type { RangeStat } from '@/types';
+import { NodeKind, RangeStat } from '@codecity/city';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDINGS store by beforeEach; restored by afterEach.

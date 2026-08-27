@@ -14,7 +14,7 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { markRebuilding, markError } from '@/state/stores/progress';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
-import type { Manifest } from '@/types';
+import type { Manifest } from '@codecity/city';
 
 export enum CityVariant {
   /** The app's main view: opaque, so a sub-frame gap during resize blends into

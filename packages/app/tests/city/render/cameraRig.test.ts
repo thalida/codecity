@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig, CameraMode, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
-import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { getDefault } from '@/state/persist';
+import { Building, BuildingOrient, CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };

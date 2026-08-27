@@ -3,7 +3,7 @@
 // tab hides itself when the list is empty, so "couldn't fetch it" and "the
 // server has it switched off" want the same handling.
 
-import type { components } from '@/types/manifest.generated';
+import type { components } from '../types/manifest.generated';
 import type { ApiUrl } from './url';
 
 // Derived from the OpenAPI schema rather than re-declared, so a field added to

@@ -12,12 +12,12 @@ FROM node:24-bookworm-slim AS web-builder
 ARG NPM_VERSION=11.6.2
 RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build/app
-# .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
-# vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
-COPY packages/app/package.json packages/app/package-lock.json packages/app/.npmrc ./
+COPY packages/app/package.json packages/app/package-lock.json ./
 # The app depends on @codecity/city through `file:../city`, so npm needs that
-# manifest present before it can link it.
-COPY packages/city/package.json /build/city/
+# manifest present before it can link it. .npmrc rides along: it carries
+# legacy-peer-deps=true for openapi-typescript's stale peer range, and that
+# package lives with the file it generates.
+COPY packages/city/package.json packages/city/.npmrc /build/city/
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
 COPY packages/city/ /build/city/

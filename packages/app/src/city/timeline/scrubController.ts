@@ -2,7 +2,6 @@
 // component its slice. It writes nobody else's buffers.
 
 import { TIMELINE_BUNDLE, SCRUB_TODAY_MS } from '@/state/stores/timeline';
-import type { RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
 import type { StreetScrubState } from '@/city/components/streets/scrubState';
@@ -12,6 +11,7 @@ import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
 import { parseDateMs } from '@/utils/dates';
+import type { RangeStat, Street } from '@codecity/city';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
  *  this and nothing more. */

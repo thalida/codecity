@@ -3,8 +3,8 @@
 // async iterable of ScanStreamEvents. The events carry a server-computed
 // `label` so the UI can name the project before any manifest arrives.
 
-import type { Manifest } from '@/types/manifest';
-import type { components } from '@/types/manifest.generated';
+import type { Manifest } from '../types/manifest';
+import type { components } from '../types/manifest.generated';
 import { URL_PARAMS } from './urlParams';
 
 import type { ApiUrl } from './url';

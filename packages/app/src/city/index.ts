@@ -6,7 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { markIdle } from '@/state/stores/progress';
@@ -45,6 +44,7 @@ import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
+import type { Manifest, RangeStat } from '@codecity/city';
 
 export async function createCity(
   canvas: HTMLCanvasElement,

@@ -11,10 +11,9 @@ import { ISLAND } from '@/state/settings/fields/island';
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
-import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
-import type { Building, CityBbox, Street } from '@/types';
 import type { IslandConfig } from '@/state/settings/fields/island';
+import { Building, CityBbox, Street, StreetAxis } from '@codecity/city';
 
 interface Rect {
   minX: number;

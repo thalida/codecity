@@ -6,8 +6,6 @@
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 import { BUILDING_DIMENSIONS } from '@/state/settings/fields/buildings';
 import { GEM_SIZING } from '@/state/settings/fields/gem';
-import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, RangeStat, RepoStats, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
 import { rectOfBuilding, rectOfStreet } from './rect';
 import type { Rect } from './rect';
@@ -18,6 +16,17 @@ import { computeFileStats, getBuildingDimensions, _streetWidthForDir } from './d
 import type { DirLike, FileLike, TreeLike } from './dimensions';
 import { applyFlips, computeFlips, placeChild } from './stemSolver';
 import type { PlaceChildResult, StemPlacementTrace, VariantTrace } from './stemSolver';
+import {
+  Building,
+  BuildingOrient,
+  CityLayout,
+  JoinSide,
+  NodeKind,
+  RangeStat,
+  RepoStats,
+  Street,
+  StreetAxis,
+} from '@codecity/city';
 
 // Dead space past the gem at the root street's origin end, in gem diameters.
 // Fixed, not user-tunable.

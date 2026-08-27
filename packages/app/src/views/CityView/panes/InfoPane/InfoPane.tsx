@@ -10,13 +10,13 @@ import type { Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { Globe, Map } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
-import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
+import type { DirNode, Manifest } from '@codecity/city';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 

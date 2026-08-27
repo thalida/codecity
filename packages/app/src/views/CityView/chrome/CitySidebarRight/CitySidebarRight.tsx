@@ -4,8 +4,6 @@
 
 import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import {
   SCENE_HANDLE,
   type SceneHandle,
@@ -32,6 +30,7 @@ import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
+import { CommitEntry, DirNode, FileNode, Manifest, NodeKind } from '@codecity/city';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

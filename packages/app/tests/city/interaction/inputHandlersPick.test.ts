@@ -10,8 +10,8 @@ import {
   dismissSelectionPane,
   openSelectionPane,
 } from '@/state/stores/chrome';
-import { NodeKind } from '@/types';
-import type { FileNode, PickTarget } from '@/types';
+import { FileNode, NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,

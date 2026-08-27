@@ -6,9 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { layoutCityWithTrace } from '@/city/layout/algorithm';
 import { findSmallestValidStem, placeChild } from '@/city/layout/stemSolver';
 import type { VariantTrace } from '@/city/layout/stemSolver';
-import { StreetAxis, NodeKind } from '@/types';
-import type { DirNode, FileNode, Manifest } from '@/types';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
+import { DirNode, FileNode, Manifest, NodeKind, StreetAxis } from '@codecity/city';
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {

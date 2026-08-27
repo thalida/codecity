@@ -2,11 +2,10 @@
 // with T-junction joins classified apart from unexpected overlaps. Pure data;
 // no DOM or Three.js.
 
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
 import { rectOfBuilding, rectOfStreet, _rectsOverlap, rectEdges } from './rect';
 import type { Rect } from './rect';
 import { WorldRectKind } from './occupancyIndex';
+import { Building, Street, StreetAxis } from '@codecity/city';
 
 // Perpendicular streets whose endpoint sits on the other's centerline: the flat
 // join the renderer fuses, and so the one overlap a layout may contain. The

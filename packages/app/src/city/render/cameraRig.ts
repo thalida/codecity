@@ -19,8 +19,6 @@ import {
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
 } from '@/city/constants/camera';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
 import { CAMERA } from '@/state/settings/fields/camera';
@@ -28,6 +26,8 @@ import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 import { GEM_SIZING } from '@/state/settings/fields/gem';
 import { gemRadiusFor } from '@/city/components/gem/mesh';
 import { backdropRadius } from './backdropRadius';
+import { Building, NodeKind, Street, StreetAxis } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 // The backdrop fields that PLACE the camera. Rotation speed is out: dragging it
 // mid-spin should change the speed, not yank the orbit back to its start azimuth.

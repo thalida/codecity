@@ -7,8 +7,7 @@ import { buildPathTimelines } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import type { ScrubFrame } from '@/city/timeline/scrubFrame';
 import type { BuildingScrubInput } from '@/city/components/buildings/scrubState';
-import { NodeKind } from '@/types';
-import type { Building, FileNode, RangeStat, TimelineBundle } from '@/types';
+import { Building, FileNode, NodeKind, RangeStat, TimelineBundle } from '@codecity/city';
 
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
 export const BYTE_STATS: RangeStat = { min: 1, max: 5000 };

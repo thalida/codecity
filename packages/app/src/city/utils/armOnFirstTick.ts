@@ -4,7 +4,7 @@
 // their picker-driven setup to the first tick() once ctx.picker is live, runs
 // it exactly once, and survives dispose() (the sticky `armed` flag is never
 // reset, so a stray post-dispose tick cannot re-arm).
-import type { SceneContext } from '../types';
+import type { SceneContext } from '@/city/types';
 
 export interface FirstTickArm {
   /** Call from tick(): runs setup() exactly once, after ctx.picker is live.

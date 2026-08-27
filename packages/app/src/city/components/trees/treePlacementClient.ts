@@ -6,7 +6,7 @@ import { MSG } from './treePlacementProtocol';
 import { TREES, type TreesConfig } from '@/state/settings/fields/trees';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/fields/footprint';
 import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/settings/fields/island';
-import type { CityBbox, CityLayout } from '@/types';
+import type { CityBbox, CityLayout } from '@codecity/city';
 
 interface PendingRequest {
   resolve(placements: TreePlacement[]): void;

@@ -2,7 +2,7 @@
 // image a binary file wears. The image is computed server-side: raw binary
 // never reaches the client, only the picture of its byte distribution.
 
-import type { SourceRef } from '@/types';
+import type { SourceRef } from '../types/manifest';
 import type { ApiUrl } from './url';
 
 export function createFingerprintEndpoints(

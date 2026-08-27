@@ -3,8 +3,8 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal, type Signal } from '@preact/signals';
 import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
-import type { Manifest, DirNode, TreeNode } from '@/types';
 import { flush } from '../../../../_helpers/preact';
+import type { DirNode, Manifest, TreeNode } from '@codecity/city';
 
 type TreeLike = Manifest | DirNode | { tree?: unknown; [k: string]: unknown };
 

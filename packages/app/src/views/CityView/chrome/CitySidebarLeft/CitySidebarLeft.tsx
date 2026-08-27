@@ -8,8 +8,6 @@ import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { SidebarTab, NodeKind } from '@/types';
-import type { PickTarget, TreeNode } from '@/types';
 import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
@@ -19,6 +17,9 @@ import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
+import { NodeKind, TreeNode } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
+import { SidebarTab } from '@/types/ui';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

@@ -24,6 +24,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3"
   },

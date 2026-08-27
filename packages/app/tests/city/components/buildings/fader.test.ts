@@ -12,8 +12,16 @@ import { createTestCityResources } from '../../../_helpers/cityResources';
 const _res = createTestCityResources();
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { FadeDetail, NodeKind } from '@/types';
-import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
+import {
+  Building,
+  CityLayout,
+  DirNode,
+  FadeDetail,
+  FileNode,
+  NodeKind,
+  Street,
+} from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 const _originalFade = BUILDINGS.value;
 

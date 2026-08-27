@@ -5,8 +5,6 @@
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { CommitEntry, SourceRef } from '@/types';
 import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
@@ -16,6 +14,7 @@ import { commitUrl } from '@/utils/remoteUrls';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { API } from '@/apiClient';
+import { CommitEntry, NodeKind, SourceRef } from '@codecity/city';
 
 const SHORT_SHA_LEN = 7;
 

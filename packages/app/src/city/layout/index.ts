@@ -12,7 +12,7 @@ import type { GemSizingConfig } from '@/state/settings/fields/gem';
 import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';
-import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
+import type { CityLayout, FileNode, Manifest, TreeNode } from '@codecity/city';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;

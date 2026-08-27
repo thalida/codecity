@@ -2,8 +2,8 @@
 // floor mesh and the tree scatter so they cannot drift apart. Centred on the
 // bbox rather than the gem, so a gem at one edge still gets even tree coverage.
 // A missing bbox falls back to a small rectangle at the origin.
-import type { CityBbox } from '@/types';
 import { WORLD } from '@/state/settings/fields/island';
+import type { CityBbox } from '@codecity/city';
 
 /** Fallback half-extent when no bbox is available (pre-layout,
  *  non-git smoke tests). Keeps the floor visible at the origin. */

@@ -5,14 +5,13 @@ import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
-import { NodeKind } from '@/types';
-import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { focusPath, focusCommit } from '@/city/sceneHandle';
 import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
+import { DirNode, Manifest, NodeKind } from '@codecity/city';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.

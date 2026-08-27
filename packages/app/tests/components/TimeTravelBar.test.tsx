@@ -13,8 +13,8 @@ import {
 } from '@/state/stores/timeline';
 import { parseDateMs } from '@/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
-import type { TimelineBundle } from '@/types';
 import { commits as buildCommits } from '../_helpers/commits';
+import type { TimelineBundle } from '@codecity/city';
 
 const [old, mid, head] = buildCommits(
   { date: '2026-01-01', files: 1, subject: 'oldest', authors: ['Someone'] },

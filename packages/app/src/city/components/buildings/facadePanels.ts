@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { untracked } from '@preact/signals';
-import { BuildingOrient, type SourceRef } from '@/types/index';
+import { BuildingOrient, type SourceRef } from '@codecity/city';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
@@ -22,7 +22,7 @@ import {
   scrubbedBlobShaFor,
 } from '@/state/stores/timeline';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
-import type { Building } from '@/types/index';
+import type { Building } from '@codecity/city';
 
 import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';

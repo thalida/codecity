@@ -3,8 +3,6 @@
 // tree could have drifted apart without a test noticing.
 
 import { afterEach, expect, test } from 'vitest';
-import { NodeKind } from '@/types';
-import type { TimelineBundle, TreeNode } from '@/types';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -17,6 +15,7 @@ import {
 } from '@/state/stores/timeline';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
+import { NodeKind, TimelineBundle, TreeNode } from '@codecity/city';
 
 function paths(m: unknown): Set<string> {
   const out = new Set<string>();

@@ -9,9 +9,9 @@ import { isDebugMode } from '@/utils/debugMode';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
-import type { Manifest } from '@/types';
 
 import { SHOTS, type ShotOverrides } from './shots';
+import type { Manifest } from '@codecity/city';
 
 // Camera tween + bloom ramp + ad-panel texture fades all settle well under this.
 const SETTLE_MS = 2200;

@@ -13,12 +13,12 @@ import { readUrlView } from '@/router/viewParams';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS, EXCLUDES, addExclude } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
+import type { TimelineBundle } from '@codecity/city';
 
 describe('useManifestSource loadSource cancellation', () => {
   let restoreEventSource: () => void;

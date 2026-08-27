@@ -4,8 +4,6 @@
 
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
@@ -20,6 +18,7 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';
 import { ROOT_PATH } from '@/constants/manifest';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
+import { DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 

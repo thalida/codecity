@@ -36,10 +36,9 @@ import {
 } from '@/state/stores/timeline';
 import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
-import { NodeKind } from '@/types';
-import type { Manifest } from '@/types';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
+import { Manifest, NodeKind } from '@codecity/city';
 
 const SRC = '/repos/codecity';
 // A loaded manifest, repo and all: commitSource reads it the way the header does.

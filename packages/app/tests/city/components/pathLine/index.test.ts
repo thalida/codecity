@@ -11,9 +11,8 @@ import { createCityState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
+import { CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

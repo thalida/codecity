@@ -13,8 +13,7 @@ import {
 } from '@/city/components/streets/scrubState';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/settings/fields/streets';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import { CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

@@ -2,10 +2,9 @@
 // server-computed leaders in manifest.stats. This file decides what to show and
 // OverviewTab renders it; landmark facts carry the key to fly the camera.
 
-import { NodeKind } from '@/types';
-import type { Manifest, DirNode, FileLeader, DirLeader, CommitLeader } from '@/types';
 import { formatShortDate } from '@/utils/dates';
 import { formatBytes, formatCount, pluralize } from '@/utils/format';
+import { CommitLeader, DirLeader, DirNode, FileLeader, Manifest, NodeKind } from '@codecity/city';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;
 

@@ -1,8 +1,6 @@
+import { CityBbox, CityLayout, CommitEntry, NodeKind, RepoStats } from '@codecity/city';
 // The deterministic generators behind the bench and golden suites. The digests
 // depend on them byte for byte, so a change here means recapturing a golden.
-
-import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, CommitEntry, RepoStats } from '@/types';
 
 /** Deterministic LCG so tree shape (and thus digests/timings) reproduce. */
 export function makeRng(seed: number): () => number {

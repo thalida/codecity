@@ -5,10 +5,10 @@
 import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
-import { NodeKind } from '@/types';
 import { SCENE_HANDLE, clearSelection } from '@/city/sceneHandle';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
+import { NodeKind } from '@codecity/city';
 
 /** What the chip names: the node's own label, plus the kind badge its pane
  *  header would have carried. */

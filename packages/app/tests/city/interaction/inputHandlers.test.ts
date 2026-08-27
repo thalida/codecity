@@ -7,7 +7,6 @@ import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { NodeKind } from '@/types';
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
@@ -20,6 +19,7 @@ vi.mock('@/city/render/postFx', async () =>
 );
 
 import { createCity } from '@/city/index';
+import { NodeKind } from '@codecity/city';
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

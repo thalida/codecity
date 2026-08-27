@@ -11,7 +11,6 @@ import { BLOOM } from '@/state/settings/fields/effects';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
-import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -30,6 +29,13 @@ import { createBuildingTweens } from './tween';
 import { createBuildingScrubApply } from './scrubApply';
 import type { BuildingScrubState } from './scrubState';
 import { parseDateMs } from '@/utils/dates';
+import type {
+  Building,
+  CityLayout,
+  DateRanges,
+  EnteringBuilding,
+  StayingBuilding,
+} from '@codecity/city';
 
 /** The diff rebuild() computes against the prior cells and feeds to the tween
  *  queue. No exiting bucket: nothing animates on the way out. */

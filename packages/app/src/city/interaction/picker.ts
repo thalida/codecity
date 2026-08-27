@@ -5,14 +5,14 @@
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
-import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
-import type { CommitEntry, PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
+import { CommitEntry, NodeKind } from '@codecity/city';
+import { PickTarget, PickerSelectionKey, PickerWorld } from '@/types/picker';
 
 // In-memory selection key. Reset to null on a fresh load; survives in-session
 // world rebuilds via the re-resolution below. Never written to localStorage.

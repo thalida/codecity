@@ -7,11 +7,10 @@ import * as THREE from 'three';
 import { GEM, GEM_SIZING, type GemSizingConfig } from '@/state/settings/fields/gem';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { BYTE_MAX } from '@/city/utils/bufferLayout';
-import { NodeKind } from '@/types';
 import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
-import type { Street } from '@/types';
+import { NodeKind, Street } from '@codecity/city';
 
 // Hover-lift as a fraction of street width — fixed, not user-tunable;
 // index.ts recomputes baseY from it on Save.

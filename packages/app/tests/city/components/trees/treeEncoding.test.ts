@@ -17,10 +17,10 @@ import {
   type SizeRange,
 } from '@/city/components/trees/treeEncoding';
 import type { TreesConfig } from '@/state/settings/fields/trees';
-import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { epochDay } from '@/utils/dates';
+import type { CommitEntry } from '@codecity/city';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },

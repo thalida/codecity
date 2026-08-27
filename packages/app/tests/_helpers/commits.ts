@@ -1,3 +1,4 @@
+import type { CommitEntry } from '@codecity/city';
 // Test helper: build CommitEntry[] from terse `{date, files}` literals.
 // Tests use this so per-test fixtures stay focused on the fields each
 // case exercises (date + files) without re-stating the type shape.
@@ -8,8 +9,6 @@
 // passed entries — mirroring the backend's _annotate_same_day_totals — so the
 // tree-color tests that pass multiple `{date}` literals get the per-day counts
 // they exercise without hand-stating them. Callers can override per entry.
-
-import type { CommitEntry } from '@/types';
 
 export function commits(
   ...entries: (Omit<CommitEntry, 'sha' | 'authors' | 'subject' | 'same_day_total'> & {

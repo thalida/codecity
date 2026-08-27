@@ -10,9 +10,9 @@ import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createBuildingTweens } from '@/city/components/buildings/tween';
 import { building } from '../../../_helpers/buildingFixture';
-import type { Building } from '@/types';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
+import type { Building } from '@codecity/city';
 
 const _res = createTestCityResources();
 

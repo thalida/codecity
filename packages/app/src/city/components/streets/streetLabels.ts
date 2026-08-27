@@ -8,8 +8,7 @@ import { STREETS } from '@/state/settings/fields/streets';
 import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/city/constants/streets';
 import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { NodeKind, StreetAxis } from '@/types';
-import type { Street } from '@/types';
+import { NodeKind, Street, StreetAxis } from '@codecity/city';
 
 // Hardcoded label constants — these have no visible effect at normal viewing
 // distances, so they are baked in here rather than exposed as UI controls.

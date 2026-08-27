@@ -10,7 +10,7 @@ import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
-import type { Building, SourceRef } from '@/types/index';
+import type { Building, SourceRef } from '@codecity/city';
 import type { CityResources } from '@/city/resources';
 
 export interface CellAssemblyOutput {

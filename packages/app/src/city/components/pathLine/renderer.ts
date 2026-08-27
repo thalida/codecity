@@ -11,12 +11,12 @@ import { STREETS, STREET_TIERS } from '@/state/settings/fields/streets';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { NodeKind } from '@/types';
 import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CityState } from '@/city/state';
+import { NodeKind } from '@codecity/city';
 
 /** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
  *  stays proportional to the streets at any zoom (worldUnits: false). */

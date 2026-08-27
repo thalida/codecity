@@ -9,8 +9,6 @@ import { effect, untracked } from '@preact/signals';
 import { STREETS } from '@/state/settings/fields/streets';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -25,6 +23,7 @@ import { createStreetLabels, disposeStreetLabelResources } from './streetLabels'
 import { RUINED_STREET_DIRS } from './scrubState';
 import type { StreetScrubState } from './scrubState';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
+import { CityLayout, NodeKind, Street, StreetAxis } from '@codecity/city';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 

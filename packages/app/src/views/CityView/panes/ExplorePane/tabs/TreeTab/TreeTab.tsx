@@ -7,11 +7,10 @@ import './TreeTab.css';
 import { effect, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
-import { NodeKind } from '@/types';
-import type { DirNode, Manifest, TreeNode } from '@/types';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
+import { DirNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

@@ -3,13 +3,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
-import type { CityLayout } from '@/types';
 import {
   makeRng,
   genWeightedTree,
   makeDigestHasher,
   statsFromTree,
 } from '../../_helpers/layoutTreeFixtures';
+import type { CityLayout } from '@codecity/city';
 
 // Digest: round every coordinate to 4 decimals (below the layout's OVERLAP_EPS)
 // and roll buildings + streets into a 32-bit hash.

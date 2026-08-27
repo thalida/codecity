@@ -23,7 +23,7 @@ vi.mock('@/state/settings/fields/streets', () => ({
 }));
 
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
-import { NodeKind } from '@/types';
+import { NodeKind } from '@codecity/city';
 
 let container: HTMLDivElement;
 

@@ -51,9 +51,8 @@ import {
   setTimelineRefreshHandler,
   setTimelineBootHandler,
 } from '@/hooks/useManifestSource';
-import { TimelineStage } from '@/types';
-import type { Manifest, TimelineBundle, TimelineProgress } from '@/types';
 import { API } from '@/apiClient';
+import { Manifest, TimelineBundle, TimelineProgress, TimelineStage } from '@codecity/city';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */

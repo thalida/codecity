@@ -9,7 +9,6 @@ import { effect } from '@preact/signals';
 import { FOOTPRINT } from '@/state/settings/fields/footprint';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
 import type { Rect } from '@/city/layout/rect';
@@ -20,6 +19,7 @@ import { BuildingLane } from '../buildings/scrubState';
 import type { ScrubStates } from '@/city/timeline/scrubPass';
 import FOOTPRINT_VERT from './footprint.vert.glsl?raw';
 import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
+import type { CityLayout } from '@codecity/city';
 
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {

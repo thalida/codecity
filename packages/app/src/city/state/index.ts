@@ -13,8 +13,6 @@ import {
   setBuildStagePercent,
 } from '@/state/stores/progress';
 import { BuildStage } from '@/constants/progress';
-import { StreetAxis } from '@/types';
-import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
 import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
@@ -23,6 +21,7 @@ import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import type { createLayoutClient } from '../layout';
 import type { CityResources } from '../resources';
+import { Building, CityBbox, CityLayout, Manifest, Street, StreetAxis } from '@codecity/city';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;

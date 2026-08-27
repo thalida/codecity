@@ -20,8 +20,8 @@ import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
-import { NodeKind, StreetAxis } from '@/types';
 import { createTestCityResources } from '../../../_helpers/cityResources';
+import { NodeKind, StreetAxis } from '@codecity/city';
 
 const SHA_A = 'a'.repeat(40);
 

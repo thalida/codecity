@@ -3,7 +3,6 @@
 // field. A placement carries no size, so the canopy it orbits is derived through
 // treeEncoding, the same functions the renderer builds the tree from.
 
-import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/settings/fields/trees';
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
@@ -14,6 +13,7 @@ import {
   treeRadius,
 } from '@/city/components/trees/treeEncoding';
 import { colorForAuthor, lightColorForAuthor } from './authorColor';
+import type { CommitEntry, RepoStats } from '@codecity/city';
 
 export interface FireflyPlacement {
   /** Orbit center, world X. */

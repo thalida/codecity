@@ -13,11 +13,11 @@ import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { SCENE } from '@/state/settings/fields/scene';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { NodeKind } from '@/types';
-import type { Building, CityLayout, DateRanges, FileTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
+import { Building, CityLayout, DateRanges, NodeKind } from '@codecity/city';
+import { FileTarget } from '@/types/picker';
 
 const _origBuildings = BUILDINGS.value;
 const _origScene = SCENE.value;

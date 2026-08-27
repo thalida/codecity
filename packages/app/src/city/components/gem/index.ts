@@ -8,14 +8,13 @@ import { effect, untracked } from '@preact/signals';
 
 import { GEM } from '@/state/settings/fields/gem';
 import { BLOOM } from '@/state/settings/fields/effects';
-import { NodeKind } from '@/types';
-import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
+import { NodeKind, Street } from '@codecity/city';
 
 // Cycle a Color in place through the palette (one loop per `period`
 // seconds); `offset` phases multiple halos apart without allocating.

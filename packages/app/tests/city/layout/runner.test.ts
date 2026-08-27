@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/city/layout';
-import { NodeKind } from '@/types';
-import type { Manifest, FileNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '../../_helpers/manifestFixtures';
+import { FileNode, Manifest, NodeKind, RepoStats } from '@codecity/city';
 
 function makeMinimalManifest(): Manifest {
   return {

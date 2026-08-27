@@ -1,6 +1,5 @@
+import type { CityLayout } from '@codecity/city';
 // city/layout/profiling.ts — opt-in per-phase profiler for the layout packer.
-
-import type { CityLayout } from '@/types';
 
 // ─── Profiling ───────────────────────────────────────────────────────────────
 // Off by default; the _profEnabled guard keeps production cost to one branch per

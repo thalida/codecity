@@ -8,7 +8,7 @@ import {
   StreetTint,
   type StreetRollup,
 } from '@/city/components/streets/scrubState';
-import type { Street } from '@/types';
+import type { Street } from '@codecity/city';
 
 const street = (isRoot = false) => ({ isRoot, dir: { path: 'src' } }) as unknown as Street;
 

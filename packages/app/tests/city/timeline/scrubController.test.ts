@@ -14,7 +14,6 @@ import type { StreetScrubState } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import type { PickTarget, RangeStat, Street } from '@/types';
 import {
   BYTE_STATS,
   LINE_STATS,
@@ -22,6 +21,8 @@ import {
   makeBuilding,
   makeFile,
 } from '../../_helpers/scrub';
+import type { RangeStat, Street } from '@codecity/city';
+import type { PickTarget } from '@/types/picker';
 
 afterEach(() => {
   TIMELINE_BUNDLE.value = null;

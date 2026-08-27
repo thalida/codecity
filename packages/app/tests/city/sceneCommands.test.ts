@@ -15,8 +15,8 @@ import {
 } from '@/city/sceneHandle';
 import { FocusMode } from '@/city/render/cameraRig';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
-import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types';
+import { NodeKind } from '@codecity/city';
+import { PickTarget } from '@/types/picker';
 
 const FILE_TARGET = {
   kind: NodeKind.File,

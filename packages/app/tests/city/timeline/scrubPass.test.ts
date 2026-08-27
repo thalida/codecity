@@ -9,8 +9,8 @@ import { createScrubPass } from '@/city/timeline/scrubPass';
 import { StreetTint } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import type { Street, TimelineBundle } from '@/types';
 import { makeBuilding, makeBundle, makeFile, makeScrubFrame } from '../../_helpers/scrub';
+import type { Street, TimelineBundle } from '@codecity/city';
 
 const street = (path: string, over: Partial<Street> = {}): Street =>
   ({ dir: { path }, ...over }) as unknown as Street;

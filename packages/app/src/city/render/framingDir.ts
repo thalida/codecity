@@ -4,7 +4,7 @@
 // unit-testable without the rig/canvas.
 
 import * as THREE from 'three';
-import { StreetAxis } from '@/types';
+import { StreetAxis } from '@codecity/city';
 
 const DEG2RAD = Math.PI / 180;
 
