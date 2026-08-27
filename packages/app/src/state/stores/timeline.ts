@@ -4,8 +4,8 @@
 // resetting the mode moves it, so splitting them would make the two files cyclic.
 
 import { signal, batch, computed, effect, type ReadonlySignal } from '@preact/signals';
-import { parseDateMs, epochDayAt } from '@/utils/dates';
-import { findNodeByPath } from '@/utils/manifest';
+import { parseDateMs, epochDayAt } from '@codecity/city';
+import { findNodeByPath } from '@codecity/city';
 import { MANIFEST, type ManifestValue } from './manifest';
 import {
   buildPathTimelines,

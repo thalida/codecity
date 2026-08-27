@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { signal, type Signal } from '@preact/signals';
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
-import { ROOT_PATH } from '@/constants/manifest';
+import { ROOT_PATH } from '@codecity/city';
 import { flush } from '../../../_helpers/preact';
 import { DirNode, ExtBreakdownEntry, FileNode, NodeKind } from '@codecity/city';
 

@@ -5,7 +5,7 @@
 
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { recencyT } from '@/city/utils/recency';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import { DateRanges, NodeKind } from '@codecity/city';
 
 // created/modified stay optional so a sparse mock still reaches the no-date

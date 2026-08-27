@@ -2,7 +2,7 @@
 // with its ordinal, and dates parse through utils/dates, the same rule the
 // labels print by, so the handle's day is the day the axis names.
 
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 
 export interface ScrubberScale {
   /** Commit date ms, index-aligned, clamped non-decreasing. A trailing entry

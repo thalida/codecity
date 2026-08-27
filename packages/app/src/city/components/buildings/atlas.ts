@@ -19,8 +19,8 @@
 // icon" until the next reload.
 
 import * as THREE from 'three';
-import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
-import { getFileIconName } from '@/utils/fileIcons';
+import { MATERIAL_ICON_URLS } from '@codecity/city';
+import { getFileIconName } from '@codecity/city';
 import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
 
 // Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique icons.

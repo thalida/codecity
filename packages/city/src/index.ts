@@ -33,3 +33,17 @@ export * from './types/street';
 export * from './types/scene';
 export * from './types/animation';
 export type { components, paths, operations } from './types/manifest.generated';
+
+// ── Utilities and constants the layout builds from ───────────────────────
+// The app imports these back: a badge and a building have to agree on what
+// kind a file is, and on which day a commit landed.
+export * from './utils/fileKind';
+export * from './utils/fileIcons';
+export * from './utils/manifest';
+export * from './utils/dates';
+export * from './constants/fileExtensions';
+export * from './constants/fileIconMap';
+export * from './constants/materialIcons';
+export * from './constants/buildings';
+export * from './constants/gem';
+export * from './constants/manifest';

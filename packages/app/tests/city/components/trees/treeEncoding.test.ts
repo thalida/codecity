@@ -19,7 +19,7 @@ import {
 import type { TreesConfig } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import { epochDay } from '@/utils/dates';
+import { epochDay } from '@codecity/city';
 import type { CommitEntry } from '@codecity/city';
 
 const commits: CommitEntry[] = buildCommits(

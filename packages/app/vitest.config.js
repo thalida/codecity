@@ -21,6 +21,13 @@ export default defineConfig({
       '@codecity/city': resolve(appDir, '../city/src/index.ts'),
     },
   },
+  server: {
+    fs: {
+      // @codecity/city is a sibling directory, outside this root, and it now
+      // resolves assets out of its own node_modules.
+      allow: [appDir, resolve(appDir, '../city')],
+    },
+  },
   test: {
     projects: [
       {

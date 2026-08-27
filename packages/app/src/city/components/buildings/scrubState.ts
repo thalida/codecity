@@ -2,7 +2,7 @@
 // decision table is exercisable without a scene; scrubApply.ts does the writes.
 
 import { getBuildingDimensions } from '@/city/layout/dimensions';
-import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/utils/fileKind';
+import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@codecity/city';
 import type { PathTimeline } from '@/city/timeline/replay';
 import {
   PathState,
@@ -16,7 +16,7 @@ import { recencyT } from '@/city/utils/recency';
 import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import { Building, FadeDetail, FileNode } from '@codecity/city';
 
 /** PathState read through the ruin settings.

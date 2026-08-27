@@ -20,13 +20,7 @@ export enum PreviewKind {
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
-import {
-  IMAGE_EXTS,
-  VIDEO_EXTS,
-  AUDIO_EXTS,
-  PDF_EXTS,
-  FONT_EXTS,
-} from '@/constants/fileExtensions';
+import { IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS, PDF_EXTS, FONT_EXTS } from '@codecity/city';
 import {
   FileWarning,
   FileX,
@@ -44,7 +38,7 @@ import { nodeUrl } from '@/utils/remoteUrls';
 import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
-import { isDataBuilding } from '@/utils/fileKind';
+import { isDataBuilding } from '@codecity/city';
 import { ContentPendingError } from '@codecity/city';
 import { API } from '@/apiClient';
 import type { FileNode, SourceRef } from '@codecity/city';

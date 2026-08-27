@@ -11,7 +11,7 @@ import {
   setScrubPos,
   setTodayMs,
 } from '@/state/stores/timeline';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import { flush, drainAsync } from '../_helpers/preact';
 import { commits as buildCommits } from '../_helpers/commits';
 import type { TimelineBundle } from '@codecity/city';

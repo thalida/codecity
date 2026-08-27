@@ -39,7 +39,6 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.6.0",
     "jsdom": "^29.0.2",
-    "material-icon-theme": "^5.30.0",
     "playwright": "^1.49.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",

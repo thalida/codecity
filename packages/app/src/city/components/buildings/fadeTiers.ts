@@ -3,7 +3,7 @@
 // same way whether or not you are time-travelling.
 import type { BuildingsConfig } from '@/state/settings/fields/buildings';
 import { parentDirPath } from '@/city/utils/path';
-import { ROOT_PATH } from '@/constants/manifest';
+import { ROOT_PATH } from '@codecity/city';
 import { DirNode, FadeDetail, FileNode, NodeKind, Street } from '@codecity/city';
 import { PickTarget } from '@/types/picker';
 

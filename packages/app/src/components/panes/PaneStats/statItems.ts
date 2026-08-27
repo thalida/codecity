@@ -2,7 +2,8 @@
 // panes hand to <PaneStats>. Pure: the caller supplies the node, so the same
 // formatting rules serve both panes without either reaching for the picker.
 
-import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
+import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { scrubbedStatsFor } from '@/state/stores/timeline';

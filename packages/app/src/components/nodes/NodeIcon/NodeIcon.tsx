@@ -3,8 +3,8 @@
 // information: these are full-colour brand glyphs, so they cannot take
 // currentColor. The browser caches per URL, so N files cost K unique fetches.
 import './NodeIcon.css';
-import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
-import { getFileIconName, getFolderIconName } from '@/utils/fileIcons';
+import { MATERIAL_ICON_URLS } from '@codecity/city';
+import { getFileIconName, getFolderIconName } from '@codecity/city';
 import { DirNode, FileNode, NodeKind, TreeNode } from '@codecity/city';
 
 export interface NodeIconProps {

@@ -7,7 +7,7 @@ import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedFacadePanels } from './facadePanels';
-import { isMediaFile, isDataBuilding, isEmptyFile } from '@/utils/fileKind';
+import { isMediaFile, isDataBuilding, isEmptyFile } from '@codecity/city';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building, SourceRef } from '@codecity/city';

@@ -8,9 +8,9 @@ import { untracked } from '@preact/signals';
 import { BuildingOrient, type SourceRef } from '@codecity/city';
 import { BLOOM } from '@/state/settings/fields/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
-import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
+import { MEDIA_ERROR_COLOR } from '@codecity/city';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { mediaKindOf, MediaKind, isDataBuilding } from '@/utils/fileKind';
+import { mediaKindOf, MediaKind, isDataBuilding } from '@codecity/city';
 import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,

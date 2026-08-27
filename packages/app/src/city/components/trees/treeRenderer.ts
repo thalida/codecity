@@ -26,7 +26,7 @@ import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/city/constants/lighting';
-import { epochDay, epochDayAt } from '@/utils/dates';
+import { epochDay, epochDayAt } from '@codecity/city';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@codecity/city';
 
 export interface Trees {

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 
 import { GEM_SHAPES, buildGemGeometry } from '@/city/components/gem/shapes';
-import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/constants/gem';
+import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@codecity/city';
 import { GEM } from '@/state/settings/fields/gem';
 import { getFieldDef } from '@/state/settings/schema';
 

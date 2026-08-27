@@ -8,7 +8,7 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../../_helpers/commits';
 import { renderTrees } from '../../../_helpers/renderTrees';
-import { epochDay, parseDateMs } from '@/utils/dates';
+import { epochDay, parseDateMs } from '@codecity/city';
 
 function resetStores() {
   TREES.value = {

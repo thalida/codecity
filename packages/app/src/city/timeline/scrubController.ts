@@ -10,7 +10,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import type { RangeStat, Street } from '@codecity/city';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both

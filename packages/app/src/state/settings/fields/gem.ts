@@ -11,7 +11,7 @@ import {
   type FieldMap,
 } from '@/state/settings/schema';
 import { oklchToHex } from '@/city/utils/color/colors';
-import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/constants/gem';
+import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@codecity/city';
 
 // Default face palette: an OKLCH rainbow (perceptually uniform) at 8 evenly
 // spaced hues — fixed lightness + chroma. The gem cycles faces[i % 8].

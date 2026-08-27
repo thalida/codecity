@@ -1,7 +1,7 @@
 // A structurally valid but empty Manifest, for tests that need the shape rather
 // than the data. Not production state: "nothing loaded" there is a null MANIFEST.
 
-import { ROOT_PATH } from '@/constants/manifest';
+import { ROOT_PATH } from '@codecity/city';
 import { Manifest, NodeKind, RepoStats, SourceRef } from '@codecity/city';
 
 export const EMPTY_REPO_STATS: RepoStats = {

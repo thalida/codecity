@@ -9,7 +9,7 @@ import { TREES } from '@/state/settings/fields/trees';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { resetTreesConfig, treePlacement } from '../../../_helpers/cityFixtures';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 
 // Ada commits three times, Grace once, so their orbs differ at HEAD and Ada's
 // grows across the run while Grace's appears at the end.

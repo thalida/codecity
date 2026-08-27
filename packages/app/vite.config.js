@@ -27,6 +27,11 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    fs: {
+      // @codecity/city is a sibling directory, outside this root, and it now
+      // resolves assets out of its own node_modules.
+      allow: [appDir, resolve(appDir, '../city')],
+    },
     // Bind in container (0.0.0.0) so the host can reach the dev server
     // via the published port. Was '::1' which is host-only.
     host: '0.0.0.0',

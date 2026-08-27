@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findNodeByPath } from '@/utils/manifest';
+import { findNodeByPath } from '@codecity/city';
 import { NodeKind } from '@codecity/city';
 
 const manifest = {

@@ -5,7 +5,7 @@ services:
     image: node:24-bookworm-slim
     working_dir: /app
     # npm pinned to the version both lockfiles were generated with (see .env).
-    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && (cd /city && npm ci) && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
     ports:
       # `just dev` picks a free port per worktree; 5173 covers ad-hoc runs.
       - '${VITE_HOST_PORT:-5173}:5173'

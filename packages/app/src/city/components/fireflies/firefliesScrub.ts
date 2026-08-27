@@ -12,7 +12,7 @@ import {
   treeRadius,
   type AgeRange,
 } from '@/city/components/trees/treeEncoding';
-import { epochDayAt } from '@/utils/dates';
+import { epochDayAt } from '@codecity/city';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
 import type { CommitEntry, RepoStats } from '@codecity/city';
 

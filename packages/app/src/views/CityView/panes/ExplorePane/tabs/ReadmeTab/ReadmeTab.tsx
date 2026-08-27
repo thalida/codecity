@@ -10,7 +10,7 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { sourceOf } from '@/utils/manifest';
+import { sourceOf } from '@codecity/city';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import {
   resolveReadmeAssetUrl,

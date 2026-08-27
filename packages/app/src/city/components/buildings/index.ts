@@ -20,7 +20,7 @@ import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import { sourceOf } from '@/utils/manifest';
+import { sourceOf } from '@codecity/city';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
@@ -28,7 +28,7 @@ import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 import { createBuildingScrubApply } from './scrubApply';
 import type { BuildingScrubState } from './scrubState';
-import { parseDateMs } from '@/utils/dates';
+import { parseDateMs } from '@codecity/city';
 import type {
   Building,
   CityLayout,

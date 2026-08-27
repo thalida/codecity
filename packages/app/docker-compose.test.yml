@@ -7,7 +7,7 @@ services:
     # libexpat1 + fonts: jsdom delegates getContext('2d') to node-canvas, and
     # labelAtlas pagination asserts on real text widths. npm ci retries because
     # canvas's prebuilt download flakes into a gyp build this image can't do.
-    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (cd /city && npm ci) && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
     volumes:
       # Not :ro — Docker can't mkdir the node_modules mountpoint under a
       # read-only parent on a fresh checkout. The tests never write to source.

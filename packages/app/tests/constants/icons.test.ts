@@ -2,14 +2,8 @@
 // lookup map ships an undefined URL and a blank glyph.
 
 import { describe, it, expect } from 'vitest';
-import {
-  EXT_ICON,
-  NAME_ICON,
-  FOLDER_ICON,
-  GENERIC_FILE,
-  GENERIC_FOLDER,
-} from '@/constants/fileIconMap';
-import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
+import { EXT_ICON, NAME_ICON, FOLDER_ICON, GENERIC_FILE, GENERIC_FOLDER } from '@codecity/city';
+import { MATERIAL_ICON_URLS } from '@codecity/city';
 
 describe('material icons: every resolvable name is bundled', () => {
   const folders = [...Object.values(FOLDER_ICON), GENERIC_FOLDER];

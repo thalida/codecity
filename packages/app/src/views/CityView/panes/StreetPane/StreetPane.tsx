@@ -16,7 +16,7 @@ import { nodeUrl } from '@/utils/remoteUrls';
 import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';
-import { ROOT_PATH } from '@/constants/manifest';
+import { ROOT_PATH } from '@codecity/city';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 import { DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
 

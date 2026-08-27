@@ -10,7 +10,9 @@ WORKDIR /build/app
 COPY packages/app/package.json packages/app/package-lock.json ./
 # The app links @codecity/city via `file:../city`, so npm needs that manifest
 # first. .npmrc rides along: legacy-peer-deps for openapi-typescript's peer range.
-COPY packages/city/package.json packages/city/.npmrc /build/city/
+COPY packages/city/package.json packages/city/package-lock.json packages/city/.npmrc /build/city/
+RUN --mount=type=cache,target=/root/.npm \
+    cd /build/city && npm ci --no-audit --no-fund
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
 COPY packages/city/ /build/city/

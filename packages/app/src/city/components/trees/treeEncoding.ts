@@ -5,7 +5,7 @@
 
 import type { TreesConfig } from '@/state/settings/fields/trees';
 import { recencyT } from '@/city/utils/recency';
-import { epochDay } from '@/utils/dates';
+import { epochDay } from '@codecity/city';
 import type { BusynessThresholds, CommitEntry, RepoStats } from '@codecity/city';
 
 export interface AgeRange {

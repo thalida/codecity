@@ -19,9 +19,9 @@ import {
   scrubbedDirFor,
 } from '@/state/stores/timeline';
 import { SOURCE_INFO, addExclude } from '@/state/stores/source';
-import { ROOT_PATH } from '@/constants/manifest';
+import { ROOT_PATH } from '@codecity/city';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { findNodeByPath, sourceOf } from '@/utils/manifest';
+import { findNodeByPath, sourceOf } from '@codecity/city';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
