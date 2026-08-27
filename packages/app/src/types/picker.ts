@@ -1,5 +1,12 @@
 // types/picker.ts — selection / hover state shapes used by the
 // raycaster and consumed by every selection-driven renderer.
+//
+// TEMPORARY HOME. This belongs in @codecity/city and moves there in step 10 of
+// #208, in the same commit as src/city/. It cannot go first: every shape below
+// carries a real THREE.Mesh, so moving it alone puts a second copy of
+// @types/three in the tree and the app's Mesh stops being assignable to the
+// package's. The two imports below point back at the meshes it describes —
+// when they cross, so does this.
 
 import type * as THREE from 'three';
 import type { Building, CommitEntry, DirNode, FileNode, NodeKind, Street } from '@codecity/city';
