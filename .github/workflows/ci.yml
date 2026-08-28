@@ -78,6 +78,11 @@ jobs:
           docker compose -f docker-compose.test.yml run --rm vitest \
             sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run coverage"
 
+      - name: Run the city's vitest with coverage
+        run: |
+          docker compose -f docker-compose.test.yml run --rm city-vitest \
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
+
       - name: Upload pytest coverage report
         if: always()
         uses: actions/upload-artifact@v7
@@ -92,6 +97,14 @@ jobs:
         with:
           name: vitest-coverage
           path: packages/app/coverage/
+          if-no-files-found: warn
+
+      - name: Upload city vitest coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: city-vitest-coverage
+          path: packages/city/coverage/
           if-no-files-found: warn
 
       - name: Lint + typecheck

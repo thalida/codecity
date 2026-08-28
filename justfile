@@ -96,13 +96,16 @@ reset-dev *args='':
     @just dev {{args}}
 
 # ── Tests ────────────────────────────────────────────────────────
-test: test-api test-app
+test: test-api test-city test-app
 
 test-api:
     docker compose -f docker-compose.test.yml run --rm pytest
 
 test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
+
+test-city:
+    docker compose -f docker-compose.test.yml run --rm city-vitest
 
 # ── Format / lint / typecheck ────────────────────────────────────
 # Runs locally (like `gen-types`) so reformatted files stay owned by you, not

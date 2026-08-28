@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# vitest coverage report output
+coverage/

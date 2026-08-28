@@ -4,7 +4,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { signal } from '@preact/signals';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
@@ -26,7 +25,6 @@ const FILE: FileNode = {
 };
 
 function makeHandle() {
-  const selection = signal<PickTarget | null>(null);
   // The chip RENDERS off the app's view of the selection and CLEARS through the
   // handle, so the double keeps both in step the way attachCityChrome does.
   return {

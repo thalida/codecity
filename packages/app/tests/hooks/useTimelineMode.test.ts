@@ -25,9 +25,9 @@ import {
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
-import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
+import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import { StubEventSource, installEventSource } from '../_helpers/eventSource';
+import { StubEventSource, installEventSource } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { API } from '@/apiClient';

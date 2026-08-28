@@ -22,7 +22,7 @@ import {
   setTimelineBundle,
 } from '@/state/stores/timeline';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
-import { StubEventSource, installEventSource } from '../_helpers/eventSource';
+import { StubEventSource, installEventSource } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';

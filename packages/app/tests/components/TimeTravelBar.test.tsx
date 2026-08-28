@@ -15,7 +15,7 @@ import {
 } from '@/state/stores/timeline';
 import { parseDateMs } from '@/city/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
-import { commits as buildCommits } from '../_helpers/commits';
+import { commits as buildCommits } from '@codecity/city/testing';
 import type { TimelineBundle } from '@/city/types/timeline';
 
 const [old, mid, head] = buildCommits(

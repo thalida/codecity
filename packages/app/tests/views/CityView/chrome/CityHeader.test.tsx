@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
+import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush } from '../../../_helpers/preact';
 import { popoverPanel } from '../../../_helpers/popover';
 import type { Manifest } from '@/city/types/manifest';

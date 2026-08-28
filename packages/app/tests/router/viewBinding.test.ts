@@ -34,7 +34,7 @@ import {
   setTimelineBundle,
   setTodayMs,
 } from '@/state/stores/timeline';
-import { makeCommitBundle } from '../_helpers/scrub';
+import { makeCommitBundle } from '@codecity/city/testing';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';

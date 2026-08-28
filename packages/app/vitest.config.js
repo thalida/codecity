@@ -23,7 +23,19 @@ export default defineConfig({
       // @codecity/city ships TypeScript source, not a build, for as long as the
       // extraction is in flight (#208). Vite will not process TS inside
       // node_modules, so resolve the workspace link to the source directly.
-      { find: '@codecity/city', replacement: resolve(appDir, '../city/src/index.ts') },
+      // Anchored: a bare string find is a prefix match, and would rewrite the
+      // /testing subpath into a path under index.ts.
+      // The renderer stubs resolve on their own, ahead of the barrel: a
+      // vi.mock('three') factory awaiting the barrel would wait on three.
+      {
+        find: /^@codecity\/city\/testing\/three$/,
+        replacement: resolve(appDir, '../city/tests/_helpers/threeMock.ts'),
+      },
+      {
+        find: /^@codecity\/city\/testing$/,
+        replacement: resolve(appDir, '../city/tests/index.ts'),
+      },
+      { find: /^@codecity\/city$/, replacement: resolve(appDir, '../city/src/index.ts') },
       // three lives in the package now. The app's own tests still import it, so
       // point them at that one copy rather than installing a second.
       // `three/addons/*` is an exports-map alias for examples/jsm; aliasing the

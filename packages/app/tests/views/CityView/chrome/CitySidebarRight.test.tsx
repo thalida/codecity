@@ -1,17 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
 import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
-import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
+import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush, drainAsync } from '../../../_helpers/preact';
 import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
-import { fakePicker } from '../../../_helpers/cityFixtures';
+import { fakePicker } from '@codecity/city/testing';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -58,12 +57,10 @@ function manifestWithDir(dir: DirNode): Manifest {
   };
 }
 
-// The bridge subscribes to selection and world changes, so both have to be
-// live signals here for the component to see anything.
+// The bridge reports selection and world changes onto the app's own signals,
+// which is what the component renders off.
 function makeSceneHandle() {
   const picker = fakePicker();
-  const selection = signal<PickTarget | null>(null);
-  const hover = signal<PickTarget | null>(null);
   return {
     world: {
       getManifest() {

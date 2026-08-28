@@ -4,7 +4,7 @@ import {
   isDeletedTarget,
   middleTruncatePath,
 } from '@/components/CityTooltip/tooltipContent';
-import { commits as buildCommits } from '../../_helpers/commits';
+import { commits as buildCommits } from '@codecity/city/testing';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
 

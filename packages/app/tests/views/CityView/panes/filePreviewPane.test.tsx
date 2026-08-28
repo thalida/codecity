@@ -11,8 +11,8 @@ import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPan
 // A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
 // rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../../../_helpers/preact';
-import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
-import { makeBundle } from '../../../_helpers/scrub';
+import { TEST_SOURCE } from '@codecity/city/testing';
+import { makeBundle } from '@codecity/city/testing';
 import {
   beginTimelineMode,
   resetTimelineMode,

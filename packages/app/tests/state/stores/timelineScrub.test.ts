@@ -15,7 +15,7 @@ import {
   setTimelineBundle,
 } from '@/state/stores/timeline';
 import { RUINS } from '@/state/settings/fields/ruins';
-import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
+import { makeBundle, PRESENCE_BUNDLE } from '@codecity/city/testing';
 import { NodeKind, TreeNode } from '@/city/types/manifest';
 import { TimelineBundle } from '@/city/types/timeline';
 

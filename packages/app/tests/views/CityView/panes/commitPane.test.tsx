@@ -6,9 +6,9 @@ import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPa
 // Settling this render crosses two schedulers, the fetch chain and Preact, so
 // drainAsync alternates microtask and macrotask yields to cover both.
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
-import { commits as buildCommits } from '../../../_helpers/commits';
+import { commits as buildCommits } from '@codecity/city/testing';
 import { drainAsync } from '../../../_helpers/preact';
-import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
+import { TEST_SOURCE } from '@codecity/city/testing';
 import type { CommitEntry } from '@/city/types/manifest';
 
 const [COMMIT] = buildCommits({

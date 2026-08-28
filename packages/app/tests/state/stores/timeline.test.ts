@@ -10,7 +10,7 @@ import {
   setTimelineBundle,
   setTodayMs,
 } from '@/state/stores/timeline';
-import { makeCommitBundle } from '../../_helpers/scrub';
+import { makeCommitBundle } from '@codecity/city/testing';
 
 describe('SCRUB_POS range', () => {
   beforeEach(() => {

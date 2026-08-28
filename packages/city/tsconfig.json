@@ -19,10 +19,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
-    // Explicit allowlist prevents auto-inclusion of every package under
-    // node_modules/@types/ (the TS default).
-    "types": [],
-
     // `@/city/*` is this package's own root, kept so the ~700 import sites
     // that already spell it that way stay valid. It resolves HERE: nothing in
     // src/ reaches outside this directory any more (#208 step 10).
@@ -30,11 +26,22 @@
       "@/city/*": ["./src/*"]
     },
 
-    // three ships no bundled .d.ts; webxr is @types/three's own dependency.
-    "types": ["three", "webxr"],
-    "jsx": "preserve",
-    "jsxImportSource": "preact"
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default) — @types/node in particular, which
+    // belongs to tsconfig.node.json alone. three ships no bundled .d.ts; webxr
+    // is @types/three's own dependency.
+    "types": ["three", "webxr"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "vite.config.js"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": [
+    "node_modules",
+    "vite.config.js",
+    "vitest.config.js",
+    // Read their GLSL source off disk with node built-ins — checked by
+    // tsconfig.node.json, which is the only config that has @types/node.
+    "tests/utils/shaders/hslShader.test.ts",
+    "tests/utils/shaders/hashShader.test.ts",
+    "tests/components/buildings/building-shader.test.ts",
+    "tests/components/sky/skyShader.test.ts"
+  ]
 }

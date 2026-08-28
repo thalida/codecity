@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderReadme } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/ReadmeTab';
-import { TEST_SOURCE } from '../../../../../../_helpers/manifestFixtures';
+import { TEST_SOURCE } from '@codecity/city/testing';
 
 // A README is a file out of whatever repo was opened, and its HTML goes
 // straight into innerHTML. Anyone who can get a repo scanned writes this.
