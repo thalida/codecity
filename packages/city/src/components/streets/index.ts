@@ -4,7 +4,6 @@
 // first tick(), since ctx.picker is null at construction.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
@@ -196,8 +195,8 @@ export function createStreets(ctx: SceneContext): Streets {
   // where the tint actually changed since the last call.
   function _refreshSidewalkTints(): void {
     if (!sidewalkMesh) return;
-    const sel = ctx.picker?.selection.value ?? null;
-    const hov = ctx.picker?.hover.value ?? null;
+    const sel = ctx.picker?.selection ?? null;
+    const hov = ctx.picker?.hover ?? null;
     const selPath = sel?.kind === NodeKind.Directory ? (sel.dir?.path ?? null) : null;
     const hovPath = hov?.kind === NodeKind.Directory ? (hov.dir?.path ?? null) : null;
 
@@ -347,12 +346,12 @@ export function createStreets(ctx: SceneContext): Streets {
   // Armed on the first tick, not at construction: ctx.picker is null there, so
   // these would track no signal at all and the highlighting would never fire.
   const _arm = armOnFirstTick(ctx, () => {
-    const stopSel = effect(() => {
-      void ctx.picker!.selection.value;
+    const stopSel = ctx.picker!.on('selection', () => {
+      void ctx.picker!.selection;
       _refreshSidewalkTints();
     });
-    const stopHov = effect(() => {
-      void ctx.picker!.hover.value;
+    const stopHov = ctx.picker!.on('hover', () => {
+      void ctx.picker!.hover;
       _refreshSidewalkTints();
     });
     return [stopSel, stopHov];

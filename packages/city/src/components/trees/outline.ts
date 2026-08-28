@@ -14,8 +14,6 @@ import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/city/types/picker';
-import type { ReadonlySignal } from '@preact/signals';
-import { effect } from '@preact/signals';
 import { NodeKind } from '@/city/types/manifest';
 
 interface TreesHandle {
@@ -24,8 +22,9 @@ interface TreesHandle {
 
 /** Minimal picker surface consumed by this renderer (hover + selection signals). */
 interface PickerSignals {
-  hover: ReadonlySignal<PickTarget | null>;
-  selection: ReadonlySignal<PickTarget | null>;
+  readonly hover: PickTarget | null;
+  readonly selection: PickTarget | null;
+  on(what: 'hover' | 'selection', listener: () => void): () => void;
 }
 
 interface CreateArgs {
@@ -101,15 +100,15 @@ export function createTreeOutlineRenderer({
 
   /** True iff hover and selection are the same tree (so hover should hide). */
   function _hoverIsSelected(): boolean {
-    const sel = picker.selection.value;
-    const hov = picker.hover.value;
+    const sel = picker.selection;
+    const hov = picker.hover;
     if (!sel || sel.kind !== NodeKind.Commit) return false;
     if (!hov || hov.kind !== NodeKind.Commit) return false;
     return sel.commit.sha === hov.commit.sha;
   }
 
-  const _disposeSelectionEffect = effect(() => {
-    const sel = picker.selection.value;
+  const _disposeSelectionEffect = picker.on('selection', () => {
+    const sel = picker.selection;
     if (sel && sel.kind === NodeKind.Commit) {
       const ok = _syncOutline(selectedOutline, sel.commit.sha);
       selectedOutline.visible = ok;
@@ -118,8 +117,8 @@ export function createTreeOutlineRenderer({
     }
   });
 
-  const _disposeHoverEffect = effect(() => {
-    const h = picker.hover.value;
+  const _disposeHoverEffect = picker.on('hover', () => {
+    const h = picker.hover;
     if (h && h.kind === NodeKind.Commit && !_hoverIsSelected()) {
       const ok = _syncOutline(hoverOutline, h.commit.sha);
       hoverOutline.visible = ok;
@@ -164,7 +163,7 @@ export function createTreeOutlineRenderer({
   function update(_dtMs: number): void {
     // Selected: re-snap transform (in case the tree's instance matrix
     // changed via a refresh / animation) and advance rainbow chase.
-    const sel = picker.selection.value;
+    const sel = picker.selection;
     if (sel && sel.kind === NodeKind.Commit) {
       _syncOutline(selectedOutline, sel.commit.sha);
       _ensureColorBuffer(selectedOutline.geometry as SafeLineSegmentsGeometry);
@@ -172,7 +171,7 @@ export function createTreeOutlineRenderer({
     }
 
     // Hover: re-snap in case the tree moved.
-    const hov = picker.hover.value;
+    const hov = picker.hover;
     if (hov && hov.kind === NodeKind.Commit && !_hoverIsSelected()) {
       _syncOutline(hoverOutline, hov.commit.sha);
     }

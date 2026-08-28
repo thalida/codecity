@@ -4,7 +4,6 @@
 // gem, and reset() puts either back. The pose itself is never persisted.
 
 import * as THREE from 'three';
-import { computed, effect, untracked } from '@preact/signals';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   CAMERA_FOV,

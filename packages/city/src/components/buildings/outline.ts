@@ -5,7 +5,6 @@
 
 import * as THREE from 'three';
 import type { CitySettingsStore } from '@/city/settings/store';
-import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
@@ -160,8 +159,8 @@ export function createOutlineRenderer({
 
   // Show/hide outlines on selection / hover changes. Snap into place
   // synchronously so there's no one-frame lag before update() runs.
-  effect(() => {
-    const sel = picker.selection.value;
+  const _disposeSelectionOutline = picker.on('selection', () => {
+    const sel = picker.selection;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       selectedOutline.visible = true;
@@ -170,11 +169,11 @@ export function createOutlineRenderer({
     }
   });
 
-  // Dedup by file path, not mesh ref (same-block buildings share a mesh);
-  // .peek() keeps this hover-only — no selection subscription.
-  effect(() => {
-    const h = picker.hover.value;
-    const sel = picker.selection.peek();
+  // Dedup by file path, not mesh ref (same-block buildings share a mesh).
+  // Hover-only: reading the selection here does not subscribe to it.
+  const _disposeHoverOutline = picker.on('hover', () => {
+    const h = picker.hover;
+    const sel = picker.selection;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, h);
@@ -189,7 +188,7 @@ export function createOutlineRenderer({
   function update(_dtMs: number): void {
     // Selected: pin the transform to the live instance and advance the
     // rainbow chase.
-    const sel = picker.selection.value;
+    const sel = picker.selection;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       // Bottom + top faces chase the same quartered gradient in lockstep;
@@ -208,7 +207,7 @@ export function createOutlineRenderer({
     }
 
     // Hover: keep transform pinned in case the building is still animating.
-    const hov = picker.hover.value;
+    const hov = picker.hover;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, hov);

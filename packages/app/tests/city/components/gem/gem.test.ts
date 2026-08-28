@@ -85,8 +85,8 @@ describe('createGem()', () => {
   });
 
   it('tick lerps gem.scale toward HOVER_SCALE when a Gem is hovered', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
-    hover.value = { kind: NodeKind.Gem } as PickTarget;
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
+    picker.setHover({ kind: NodeKind.Gem } as PickTarget);
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 

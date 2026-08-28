@@ -4,7 +4,6 @@
 // here; a per-instance SDF keeps the corner radius a true world-space radius.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';

@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { drivableCityState } from '../../_helpers/cityFixtures';
 import { Building } from '@/city/types/building';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
@@ -12,6 +12,7 @@ import { Street } from '@/city/types/street';
 import { DirTarget, FileTarget, PickerWorld } from '@/city/types/picker';
 import { createEmitter } from '../../_helpers/cityEvents';
 import { createTimelineState } from '@/city/timeline/state';
+import type { PickTarget } from '@/city/types/picker';
 
 const TIMELINE = createTimelineState();
 
@@ -133,9 +134,6 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  // Reset the module-level persistable signal between tests so a leftover
-  // value from one test can't leak into the next.
-  PICKER_SELECTION_KEY.value = null;
 });
 
 // Helper: build a fake hit object for interpretHit. Real callers pass
@@ -155,8 +153,26 @@ describe('createPicker', () => {
       world: fakeScene,
       cityState: fakeScene.cityState,
     });
-    expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
+
+    // The key used to be a module signal, so two cities on one page shared a
+    // selection — invisible only because a wallpaper never selects anything.
+    const other = createPicker({
+      timeline: TIMELINE,
+      events: createEmitter(),
+      canvas,
+      camera: FAKE_CAMERA,
+      world: fakeScene,
+      cityState: fakeScene.cityState,
+    });
+    p.setSelection({
+      kind: NodeKind.File,
+      file: { path: 'src/index.js' },
+    } as unknown as PickTarget);
+
+    expect(p.selectionKey).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
+    expect(other.selectionKey).toBeNull();
     p.dispose();
+    other.dispose();
   });
 
   it('setSelection derives selectionKey for a file target', () => {
@@ -170,7 +186,7 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.setSelection(makeFileTarget({ path: 'src/index.js' }));
-    expect(p.selectionKey.value).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
+    expect(p.selectionKey).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
     p.dispose();
   });
 
@@ -185,7 +201,7 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.setSelection(makeDirTarget({ path: 'src/lib' }));
-    expect(p.selectionKey.value).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
+    expect(p.selectionKey).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
     p.dispose();
   });
 
@@ -201,7 +217,7 @@ describe('createPicker', () => {
     });
     p.setSelection(makeFileTarget({ path: 'a.js' }));
     p.setSelection(null);
-    expect(p.selectionKey.value).toBeNull();
+    expect(p.selectionKey).toBeNull();
     p.dispose();
   });
 
@@ -217,12 +233,12 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.selectByPath('a.js');
-    const sel = p.selection.value;
+    const sel = p.selection;
     expect(sel?.kind).toBe(NodeKind.File);
     if (sel?.kind === NodeKind.File) {
       expect(sel.mesh).toBe(meshA);
     }
-    expect(p.selectionKey.value).toEqual({ kind: NodeKind.File, path: 'a.js' });
+    expect(p.selectionKey).toEqual({ kind: NodeKind.File, path: 'a.js' });
     p.dispose();
   });
 
@@ -238,7 +254,7 @@ describe('createPicker', () => {
     });
     p.selectByPath('a.js');
     p.selectByPath('does-not-exist.js');
-    const sel = p.selection.value;
+    const sel = p.selection;
     expect(sel).not.toBeNull();
     if (sel?.kind === NodeKind.File) {
       expect(sel.file.path).toBe('a.js');
@@ -257,14 +273,14 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.selectByPath('a.js');
-    const before = p.selection.value;
+    const before = p.selection;
     if (before?.kind === NodeKind.File) expect(before.mesh).toBe(oldMesh);
 
     // Simulate a rebuild — same path, new mesh.
     const newMesh = { id: 'new' };
     fakeScene.setSnapshot([{ path: 'a.js', mesh: newMesh }], []);
 
-    const after = p.selection.value;
+    const after = p.selection;
     if (after?.kind === NodeKind.File) expect(after.mesh).toBe(newMesh);
     p.dispose();
   });
@@ -280,12 +296,12 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.selectByPath('a.js');
-    expect(p.selection.value).not.toBeNull();
+    expect(p.selection).not.toBeNull();
 
     fakeScene.setSnapshot([], []); // path no longer exists
 
-    expect(p.selection.value).toBeNull();
-    expect(p.selectionKey.value).toBeNull();
+    expect(p.selection).toBeNull();
+    expect(p.selectionKey).toBeNull();
     p.dispose();
   });
 
@@ -300,10 +316,10 @@ describe('createPicker', () => {
       cityState: fakeScene.cityState,
     });
     p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
-    expect(p.hover.value).not.toBeNull();
+    expect(p.hover).not.toBeNull();
 
     fakeScene.setSnapshot([{ path: 'a.js', mesh: { id: 'new' } }], []);
-    expect(p.hover.value).toBeNull();
+    expect(p.hover).toBeNull();
     p.dispose();
   });
 

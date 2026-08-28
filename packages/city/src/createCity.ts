@@ -4,7 +4,6 @@
 // App.tsx / the City component consume.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -112,7 +111,7 @@ export async function createCity(
   async function applyManifest(...args: Parameters<typeof _applyManifest>): Promise<void> {
     try {
       await _applyManifest(...args);
-      if (!timeline.mode.peek()) liveManifest = args[0];
+      if (!timeline.mode) liveManifest = args[0];
     } catch (err) {
       events.emit('build:error', { error: err });
       throw err;
@@ -262,7 +261,7 @@ export async function createCity(
       // Reported, not acted on beyond the camera: a keystroke inside the canvas
       // is "look at it", and what the chrome around it should do about that
       // belongs to whoever drew the chrome.
-      if (focus(null)) events.emit('focus', { target: picker.selection.peek() });
+      if (focus(null)) events.emit('focus', { target: picker.selection });
     },
   });
 
@@ -297,8 +296,8 @@ export async function createCity(
     after() {
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
-      if (!timeline.mode.peek() || timeline.dragging.peek()) return;
-      const pos = timeline.pos.peek();
+      if (!timeline.mode || timeline.dragging) return;
+      const pos = timeline.pos;
       if (pos === _lastPrunedScrubPos) return;
       _lastPrunedScrubPos = pos;
       picker.pruneScrubHiddenSelection();
@@ -352,8 +351,8 @@ export async function createCity(
   // Every Timeline exit. The union city holds buildings that do not exist at
   // HEAD, so only a rebuild from this city's own live manifest is a valid live
   // city — the app's would be a different repo on the landing.
-  const stopTimelineTeardown = effect(() => {
-    if (timeline.mode.value || !_scrubController) return;
+  const stopTimelineTeardown = timeline.on('mode', () => {
+    if (timeline.mode || !_scrubController) return;
     timelineApi.uninstallScrubController();
     const live = liveManifest;
     // Best-effort: a dispose or a newer apply can supersede this mid-flight,
@@ -367,7 +366,7 @@ export async function createCity(
   function focus(ref: FocusRef, mode?: FocusMode): boolean {
     const sel =
       ref === null
-        ? picker.selection.peek()
+        ? picker.selection
         : 'sha' in ref
           ? picker.selectByCommit(ref.sha)
           : picker.selectByPath(ref.path);

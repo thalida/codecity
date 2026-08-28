@@ -85,23 +85,21 @@ export function makePickableSceneContext(
   timeline: TimelineState = createTimelineState()
 ): {
   ctx: SceneContext;
-  selection: ReturnType<typeof signal<PickTarget | null>>;
-  hover: ReturnType<typeof signal<PickTarget | null>>;
+  picker: FakePicker;
   size: { w: number; h: number };
 } {
-  const selection = signal<PickTarget | null>(null);
-  const hover = signal<PickTarget | null>(null);
+  const picker = fakePicker();
   const { canvas, size } = makeSizedCanvas();
   const ctx = {
     scene: new THREE.Scene(),
     canvas,
-    picker: { selection, hover } as unknown as Picker,
+    picker: picker as unknown as Picker,
     cityState: cityState ?? makeCityState(settings),
     resources: createTestCityResources(settings),
     settings,
     timeline,
   } as unknown as SceneContext;
-  return { ctx, selection, hover, size };
+  return { ctx, picker, size };
 }
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */
@@ -306,4 +304,44 @@ export function drivableCityState(): DrivableCityState {
     },
   };
   return state as unknown as DrivableCityState;
+}
+
+/** A picker a test can drive: plain hover/selection with the subscription the
+ *  components register against, so setting one actually redraws them. */
+export interface FakePicker {
+  readonly hover: PickTarget | null;
+  readonly selection: PickTarget | null;
+  on(what: 'hover' | 'selection', listener: () => void): () => void;
+  setHover(target: PickTarget | null): void;
+  setSelection(target: PickTarget | null): void;
+}
+
+export function fakePicker(): FakePicker {
+  const listeners = { hover: new Set<() => void>(), selection: new Set<() => void>() };
+  let hover: PickTarget | null = null;
+  let selection: PickTarget | null = null;
+  function tell(what: 'hover' | 'selection'): void {
+    for (const listener of [...listeners[what]]) listener();
+  }
+  return {
+    get hover() {
+      return hover;
+    },
+    get selection() {
+      return selection;
+    },
+    on(what, listener) {
+      listeners[what].add(listener);
+      listener();
+      return () => void listeners[what].delete(listener);
+    },
+    setHover(target) {
+      hover = target;
+      tell('hover');
+    },
+    setSelection(target) {
+      selection = target;
+      tell('selection');
+    },
+  };
 }

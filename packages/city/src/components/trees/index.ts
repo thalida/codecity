@@ -4,7 +4,6 @@
 // at construction its effects would track no signal and never fire again.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';

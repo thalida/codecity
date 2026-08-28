@@ -4,7 +4,6 @@
 // exceeds the threshold varies its glow; ACES compresses it back for display.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';

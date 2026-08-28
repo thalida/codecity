@@ -3,7 +3,6 @@
 // lighting is static, so there is no per-frame work to do.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';

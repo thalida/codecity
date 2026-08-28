@@ -4,7 +4,6 @@
 // text-driven (FONT_SIZE × textureAspect); the beam foot tracks the live gem.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 

@@ -100,7 +100,7 @@ describe('createPathLine() component door', () => {
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', async () => {
     const { cityState, counters } = await makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store);
+    const { ctx, picker } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
@@ -110,7 +110,7 @@ describe('createPathLine() component door', () => {
     expect(counters.gemPosCalls).toBe(0);
     // A selection set before the first tick produces no line (not armed) —
     // and a STREETS Save is safe (theme effect no-ops over the null inner).
-    selection.value = dirTarget();
+    picker.setSelection(dirTarget());
     store.update({ STREETS: { PATH_LINEWIDTH_PCT: 30 } });
     expect(comp.group.children).toHaveLength(0);
   });
@@ -133,20 +133,20 @@ describe('createPathLine() component door', () => {
 
   it('a selection after arming shows the selection path line; clearing hides it', async () => {
     const { cityState } = await makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store);
+    const { ctx, picker } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
     expect(pathLine.visible).toBe(false);
 
-    selection.value = dirTarget();
+    picker.setSelection(dirTarget());
     expect(pathLine.visible).toBe(true);
     expect((pathLine.material as unknown as { opacity: number }).opacity).toBeCloseTo(
       DEFAULTS.PATH_OPACITY,
       5
     );
 
-    selection.value = null;
+    picker.setSelection(null);
     expect(pathLine.visible).toBe(false);
   });
 
@@ -167,12 +167,12 @@ describe('createPathLine() component door', () => {
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', async () => {
     const { cityState, counters } = await makeSeeded();
-    const { ctx, hover } = makePickableSceneContext(cityState, store);
+    const { ctx, picker } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
     const before = counters.gemPosCalls;
-    hover.value = dirTarget();
+    picker.setHover(dirTarget());
     // One pass, from the hover effect. Had the theme effect tracked picker.hover
     // through refreshMaterials, this would advance by 2.
     expect(counters.gemPosCalls).toBe(before + 1);
@@ -180,7 +180,7 @@ describe('createPathLine() component door', () => {
 
   it('dispose() stops the rebuild effect + all picker effects', async () => {
     const { cityState, counters } = await makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store);
+    const { ctx, picker } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -193,7 +193,7 @@ describe('createPathLine() component door', () => {
     expect(counters.gemPosCalls).toBe(after);
     // And picker/theme writes over the disposed inner are inert.
     expect(() => {
-      selection.value = dirTarget();
+      picker.setSelection(dirTarget());
       store.update({ STREETS: { PATH_LINEWIDTH_PCT: 30 } });
     }).not.toThrow();
   });

@@ -58,8 +58,11 @@ export interface CityState {
   // { street dir.path → Street }. The fader, pathLine, picker and debug API
   // resolve a street by directory here rather than through the component.
   readonly streetsByDirMap: Record<string, Street>;
-  /** Hear about one kind of change. Returns the unsubscribe. Not called
-   *  immediately: a component builds itself from what is already here. */
+  /** Hear about one kind of change. Returns the unsubscribe.
+   *
+   *  NOT called immediately, unlike the settings and picker subscriptions:
+   *  those report state, and this reports a transition. Firing at construction
+   *  would claim a publish that has not happened. */
   on(kind: CityChange, listener: () => void): () => void;
   // Compute the layout off-thread, then set the source signals. leadingStages
   // are stages the CALLER already ran, so the readout counts them (Timeline).

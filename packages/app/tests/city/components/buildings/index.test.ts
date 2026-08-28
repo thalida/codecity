@@ -278,7 +278,7 @@ describe('createBuildings()', () => {
   // Picker overlays — ARMED on the first tick (the arming-bug guard)
 
   it('does NOT arm the overlays before the first tick (no ghost mesh in scene)', async () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
@@ -287,16 +287,16 @@ describe('createBuildings()', () => {
     expect(findGhost(ctx.scene)).toBeNull();
 
     // Hovering before arming does nothing (no overlay to drive).
-    hover.value = {
+    picker.setHover({
       kind: NodeKind.File,
       file: fileOf('src/a.ts'),
       data: b0,
-    } as unknown as FileTarget;
+    } as unknown as FileTarget);
     expect(findGhost(ctx.scene)).toBeNull();
   });
 
   it('arms overlays on first tick; a later hover drives the ghost overlay', async () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
@@ -308,15 +308,15 @@ describe('createBuildings()', () => {
     expect(ghost!.visible).toBe(false);
 
     // Hovering a File building drives the armed ghost effect synchronously.
-    hover.value = {
+    picker.setHover({
       kind: NodeKind.File,
       file: fileOf('src/a.ts'),
       data: b0,
-    } as unknown as FileTarget;
+    } as unknown as FileTarget);
     expect(ghost!.visible).toBe(true);
 
     // Clearing the hover hides it again.
-    hover.value = null;
+    picker.setHover(null);
     expect(ghost!.visible).toBe(false);
   });
 

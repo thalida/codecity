@@ -93,12 +93,12 @@ describe('scene keydown handler — modal suppression', () => {
     const handle = await mountCity();
     SCENE_HANDLE.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
-    handle.picker.selection.value = {
+    handle.picker.setSelection({
       kind: NodeKind.Commit,
       commit: { sha: 'a'.repeat(40) },
       mesh: {},
       instanceId: 0,
-    } as never;
+    } as never);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
@@ -106,7 +106,7 @@ describe('scene keydown handler — modal suppression', () => {
     expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
     // The selection itself survives: the chip has something to name.
-    expect(handle.picker.selection.value).not.toBeNull();
+    expect(handle.picker.selection).not.toBeNull();
   });
 
   it('ignores F with nothing selected, panel included', async () => {

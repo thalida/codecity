@@ -9,7 +9,7 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
 import type { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../../_helpers/citySettings';
-import { commitTarget } from '../../../_helpers/cityFixtures';
+import { fakePicker, commitTarget } from '../../../_helpers/cityFixtures';
 import { NodeKind } from '@/city/types/manifest';
 
 function fakeCanvas(): HTMLCanvasElement {
@@ -41,12 +41,6 @@ function fakeTrees(activeSha: string, matrix: THREE.Matrix4) {
       };
     },
   };
-}
-
-function fakePicker() {
-  const hover = signal<PickTarget | null>(null);
-  const selection = signal<PickTarget | null>(null);
-  return { hover, selection };
 }
 
 // Stated rather than defaulted: the outline widths and the rainbow speed are
@@ -90,7 +84,7 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', matrix),
       settings: SETTINGS,
     });
-    picker.hover.value = commitTarget('a');
+    picker.setHover(commitTarget('a'));
     expect(r.hoverOutline.visible).toBe(true);
     for (let i = 0; i < 16; i++) {
       expect(r.hoverOutline.matrix.elements[i]).toBeCloseTo(matrix.elements[i], 5);
@@ -108,8 +102,8 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
       settings: SETTINGS,
     });
-    picker.hover.value = commitTarget('a');
-    picker.hover.value = null;
+    picker.setHover(commitTarget('a'));
+    picker.setHover(null);
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
   });
@@ -125,9 +119,9 @@ describe('treeOutlineRenderer', () => {
       settings: SETTINGS,
     });
     expect(r.selectedOutline.visible).toBe(false);
-    picker.selection.value = commitTarget('a');
+    picker.setSelection(commitTarget('a'));
     expect(r.selectedOutline.visible).toBe(true);
-    picker.selection.value = null;
+    picker.setSelection(null);
     expect(r.selectedOutline.visible).toBe(false);
     r.dispose();
   });
@@ -142,8 +136,8 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
       settings: SETTINGS,
     });
-    picker.selection.value = commitTarget('a');
-    picker.hover.value = commitTarget('a'); // same as selected
+    picker.setSelection(commitTarget('a'));
+    picker.setHover(commitTarget('a')); // same as selected
     expect(r.selectedOutline.visible).toBe(true);
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
@@ -159,12 +153,12 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
       settings: SETTINGS,
     });
-    picker.hover.value = {
+    picker.setHover({
       kind: NodeKind.File,
       mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
       data: {} as never,
       file: { path: 'foo' } as never,
-    };
+    } as unknown as PickTarget);
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
   });
@@ -207,7 +201,7 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
       settings: SETTINGS,
     });
-    picker.selection.value = commitTarget('a');
+    picker.setSelection(commitTarget('a'));
 
     // First frame: paint colors from the current time stamp.
     r.update(0);

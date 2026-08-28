@@ -10,10 +10,14 @@
 // would be a second answer to "where is the scrubber", which is the class of
 // bug this whole refactor is about.
 
-import { computed, type ReadonlySignal } from '@preact/signals';
+import { computed, effect, signal, type ReadonlySignal } from '@preact/signals';
 import { findNodeByPath } from '@/city/utils/manifest';
 import { SCENE_HANDLE } from '@/state/stores/city';
-import { createTimelineState, type ScrubbedFileStats } from '@/city/timeline/state';
+import {
+  createTimelineState,
+  type ScrubbedFileStats,
+  type TimelineState,
+} from '@/city/timeline/state';
 import { MANIFEST, type ManifestValue } from './manifest';
 import { ruinStateAt, PathState, entryAt, lastModifiedIndexAt } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
@@ -33,29 +37,60 @@ function _engine() {
 
 // ── Mode, history, and where you are in it ───────────────────────────
 
-export const TIMELINE_MODE: ReadonlySignal<boolean> = computed(() => _engine().mode.value);
-export const TIMELINE_BUNDLE: ReadonlySignal<TimelineBundle | null> = computed(
-  () => _engine().bundle.value
-);
-export const SCRUB_TODAY_MS: ReadonlySignal<number | null> = computed(
-  () => _engine().todayMs.value
-);
-export const SCRUB_MAX: ReadonlySignal<number> = computed(() => _engine().max.value);
-export const SCRUB_POS: ReadonlySignal<number> = computed(() => _engine().pos.value);
-export const SCRUB_COMMIT: ReadonlySignal<number> = computed(() => _engine().commit.value);
-export const SETTLED_COMMIT: ReadonlySignal<number> = computed(() => _engine().settledCommit.value);
-export const SETTLED_POS: ReadonlySignal<number> = computed(() => _engine().settledPos.value);
+// The city holds plain values and SAYS when they change; the app renders off
+// signals. This revision is where the two meet: the city's notifications bump
+// it, and every view below reads it, so they recompute exactly when it does.
+const _revision = signal(0);
+let _boundTo: TimelineState | null = null;
+let _unbind: (() => void) | null = null;
+
+effect(() => {
+  // The detached stand-in is bound too: before the canvas mounts it is what
+  // every read answers from, and a test that drives it has to be heard.
+  const engine = SCENE_HANDLE.value?.timeline ?? DETACHED;
+  if (engine === _boundTo) return;
+  _unbind?.();
+  _boundTo = engine;
+  _unbind = _subscribe(engine);
+  _revision.value++;
+});
+
+function _subscribe(engine: TimelineState): () => void {
+  const offs = (['mode', 'bundle', 'position'] as const).map((kind) =>
+    engine.on(kind, () => void _revision.value++)
+  );
+  return () => offs.forEach((off) => off());
+}
+
+/** One value off the scene city's timeline, read reactively. */
+function view<T>(read: (engine: TimelineState) => T): ReadonlySignal<T> {
+  return computed(() => {
+    void _revision.value;
+    return read(_engine());
+  });
+}
+
+export const TIMELINE_MODE = view((e) => e.mode);
+export const TIMELINE_BUNDLE = view((e) => e.bundle);
+export const SCRUB_TODAY_MS = view((e) => e.todayMs);
+export const SCRUB_MAX = view((e) => e.max);
+export const SCRUB_POS = view((e) => e.pos);
+export const SCRUB_COMMIT = view((e) => e.commit);
+export const SETTLED_COMMIT = view((e) => e.settledCommit);
+export const SETTLED_POS = view((e) => e.settledPos);
+const _TIMELINES = view((e) => e.timelines);
 
 /** Writable: the scrubber holds it down while you drag. */
 export const SCRUB_DRAGGING = {
   get value(): boolean {
-    return _engine().dragging.value;
+    void _revision.value;
+    return _engine().dragging;
   },
   set value(next: boolean) {
-    _engine().dragging.value = next;
+    _engine().setDragging(next);
   },
   peek(): boolean {
-    return _engine().dragging.peek();
+    return _engine().dragging;
   },
 };
 
@@ -104,10 +139,6 @@ export function scrubbedBlobShaFor(path: string | null | undefined): string | nu
 export function hasNoContentAtScrub(path: string | null | undefined): boolean {
   return _engine().hasNoContentAtScrub(path);
 }
-
-const _TIMELINES: ReadonlySignal<Map<string, PathTimeline> | null> = computed(
-  () => _engine().timelines.value
-);
 
 // ── What that position implies ───────────────────────────────────────
 

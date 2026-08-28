@@ -8,7 +8,14 @@ import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/state/stores/city';
+import {
+  CITY_SELECTION,
+  CITY_HOVER,
+  SCENE_HANDLE,
+  goToPath,
+  hoverPath,
+  clearHover,
+} from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -101,7 +108,7 @@ export function CitySidebarLeft() {
       selectedPath.value = null;
       return;
     }
-    selectedPath.value = _pathOf(handle.picker.selection.value);
+    selectedPath.value = _pathOf(CITY_SELECTION.value);
   });
 
   useSignalEffect(() => {
@@ -110,7 +117,7 @@ export function CitySidebarLeft() {
       hoveredPath.value = null;
       return;
     }
-    hoveredPath.value = _pathOf(handle.picker.hover.value);
+    hoveredPath.value = _pathOf(CITY_HOVER.value);
   });
 
   // Closed on every world commit, so a new city opens unobscured. Live reloads

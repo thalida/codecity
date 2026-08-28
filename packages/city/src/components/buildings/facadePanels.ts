@@ -4,7 +4,6 @@
 // Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
-import { untracked } from '@preact/signals';
 import { BuildingOrient } from '@/city/types/building';
 import { type SourceRef } from '@/city/types/manifest';
 import { MEDIA_ERROR_COLOR } from '@/city/constants/buildings';
@@ -85,10 +84,10 @@ export interface FacadePanelRegistration {
 // Outside Timeline there is no commit to key on, and no position is negative.
 const LIVE_STAMP = -1;
 
-/** What a load of this building would fetch right now. Untracked: a rebuild
- *  computes it, and must not come back to life on every scrub. */
+/** What a load of this building would fetch right now. A plain read: nothing
+ *  subscribes to it, so a rebuild computes it and a scrub does not revive it. */
 function versionKeyFor(b: Building, timeline: TimelineState): string {
-  return untracked(() => timeline.scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '');
+  return timeline.scrubbedBlobShaFor(b.file?.path) ?? b.file?.modified ?? '';
 }
 
 export class InstancedFacadePanels {
@@ -170,9 +169,7 @@ export class InstancedFacadePanels {
     }
   ) {
     this._overrideStartLoad = opts?.onStartLoad ?? null;
-    this._versionStamp = this.timeline.mode.peek()
-      ? this.timeline.settledCommit.peek()
-      : LIVE_STAMP;
+    this._versionStamp = this.timeline.mode ? this.timeline.settledCommit : LIVE_STAMP;
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
@@ -562,7 +559,7 @@ export class InstancedFacadePanels {
   /** Re-ask every panel which version it wants, only when the scrub moved:
    *  versionKeyFor walks a path's history, so it stays off the per-frame path. */
   private _refreshWantedVersions(): void {
-    const stamp = this.timeline.mode.peek() ? this.timeline.settledCommit.peek() : LIVE_STAMP;
+    const stamp = this.timeline.mode ? this.timeline.settledCommit : LIVE_STAMP;
     if (stamp === this._versionStamp) return;
     this._versionStamp = stamp;
     for (const rec of this._panels) rec.wantKey = versionKeyFor(rec.b, this.timeline);

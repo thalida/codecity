@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
-import { SCENE_HANDLE } from '@/state/stores/city';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
@@ -11,6 +11,7 @@ import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { flush, drainAsync } from '../../../_helpers/preact';
 import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
+import { fakePicker } from '../../../_helpers/cityFixtures';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -60,6 +61,7 @@ function manifestWithDir(dir: DirNode): Manifest {
 // The bridge subscribes to selection and world changes, so both have to be
 // live signals here for the component to see anything.
 function makeSceneHandle() {
+  const picker = fakePicker();
   const selection = signal<PickTarget | null>(null);
   const hover = signal<PickTarget | null>(null);
   return {
@@ -77,20 +79,27 @@ function makeSceneHandle() {
         return null;
       },
     },
+    // The pane renders off the app's view of the selection, which
+    // attachCityChrome keeps in step with the picker; the double does both, so
+    // an assertion can read either.
     picker: {
-      selection,
-      hover,
+      ...picker,
+      get selection() {
+        return picker.selection;
+      },
       clearSelection() {
-        selection.value = null;
+        picker.setSelection(null);
+        CITY_SELECTION.value = null;
       },
       setSelection(t: PickTarget | null) {
-        selection.value = t;
+        picker.setSelection(t);
+        CITY_SELECTION.value = t;
       },
     },
     // Pointing the camera is the city's; the pane commands only need to know
     // whether there was anything to point it at.
     focus(): boolean {
-      return selection.value !== null;
+      return CITY_SELECTION.value !== null;
     },
   };
 }
@@ -99,6 +108,8 @@ describe('CitySidebarRight', () => {
   let container: HTMLDivElement;
 
   beforeEach(async () => {
+    CITY_SELECTION.value = null;
+    CITY_HOVER.value = null;
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
@@ -280,7 +291,7 @@ describe('CitySidebarRight', () => {
 
       expect(isOpen()).toBe(false);
       const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
-      expect(handle.picker.selection.value).not.toBeNull();
+      expect(handle.picker.selection).not.toBeNull();
     });
 
     it('re-asking for the selected node reopens it', async () => {
@@ -325,7 +336,7 @@ describe('CitySidebarRight', () => {
 
       expect(isOpen()).toBe(false);
       const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
-      expect(handle.picker.selection.value).not.toBeNull();
+      expect(handle.picker.selection).not.toBeNull();
     });
 
     it('stays shut for no selection at all', async () => {

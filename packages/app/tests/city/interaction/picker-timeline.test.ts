@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
@@ -78,7 +78,6 @@ beforeEach(() => {
   canvas.height = 600;
   canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect;
-  PICKER_SELECTION_KEY.value = null;
 });
 afterEach(() => {
   TIMELINE.exit();
@@ -161,16 +160,16 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     iFade.setXYZ(slot, 1, 0, 0);
     const sel = picker.interpretHit(picker.pickAt(400, 300));
     picker.setSelection(sel);
-    expect(picker.selection.value?.kind).toBe(NodeKind.File);
+    expect(picker.selection?.kind).toBe(NodeKind.File);
 
     // Still present → prune keeps it.
     picker.pruneScrubHiddenSelection();
-    expect(picker.selection.value).not.toBeNull();
+    expect(picker.selection).not.toBeNull();
 
     // Scrubbed to absent (iFade.x → 0) → prune clears it.
     iFade.setXYZ(slot, 0, 0, 0);
     picker.pruneScrubHiddenSelection();
-    expect(picker.selection.value).toBeNull();
+    expect(picker.selection).toBeNull();
     picker.dispose();
   });
 
@@ -239,14 +238,14 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
     const { trees, picker } = setup();
     TIMELINE.enter();
     picker.setSelection(picker.interpretHit(hitTree(trees, 1)));
-    expect(picker.selection.value?.kind).toBe(NodeKind.Commit);
+    expect(picker.selection?.kind).toBe(NodeKind.Commit);
 
     picker.pruneScrubHiddenSelection();
-    expect(picker.selection.value).not.toBeNull();
+    expect(picker.selection).not.toBeNull();
 
     trees.setScrubCommit(0);
     picker.pruneScrubHiddenSelection();
-    expect(picker.selection.value).toBeNull();
+    expect(picker.selection).toBeNull();
     trees.dispose();
     picker.dispose();
   });

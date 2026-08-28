@@ -4,7 +4,6 @@
 // tick() (live by the first frame), never at construction.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
@@ -158,7 +157,7 @@ export function createGem(ctx: SceneContext): Gem {
       Math.sin(t * gemCfg.BOB_FREQUENCY) * (gem.userData.radius * gemCfg.BOB_AMPLITUDE_FRAC);
     // Hover scale-up affordance; ctx.picker is guarded for the brief
     // pre-population window at boot.
-    const hov = ctx.picker?.hover.value ?? null;
+    const hov = ctx.picker?.hover ?? null;
     const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemCfg.HOVER_SCALE : 1.0;
     const curS = gem.scale.x;
     const nextS = curS + (gemTargetScale - curS) * gemCfg.SCALE_LERP_SPEED;

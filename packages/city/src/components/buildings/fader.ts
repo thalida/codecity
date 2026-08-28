@@ -4,7 +4,6 @@
 // per-frame cost is zero: a sweep runs only when selection or hover changes.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
@@ -41,9 +40,9 @@ export function createBuildingFader({
   function _sweepAll(): void {
     // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
     // here would fight it. Live mode never takes this branch, so it stays identical.
-    if (timeline.mode.peek()) return;
-    const sel = picker.selection.value;
-    const hov = picker.hover.value;
+    if (timeline.mode) return;
+    const sel = picker.selection;
+    const hov = picker.hover;
 
     const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
     const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap);
@@ -96,16 +95,9 @@ export function createBuildingFader({
     }
   }
 
-  // Selection / hover / config changes all trigger a full sweep. Separate
-  // effects per signal keep tracking narrow.
-  const _unsubSel = effect(() => {
-    void picker.selection.value;
-    _sweepAll();
-  });
-  const _unsubHov = effect(() => {
-    void picker.hover.value;
-    _sweepAll();
-  });
+  // Selection, hover, a settings change and a rebuild all trigger a full sweep.
+  const _unsubSel = picker.on('selection', _sweepAll);
+  const _unsubHov = picker.on('hover', _sweepAll);
 
   // A rebuild resets iFade to opaque while the selection still stands.
   // untracked: _sweepAll's own reads would double this up with the effects above.

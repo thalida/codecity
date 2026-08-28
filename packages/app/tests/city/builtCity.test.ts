@@ -10,7 +10,7 @@ import { mkDir, mkFile } from '../_helpers/cityFixtures';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { SCENE_HANDLE } from '@/state/stores/city';
-import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { PICKER_SELECTION_KEY } from '@/state/stores/city';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -35,6 +35,7 @@ import { createCity } from '@/city/index';
 import { Manifest, NodeKind } from '@/city/types/manifest';
 import { nextBuild } from '../_helpers/cityEvents';
 import { attachBuildProgress } from '@/state/stores/progress';
+import { attachCityChrome } from '@/state/stores/city';
 
 const W = 800;
 const H = 600;
@@ -123,12 +124,16 @@ describe('a built city is pickable', () => {
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
     const handle = await createCity(makeCanvas());
     let detachProgress: (() => void) | null = null;
+    let detachChrome: (() => void) | null = null;
     try {
       SCENE_HANDLE.value = handle;
       // The URL follow waits on BUILT_MANIFEST, which the app sets when the
       // city reports it is up: this is the whole path, so it needs the app's
       // half of it wired the way City.tsx wires it.
       detachProgress = attachBuildProgress(handle.on);
+      // The URL is written off the app's copy of the selection key, which this
+      // keeps current — the same wiring City.tsx does.
+      detachChrome = attachCityChrome(handle.on);
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });
       stopUrlBinding = attachViewUrlReactions();
 
@@ -156,6 +161,7 @@ describe('a built city is pickable', () => {
       expect(restoredOffset.z).toBeCloseTo(framedOffset.z, 1);
     } finally {
       detachProgress?.();
+      detachChrome?.();
       handle.dispose();
     }
   });

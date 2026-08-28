@@ -187,20 +187,20 @@ describe('createTrees() component door', () => {
   });
 
   it('does NOT show an outline for a selection set before the first tick (not yet armed)', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
-    selection.value = commitTarget(SHA_A);
+    picker.setSelection(commitTarget(SHA_A));
     // No outline meshes were added to the scene — the renderer isn't built.
     const outlines = ctx.scene.children.filter((c) => c instanceof LineSegments2);
     expect(outlines).toHaveLength(0);
   });
 
   it('arms the outline on first tick; the pending Commit selection becomes visible', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
-    selection.value = commitTarget(SHA_A);
+    picker.setSelection(commitTarget(SHA_A));
 
     trees.tick(0, FRAME(CAMERA));
     // Arming constructs the outline renderer: its selection effect runs
@@ -212,7 +212,7 @@ describe('createTrees() component door', () => {
     expect(outlines.filter((o) => o.visible)).toHaveLength(1);
 
     // Clearing the selection hides it (live effect).
-    selection.value = null;
+    picker.setSelection(null);
     expect(outlines.filter((o) => o.visible)).toHaveLength(0);
   });
 
@@ -238,7 +238,7 @@ describe('createTrees() component door', () => {
   });
 
   it('dispose() clears the inner renderer, stops the theme effect, removes outlines', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.tick(0, FRAME(CAMERA)); // arm
@@ -250,7 +250,7 @@ describe('createTrees() component door', () => {
     expect(ctx.scene.children.filter((c) => c instanceof LineSegments2)).toHaveLength(0);
     // A TREES save after teardown must not reach the renderer.
     store.update({ TREES: { TRUNK_COLOR: '#00ff00' } });
-    selection.value = commitTarget(SHA_A);
+    picker.setSelection(commitTarget(SHA_A));
     expect(refreshSpy).not.toHaveBeenCalled();
   });
 });

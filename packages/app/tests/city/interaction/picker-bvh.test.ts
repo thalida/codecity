@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { makeCityState } from '../../_helpers/cityFixtures';
@@ -76,7 +76,6 @@ beforeEach(() => {
   // jsdom returns a zero rect; give pickAt a real viewport so NDC math is sane.
   canvas.getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect;
-  PICKER_SELECTION_KEY.value = null;
 });
 
 describe('picker BVH raycast', () => {

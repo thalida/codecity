@@ -1,10 +1,9 @@
-// city/interaction/picker.ts — owns the raycaster + the hover/selection state
-// machine on @preact/signals. selection is the source of truth; the in-memory
-// PICKER_SELECTION_KEY (path/sha) is derived from it and re-resolved to a live
-// target on world rebuilds, so selections survive mesh swaps. Not persisted.
+// city/interaction/picker.ts — the raycaster, and what is hovered and picked.
+// The selection is the source of truth; its key (path/sha) rides alongside and
+// is re-resolved to a live target on every rebuild, so a selection survives the
+// mesh swap that stales it. In memory only, and per city.
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
-import { signal, effect, untracked } from '@preact/signals';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
@@ -15,9 +14,9 @@ import { CommitEntry, NodeKind } from '@/city/types/manifest';
 import { PickTarget, PickerSelectionKey, PickerWorld } from '@/city/types/picker';
 import type { TimelineState } from '@/city/timeline/state';
 
-// In-memory selection key. Reset to null on a fresh load; survives in-session
-// world rebuilds via the re-resolution below. Never written to localStorage.
-export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
+// The selection key lives on the PICKER, one per city. It used to be a module
+// signal, which meant two cities on one page shared a selection — invisible
+// only because the landing's wallpaper never selects anything.
 
 export function createPicker({
   canvas,
@@ -34,8 +33,41 @@ export function createPicker({
   events: CityEmitter;
   timeline: TimelineState;
 }) {
-  const hover = signal<PickTarget | null>(null);
-  const selection = signal<PickTarget | null>(null);
+  let hover: PickTarget | null = null;
+  let selection: PickTarget | null = null;
+  // What the selection IS, independent of the meshes holding it: a manifest
+  // swap stales every live ref, and this is what keeps the node alive across it.
+  let selectionKey: PickerSelectionKey | null = null;
+
+  const listeners = { hover: new Set<() => void>(), selection: new Set<() => void>() };
+
+  /** Apply `listener` now, and again on every change. Immediate because these
+   *  are STATE, not a transition: a component armed after something is already
+   *  hovered has to draw it, not wait for the next move. */
+  function on(what: 'hover' | 'selection', listener: () => void): () => void {
+    listeners[what].add(listener);
+    listener();
+    return () => void listeners[what].delete(listener);
+  }
+
+  function _tell(what: 'hover' | 'selection'): void {
+    for (const listener of [...listeners[what]]) listener();
+  }
+
+  /** The key a target is remembered by, or null for a target with no identity. */
+  function _keyFor(sel: PickTarget | null): PickerSelectionKey | null {
+    if (!sel) return null;
+    if (sel.kind === NodeKind.File && sel.file?.path != null) {
+      return { kind: NodeKind.File, path: sel.file.path };
+    }
+    if (sel.kind === NodeKind.Directory && sel.dir?.path != null) {
+      return { kind: NodeKind.Directory, path: sel.dir.path };
+    }
+    if (sel.kind === NodeKind.Commit && sel.commit?.sha) {
+      return { kind: NodeKind.Commit, sha: sel.commit.sha };
+    }
+    return null;
+  }
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -75,101 +107,59 @@ export function createPicker({
     _bvhDirty = true;
   }
 
-  // Selection → key derivation. _suspendKeyDerive guards feedback: raised
-  // while _resolveKeyToSelection writes selection.value.
-  let _suspendKeyDerive = true;
-  const _disposeSelectionEffect = effect(() => {
-    const sel = selection.value;
-    if (_suspendKeyDerive) return;
-    if (!sel) {
-      PICKER_SELECTION_KEY.value = null;
-      return;
-    }
-    if (sel.kind === NodeKind.File && sel.file?.path != null) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: sel.file.path };
-      return;
-    }
-    if (sel.kind === NodeKind.Directory && sel.dir?.path != null) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.Directory, path: sel.dir.path };
-      return;
-    }
-    if (sel.kind === NodeKind.Commit && sel.commit?.sha) {
-      PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: sel.commit.sha };
-      return;
-    }
-  });
-  // Lift the initial suppression now that the first (no-op) fire is done.
-  _suspendKeyDerive = false;
-
   // Key → selection re-resolution on rebuild: a manifest swap stales every
-  // live mesh ref; the key keeps the selected node alive.
+  // live mesh ref, and the key is what keeps the selected node alive across it.
+  //
+  // No feedback guard: setting the selection from a key is one direction, and
+  // deriving a key from a selection is the other. The graph used to make them
+  // the same edge, which is why this needed a flag raised around every write.
   function _resolveKeyToSelection() {
-    const key = PICKER_SELECTION_KEY.value;
     _refreshPickables(); // also refresh pickables on every rebuild
-
+    const key = selectionKey;
     if (!key) {
-      // Drop selection in case it referred to disposed meshes.
-      _suspendKeyDerive = true;
-      selection.value = null;
-      _suspendKeyDerive = false;
+      // Drop the selection in case it referred to disposed meshes.
+      _setSelection(null, null);
       return;
     }
     if (key.kind === NodeKind.File) {
       const resolved = world.getBuildingByPath(key.path);
-      _suspendKeyDerive = true;
-      if (resolved) {
-        selection.value = {
-          kind: NodeKind.File,
-          mesh: resolved.mesh,
-          data: resolved.building,
-          file: resolved.building.file,
-          instanceId: resolved.instanceId,
-        };
-      } else {
-        selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
-      }
-      _suspendKeyDerive = false;
+      _setSelection(
+        resolved
+          ? {
+              kind: NodeKind.File,
+              mesh: resolved.mesh,
+              data: resolved.building,
+              file: resolved.building.file,
+              instanceId: resolved.instanceId,
+            }
+          : null,
+        resolved ? key : null
+      );
       return;
     }
     if (key.kind === NodeKind.Directory) {
       const sw = world.getSidewalkByDir(key.path);
       const st = world.getStreetByDir(key.path);
-      _suspendKeyDerive = true;
-      if (sw && st && st.dir) {
-        selection.value = {
-          kind: NodeKind.Directory,
-          sidewalk: sw,
-          street: st,
-          dir: st.dir,
-        };
-      } else {
-        selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
-      }
-      _suspendKeyDerive = false;
+      _setSelection(
+        sw && st && st.dir
+          ? { kind: NodeKind.Directory, sidewalk: sw, street: st, dir: st.dir }
+          : null,
+        sw && st && st.dir ? key : null
+      );
       return;
     }
     // A rebuild that moved the tree re-snaps; one that dropped it keeps the
     // commit, which outlives any mesh. Only an unknown sha collapses.
     if (key.kind === NodeKind.Commit) {
       const target = _commitTarget(key.sha);
-      _suspendKeyDerive = true;
-      if (target) {
-        selection.value = target;
-      } else {
-        selection.value = null;
-        PICKER_SELECTION_KEY.value = null;
-      }
-      _suspendKeyDerive = false;
-      return;
+      _setSelection(target, target ? key : null);
     }
   }
 
   // Hover always clears on rebuild — it's transient and would point at
   // a stale mesh otherwise.
   function _clearHoverOnRebuild() {
-    hover.value = null;
+    hover = null;
   }
 
   // Published, so the meshes collected here are the ones the components just
@@ -184,25 +174,46 @@ export function createPicker({
 
   // The scrub rewrites building matrices per frame but the BVH caches bounds
   // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
-  const _disposeScrubBvhEffect = effect(() => {
-    void timeline.pos.value;
-    if (!timeline.mode.peek()) return;
+  const _disposeScrubBvhEffect = timeline.on('position', () => {
+    if (!timeline.mode) return;
     _bvh = null;
     _bvhDirty = true;
   });
 
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {
-    hover.value = h;
+    if (hover === h) return;
+    hover = h;
+    _tell('hover');
+  }
+
+  /** The selection and the key that outlives its meshes, together: they are two
+   *  views of one fact and must never disagree.
+   *
+   *  The key is written even when the target is unchanged — a key that resolved
+   *  to nothing has to clear whether or not there was a selection to drop. Only
+   *  a real target change is announced. */
+  function _setSelection(sel: PickTarget | null, key: PickerSelectionKey | null): void {
+    selectionKey = key;
+    if (selection === sel) return;
+    selection = sel;
+    _tell('selection');
+    events.emit('select', { target: sel });
   }
 
   /** Every path to a selection runs through here — a pointer, a tree row, a
    *  deep link — so this is where a subscriber hears about all of them. Only on
    *  a real change: re-picking what is already picked is not a new selection. */
   function setSelection(sel: PickTarget | null): void {
-    if (selection.peek() === sel) return;
-    selection.value = sel;
-    events.emit('select', { target: sel });
+    _setSelection(sel, _keyFor(sel));
+  }
+
+  /** Restore a selection by identity, without needing its meshes to exist yet:
+   *  a deep link names a path before the city holding it has been built. The
+   *  next rebuild resolves it, and drops it if the node is not there. */
+  function setSelectionKey(key: PickerSelectionKey | null): void {
+    selectionKey = key;
+    _resolveKeyToSelection();
   }
 
   /** setSelection(null) with a self-documenting verb for view code. */
@@ -245,7 +256,7 @@ export function createPicker({
   /** The commit itself, for one the city drew no tree for. Timeline's list is
    *  the one the scrubber names; Live's comes off the manifest. */
   function _commitBySha(sha: string): CommitEntry | null {
-    const commits = timeline.bundle.peek()?.commits ?? cityState.manifest?.commits ?? [];
+    const commits = timeline.bundle?.commits ?? cityState.manifest?.commits ?? [];
     return commits.find((c) => c.sha === sha) ?? null;
   }
 
@@ -329,8 +340,8 @@ export function createPicker({
   // Per-frame in Timeline: drop a selection the scrub just removed so its
   // outline can't dangle over empty space.
   function pruneScrubHiddenSelection(): void {
-    const sel = selection.peek();
-    if (sel && _selectionScrubHidden(sel)) selection.value = null;
+    const sel = selection;
+    if (sel && _selectionScrubHidden(sel)) selection = null;
   }
 
   // ── Raycasting ────────────────────────────────────────────────────
@@ -394,7 +405,7 @@ export function createPicker({
     slot: number | undefined
   ): PickTarget | null {
     if (slot == null) return null;
-    if (timeline.mode.peek() && _buildingScrubHidden(mesh, slot)) return null;
+    if (timeline.mode && _buildingScrubHidden(mesh, slot)) return null;
     const building = world.getBuildingIndex()?.byCellSlot(`${cellId}:${slot}`);
     if (!building?.file) return null;
     return {
@@ -403,7 +414,7 @@ export function createPicker({
       data: building,
       file: building.file,
       instanceId: slot,
-      isRuin: timeline.mode.peek() && _buildingIsRuin(mesh, slot),
+      isRuin: timeline.mode && _buildingIsRuin(mesh, slot),
     };
   }
 
@@ -411,7 +422,7 @@ export function createPicker({
    *  its street through the faceIndex map baked onto userData. */
   function sidewalkTargetFor(hit: THREE.Intersection<THREE.Object3D>): PickTarget | null {
     const mesh = hit.object as THREE.Mesh;
-    if (timeline.mode.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
+    if (timeline.mode && _streetScrubHidden(mesh, hit.face?.a)) return null;
     const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
     if (!street?.dir) return null;
     return {
@@ -419,7 +430,7 @@ export function createPicker({
       sidewalk: mesh,
       street,
       dir: street.dir,
-      isRuin: timeline.mode.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+      isRuin: timeline.mode && RUINED_STREET_DIRS.has(street.dir.path),
       vertexHint: hit.face?.a,
     };
   }
@@ -458,14 +469,23 @@ export function createPicker({
   function dispose() {
     _disposeCityRevEffect();
     _disposeScrubBvhEffect();
-    _disposeSelectionEffect();
   }
 
   return {
-    hover,
-    selection,
-    selectionKey: PICKER_SELECTION_KEY,
+    // Getters: these are reassigned, and a component holding the picker has to
+    // see the current one.
+    get hover() {
+      return hover;
+    },
+    get selection() {
+      return selection;
+    },
+    get selectionKey() {
+      return selectionKey;
+    },
+    on,
     setHover,
+    setSelectionKey,
     setSelection,
     clearSelection,
     selectByPath,

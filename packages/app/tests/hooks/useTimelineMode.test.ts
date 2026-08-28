@@ -72,15 +72,15 @@ function fakeHandle() {
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
-    // The engine is real: the app's timeline store is a bound view of THIS
-    // city's, so a stub without it would leave the store reading nothing.
-    timeline: {
-      ...createTimelineState(),
+    // A real engine with the scrub-install surface bolted on. NOT a spread of
+    // one: its values are getters, and spreading copies what they read at that
+    // moment, which freezes the whole thing.
+    timeline: Object.assign(createTimelineState(), {
       installScrubController,
       uninstallScrubController,
       setStreetsTransparent,
       setFootprintsTransparent,
-    },
+    }),
   };
   return {
     handle,

@@ -98,7 +98,7 @@ export function createInputHandlers({
     canvas.style.cursor = newHover ? 'pointer' : 'grab';
     _emitHover(newHover);
 
-    if (_sameHover(newHover, picker.hover.value)) {
+    if (_sameHover(newHover, picker.hover)) {
       if (_hoverCommitId) {
         clearTimeout(_hoverCommitId);
         _hoverCommitId = 0;
@@ -113,7 +113,7 @@ export function createInputHandlers({
       _hoverCommitId = 0;
       const toCommit = _hoverPending;
       _hoverPending = null;
-      if (!_sameHover(toCommit, picker.hover.value)) picker.setHover(toCommit);
+      if (!_sameHover(toCommit, picker.hover)) picker.setHover(toCommit);
     }, INPUT_HOVER_COMMIT_MS);
   }
 
@@ -143,7 +143,7 @@ export function createInputHandlers({
     // clearing it: that is the way back to a pane you closed, and it is why
     // this reports the pick rather than leaving `select` to speak for it.
     const next = picker.interpretHit(hit);
-    if (!_sameHover(next, picker.selection.value)) picker.setSelection(next);
+    if (!_sameHover(next, picker.selection)) picker.setSelection(next);
     events.emit('pick', { target: next });
   }
 
@@ -234,7 +234,7 @@ export function createInputHandlers({
       _hoverCommitId = 0;
     }
     _hoverPending = null;
-    if (picker.hover.value) picker.setHover(null);
+    if (picker.hover) picker.setHover(null);
     _emitHover(null);
     canvas.style.cursor = 'grabbing';
   };

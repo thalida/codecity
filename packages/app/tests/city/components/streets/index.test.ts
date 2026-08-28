@@ -238,7 +238,7 @@ describe('createStreets()', () => {
   // Picker-tint effects — ARMED on first tick (the arming-bug guard)
 
   it('does NOT re-tint on selection before the first tick (effects not yet armed)', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -246,16 +246,16 @@ describe('createStreets()', () => {
     expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Set a selection BEFORE any tick — effects aren't armed, so no re-tint.
-    selection.value = {
+    picker.setSelection({
       kind: NodeKind.Directory,
       sidewalk: sw,
       dir: firstStreetDir(streets),
-    } as unknown as PickTarget;
+    } as unknown as PickTarget);
     expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -267,31 +267,31 @@ describe('createStreets()', () => {
     expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Now select this sidewalk — the live, armed effect fires synchronously.
-    selection.value = {
+    picker.setSelection({
       kind: NodeKind.Directory,
       sidewalk: sw,
       dir: firstStreetDir(streets),
-    } as unknown as PickTarget;
+    } as unknown as PickTarget);
     expect(sidewalkColorHex(streets)).toBe(selectedHex);
 
     // Clearing the selection restores the default tint.
-    selection.value = null;
+    picker.setSelection(null);
     expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
     const hoverHex = new THREE.Color(DEFAULTS.SIDEWALK_HOVER).getHex();
 
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
-    hover.value = {
+    picker.setHover({
       kind: NodeKind.Directory,
       sidewalk: sw,
       dir: firstStreetDir(streets),
-    } as unknown as PickTarget;
+    } as unknown as PickTarget);
     expect(sidewalkColorHex(streets)).toBe(hoverHex);
   });
 
@@ -379,7 +379,7 @@ describe('createStreets()', () => {
   // dispose()
 
   it('dispose() empties the group and stops effects (later STREETS mutations no-op)', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
@@ -390,11 +390,11 @@ describe('createStreets()', () => {
 
     // Effects are stopped — selection + STREETS mutations don't throw and
     // don't re-tint the (now-detached) sidewalk to SELECTED.
-    selection.value = {
+    picker.setSelection({
       kind: NodeKind.Directory,
       sidewalk: sw,
       dir: firstStreetDir(streets),
-    } as unknown as PickTarget;
+    } as unknown as PickTarget);
     store.update({ STREETS: { ASPHALT_COLOR: '#000000' } });
     expect(sidewalkColorHex(streets)).not.toBe(
       new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()

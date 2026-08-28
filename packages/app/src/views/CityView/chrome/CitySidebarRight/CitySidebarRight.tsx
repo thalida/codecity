@@ -5,6 +5,7 @@
 import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
 import {
+  CITY_SELECTION,
   SCENE_HANDLE,
   type SceneHandle,
   clearSelection,
@@ -62,7 +63,7 @@ export function CitySidebarRight() {
   // Computeds read during render: no effect writing signals, no bridge, and a
   // live-update poll re-derives every pane on its own.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    const sel = CITY_SELECTION.value ?? null;
     // Every selection opens the panel: the sidebar is the only place one is
     // shown. The panes handle the union-city caveat themselves.
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
@@ -74,7 +75,7 @@ export function CitySidebarRight() {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
     const m = PANE_MANIFEST.value as Manifest | DirNode | null;
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    const sel = CITY_SELECTION.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
     // Excludes never reach here: they're filtered out of the timeline union too,
@@ -95,7 +96,7 @@ export function CitySidebarRight() {
     void MANIFEST.value; // re-derive on live-update rebuilds
     const inTimeline = TIMELINE_MODE.value; // re-derive so the button label tracks the mode
     const handle = SCENE_HANDLE.value;
-    const sel = handle?.picker.selection.value ?? null;
+    const sel = CITY_SELECTION.value ?? null;
     return handle && sel?.kind === NodeKind.Commit
       ? {
           ...commitStateFor(handle, sel.commit),
@@ -106,7 +107,7 @@ export function CitySidebarRight() {
   });
   const streetState = useComputed<StreetPaneState>(() => {
     const m = MANIFEST.value as Manifest | DirNode | null;
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    const sel = CITY_SELECTION.value ?? null;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     // In Timeline the rollups are re-added at the settled commit from the same
     // per-blob numbers the buildings use, so the pane cannot disagree with them.

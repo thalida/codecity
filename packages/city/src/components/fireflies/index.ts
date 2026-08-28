@@ -4,7 +4,6 @@
 // boost effects arm on the first tick(), never at construction.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
@@ -89,13 +88,13 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // Armed on first tick() (no picker at construction). A fresh renderer
   // starts at -1 uniforms; the NEXT signal change repopulates it.
   const _arm = armOnFirstTick(ctx, () => {
-    const stopHover = effect(() => {
-      const h = ctx.picker!.hover.value;
+    const stopHover = ctx.picker!.on('hover', () => {
+      const h = ctx.picker!.hover;
       if (!_inner) return;
       _inner.setHoveredCommit(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
     });
-    const stopSel = effect(() => {
-      const sel = ctx.picker!.selection.value;
+    const stopSel = ctx.picker!.on('selection', () => {
+      const sel = ctx.picker!.selection;
       if (!_inner) return;
       _inner.setSelectedCommit(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
     });

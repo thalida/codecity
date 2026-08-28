@@ -6,7 +6,7 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
-import { SCENE_HANDLE } from '@/state/stores/city';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { flush } from '../_helpers/preact';
 import { FileNode, NodeKind } from '@/city/types/manifest';
@@ -27,11 +27,15 @@ const FILE: FileNode = {
 
 function makeHandle() {
   const selection = signal<PickTarget | null>(null);
+  // The chip RENDERS off the app's view of the selection and CLEARS through the
+  // handle, so the double keeps both in step the way attachCityChrome does.
   return {
     picker: {
-      selection,
+      get selection() {
+        return CITY_SELECTION.value;
+      },
       clearSelection() {
-        selection.value = null;
+        CITY_SELECTION.value = null;
       },
     },
   };
@@ -42,13 +46,12 @@ describe('SelectionChip', () => {
   const chip = () => container.querySelector('.selection-chip');
 
   const select = async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
-    handle.picker.selection.value = {
+    CITY_SELECTION.value = {
       kind: NodeKind.File,
       file: FILE,
       mesh: {} as never,
       data: {} as never,
-    };
+    } as unknown as PickTarget;
     await flush();
   };
   const dismiss = async () => {
@@ -57,6 +60,8 @@ describe('SelectionChip', () => {
   };
 
   beforeEach(async () => {
+    CITY_SELECTION.value = null;
+    CITY_HOVER.value = null;
     container = document.createElement('div');
     document.body.appendChild(container);
     SELECTION_PANE_DISMISSED.value = false;
@@ -101,13 +106,12 @@ describe('SelectionChip', () => {
   });
 
   it('carries the dir badge for a directory', async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
-    handle.picker.selection.value = {
+    CITY_SELECTION.value = {
       kind: NodeKind.Directory,
       dir: { name: 'styles', type: NodeKind.Directory, path: 'src/styles' } as never,
       sidewalk: {} as never,
       street: {} as never,
-    };
+    } as unknown as PickTarget;
     await flush();
     await dismiss();
 
@@ -118,13 +122,12 @@ describe('SelectionChip', () => {
   });
 
   it('names the kind for a commit, whose label is only a hash', async () => {
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
-    handle.picker.selection.value = {
+    CITY_SELECTION.value = {
       kind: NodeKind.Commit,
       commit: { sha: 'abc1234def5678' } as never,
       mesh: {} as never,
       instanceId: 0,
-    };
+    } as unknown as PickTarget;
     await flush();
     await dismiss();
 
@@ -140,7 +143,7 @@ describe('SelectionChip', () => {
     await flush();
 
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
-    expect(handle.picker.selection.value).toBeNull();
+    expect(handle.picker.selection).toBeNull();
     expect(chip()).toBeNull();
   });
 

@@ -27,10 +27,7 @@
     // that already spell it that way stay valid. It resolves HERE: nothing in
     // src/ reaches outside this directory any more (#208 step 10).
     "paths": {
-      "@/city/*": ["./src/*"],
-      // A peer dependency, so it is not installed here. One copy or the app's
-      // effect never sees this package's write. Goes with signals (step 11).
-      "@preact/signals": ["../app/node_modules/@preact/signals"]
+      "@/city/*": ["./src/*"]
     },
 
     // three ships no bundled .d.ts; webxr is @types/three's own dependency.

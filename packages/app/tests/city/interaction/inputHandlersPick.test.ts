@@ -13,6 +13,7 @@ import {
 import { FileNode, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { fakePicker } from '../../_helpers/cityFixtures';
 import { attachCityChrome } from '@/state/stores/city';
 
 const fileNode = (path: string): FileNode => ({
@@ -38,7 +39,7 @@ const targetFor = (path: string): PickTarget => ({
 describe('canvas pick → selection pane', () => {
   let canvas: HTMLCanvasElement;
   let handlers: { dispose: () => void };
-  let selection: ReturnType<typeof signal<PickTarget | null>>;
+  let picker: ReturnType<typeof fakePicker> & { pickAt: unknown; interpretHit: unknown };
   // What the next pick resolves to; null stands for a click on empty sky.
   let nextTarget: PickTarget | null = null;
   let events: ReturnType<typeof createEmitter>;
@@ -51,22 +52,15 @@ describe('canvas pick → selection pane', () => {
     // exactly as City.tsx wires it.
     events = createEmitter();
     chromeOff = attachCityChrome(events.on);
-    selection = signal<PickTarget | null>(null);
     nextTarget = null;
     SELECTION_PANE_DISMISSED.value = false;
 
-    const picker = {
-      selection,
-      hover: signal<PickTarget | null>(null),
-      setHover() {},
-      setSelection(t: PickTarget | null) {
-        selection.value = t;
-      },
+    picker = Object.assign(fakePicker(), {
       // The raycast is not what this covers: hand the handler a hit whenever a
       // target is staged, and let it do its own interpret/compare.
       pickAt: () => (nextTarget ? { object: { userData: {} } } : null),
       interpretHit: () => nextTarget,
-    };
+    });
 
     handlers = createInputHandlers({
       canvas,
@@ -107,7 +101,7 @@ describe('canvas pick → selection pane', () => {
 
   it('selects the picked node', () => {
     pick('src/index.ts');
-    expect(selection.value).not.toBeNull();
+    expect(picker.selection).not.toBeNull();
   });
 
   it('reopens a pane put away for the previous node', () => {
@@ -134,7 +128,7 @@ describe('canvas pick → selection pane', () => {
 
     nextTarget = null; // click on empty sky
     clickCanvas();
-    expect(selection.value).toBeNull();
+    expect(picker.selection).toBeNull();
 
     pick('src/index.ts');
 

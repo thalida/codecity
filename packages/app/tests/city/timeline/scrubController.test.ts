@@ -25,6 +25,7 @@ import type { Street } from '@/city/types/street';
 import type { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
+import { fakePicker } from '../../_helpers/cityFixtures';
 
 const TIMELINE = createTimelineState();
 
@@ -63,8 +64,7 @@ function setup(scrubGates: ScrubGate[] = []) {
     streets: { applyScrub: (s) => void streetSlices.push(s) },
     footprints: { applyScrub: (s) => void footprintSlices.push(s) },
     picker: {
-      selection: signal<PickTarget | null>(null),
-      hover: signal<PickTarget | null>(null),
+      ...fakePicker(),
     },
     timelines: buildPathTimelines(SUBJECT_BUNDLE),
     commitLineRanges: ranges,

@@ -70,7 +70,7 @@ function scrubNow(pos: number, deps: ScrubFrameDeps): number {
 }
 
 export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
-  const pos = deps.timeline.pos.peek();
+  const pos = deps.timeline.pos;
 
   // SCRUB_POS is clamped to the bundle; only the range arrays can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];
@@ -83,8 +83,8 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
   const minCreated = dateRange?.minCreated ?? 0;
 
   // The fader is dormant in Timeline, so resolve its targets here instead.
-  const sel = deps.picker.selection.peek();
-  const hov = deps.picker.hover.peek();
+  const sel = deps.picker.selection;
+  const hov = deps.picker.hover;
 
   return {
     pos,

@@ -5,7 +5,7 @@
 import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
-import { SCENE_HANDLE, clearSelection } from '@/state/stores/city';
+import { CITY_SELECTION, SCENE_HANDLE, clearSelection } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { NodeKind } from '@/city/types/manifest';
@@ -21,7 +21,7 @@ interface ChipSelection {
 /** The selected node as the chip shows it, or null when nothing is selected. */
 function useChipSelection() {
   return useComputed<ChipSelection | null>(() => {
-    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    const sel = CITY_SELECTION.value ?? null;
     if (sel?.kind === NodeKind.File)
       return { label: sel.file.name, kind: NodeKind.File, extension: sel.file.extension };
     if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, kind: NodeKind.Directory };

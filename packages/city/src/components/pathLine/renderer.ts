@@ -3,7 +3,6 @@
 // every picker change; update() ticks the rainbow each frame.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
@@ -14,7 +13,6 @@ import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { CitySettingsStore } from '@/city/settings/store';
 import type { PickTarget } from '@/city/types/picker';
-import type { ReadonlySignal } from '@preact/signals';
 import type { CityState } from '@/city/state';
 import type { StreetTier } from '@/city/settings/fields/streets';
 import { NodeKind } from '@/city/types/manifest';
@@ -30,8 +28,9 @@ export function computePathLinewidthPixels(pct: number, tiers: StreetTier[]): nu
 /** Minimal picker surface consumed by this renderer (hover + selection
  *  signals). Mirrors trees/outline.ts. */
 interface PickerSignals {
-  hover: ReadonlySignal<PickTarget | null>;
-  selection: ReadonlySignal<PickTarget | null>;
+  readonly hover: PickTarget | null;
+  readonly selection: PickTarget | null;
+  on(what: 'hover' | 'selection', listener: () => void): () => void;
 }
 
 export function createPathLineRenderer({
@@ -94,8 +93,8 @@ export function createPathLineRenderer({
   scene.add(hoverPathLine);
 
   function _isHoverSameAsSelection(): boolean {
-    const hov = picker.hover.value;
-    const sel = picker.selection.value;
+    const hov = picker.hover;
+    const sel = picker.selection;
     if (!hov || !sel) return false;
     if (hov.kind !== sel.kind) return false;
     if (hov.kind === NodeKind.File && sel.kind === NodeKind.File) return hov.mesh === sel.mesh;
@@ -106,7 +105,7 @@ export function createPathLineRenderer({
   }
 
   function _updatePathLine(): void {
-    const sel = picker.selection.value;
+    const sel = picker.selection;
     const gemPos = cityState.gemWorldPos;
     if (!gemPos || !sel) {
       pathLine.visible = false;
@@ -144,7 +143,7 @@ export function createPathLineRenderer({
   }
 
   function _updateHoverPathLine(): void {
-    const hov = picker.hover.value;
+    const hov = picker.hover;
     const gemPos = cityState.gemWorldPos;
     const cfg = settings.STREETS;
     function hide() {
@@ -171,17 +170,13 @@ export function createPathLineRenderer({
     hoverPathLine.visible = true;
   }
 
-  // The selection effect must still refresh the hover line (its "hide when
-  // hover == selection" rule) without subscribing to hover — hence untracked.
-  const _disposeSelectionEffect = effect(() => {
-    void picker.selection.value;
+  // A selection change refreshes the hover line too: its "hide when hover ==
+  // selection" rule depends on both.
+  const _disposeSelectionEffect = picker.on('selection', () => {
     _updatePathLine();
-    untracked(_updateHoverPathLine);
-  });
-  const _disposeHoverEffect = effect(() => {
-    void picker.hover.value;
     _updateHoverPathLine();
   });
+  const _disposeHoverEffect = picker.on('hover', _updateHoverPathLine);
   // Recompute both lines when the gem moves or the city rebuilds;
   // untracked() keeps the subscription to exactly those two signals.
   const _disposeRebuildEffect = cityState.on('published', () => {

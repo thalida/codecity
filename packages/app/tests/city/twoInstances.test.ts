@@ -324,10 +324,10 @@ describe('two cities scrub their own history', () => {
     a.enter();
     a.setPosition(2);
 
-    expect(a.mode.value).toBe(true);
-    expect(a.pos.value).toBe(2);
-    expect(b.mode.value).toBe(false);
-    expect(b.pos.value).toBe(0);
+    expect(a.mode).toBe(true);
+    expect(a.pos).toBe(2);
+    expect(b.mode).toBe(false);
+    expect(b.pos).toBe(0);
     a.dispose();
     b.dispose();
   });
@@ -343,8 +343,8 @@ describe('two cities scrub their own history', () => {
 
     // Two commits: the last index is 1, plus the today stop the fixture's old
     // dates earn it.
-    expect(short.pos.value).toBeLessThan(long.pos.value);
-    expect(short.pos.value).toBe(short.max.value);
+    expect(short.pos).toBeLessThan(long.pos);
+    expect(short.pos).toBe(short.max);
     short.dispose();
     long.dispose();
   });
@@ -360,9 +360,9 @@ describe('two cities scrub their own history', () => {
 
     a.exit();
 
-    expect(a.bundle.value).toBeNull();
-    expect(b.mode.value).toBe(true);
-    expect(b.pos.value).toBe(1);
+    expect(a.bundle).toBeNull();
+    expect(b.mode).toBe(true);
+    expect(b.pos).toBe(1);
     a.dispose();
     b.dispose();
   });

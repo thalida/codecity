@@ -10,7 +10,7 @@ import { createBuildingFader } from '@/city/components/buildings/fader';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 
 const _res = createTestCityResources();
-import { makeCityState, seedCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, seedCityState, fakePicker } from '../../../_helpers/cityFixtures';
 import { FadeDetail } from '@/city/types/animation';
 import { Building } from '@/city/types/building';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
@@ -91,10 +91,9 @@ async function makeFader(opts: {
     getFacadePanels: () => null,
   } as unknown as Parameters<typeof createBuildingFader>[0]['world'];
 
-  const picker = {
-    selection: signal<PickTarget | null>(opts.selection ?? null),
-    hover: signal<PickTarget | null>(opts.hover ?? null),
-  } as unknown as Parameters<typeof createBuildingFader>[0]['picker'];
+  const picker = fakePicker();
+  if (opts.selection) picker.setSelection(opts.selection);
+  if (opts.hover) picker.setHover(opts.hover);
 
   // The fader resolves a selection's parent dir through streetsByDirMap, so the
   // streets have to be seeded for any dirTarget lookup to land.
@@ -109,7 +108,7 @@ async function makeFader(opts: {
     timeline: TIMELINE,
     world,
     cityState,
-    picker,
+    picker: picker as unknown as Parameters<typeof createBuildingFader>[0]['picker'],
     material: _res.buildings,
     settings: SETTINGS,
   });
@@ -374,16 +373,16 @@ describe('buildingFader → material transparency', () => {
 
     // Selecting drops the far building to L4 (0.2), which only reads correctly
     // with blending on.
-    picker.selection.value = {
+    picker.setSelection({
       kind: NodeKind.File,
       mesh: new THREE.Object3D() as unknown as THREE.Mesh,
       data: selBuilding,
       file: a,
-    } as unknown as PickTarget;
+    } as unknown as PickTarget);
     expect(_res.buildings.get().transparent).toBe(true);
 
     // ...and back to opaque when the selection clears.
-    picker.selection.value = null;
+    picker.setSelection(null);
     expect(_res.buildings.get().transparent).toBe(false);
   });
 

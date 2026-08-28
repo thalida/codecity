@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
-import { SCENE_HANDLE } from '@/state/stores/city';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { flush } from '../_helpers/preact';
 import { NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
@@ -12,9 +12,11 @@ describe('SelectionAnnouncer', () => {
   const selection = signal<PickTarget | null>(null);
 
   beforeEach(() => {
+    CITY_SELECTION.value = null;
+    CITY_HOVER.value = null;
     container = document.createElement('div');
     document.body.appendChild(container);
-    selection.value = null;
+    CITY_SELECTION.value = null;
     // Minimal fake handle exposing just the picker.selection signal.
     SCENE_HANDLE.value = { picker: { selection } } as unknown as typeof SCENE_HANDLE.value;
   });
@@ -38,7 +40,10 @@ describe('SelectionAnnouncer', () => {
   it('announces a selected file by path', async () => {
     render(<SelectionAnnouncer />, container);
     await flush();
-    selection.value = { kind: NodeKind.File, file: { path: 'src/a.ts' } } as unknown as PickTarget;
+    CITY_SELECTION.value = {
+      kind: NodeKind.File,
+      file: { path: 'src/a.ts' },
+    } as unknown as PickTarget;
     await flush();
     expect(region().textContent).toBe('Selected file: src/a.ts');
   });
@@ -46,10 +51,13 @@ describe('SelectionAnnouncer', () => {
   it('announces a selected directory and clears on deselect', async () => {
     render(<SelectionAnnouncer />, container);
     await flush();
-    selection.value = { kind: NodeKind.Directory, dir: { path: 'src' } } as unknown as PickTarget;
+    CITY_SELECTION.value = {
+      kind: NodeKind.Directory,
+      dir: { path: 'src' },
+    } as unknown as PickTarget;
     await flush();
     expect(region().textContent).toBe('Selected directory: src');
-    selection.value = null;
+    CITY_SELECTION.value = null;
     await flush();
     expect(region().textContent).toBe('');
   });

@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { createPicker } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
 import { drivableCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
@@ -72,7 +72,6 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  PICKER_SELECTION_KEY.value = null;
 });
 
 describe('picker: tree commit picking', () => {
@@ -154,7 +153,7 @@ describe('picker: tree commit picking', () => {
 
     p.setSelection(p.interpretHit(treeHit(trees, 1)));
 
-    expect(PICKER_SELECTION_KEY.value).toEqual({
+    expect(p.selectionKey).toEqual({
       kind: NodeKind.Commit,
       sha: commits[1].sha,
     });
@@ -166,7 +165,6 @@ describe('picker: tree commit picking', () => {
     const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
     const p = createPicker({
       timeline: TIMELINE,
       events: createEmitter(),
@@ -176,7 +174,10 @@ describe('picker: tree commit picking', () => {
       cityState: world.cityState,
     });
 
-    const sel = p.selection.value as CommitTarget | null;
+    // The key arrives before the meshes; the rebuild resolves it.
+    p.setSelectionKey({ kind: NodeKind.Commit, sha: commits[1].sha });
+
+    const sel = p.selection as CommitTarget | null;
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
@@ -204,7 +205,7 @@ describe('picker: tree commit picking', () => {
     world.setTrees(treesB);
     world.triggerRebuild();
 
-    const sel = p.selection.value as CommitTarget | null;
+    const sel = p.selection as CommitTarget | null;
     expect(sel!.commit).toEqual(commits[1]);
     expect(sel!.mesh).toBe(treeSlot(treesB, 1).mesh);
     expect(sel!.mesh).not.toBe(treeSlot(treesA, 1).mesh);
@@ -217,7 +218,6 @@ describe('picker: tree commit picking', () => {
     const { trees } = makeTrees(1);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
     const p = createPicker({
       timeline: TIMELINE,
       events: createEmitter(),
@@ -227,8 +227,11 @@ describe('picker: tree commit picking', () => {
       cityState: world.cityState,
     });
 
-    expect(p.selection.value).toBeNull();
-    expect(PICKER_SELECTION_KEY.value).toBeNull();
+    // The key arrives before the meshes; the rebuild resolves it.
+    p.setSelectionKey({ kind: NodeKind.Commit, sha: 'f'.repeat(40) });
+
+    expect(p.selection).toBeNull();
+    expect(p.selectionKey).toBeNull();
     trees.dispose();
     p.dispose();
   });

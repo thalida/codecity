@@ -25,7 +25,7 @@ import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hoo
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/progress';
-import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { PICKER_SELECTION_KEY } from '@/state/stores/city';
 import {
   SCRUB_DRAGGING,
   beginTimelineMode,

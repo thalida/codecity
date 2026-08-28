@@ -4,7 +4,6 @@
 // clears the hover, which hides it, so it needs no rebuild handling.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { createPicker } from '@/city/interaction/picker';
 import { Building } from '@/city/types/building';
@@ -101,9 +100,9 @@ export function createGhostRenderer({
 
   // Shown for a hovered building that isn't the selected one, the same rule
   // the hover outline uses.
-  const _disposeHoverEffect = effect(() => {
-    const h = picker.hover.value;
-    const sel = picker.selection.value;
+  const _disposeHoverEffect = picker.on('hover', () => {
+    const h = picker.hover;
+    const sel = picker.selection;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncGhostToTarget(h);
@@ -115,9 +114,9 @@ export function createGhostRenderer({
 
   // Also hide the ghost when selection changes to the currently-hovered
   // building (so the ghost disappears on click without waiting for hover-end).
-  const _disposeSelectionEffect = effect(() => {
-    const hov = picker.hover.value;
-    const sel = picker.selection.value;
+  const _disposeSelectionEffect = picker.on('selection', () => {
+    const hov = picker.hover;
+    const sel = picker.selection;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (!hov || hov.kind !== NodeKind.File || hov.file?.path === selPath) {
       ghostMesh.visible = false;
@@ -127,8 +126,8 @@ export function createGhostRenderer({
   // One transform, in case the building under it is still growing in.
   function update(_dtMs: number): void {
     if (!ghostMesh.visible) return;
-    const hov = picker.hover.value;
-    const sel = picker.selection.value;
+    const hov = picker.hover;
+    const sel = picker.selection;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
       _syncGhostToTarget(hov);

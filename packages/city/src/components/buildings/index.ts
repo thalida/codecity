@@ -4,7 +4,6 @@
 // anything picker-driven is armed on the first tick() rather than constructed.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -315,7 +314,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function tick(_dt: number, frame: FrameContext): void {
     // First in the tick: outline and ghost read these matrices further down. In
     // Timeline the scrub controller owns them instead and this stays dormant.
-    if (ctx.timeline.mode.peek() && _scrubController) _scrubController.update();
+    if (ctx.timeline.mode && _scrubController) _scrubController.update();
     else _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
@@ -434,7 +433,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _scrubController = null;
     if (!_firstBuildDone) {
       _firstBuildDone = true;
-    } else if (!ctx.timeline.mode.peek()) {
+    } else if (!ctx.timeline.mode) {
       // Timeline mode packs the union once; the scrub controller owns the
       // matrix from here, so don't animate a per-commit diff against it.
       _tweens.onDiff(diff);

@@ -9,6 +9,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { City, FocusRef } from '@/city/types';
+import type { PickerSelectionKey, PickTarget } from '@/city/types/picker';
 import type { FocusMode } from '@/city/render/cameraRig';
 import {
   OVERLAY_OPEN,
@@ -124,6 +125,18 @@ export function showCommit(sha: string): void {
   openSelectionPane();
 }
 
+/** What the scene city has selected, as the identity that outlives its meshes.
+ *  The city holds this too (it re-resolves the selection across rebuilds); this
+ *  is the app's copy, kept current from the same event the chrome reacts to,
+ *  because the URL is rendered off signals. */
+export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
+
+/** What the scene city has hovered and selected. The city holds these as plain
+ *  values and says when they change; the chrome renders off signals, so this is
+ *  where the two meet. Kept current by attachCityChrome. */
+export const CITY_HOVER = signal<PickTarget | null>(null);
+export const CITY_SELECTION = signal<PickTarget | null>(null);
+
 /** Wire one city's own inputs to this app's chrome. The city reports what the
  *  reader did in the canvas; deciding what the screen does about it is ours,
  *  and only the city with chrome around it gets this pointed at it.
@@ -138,6 +151,14 @@ export function attachCityChrome(on: City['on']): () => void {
     // The focus key is the same request the panes' Focus buttons make, so it
     // gets the same chrome.
     on('focus', () => revealCityChrome()),
+    // The key travels with the target: a target holds meshes a rebuild will
+    // stale, and the key is what survives it (the URL is written off the key).
+    on('select', () => {
+      const picker = SCENE_HANDLE.peek()?.picker;
+      CITY_SELECTION.value = picker?.selection ?? null;
+      PICKER_SELECTION_KEY.value = picker?.selectionKey ?? null;
+    }),
+    on('hover', () => void (CITY_HOVER.value = SCENE_HANDLE.peek()?.picker.hover ?? null)),
   ];
   return () => {
     for (const off of offs) off();

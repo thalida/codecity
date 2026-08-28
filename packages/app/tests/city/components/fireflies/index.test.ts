@@ -121,13 +121,13 @@ describe('createFireflies() component door', () => {
   });
 
   it('does NOT boost a hover set before the first tick; arming pushes it in', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
 
     // Hover set BEFORE any tick — effects aren't armed, uniform untouched.
-    hover.value = commitTarget(SHA_A);
+    picker.setHover(commitTarget(SHA_A));
     expect(u.uHoveredCommit.value).toBe(-1);
 
     // First tick arms the effects; their initial run reads the live hover.
@@ -135,29 +135,29 @@ describe('createFireflies() component door', () => {
     expect(u.uHoveredCommit.value).toBe(0);
 
     // Clearing hover resets the boost (live, synchronous effect).
-    hover.value = null;
+    picker.setHover(null);
     expect(u.uHoveredCommit.value).toBe(-1);
   });
 
   it('select boost follows picker.selection after arming', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA));
     const u = orbUniforms(comp);
     expect(u.uSelectedCommit.value).toBe(-1);
-    selection.value = commitTarget(SHA_B);
+    picker.setSelection(commitTarget(SHA_B));
     expect(u.uSelectedCommit.value).toBe(1);
-    selection.value = null;
+    picker.setSelection(null);
     expect(u.uSelectedCommit.value).toBe(-1);
   });
 
   it('REBUILD-SURVIVAL: boost effects reach the NEW inner on the next signal change', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm
-    hover.value = commitTarget(SHA_A);
+    picker.setHover(commitTarget(SHA_A));
     expect(orbUniforms(comp).uHoveredCommit.value).toBe(0);
 
     // Rebuild: the fresh renderer starts with -1 uniforms (rebuild does NOT
@@ -167,7 +167,7 @@ describe('createFireflies() component door', () => {
     expect(u.uHoveredCommit.value).toBe(-1);
 
     // The NEXT hover change pushes into the NEW inner (dynamic _inner read).
-    hover.value = commitTarget(SHA_B);
+    picker.setHover(commitTarget(SHA_B));
     expect(u.uHoveredCommit.value).toBe(1);
   });
 
@@ -181,14 +181,14 @@ describe('createFireflies() component door', () => {
   });
 
   it('dispose() empties the group and stops all effects', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store);
+    const { ctx, picker } = makePickableSceneContext(undefined, store);
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm
     comp.dispose();
     expect(comp.group.children).toHaveLength(0);
     expect(() => {
-      hover.value = commitTarget(SHA_A);
+      picker.setHover(commitTarget(SHA_A));
       store.update({ FIREFLIES: { BOB_AMPLITUDE: 1.5 } });
     }).not.toThrow();
   });

@@ -13,6 +13,7 @@ import { TimelineBundle } from '@/city/types/timeline';
 import { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
+import { fakePicker } from '../../_helpers/cityFixtures';
 
 const TIMELINE = createTimelineState();
 
@@ -60,7 +61,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     timeline: TIMELINE,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
-    picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
+    picker: fakePicker(),
     ...over,
   };
 }
@@ -155,10 +156,9 @@ describe('what now means mid-scrub', () => {
 
 describe('the fade cascade targets', () => {
   it('carries a selected file straight through as the building target', () => {
-    const selection = signal<PickTarget | null>(pick({ kind: NodeKind.File, file: someFile }));
-    const frame = at(0, {
-      picker: { selection, hover: signal<PickTarget | null>(null) },
-    });
+    const picker = fakePicker();
+    picker.setSelection(pick({ kind: NodeKind.File, file: someFile }));
+    const frame = at(0, { picker });
     expect(frame.bldgTargetFile).toBe(someFile);
     // A selected file radiates from its parent directory.
     expect(frame.dirTarget).toBe(dirStreet.dir);
@@ -167,16 +167,12 @@ describe('the fade cascade targets', () => {
   it('lets a hovered directory take over the cascade from a selected file', () => {
     // Hover is the more immediate intent. Both modes route through
     // resolveDirTarget so the rule can only be stated once.
+    const picker = fakePicker();
+    picker.setSelection(pick({ kind: NodeKind.File, file: { path: 'other/b.txt' } }));
+    picker.setHover(pick({ kind: NodeKind.Directory, street: dirStreet, dir: dirStreet.dir }));
     const frame = at(0, {
       streetsByDir: { other: dirStreet },
-      picker: {
-        selection: signal<PickTarget | null>(
-          pick({ kind: NodeKind.File, file: { path: 'other/b.txt' } })
-        ),
-        hover: signal<PickTarget | null>(
-          pick({ kind: NodeKind.Directory, street: dirStreet, dir: dirStreet.dir })
-        ),
-      },
+      picker,
     });
     expect(frame.hoverFile).toBeNull();
     expect(frame.dirTarget).toBe(dirStreet.dir);

@@ -50,12 +50,12 @@ export interface ScrubControllerDeps {
 export function createScrubController(deps: ScrubControllerDeps) {
   // Fixed for the life of the controller; readScrubFrame owns everything that
   // varies per frame.
-  const bundle = deps.timeline.bundle.peek();
+  const bundle = deps.timeline.bundle;
   const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
   const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
   // The same last stop the bar ends on, so the two agree about the far end.
-  const trackEndMs = deps.timeline.todayMs.peek() ?? scannedAtMs;
+  const trackEndMs = deps.timeline.todayMs ?? scannedAtMs;
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),

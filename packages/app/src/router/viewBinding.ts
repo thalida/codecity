@@ -20,7 +20,7 @@ import {
   SETTLED_POS,
   SCRUB_MAX,
 } from '@/state/stores/timeline';
-import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
+import { PICKER_SELECTION_KEY } from '@/state/stores/city';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { NodeKind } from '@/city/types/manifest';
 import { PickerSelectionKey } from '@/city/types/picker';
