@@ -1,25 +1,35 @@
-// city/sceneHandle.ts — the live scene handle, and the commands the UI sends
-// through it. Not app state: it holds a Three.js object and calls methods on
-// it, so it lives with the renderer rather than in state/stores.
+// state/stores/city.ts — the cities this app has mounted, and the commands its
+// chrome sends them.
+//
+// The commands are thin on purpose. Pointing the camera at a node is the city's
+// job and lives there (`city.focus`); deciding what the screen should look like
+// afterwards is ours, and that is all these add. The split is what makes the
+// landing's wallpaper possible: it is a city with no chrome, so it simply has
+// none of this pointed at it.
 
 import { signal, effect } from '@preact/signals';
-import type { createCity } from './index';
-import type { FocusMode } from './render/cameraRig';
-import { SIDEBAR_COLLAPSED, dismissSelectionPane, openSelectionPane } from '@/state/stores/chrome';
+import type { City, FocusRef } from '@/city/types';
+import type { FocusMode } from '@/city/render/cameraRig';
+import {
+  OVERLAY_OPEN,
+  SIDEBAR_COLLAPSED,
+  dismissSelectionPane,
+  openSelectionPane,
+} from '@/state/stores/chrome';
 import { IS_PHONE } from '@/state/stores/viewport';
 
-export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
+export type SceneHandle = City;
 
 /** The city on the /city route. Only the Scene variant publishes here. */
-export const SCENE_HANDLE = signal<SceneHandle | null>(null);
+export const SCENE_HANDLE = signal<City | null>(null);
 
 /** The landing's wallpaper city: a different city on a different canvas, so
  *  sharing a slot made whichever mounted last the other's applyManifest target. */
-export const BACKDROP_HANDLE = signal<SceneHandle | null>(null);
+export const BACKDROP_HANDLE = signal<City | null>(null);
 
 /** Resolves once the city exists. A boot load can outrun createCity, and a load
  *  that finds no handle has nowhere to put its city. */
-export function whenSceneHandle(): Promise<SceneHandle> {
+export function whenSceneHandle(): Promise<City> {
   const ready = SCENE_HANDLE.peek();
   if (ready) return Promise.resolve(ready);
   return new Promise((resolve) => {
@@ -39,8 +49,9 @@ function collapseDrawerOnPhone(): void {
 }
 
 /** Asking to focus something is asking to look at it, so every focus command
- *  clears what's in the way and leaves the chip standing in for the details. */
-function revealCity(): void {
+ *  clears what's in the way and leaves the chip standing in for the details.
+ *  Exported because the focus key does the same thing from inside the canvas. */
+export function revealCityChrome(): void {
   dismissSelectionPane();
   collapseDrawerOnPhone();
 }
@@ -52,24 +63,10 @@ function revealDetails(): void {
   collapseDrawerOnPhone();
 }
 
-/** What a command points the camera at: a node by path, a commit by sha, or
- *  whatever is already selected. */
-type NodeRef = { path: string } | { sha: string } | null;
-
-/** Select what `ref` names and aim the camera at it: the one place a ref becomes
- *  a focus. False when there is nothing to look at, so the chrome stays put. */
-function _pointAt(ref: NodeRef, mode?: FocusMode): boolean {
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return false;
-  const sel =
-    ref === null
-      ? handle.picker.selection.peek()
-      : 'sha' in ref
-        ? handle.picker.selectByCommit(ref.sha)
-        : handle.picker.selectByPath(ref.path);
-  if (!sel) return false;
-  handle.rig.focusSelection(sel, mode);
-  return true;
+/** Point the scene city at `ref`. False before it boots, or when there is
+ *  nothing there to look at, so the chrome stays put. */
+function _pointAt(ref: FocusRef, mode?: FocusMode): boolean {
+  return SCENE_HANDLE.peek()?.focus(ref, mode) ?? false;
 }
 
 // Thin wrappers the UI calls instead of reaching into the handle itself. All
@@ -93,18 +90,18 @@ export function clearSelection(): void {
 /** Focus a node, selecting it first if it isn't: an almanac row is a Focus
  *  button for something you haven't picked yet. Re-selecting is identity. */
 export function focusPath(path: string, mode?: FocusMode): void {
-  if (_pointAt({ path }, mode)) revealCity();
+  if (_pointAt({ path }, mode)) revealCityChrome();
 }
 
 /** focusPath for a commit's tree, by sha. */
 export function focusCommit(sha: string, mode?: FocusMode): void {
-  if (_pointAt({ sha }, mode)) revealCity();
+  if (_pointAt({ sha }, mode)) revealCityChrome();
 }
 
 /** Focus whatever is selected, whichever kind. Here rather than in the key
  *  handler: a keystroke and a Focus button are the same request. */
 export function focusSelection(mode?: FocusMode): void {
-  if (_pointAt(null, mode)) revealCity();
+  if (_pointAt(null, mode)) revealCityChrome();
 }
 
 /** Go to a node named in a list. The details open, unlike the Focus commands:
@@ -125,6 +122,32 @@ export function showCommit(sha: string): void {
   if (!handle) return;
   handle.picker.selectByCommit(sha);
   openSelectionPane();
+}
+
+/** Wire one city's own inputs to this app's chrome. The city reports what the
+ *  reader did in the canvas; deciding what the screen does about it is ours,
+ *  and only the city with chrome around it gets this pointed at it.
+ *
+ *  Returns the unsubscribe; call it when that city goes away. */
+export function attachCityChrome(on: City['on']): () => void {
+  const offs = [
+    // Picking a node is asking what it is, so a pane put away for the last one
+    // comes back for this one — and re-picking the same node is the way back
+    // to a pane you closed.
+    on('pick', () => openSelectionPane()),
+    // The focus key is the same request the panes' Focus buttons make, so it
+    // gets the same chrome.
+    on('focus', () => revealCityChrome()),
+  ];
+  return () => {
+    for (const off of offs) off();
+  };
+}
+
+/** Whether the city's own shortcuts should fire. A modal owns the keyboard
+ *  while it is open, which the city has no way to know. */
+export function cityKeyboardEnabled(): boolean {
+  return !OVERLAY_OPEN.peek();
 }
 
 /** Reset the camera framing to the current mode's default pose. */

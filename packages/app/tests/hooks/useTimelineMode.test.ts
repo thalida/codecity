@@ -12,7 +12,7 @@ import {
   setScrubPos,
   setTimelineBundle,
 } from '@/state/stores/timeline';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
   REBUILD_STATUS,

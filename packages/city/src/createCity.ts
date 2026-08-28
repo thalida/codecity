@@ -37,8 +37,8 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, SceneComponent, SceneContext } from './types';
-import { createCameraRig } from './render/cameraRig';
+import type { City, FocusRef, SceneComponent, SceneContext } from './types';
+import { createCameraRig, type FocusMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { createPostFx } from './render/postFx';
@@ -50,7 +50,15 @@ export async function createCity(
   {
     settings: initialSettings,
     baseUrl = '/api',
-  }: { settings?: CitySettingsPatch; baseUrl?: string } = {}
+    keyboard = true,
+  }: {
+    settings?: CitySettingsPatch;
+    baseUrl?: string;
+    /** The city's own shortcuts (Esc, R, focus). `false` turns them off; a
+     *  predicate is asked per keystroke, which is how a consumer with a modal
+     *  open keeps the keyboard while it is. */
+    keyboard?: boolean | (() => boolean);
+  } = {}
 ): Promise<City> {
   // Before anything that reads a setting: the material, the state pipeline and
   // every component resolve their values off this one instance's store.
@@ -125,6 +133,7 @@ export async function createCity(
     resources,
     settings,
     timeline,
+    client,
     picker: null,
   } as unknown as SceneContext;
 
@@ -253,6 +262,13 @@ export async function createCity(
       postFx.render();
     },
     onResetView: rig.reset,
+    keyboardEnabled: typeof keyboard === 'function' ? keyboard : () => keyboard,
+    onFocusSelection() {
+      // Reported, not acted on beyond the camera: a keystroke inside the canvas
+      // is "look at it", and what the chrome around it should do about that
+      // belongs to whoever drew the chrome.
+      if (focus(null)) events.emit('focus', { target: picker.selection.peek() });
+    },
   });
 
   // Scrub controller: built on entering Timeline mode (useTimelineMode); held here to dispose on uninstall.
@@ -350,10 +366,30 @@ export async function createCity(
     if (live) void applyManifest(live).catch(() => {});
   });
 
+  /** Select what `ref` names and aim the camera at it: the one place a ref
+   *  becomes a focus. Null means "whatever is already selected". False when
+   *  there is nothing to look at, so a caller's chrome can stay put. */
+  function focus(ref: FocusRef, mode?: FocusMode): boolean {
+    const sel =
+      ref === null
+        ? picker.selection.peek()
+        : 'sha' in ref
+          ? picker.selectByCommit(ref.sha)
+          : picker.selectByPath(ref.path);
+    if (!sel) return false;
+    rig.focusSelection(sel, mode);
+    return true;
+  }
+
   return {
     scene,
     picker,
     rig,
+    focus,
+    /** The escape hatch, documented rather than discovered: a consumer doing
+     *  something this API has no opinion about gets the raw renderer. Nothing
+     *  in here promises to keep working if you write to it. */
+    three: { scene, renderer, camera: rig.camera },
     on: events.on,
     client,
     loadSource: sourceLoader.load,

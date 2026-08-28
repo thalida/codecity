@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
@@ -86,14 +86,11 @@ function makeSceneHandle() {
       setSelection(t: PickTarget | null) {
         selection.value = t;
       },
-      // focusPath selects before it moves the camera, and focuses what the
-      // select resolved, so a handle without this isn't one the commands drive.
-      selectByPath() {
-        return selection.value;
-      },
     },
-    rig: {
-      focusSelection() {},
+    // Pointing the camera is the city's; the pane commands only need to know
+    // whether there was anything to point it at.
+    focus(): boolean {
+      return selection.value !== null;
     },
   };
 }

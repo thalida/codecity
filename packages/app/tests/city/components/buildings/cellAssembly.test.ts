@@ -17,6 +17,9 @@ import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import { settingsStore } from '../../../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
+import { createClient } from '@/city/client';
+
+const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
@@ -49,6 +52,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -71,6 +75,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       [...dense, ...sparse],
       TEST_SOURCE,
@@ -94,6 +99,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -118,6 +124,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -139,6 +146,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -156,6 +164,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -173,6 +182,7 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(
       SETTINGS.signals,
       TIMELINE,
+      CLIENT,
       bounds,
       buildings,
       TEST_SOURCE,
@@ -202,14 +212,30 @@ describe('buildCellsFromLayout', () => {
         modified: '',
       },
     });
-    const out = buildCellsFromLayout(SETTINGS.signals, TIMELINE, bounds, [b], TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      CLIENT,
+      bounds,
+      [b],
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.index.byPath.get('src/foo.ts')).toBeDefined();
   });
 
   it('handles empty buildings array without throwing', () => {
     const bounds = { minX: 0, maxX: 200, minZ: 0, maxZ: 200 };
-    const out = buildCellsFromLayout(SETTINGS.signals, TIMELINE, bounds, [], TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      CLIENT,
+      bounds,
+      [],
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
@@ -244,6 +270,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [mediaBuilding()],
         TEST_SOURCE,
@@ -257,6 +284,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [mediaBuilding()],
         TEST_SOURCE,
@@ -289,6 +317,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [empty],
         TEST_SOURCE,
@@ -329,6 +358,7 @@ describe('buildCellsFromLayout', () => {
         buildCellsFromLayout(
           SETTINGS.signals,
           TIMELINE,
+          CLIENT,
           bounds,
           [dataBuilding()],
           TEST_SOURCE,
@@ -342,6 +372,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [dataBuilding()],
         TEST_SOURCE,
@@ -373,6 +404,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [empty],
         TEST_SOURCE,
@@ -422,6 +454,7 @@ describe('buildCellsFromLayout', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
         TIMELINE,
+        CLIENT,
         bounds,
         [empty, nonEmpty],
         TEST_SOURCE,

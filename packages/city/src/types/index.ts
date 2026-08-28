@@ -3,7 +3,7 @@
 
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
-import type { CameraRig } from '../render/cameraRig';
+import type { CameraRig, FocusMode } from '../render/cameraRig';
 import type { CityResources } from '../resources';
 import type { CitySettingsStore, SettingSignals } from '../settings/store';
 import type { CitySettingsPatch } from '../settings';
@@ -32,6 +32,8 @@ export interface SceneContext {
   /** The history this city is showing, and where in it. Per city for the same
    *  reason: a bundle is one repo's history. */
   timeline: TimelineState;
+  /** This city's API client, on the base URL it was built with. */
+  client: CodecityClient;
 }
 
 /** Per-frame state passed to each component's tick() method. */
@@ -76,11 +78,27 @@ export interface CityTimeline extends TimelineState {
   setFootprintsTransparent(on: boolean): void;
 }
 
+/** What a focus command points at: a node by path, a commit by sha, or
+ *  whatever is already selected. */
+export type FocusRef = { path: string } | { sha: string } | null;
+
+/** The raw Three.js objects, for a consumer doing something this API has no
+ *  opinion about. Read freely; writing is your own risk. */
+export interface CityThree {
+  scene: THREE.Scene;
+  renderer: THREE.WebGLRenderer;
+  camera: THREE.PerspectiveCamera;
+}
+
 /** The top-level city object returned by the city composer (createCity). */
 export interface City {
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;
+  /** Select what `ref` names and point the camera at it. False when there is
+   *  nothing to look at — the caller's chrome should then stay where it is. */
+  focus(ref: FocusRef, mode?: FocusMode): boolean;
+  three: CityThree;
   /** Subscribe to what this city is doing. Everything the consumer used to get
    *  by reading a global it now gets here, per instance. */
   on: CityEmitter['on'];

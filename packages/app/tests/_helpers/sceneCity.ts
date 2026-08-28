@@ -7,7 +7,7 @@ import { createClient } from '@/city/client';
 import { createEmitter } from '@/city/events';
 import { createSourceLoader } from '@/city/loadSource';
 import { createTimelineState, type TimelineState } from '@/city/timeline/state';
-import { SCENE_HANDLE, type SceneHandle } from '@/city/sceneHandle';
+import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/city';
 import { attachScanProgress } from '@/hooks/useManifestSource';
 import type { Manifest } from '@/city/types/manifest';
 

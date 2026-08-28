@@ -388,6 +388,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const cellOut = buildCellsFromLayout(
       ctx.settings,
       ctx.timeline,
+      ctx.client,
       bounds,
       buildings,
       sourceOf(ctx.cityState.manifest.peek()),

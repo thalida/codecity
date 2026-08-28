@@ -9,7 +9,7 @@ const { focusPath, focusCommit } = vi.hoisted(() => ({
   focusPath: vi.fn(),
   focusCommit: vi.fn(),
 }));
-vi.mock('@/city/sceneHandle', () => ({ focusPath, focusCommit }));
+vi.mock('@/state/stores/city', () => ({ focusPath, focusCommit }));
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).

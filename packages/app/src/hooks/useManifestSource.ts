@@ -40,7 +40,7 @@ import { ScanError, ScanPhase } from '@/city/client/manifest';
 import { API } from '@/apiClient';
 import type { Manifest } from '@/city/types/manifest';
 import type { City } from '@/city/types';
-import { SCENE_HANDLE, whenSceneHandle } from '@/city/sceneHandle';
+import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

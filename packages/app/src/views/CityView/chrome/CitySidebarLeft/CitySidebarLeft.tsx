@@ -8,7 +8,7 @@ import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/city/sceneHandle';
+import { SCENE_HANDLE, goToPath, hoverPath, clearHover } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';

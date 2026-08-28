@@ -10,9 +10,7 @@ const INPUT_CLICK_TIME_THRESHOLD_MS = 400;
 const TOUCH_CLICK_MOVE_THRESHOLD_PX = 12;
 const TOUCH_CLICK_TIME_THRESHOLD_MS = 700;
 const INPUT_HOVER_COMMIT_MS = 35;
-import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
-import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/chrome';
-import { focusSelection } from '@/city/sceneHandle';
+import { CITY_KEY_BINDINGS as KEY_BINDINGS, TEXT_INPUT_TAGS } from '../constants/keyboard';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
@@ -29,6 +27,8 @@ export function createInputHandlers({
   events,
   onResize,
   onResetView,
+  onFocusSelection,
+  keyboardEnabled,
 }: {
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
@@ -40,6 +40,11 @@ export function createInputHandlers({
   /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
    *  manifest — a page reload is required for that. */
   onResetView: () => void;
+  /** The focus key: point the camera at whatever is selected. */
+  onFocusSelection: () => void;
+  /** Whether the city's own shortcuts should fire right now. A consumer with a
+   *  modal open owns the keyboard while it is; the city cannot know that. */
+  keyboardEnabled: () => boolean;
 }) {
   // Click vs. drag: pointerdown→pointerup with movement + time threshold.
   let downX = 0,
@@ -134,17 +139,12 @@ export function createInputHandlers({
       onResetView();
       return;
     }
-    // Clicking the selection again asks for its details rather than clearing
-    // it: that is the way back to a pane you closed.
+    // Re-picking what is already picked asks for its details rather than
+    // clearing it: that is the way back to a pane you closed, and it is why
+    // this reports the pick rather than leaving `select` to speak for it.
     const next = picker.interpretHit(hit);
-    if (_sameHover(next, picker.selection.value)) {
-      openSelectionPane();
-      return;
-    }
-    picker.setSelection(next);
-    // Picking a node is asking what it is, so a pane put away for the last one
-    // comes back for this one.
-    openSelectionPane();
+    if (!_sameHover(next, picker.selection.value)) picker.setSelection(next);
+    events.emit('pick', { target: next });
   }
 
   // ── Bindings ───────────────────────────────────────────────────────
@@ -205,9 +205,9 @@ export function createInputHandlers({
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
 
-    // A modal owns keyboard input while open — don't let scene shortcuts
-    // (Esc-deselect, R, F) fire underneath it.
-    if (OVERLAY_OPEN.value) return;
+    // Something else may own the keyboard right now (a consumer's modal), in
+    // which case the scene's shortcuts (Esc-deselect, R, F) stay quiet.
+    if (!keyboardEnabled()) return;
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);
@@ -216,9 +216,9 @@ export function createInputHandlers({
       // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
-      // The command the panes' Focus buttons call. The gem isn't selectable:
-      // clicking it resets the view instead.
-      focusSelection();
+      // The same request the panes' Focus buttons make. The gem isn't
+      // selectable: clicking it resets the view instead.
+      onFocusSelection();
     }
   });
 

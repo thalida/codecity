@@ -46,6 +46,15 @@ export interface CityEvents {
   /** What is picked, however it got picked: a click, a tree row, a deep link.
    *  Null is "nothing selected". */
   select: { target: PickTarget | null };
+  /** The reader picked something in the canvas. Fires on every completed pick,
+   *  including re-picking what is already picked — which `select` does not,
+   *  because nothing changed. That re-pick is how you get back to a details
+   *  pane you closed, so it has to be an event about the INPUT, not the state. */
+  pick: { target: PickTarget | null };
+  /** The reader asked the CITY to look at something — the focus key, not a
+   *  consumer calling `focus()`, which already knows it asked. Whoever draws
+   *  chrome over this canvas gets to decide what that means for it. */
+  focus: { target: PickTarget | null };
 }
 
 export type CityEventName = keyof CityEvents;

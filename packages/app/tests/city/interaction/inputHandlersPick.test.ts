@@ -13,6 +13,7 @@ import {
 import { FileNode, NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { attachCityChrome } from '@/state/stores/city';
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,
@@ -40,10 +41,16 @@ describe('canvas pick → selection pane', () => {
   let selection: ReturnType<typeof signal<PickTarget | null>>;
   // What the next pick resolves to; null stands for a click on empty sky.
   let nextTarget: PickTarget | null = null;
+  let events: ReturnType<typeof createEmitter>;
+  let chromeOff: () => void;
 
   beforeEach(() => {
     canvas = document.createElement('canvas');
     document.body.appendChild(canvas);
+    // The pane opening is the APP's reaction to a pick, so it is wired here
+    // exactly as City.tsx wires it.
+    events = createEmitter();
+    chromeOff = attachCityChrome(events.on);
     selection = signal<PickTarget | null>(null);
     nextTarget = null;
     SELECTION_PANE_DISMISSED.value = false;
@@ -70,13 +77,16 @@ describe('canvas pick → selection pane', () => {
       } as never,
       renderer: { setSize() {} } as never,
       cityState: {} as never,
-      events: createEmitter(),
+      events,
       onResize() {},
       onResetView() {},
+      onFocusSelection() {},
+      keyboardEnabled: () => true,
     });
   });
 
   afterEach(() => {
+    chromeOff();
     handlers.dispose();
     canvas.remove();
     SELECTION_PANE_DISMISSED.value = false;

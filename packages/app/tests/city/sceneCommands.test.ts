@@ -12,8 +12,9 @@ import {
   focusSelection,
   goToPath,
   goToCommit,
-} from '@/city/sceneHandle';
+} from '@/state/stores/city';
 import { FocusMode } from '@/city/render/cameraRig';
+import type { FocusRef } from '@/city/types';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { NodeKind } from '@/city/types/manifest';
 import { PickTarget } from '@/city/types/picker';
@@ -28,34 +29,34 @@ const COMMIT_TARGET = {
   commit: { sha: 'abc1234' },
 } as unknown as PickTarget;
 
-// The picker resolves a ref once and hands back the target; the commands pass
-// that target to the rig. UNRESOLVED stands for a ref that matches nothing.
+// A ref that matches nothing, which the city answers false to.
 const UNRESOLVED = 'no-such-node';
 
+// Pointing the camera is the CITY's job and is tested against a real one in
+// builtCity.test.ts. What this file is about is the other half: what the chrome
+// does once the city says whether there was anything to look at. So the city is
+// stubbed at its contract — `focus(ref, mode) -> did it land?` — rather than
+// having its internals restated here.
 function makeHandle() {
   const selection = signal<PickTarget | null>(null);
   const calls: string[] = [];
   return {
     calls,
-    picker: {
-      selection,
-      selectByPath(path: string): PickTarget | null {
-        calls.push(`selectByPath:${path}`);
-        if (path === UNRESOLVED) return null;
-        selection.value = FILE_TARGET;
-        return FILE_TARGET;
-      },
-      selectByCommit(sha: string): PickTarget | null {
-        calls.push(`selectByCommit:${sha}`);
-        if (sha === UNRESOLVED) return null;
-        selection.value = COMMIT_TARGET;
-        return COMMIT_TARGET;
-      },
-    },
-    rig: {
-      focusSelection(sel: PickTarget, mode: FocusMode = FocusMode.Overhead) {
-        calls.push(`focusSelection:${sel.kind}:${mode}`);
-      },
+    selection,
+    focus(ref: FocusRef, mode: FocusMode = FocusMode.Overhead): boolean {
+      if (ref === null) {
+        if (!selection.peek()) return false;
+        calls.push(`focus:selection:${mode}`);
+        return true;
+      }
+      const name = 'sha' in ref ? ref.sha : ref.path;
+      if (name === UNRESOLVED) {
+        calls.push(`miss:${name}`);
+        return false;
+      }
+      selection.value = 'sha' in ref ? COMMIT_TARGET : FILE_TARGET;
+      calls.push(`focus:${name}:${mode}`);
+      return true;
     },
   };
 }
@@ -76,7 +77,7 @@ describe('scene navigation commands', () => {
 
   it('goToPath selects, moves the camera, and shows the details', () => {
     goToPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
+    expect(handle.calls).toEqual(['focus:src/a.ts:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });
 
@@ -94,13 +95,13 @@ describe('scene navigation commands', () => {
 
   it('focusPath selects, moves the camera, and clears the panel away', () => {
     focusPath('src/a.ts');
-    expect(handle.calls).toEqual(['selectByPath:src/a.ts', 'focusSelection:file:overhead']);
+    expect(handle.calls).toEqual(['focus:src/a.ts:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
   it('focusCommit does the same for a commit', () => {
     focusCommit('abc1234');
-    expect(handle.calls).toEqual(['selectByCommit:abc1234', 'focusSelection:commit:overhead']);
+    expect(handle.calls).toEqual(['focus:abc1234:overhead']);
     expect(SELECTION_PANE_DISMISSED.value).toBe(true);
   });
 
@@ -112,11 +113,9 @@ describe('scene navigation commands', () => {
     focusSelection(FocusMode.Recenter);
 
     expect(handle.calls).toEqual([
-      'selectByPath:src/a.ts',
-      'focusSelection:file:recenter',
-      'selectByCommit:abc1234',
-      'focusSelection:commit:recenter',
-      'focusSelection:commit:recenter', // the live selection, left by goToCommit
+      'focus:src/a.ts:recenter',
+      'focus:abc1234:recenter',
+      'focus:selection:recenter', // the live selection, left by goToCommit
     ]);
   });
 
@@ -128,9 +127,9 @@ describe('scene navigation commands', () => {
     focusCommit(UNRESOLVED);
 
     expect(handle.calls).toEqual([
-      `selectByPath:${UNRESOLVED}`,
-      `selectByPath:${UNRESOLVED}`,
-      `selectByCommit:${UNRESOLVED}`,
+      `miss:${UNRESOLVED}`,
+      `miss:${UNRESOLVED}`,
+      `miss:${UNRESOLVED}`,
     ]);
     expect(SELECTION_PANE_DISMISSED.value).toBe(false);
   });

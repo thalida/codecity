@@ -9,7 +9,7 @@ const packageDir = import.meta.dirname;
 
 export default defineConfig({
   resolve: {
-    // Temporary, mirrors tsconfig.json paths. Deleted with it (#208).
-    alias: { '@': resolve(packageDir, '../app/src') },
+    // Mirrors tsconfig.json paths: `@/city/*` is this package's own src.
+    alias: { '@/city': resolve(packageDir, 'src') },
   },
 });

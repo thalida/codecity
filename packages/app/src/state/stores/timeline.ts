@@ -12,7 +12,7 @@
 
 import { computed, effect, type ReadonlySignal } from '@preact/signals';
 import { findNodeByPath } from '@/city/utils/manifest';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { createTimelineState, type ScrubbedFileStats } from '@/city/timeline/state';
 import { MANIFEST, type ManifestValue } from './manifest';
 import { ruinStateAt, PathState, entryAt, lastModifiedIndexAt } from '@/city/timeline/replay';

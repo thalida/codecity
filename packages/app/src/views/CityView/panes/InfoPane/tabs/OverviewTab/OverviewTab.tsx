@@ -6,7 +6,7 @@ import { useMemo } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { focusPath, focusCommit } from '@/city/sceneHandle';
+import { focusPath, focusCommit } from '@/state/stores/city';
 import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';

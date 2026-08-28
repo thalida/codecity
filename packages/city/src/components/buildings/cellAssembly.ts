@@ -14,6 +14,7 @@ import type { SourceRef } from '@/city/types/manifest';
 import type { CityResources } from '@/city/resources';
 import type { SettingSignals } from '@/city/settings/store';
 import type { TimelineState } from '@/city/timeline/state';
+import type { CodecityClient } from '@/city/client';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;
@@ -29,6 +30,7 @@ export interface CellAssemblyOutput {
 export function buildCellsFromLayout(
   settings: SettingSignals,
   timeline: TimelineState,
+  client: CodecityClient,
   bounds: WorldBounds,
   buildings: Building[],
   source: SourceRef | null,
@@ -122,6 +124,7 @@ export function buildCellsFromLayout(
       source,
       settings,
       timeline,
+      client,
       {
         rendererRegistry: resources.renderer,
       }

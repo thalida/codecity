@@ -9,8 +9,9 @@ import { effect } from '@preact/signals';
 import { createCity } from '@codecity/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { attachScanProgress } from '@/hooks/useManifestSource';
+import { attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
 import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/cityValues';
-import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/city/sceneHandle';
+import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { attachBuildProgress, markError } from '@/state/stores/progress';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
@@ -50,7 +51,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
     const settings = variant === CityVariant.Backdrop ? BACKDROP_SETTINGS : CITY_SETTINGS;
 
     // Start empty; the apply-effect below paints the first manifest.
-    createCity(canvas, { settings: settings.peek() })
+    createCity(canvas, {
+      settings: settings.peek(),
+      keyboard: cityKeyboardEnabled,
+    })
       .then((handle) => {
         // Unmounted before the async build resolved: dispose the orphan now, or
         // its renderer + frame loop leak forever (nothing else holds a ref).
@@ -85,6 +89,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // building behind the landing never reaches it, because a backdrop
         // never subscribes.
         unsubEvents.push(attachBuildProgress(handle.on));
+
+        // What the reader does in the canvas, and what this app's chrome does
+        // about it. A backdrop never gets this: it has no chrome.
+        unsubEvents.push(attachCityChrome(handle.on));
 
         // The card the cursor drags around. The city says what is under the
         // pointer; drawing something about it is the view's decision.

@@ -11,7 +11,7 @@ import { parseSelection, selectionParam } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/progress';
-import { goToPath, goToCommit, clearSelection } from '@/city/sceneHandle';
+import { goToPath, goToCommit, clearSelection } from '@/state/stores/city';
 import { FocusMode } from '@/city/render/cameraRig';
 import {
   TIMELINE_MODE,

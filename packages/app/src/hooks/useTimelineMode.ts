@@ -11,7 +11,7 @@ import {
   commitSource,
   activeExcludePathsFor,
 } from '@/state/stores/source';
-import { SCENE_HANDLE, whenSceneHandle } from '@/city/sceneHandle';
+import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
 import {
   beginBuild,
   enterBuildStage,

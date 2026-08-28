@@ -22,9 +22,9 @@ import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
 import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
 import type { RendererRegistry } from './facadePanelTextureArray';
 import { ContentPendingError } from '@/city/client/file';
-import { API } from '@/apiClient';
 import type { SettingSignals } from '@/city/settings/store';
 import type { TimelineState } from '@/city/timeline/state';
+import type { CodecityClient } from '@/city/client';
 
 // The only thing keeping the quad out of co-planar z-fighting with the wall:
 // depthWrite:false makes polygonOffset a no-op (see FACADE_PANELS.md).
@@ -159,6 +159,9 @@ export class InstancedFacadePanels {
     private readonly settings: SettingSignals,
     /** This city's history, for the blob a scrubbed facade should show. */
     readonly timeline: TimelineState,
+    /** This city's client: a facade is fetched from the server that served the
+     *  repo it belongs to, which on a second city is a different repo. */
+    readonly client: CodecityClient,
     opts?: {
       onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void;
       /** This city's renderer slot. Defaults to a private one, which is what
@@ -612,7 +615,12 @@ function asyncLoadMediaForBuilding(
   if (kind === MediaKind.Image) {
     void _loadImageBuilding(ads, source, filePath, version, sha, layer, panelSlots);
   } else {
-    void _loadVideoBuilding(ads, API.fileUrl(source, filePath, version, sha), layer, panelSlots);
+    void _loadVideoBuilding(
+      ads,
+      ads.client.fileUrl(source, filePath, version, sha),
+      layer,
+      panelSlots
+    );
   }
 }
 
@@ -633,7 +641,7 @@ function asyncLoadDataFacadeForBuilding(
     case 'font':
       void _loadCanvasFacade(
         ads,
-        () => renderFontGlyphFacade(ads.timeline, source, filePath, version),
+        () => renderFontGlyphFacade(ads.timeline, ads.client, source, filePath, version),
         layer,
         panelSlots
       );
@@ -641,7 +649,7 @@ function asyncLoadDataFacadeForBuilding(
     case 'audio':
       void _loadCanvasFacade(
         ads,
-        () => renderWaveformFacade(ads.timeline, source, filePath, version),
+        () => renderWaveformFacade(ads.timeline, ads.client, source, filePath, version),
         layer,
         panelSlots
       );
@@ -649,7 +657,7 @@ function asyncLoadDataFacadeForBuilding(
     default:
       void _loadFingerprintBuilding(
         ads,
-        API.fingerprintUrl(source, filePath, version),
+        ads.client.fingerprintUrl(source, filePath, version),
         layer,
         panelSlots
       );
@@ -705,7 +713,7 @@ async function _loadImageBuilding(
   // keep the placeholder, not tint the building broken.
   let blob: Blob;
   try {
-    blob = await API.fetchFileBlob(source, filePath, version, sha);
+    blob = await ads.client.fetchFileBlob(source, filePath, version, sha);
   } catch (err) {
     // Waiting resolves itself: the next rebuild picks the image up once the
     // fetch behind it lands. Anything else is a real failure.
@@ -749,7 +757,7 @@ async function _loadVideoBuilding(
   }
   // A <video> reports only that it didn't load, never a status. Ask, outside the
   // slot, before wearing the error tint for a file that is merely queued.
-  if (errored && !(await API.isContentPending(url))) ads.markBuildingErrored(panelSlots);
+  if (errored && !(await ads.client.isContentPending(url))) ads.markBuildingErrored(panelSlots);
 }
 
 /** Promise-wrapped image load, resolving null on failure so callers can test

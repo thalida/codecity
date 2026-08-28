@@ -22,6 +22,9 @@ import { PickerWorld } from '@/city/types/picker';
 import { settingSignals } from '../../_helpers/citySettings';
 import { createEmitter } from '../../_helpers/cityEvents';
 import { createTimelineState } from '@/city/timeline/state';
+import { createClient } from '@/city/client';
+
+const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
@@ -45,7 +48,15 @@ function mkBuilding(path: string, x: number, y: number): Building {
 
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(SETTINGS, TIMELINE, bounds, buildings, TEST_SOURCE, _res);
+  const cellOut = buildCellsFromLayout(
+    SETTINGS,
+    TIMELINE,
+    CLIENT,
+    bounds,
+    buildings,
+    TEST_SOURCE,
+    _res
+  );
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {

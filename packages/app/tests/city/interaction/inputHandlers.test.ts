@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE, attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
@@ -50,8 +50,11 @@ describe('scene keydown handler — modal suppression', () => {
     SELECTION_PANE_DISMISSED.value = false;
   });
 
+  // Mounted the way City.tsx mounts one, so the keyboard gate and the chrome
+  // reactions under test are the same wiring the app ships.
   async function mountCity() {
-    const handle = await createCity(makeCanvas());
+    const handle = await createCity(makeCanvas(), { keyboard: cityKeyboardEnabled });
+    chromeOff = attachCityChrome(handle.on);
     cities.push(handle);
     return handle;
   }
@@ -62,6 +65,12 @@ describe('scene keydown handler — modal suppression', () => {
     Object.defineProperty(canvas, 'clientHeight', { value: 720, configurable: true });
     return canvas;
   }
+
+  let chromeOff: (() => void) | null = null;
+  afterEach(() => {
+    chromeOff?.();
+    chromeOff = null;
+  });
 
   it('ignores Escape (and other scene keybindings) while a modal is open', async () => {
     const handle = await mountCity();

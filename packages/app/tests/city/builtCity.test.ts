@@ -9,7 +9,7 @@ import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';

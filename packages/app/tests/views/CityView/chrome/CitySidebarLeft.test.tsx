@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySidebarLeft';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { setManifest } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/state/stores/chrome';

@@ -5,9 +5,9 @@
 
 import { AUDIO_EXTS, FONT_EXTS } from '@/city/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
-import { API } from '@/apiClient';
 import type { SourceRef } from '@/city/types/manifest';
 import type { TimelineState } from '@/city/timeline/state';
+import type { CodecityClient } from '@/city/client';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 
@@ -35,6 +35,7 @@ let _fontSeq = 0;
  *  so none leaks globally. null on any failure. */
 export async function renderFontGlyphFacade(
   timeline: TimelineState,
+  client: CodecityClient,
   source: SourceRef,
   path: string,
   version: string
@@ -44,7 +45,12 @@ export async function renderFontGlyphFacade(
   if (!surface) return null;
   let face: FontFace | null = null;
   try {
-    const buf = await API.fetchFileBytes(source, path, version, timeline.scrubbedBlobShaFor(path));
+    const buf = await client.fetchFileBytes(
+      source,
+      path,
+      version,
+      timeline.scrubbedBlobShaFor(path)
+    );
     const family = `cc-facade-font-${(_fontSeq += 1)}`;
     face = await new FontFace(family, buf).load();
     document.fonts.add(face);
@@ -79,6 +85,7 @@ function _getAudioCtx(): AudioContext | null {
  *  null on any failure. */
 export async function renderWaveformFacade(
   timeline: TimelineState,
+  client: CodecityClient,
   source: SourceRef,
   path: string,
   version: string
@@ -87,7 +94,12 @@ export async function renderWaveformFacade(
   const surface = _canvas();
   if (!audioCtx || !surface) return null;
   try {
-    const buf = await API.fetchFileBytes(source, path, version, timeline.scrubbedBlobShaFor(path));
+    const buf = await client.fetchFileBytes(
+      source,
+      path,
+      version,
+      timeline.scrubbedBlobShaFor(path)
+    );
     // decodeAudioData detaches its input, so hand it a copy.
     const audio = await audioCtx.decodeAudioData(buf.slice(0));
     const data = audio.getChannelData(0);

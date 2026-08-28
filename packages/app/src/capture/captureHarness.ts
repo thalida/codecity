@@ -6,7 +6,7 @@
 import { effect } from '@preact/signals';
 
 import { isDebugMode } from '@/utils/debugMode';
-import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 

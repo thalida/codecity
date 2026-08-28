@@ -21,6 +21,9 @@ import { StreetAxis } from '@/city/types/street';
 import { layoutCfg } from '../_helpers/citySettings';
 import { settingSignals } from '../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
+import { createClient } from '@/city/client';
+
+const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
@@ -171,6 +174,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const cellOut = buildCellsFromLayout(
     SETTINGS,
     TIMELINE,
+    CLIENT,
     bounds,
     plainBuildings,
     TEST_SOURCE,
@@ -189,7 +193,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     const tm0 = performance.now();
     // No-op loader: profile registration + LOD without firing real image loads.
-    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, SETTINGS, TIMELINE, {
+    const ads = new InstancedFacadePanels(adCapacity, TEST_SOURCE, SETTINGS, TIMELINE, CLIENT, {
       onStartLoad: () => {},
     });
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
