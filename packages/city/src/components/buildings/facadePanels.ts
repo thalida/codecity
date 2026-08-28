@@ -606,7 +606,7 @@ function asyncLoadMediaForBuilding(
   const filePath = b.file.path || '';
   // Scrubbed commits pin a version; Live keys on mtime. Either way the URL names
   // one immutable body, so a rebuild re-reads it from the browser cache.
-  const sha = this.timeline.scrubbedBlobShaFor(b.file.path);
+  const sha = ads.timeline.scrubbedBlobShaFor(b.file.path);
   const version = b.file.modified || '';
 
   if (kind === MediaKind.Image) {

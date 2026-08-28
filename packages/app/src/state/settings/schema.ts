@@ -4,12 +4,10 @@
 
 import { computed, type Signal } from '@preact/signals';
 
-export { ChangeRoute, FieldKind };
 import { persistedSignal, getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
 import {
   ChangeRoute,
-  FieldKind,
   coerceField,
   type ConfigOf,
   type FieldDef,
@@ -17,8 +15,13 @@ import {
 } from '@/city/settings/schema';
 
 // Re-exported so the panel and the app's own fields (theme, syntaxTheme,
-// updates) declare themselves the same way the city's do.
+// updates) declare themselves the same way the city's do. Straight through
+// from the city rather than re-exporting the local bindings: prefresh reads
+// exports before it resolves imports, and fails the dev server on a name it
+// cannot see yet.
 export {
+  ChangeRoute,
+  FieldKind,
   type SelectOption,
   type FieldDef,
   type FieldMap,

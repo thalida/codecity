@@ -11,6 +11,7 @@
     "strict": false,
     "noImplicitAny": false,
     "strictNullChecks": true,
+    "noImplicitThis": true,
 
     "noEmit": true,
     "isolatedModules": true,
