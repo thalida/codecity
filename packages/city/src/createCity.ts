@@ -304,8 +304,11 @@ export async function createCity(
     },
   });
 
-  const timelineApi = {
-    ...timeline,
+  // Object.assign onto the state, NOT `{...timeline}`: every value on a
+  // TimelineState is a getter, so spreading copies what each one reads at this
+  // moment and freezes it. Spread, `handle.timeline.mode` answers false for the
+  // life of the city however many times the city enters Timeline.
+  const timelineApi = Object.assign(timeline, {
     installScrubController(
       timelines: Map<string, PathTimeline>,
       commitLineRanges: RangeStat[]
@@ -346,7 +349,7 @@ export async function createCity(
     },
     setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
     setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
-  };
+  });
 
   // Every Timeline exit. The union city holds buildings that do not exist at
   // HEAD, so only a rebuild from this city's own live manifest is a valid live
