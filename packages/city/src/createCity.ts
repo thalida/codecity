@@ -23,6 +23,7 @@ import type { CityChange, CityChangeListener } from './change';
 import type { CityViewState } from './viewState';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
+import { refreshOnce, startWatch, type WatchOptions } from './watch';
 import { createTimelineState } from './timeline/state';
 import type { CitySettingsPatch } from './settings';
 import { layoutConfigFrom } from './layout/config';
@@ -394,6 +395,15 @@ export async function createCity(
   // the first scan:start, and a host that subscribes late still gets the truth.
   const status = createCityStatus(events.on);
 
+  const watchDeps = {
+    client,
+    loader: sourceLoader,
+    timeline,
+    events,
+    applyManifest: (m: Manifest) => applyManifest(m),
+    currentSignature: () => cityState.manifest?.content_signature ?? null,
+  };
+
   // One notification for a host that re-renders, batched to a microtask: an
   // apply publishes a manifest, moves the selection and ends a build inside one
   // turn, and a host that repainted three times for it did two nobody asked for.
@@ -495,6 +505,21 @@ export async function createCity(
      *  microtask, so one apply is one notification. */
     onChange(listener: CityChangeListener): () => void {
       return changes.on(listener);
+    },
+
+    /** Keep this city on the newest version of the repo it is showing: poll a
+     *  cheap signature, re-apply only when it moves. A refresh, not a load —
+     *  no skeleton, so buildings do not drop to placeholder heights and back
+     *  on every save. Returns stop(). */
+    watchSource(options?: WatchOptions): () => void {
+      return startWatch(watchDeps, options);
+    },
+
+    /** Ask once, now, whether the repo has moved — and re-apply it if it has.
+     *  What a host calls when something IT knows about changed, rather than
+     *  waiting out an interval chosen for a quiet repo. */
+    refreshSource(options?: WatchOptions): Promise<void> {
+      return refreshOnce(watchDeps, options);
     },
 
     /** Where you are in this city, as one value: what is selected, and where

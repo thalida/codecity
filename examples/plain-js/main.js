@@ -56,3 +56,12 @@ await city.loadSource({ src });
 // …and put the reader back where a link says they were.
 const view = params.get('view');
 if (view) city.setViewState(JSON.parse(decodeURIComponent(view)));
+
+// 6. Stay on the newest version of it. The city polls a cheap signature and
+//    re-applies only when the repo actually moves — a refresh, not a load, so
+//    buildings do not drop to placeholder heights and back on every save.
+const stopWatching = city.watchSource({ intervalSeconds: 10 });
+addEventListener('beforeunload', () => {
+  stopWatching();
+  city.dispose();
+});

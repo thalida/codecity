@@ -10,6 +10,7 @@ import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../status';
 import type { CityChangeListener } from '../change';
 import type { CityViewState } from '../viewState';
+import type { WatchOptions } from '../watch';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -125,6 +126,11 @@ export interface City {
   /** Hear ONCE that something moved, with what moved and the values to read.
    *  What a UI binds to; the eleven events are the detail behind it. */
   onChange(listener: CityChangeListener): () => void;
+  /** Keep this city on the newest version of the repo it is showing. Returns
+   *  stop(). A refresh, not a load: no overlay, no skeleton. */
+  watchSource(options?: WatchOptions): () => void;
+  /** Ask once, now, whether the repo has moved. Same rules as a poll. */
+  refreshSource(options?: WatchOptions): Promise<void>;
   /** Where you are in this city — selection and scrub position — as one plain
    *  value a host can store, put in a URL, or hand back later. */
   getViewState(): CityViewState;

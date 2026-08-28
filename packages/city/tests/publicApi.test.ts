@@ -200,6 +200,15 @@ describe('a host with only @codecity/city', () => {
     city.dispose();
   });
 
+  it('can stay on the newest version of the repo it is showing', async () => {
+    const city = await mount();
+    // A host asks for it; the loop, and every rule inside it, is the city's.
+    const stop = city.watchSource({ intervalSeconds: 60 });
+    expect(typeof stop).toBe('function');
+    stop();
+    city.dispose();
+  });
+
   it('tears down everything it made', async () => {
     const city = await mount();
     const moved: string[] = [];

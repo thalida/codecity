@@ -32,6 +32,15 @@ export interface SourceLoader {
   /** What this city is showing, as one comparable string. Null before the first
    *  load. Two loads of the same repo and branch share a key. */
   key(): string | null;
+  /** The request that produced what is on screen, so a refresh can repeat it
+   *  without the caller keeping its own copy. Null before the first load. */
+  request(): SourceRequest | null;
+  /** Whether a load is in flight. A refresh yields to one rather than racing
+   *  it: the foreground load is showing what the reader actually asked for. */
+  loading(): boolean;
+  /** A generation that moves on every load. A refresh captures it and drops its
+   *  own result if it changed, so a slow refresh cannot overwrite a new repo. */
+  generation(): number;
   /** Abort whatever is in flight. */
   cancel(): void;
   dispose(): void;
@@ -48,6 +57,8 @@ export function createSourceLoader({
 }): SourceLoader {
   let inflight: AbortController | null = null;
   let currentKey: string | null = null;
+  let currentRequest: SourceRequest | null = null;
+  let generation = 0;
   let disposed = false;
 
   function cancel(): void {
@@ -62,6 +73,8 @@ export function createSourceLoader({
     inflight = controller;
     const { src, branch } = request;
 
+    generation++;
+    currentRequest = request;
     events.emit('scan:start', { src, branch });
     // Claimed up front, not on success: the reframe gate asks "is this a
     // different repo from the one framed?", and a load that fails part way
@@ -120,6 +133,9 @@ export function createSourceLoader({
   return {
     load,
     key: () => currentKey,
+    request: () => currentRequest,
+    loading: () => inflight !== null,
+    generation: () => generation,
     cancel,
     dispose(): void {
       disposed = true;

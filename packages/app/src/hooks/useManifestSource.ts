@@ -4,7 +4,7 @@
 // The render layer consumes them and owns the apply's rebuild status.
 
 import { ScanError, ScanPhase } from '@codecity/city';
-import type { Manifest, City } from '@codecity/city';
+import type { City } from '@codecity/city';
 import { useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
 
@@ -201,94 +201,46 @@ export function refreshCurrentSource(skipCache = false): void {
   void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
 }
 
-// ── Live-update poll loop ────────────────────────────────────────────
+// ── Live updates ─────────────────────────────────────────────────────
+// The poll loop is the city's: it knows what it is showing, whether a load is
+// in flight, whether Timeline owns the scene, and what a refresh must NOT do
+// (apply a skeleton, and drop every building to placeholder heights in front
+// of the reader). What is left here is this app's two questions: is the reader
+// asking for live updates, and which paths have they hidden.
 
-// Floor: the server walks the filesystem per poll, so tighter burns CPU.
-// Ceiling: past a minute "live" stops feeling live.
-const POLL_SECONDS_MIN = 1;
-const POLL_SECONDS_MAX = 60;
-
-function _clampPollSeconds(s: number | unknown): number {
-  if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
-  return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
-}
-
-/** Start the live-update poll loop and the exclude-refresh reaction, returning
- *  a dispose for both. Exported so the reaction is directly testable. */
+/** Start the live-update watch and the exclude-refresh reaction, returning a
+ *  dispose for both. Exported so the reaction is directly testable. */
 export function setupLiveUpdates(): () => void {
-  let timer: number | null = null;
-  let inFlight = false;
-
-  // Not city.loadSource: a poll is a REFRESH, and a refresh shows no overlay
-  // and skips the skeleton. Applying one would animate every building down to
-  // placeholder heights and back on each save.
-  async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
-    const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
-    try {
-      const city = SCENE_HANDLE.peek() ?? (await whenSceneHandle());
-      for await (const event of API.streamManifest(
-        API.manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
-      )) {
-        if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
-        if (event.phase !== ScanPhase.CompleteManifest) continue;
-        if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
-        const m = event.manifest;
-        if (!m?.content_signature) continue;
-        setManifest(m);
-        await city.applyManifest(m);
-      }
-    } catch (err) {
-      if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
-      failHostWork(err);
-    }
-  }
-
-  // Cheap signature first, full manifest only when it differs. Targets the
-  // committed CURRENT_SOURCE, not the page URL, which lags a switch.
-  async function tick(): Promise<void> {
-    if (inFlight) return;
-    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
-    if (LOADING_SOURCE.peek() !== null) return; // a foreground load is in flight — yield
-    const cur = CURRENT_SOURCE.peek();
-    if (!cur) return; // nothing loaded yet
-    const current = MANIFEST.peek();
-    if (!current) return;
-    const applied = (current as Manifest).content_signature;
-    inFlight = true;
-    try {
-      const sig = await API.fetchSignature(cur.src, cur.branch, activeExcludePathsFor(cur.src));
-      if (!sig?.content_signature || sig.content_signature === applied) return;
-      await fetchAndApply(cur.src, cur.branch);
-    } catch (_) {
-      // Cheap-probe network blip: no rebuild attempted, so not surfaced. Next
-      // tick retries.
-    } finally {
-      inFlight = false;
-    }
-  }
-
-  function start(): void {
-    stop();
-    const seconds = _clampPollSeconds(LIVE_UPDATES.value.POLL_SECONDS);
-    timer = window.setInterval(tick, seconds * 1000);
-  }
-  function stop(): void {
-    if (timer != null) {
-      window.clearInterval(timer);
-      timer = null;
-    }
-  }
+  let stopWatch: (() => void) | null = null;
 
   const disposeEnabledEffect = effect(() => {
     // Tracks the source too, so switching between a local tree and a clone
-    // starts or stops the timer without a reload.
-    if (LIVE_UPDATES_ACTIVE.value) start();
-    else stop();
+    // starts or stops the watch without a reload.
+    const active = LIVE_UPDATES_ACTIVE.value;
+    const seconds = LIVE_UPDATES.value.POLL_SECONDS;
+    stopWatch?.();
+    stopWatch = null;
+    if (!active) return;
+    const city = SCENE_HANDLE.peek();
+    if (!city) return;
+    stopWatch = city.watchSource({
+      intervalSeconds: seconds,
+      // Read per poll, not captured: an edit to the hidden paths takes effect
+      // on the next one without restarting the watch.
+      excludes: () => {
+        const cur = CURRENT_SOURCE.peek();
+        return cur ? activeExcludePathsFor(cur.src) : undefined;
+      },
+      // A cheap-probe blip is not worth a readout; a failed rebuild is.
+      onError: (err) => failHostWork(err),
+    });
   });
 
-  // Excludes need their own trigger, since the poll is gated on
-  // LIVE_UPDATES_ACTIVE. Key-guarded so a source switch isn't read as an edit.
+  // An exclude edit is not a poll: it changes what the scan should return, so
+  // it refreshes NOW rather than waiting for the interval. Key-guarded so a
+  // source switch is not read as an edit.
   let lastExcludeKey: string | null = null;
+  let refreshing = false;
   const disposeExcludeRefresh = effect(() => {
     const serialized = ACTIVE_EXCLUDES.value.join('\n');
     const cur = CURRENT_SOURCE.peek();
@@ -301,9 +253,8 @@ export function setupLiveUpdates(): () => void {
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
     if (LOADING_SOURCE.peek() !== null) return; // yield to a foreground load
-    if (!cur) return;
-    if (inFlight) return; // the poll's tick is already covering this refresh
-    inFlight = true;
+    if (!cur || refreshing) return;
+    refreshing = true;
     // Timeline owns the scene: excludes change the union data, so refetch its
     // bundle + re-pack (it reports itself through the readout). Live: re-scan.
     let refresh: Promise<void>;
@@ -311,18 +262,29 @@ export function setupLiveUpdates(): () => void {
       refresh = timelineRefresh();
     } else {
       beginHostWork(); // say so now, not after the re-scan streams back
-      refresh = fetchAndApply(cur.src, cur.branch);
+      refresh = refreshCurrentSourceNow();
     }
     void refresh.finally(() => {
-      inFlight = false;
+      refreshing = false;
     });
   });
 
   return () => {
-    stop();
+    stopWatch?.();
     disposeEnabledEffect();
     disposeExcludeRefresh();
   };
+}
+
+/** Re-scan what is on screen, right now, without the overlay a load shows. */
+async function refreshCurrentSourceNow(): Promise<void> {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return;
+  const city = SCENE_HANDLE.peek() ?? (await whenSceneHandle());
+  await city.refreshSource({
+    excludes: () => activeExcludePathsFor(cur.src),
+    onError: (err) => failHostWork(err),
+  });
 }
 
 /** The load the URL asks for, in the mode it asks for. A Timeline boot that

@@ -8,8 +8,9 @@ vue/        the same city as a Vue single-file component
 ```
 
 They are not demos. They are the measure the package is designed against: a
-host renders a city, shows what it is doing, reacts to a selection and restores
-a link, **importing only `@codecity/city`**. If any of that needs something from
+host renders a city, shows what it is doing, reacts to a selection, restores a
+link and stays on the newest version of the repo, **importing only
+`@codecity/city`**. If any of that needs something from
 `packages/app`, that thing is in the wrong package — and it shows up here rather
 than in review.
 

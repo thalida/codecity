@@ -68,9 +68,15 @@ function fakeHandle() {
   const uninstallScrubController = vi.fn();
   const setStreetsTransparent = vi.fn();
   const setFootprintsTransparent = vi.fn();
+  // Not exercised here — the watch's own rules are the package's — but a handle
+  // without them is not one this app can hold.
+  const watchSource = vi.fn(() => () => {});
+  const refreshSource = vi.fn(async () => {});
   const handle = {
     applyManifest,
     buildStagesFor,
+    watchSource,
+    refreshSource,
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
@@ -88,6 +94,8 @@ function fakeHandle() {
     handle,
     applyManifest,
     buildStagesFor,
+    watchSource,
+    refreshSource,
     installScrubController,
     uninstallScrubController,
     setStreetsTransparent,
@@ -348,9 +356,8 @@ describe('teardownTimelineMode', () => {
   });
 });
 
-describe('live poll suspends in Timeline mode', () => {
+describe('this app starts and stops a watch', () => {
   let restoreEventSource: () => void;
-  let fetchSpy: ReturnType<typeof vi.spyOn> | undefined;
   beforeEach(() => {
     restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
@@ -361,28 +368,21 @@ describe('live poll suspends in Timeline mode', () => {
   afterEach(() => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
     resetTimelineMode();
-    fetchSpy?.mockRestore();
     restoreEventSource();
     vi.useRealTimers();
   });
 
-  it('does not probe the signature endpoint while in Timeline mode, and resumes on exit', async () => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({ content_signature: 'sig-changed' }),
-    } as Response);
+  // The rule that a watch suspends while Timeline owns the scene is the CITY's
+  // now — see packages/city/tests/watch.test.ts. What is left here is that this
+  // app starts and stops one at all.
+  it('starts a watch when live updates are on, and stops it when they go off', async () => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: true, POLL_SECONDS: 1 };
-    vi.useFakeTimers();
-
     const dispose = setupLiveUpdates();
-    beginTimelineMode();
 
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(city.watching).toBe(true);
 
-    resetTimelineMode();
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchSpy).toHaveBeenCalled();
+    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
+    expect(city.watching).toBe(false);
 
     dispose();
   });

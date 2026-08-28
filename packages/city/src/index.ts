@@ -43,6 +43,10 @@ export type { CityViewState } from './viewState';
 
 // One notification saying what moved, for a host that re-renders.
 export type { CityChange, CityChangeContext, CityChangeListener } from './change';
+
+// Keeping a city on the newest version of its repo.
+export type { WatchOptions } from './watch';
+export { POLL_SECONDS_MIN, POLL_SECONDS_MAX, clampPollSeconds } from './watch';
 export type { CityStatus, CityStatusCounts, CityStatusTracker } from './status';
 
 // ── Timeline ─────────────────────────────────────────────────────────────
