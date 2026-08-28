@@ -202,11 +202,22 @@ export async function createCity(
   // The build is over when the city is ON SCREEN, not when applyStructure
   // returns: it starts the rebuilds without holding them (see render/LOADING.md).
   const stopOnScreen = cityState.on('published', () => {
-    if (cityState.manifest === null) return;
+    const drawn = cityState.manifest;
+    if (drawn === null) return;
     void buildings.whenSettled().then(() => {
       // Two frames: render() only issues the GL commands, and the pixels land
       // a compositor pass later.
-      requestAnimationFrame(() => requestAnimationFrame(() => events.emit('build:done', {})));
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          // A newer manifest is already on screen: this build's "done" would
+          // report a city nobody is looking at, and its pending list would be
+          // the older one's.
+          if (cityState.manifest !== drawn) return;
+          // What the manifest THIS build drew was still waiting on. The caller
+          // needs it to tell "a city is up" from "the city is finished".
+          events.emit('build:done', { pending: drawn.pending });
+        })
+      );
     });
   });
 

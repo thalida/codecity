@@ -22,63 +22,59 @@ import { LoadingStep, BuildStage } from '@/constants/progress';
 describe('loadingReactions', () => {
   let dispose: () => void;
   beforeEach(() => {
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    markIdle();
     dispose = attachOverlayDriver();
   });
   afterEach(() => {
     dispose();
     SCAN_PROGRESS.value = null;
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    markIdle();
     BUILD_PROGRESS.value = null;
     // Visibility is per attach, so one left up is invisible to the next test.
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
   });
 
-  // The scan streams structure, then per-file metadata, then git history. History
-  // is minutes and only feeds decorations, so the overlay lifts at metadata.
+  // The scan streams structure, then per-file metadata, then git history.
+  // History is where commits come from and commits are the trees, so a city
+  // revealed while it is still streaming grows a forest under the reader's
+  // eyes. The overlay comes down when the city ON SCREEN says it is finished,
+  // which is what BUILT_PENDING carries out of the city's own build:done.
 
   it('keeps the overlay up while per-file metadata is still pending', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['metadata', 'history'],
-    };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
+    markIdle(['metadata', 'history']);
     expect(LOADING_OVERLAY.value.visible).toBe(true);
   });
 
-  it('reveals the city once metadata has landed, with history still streaming', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['metadata', 'history'],
-    };
+  it('keeps it up once metadata has landed and only history is streaming', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
+    // The metadata manifest painted — a real city, but not the whole one.
+    markIdle(['history']);
     expect(LOADING_OVERLAY.value.visible).toBe(true);
-    // The metadata manifest applies: painting starts, then lands.
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['history'],
-    };
-    expect(LOADING_OVERLAY.value.visible).toBe(true); // still painting
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+  });
+
+  it('comes down when the city on screen reports nothing left to come', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
+    markIdle(['history']);
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    // The complete manifest paints, trees and all, and the stream ends.
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    markIdle([]);
+    SCAN_PROGRESS.value = null;
+
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
-  it('does not re-show the overlay while history streams behind the live city', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['history'],
-    };
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    // The final apply repaints (Rebuilding) — the overlay must not return.
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.CompleteManifest,
-      appliedPending: ['history'],
-    };
+  // The stream ending is not the city appearing: the final manifest still has
+  // to be packed and presented.
+  it('holds through the last build after the stream has ended', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    markIdle(['history']);
+    SCAN_PROGRESS.value = null;
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    markIdle([]);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
@@ -87,11 +83,11 @@ describe('loadingReactions', () => {
     SCAN_PROGRESS.value = {
       kind: SourceKind.Remote,
       phase: ScanPhase.PartialManifest,
-      appliedPending: ['history'],
     };
+    markIdle([]);
     SCAN_PROGRESS.value = null;
-    // …then a second load starts. Nothing of it is applied yet, so no
-    // appliedPending — the finished previous manifest must not leak in.
+    // …then a second load starts. Nothing of it is applied yet, so the finished
+    // previous city must not be what decides this one's reveal.
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
   });
@@ -146,7 +142,7 @@ describe('loadingReactions', () => {
     REBUILD_STATUS.value = RebuildStatus.Decorating;
     expect(LOADING_OVERLAY.value.visible).toBe(true);
 
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    markIdle();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
@@ -162,7 +158,7 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    markIdle();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
@@ -192,7 +188,7 @@ describe('loadingReactions', () => {
     REBUILD_STATUS.value = RebuildStatus.Decorating;
     expect(LOADING_OVERLAY.value.visible).toBe(true);
 
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    markIdle();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
   });
@@ -201,28 +197,16 @@ describe('loadingReactions', () => {
   // city is the real heights going up. The list only ever moves forward.
 
   it('stays on Sketching layout while the skeleton city is being built', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['metadata', 'history'],
-    };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
     REBUILD_STATUS.value = RebuildStatus.Rebuilding; // the skeleton's own pack
 
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
   });
 
-  it('moves to Building city when the real heights land', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['metadata', 'history'],
-    };
+  it('moves to Building city when the complete manifest lands', () => {
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
     REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['history'],
-    };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
 
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
   });
@@ -232,11 +216,7 @@ describe('loadingReactions', () => {
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
     // Re-lighting a row already passed reads as the load starting again.
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-      appliedPending: ['metadata', 'history'],
-    };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.ScanProgress };

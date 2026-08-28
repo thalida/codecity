@@ -42,9 +42,6 @@ export interface ScanProgress {
   mib?: number;
   /** Files scanned so far when phase === Scanning. */
   filesScanned?: number;
-  /** `pending` of the manifest most recently APPLIED this load. Absent until
-   *  its first manifest event, so a previous repo's can't leak in. */
-  appliedPending?: Manifest['pending'];
 }
 
 /** Non-null while a source is actively loading; null when idle/done. */
@@ -65,6 +62,13 @@ export enum RebuildStatus {
 }
 
 export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
+
+/** What the city ON SCREEN is still waiting on, straight from its own
+ *  build:done. A scan streams more than once: the first manifest draws real
+ *  buildings while history is still coming, and history is where commits come
+ *  from, so the trees land on a later build. Empty means the city you are
+ *  looking at is the finished one. */
+export const BUILT_PENDING = signal<Manifest['pending']>([]);
 
 /** The manifest the FINISHED city was built from, trees included: a consumer
  *  that aims the camera at a node needs that node to exist. */
@@ -104,8 +108,9 @@ export function markDecorating(): void {
 
 /** The city is on screen. Set by the composer once the meshes exist and a frame
  *  carrying them has been presented — NOT when applyStructure returns. */
-export function markIdle(): void {
+export function markIdle(pending: Manifest['pending'] = []): void {
   REBUILD_STATUS.value = RebuildStatus.Idle;
+  BUILT_PENDING.value = pending;
   BUILT_MANIFEST.value = MANIFEST.peek();
   LAST_REBUILD_ERROR.value = null;
   REBUILD_DETAIL.value = null;
@@ -248,14 +253,20 @@ function attachScanReaction(): () => void {
     // The stream finishing is not the city appearing: Idle now means a frame of
     // it has been presented, so every earlier status keeps the overlay up.
     const status = REBUILD_STATUS.value;
-    const building = status === RebuildStatus.Rebuilding || status === RebuildStatus.Decorating;
+    // Not "is a build running" but "is the city you would be shown the finished
+    // one". A build in flight is one way to be unfinished; the other is a city
+    // that IS on screen and told us more is coming.
+    const unfinished =
+      status === RebuildStatus.Rebuilding ||
+      status === RebuildStatus.Decorating ||
+      BUILT_PENDING.value.length > 0;
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;
     };
     if (!p) {
-      if (building) {
-        // Stream done, city still assembling — keep the overlay on "Building".
+      if (unfinished) {
+        // Stream done, city still coming — keep the overlay on "Building".
         advance(LoadingStep.Building);
         return;
       }
@@ -264,19 +275,6 @@ function attachScanReaction(): () => void {
     }
     // A load's first event: a new list, so it starts from the top again.
     if (p.phase === null) reached = -1;
-    // The skeleton's own build belongs to Sketching layout: placeholder heights
-    // are what that row draws. Building city is the real ones going up.
-    const sketching = p.appliedPending?.includes('metadata') ?? false;
-    if (p.appliedPending && !sketching) {
-      // Real heights: only git history is still streaming, and it adds trees to
-      // an already-correct city. Lift as soon as that paint lands.
-      if (!building) {
-        hide();
-        return;
-      }
-      advance(LoadingStep.Building);
-      return;
-    }
     if (!overlayUp) {
       // null→non-null: show the overlay at the kind-based initial step
       // (Resolving for git, Scanning for local).
@@ -322,7 +320,7 @@ export function attachBuildProgress(on: City['on']): () => void {
       else enterBuildStage(stage);
     }),
     on('build:progress', ({ percent }) => setBuildStagePercent(percent)),
-    on('build:done', () => markIdle()),
+    on('build:done', ({ pending }) => markIdle(pending)),
     on('build:error', ({ error }) => markError(error)),
   ];
   return () => {

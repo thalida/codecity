@@ -54,12 +54,10 @@ export function attachScanProgress(on: City['on']): () => void {
   let meta: { kind: SourceKind; branch?: string } = { kind: srcKind('') };
   // Only partials are applied here, so a complete event carries the last
   // applied `pending` forward rather than claiming its own as applied.
-  let appliedPending: Manifest['pending'] | undefined;
 
   const offs = [
     on('scan:start', ({ src, branch }) => {
       meta = { kind: srcKind(src), branch };
-      appliedPending = undefined;
     }),
     // Server-side, so the document title and the overlay header name the
     // project the same way instead of each deriving it from the src.
@@ -84,11 +82,10 @@ export function attachScanProgress(on: City['on']): () => void {
       // that owns it, so nothing arrives here from a load that lost.
       if (phase === ScanPhase.PartialManifest) {
         setManifest(manifest);
-        appliedPending = manifest.pending;
       }
       // Emitted after the apply, so the overlay can never see "heights final"
       // ahead of the paint that shows them.
-      SCAN_PROGRESS.value = { ...meta, phase, appliedPending };
+      SCAN_PROGRESS.value = { ...meta, phase };
     }),
   ];
   return () => {

@@ -242,7 +242,7 @@ describe('two cities report to their own subscribers', () => {
     backdrop.emit('build:start', { stages: [BuildStage.Icons] });
     backdrop.emit('build:stage', { stage: BuildStage.Icons });
     backdrop.emit('build:progress', { percent: 80 });
-    backdrop.emit('build:done', {});
+    backdrop.emit('build:done', { pending: [] });
 
     expect(BUILD_PROGRESS.value).toBe(mid);
     expect(REBUILD_STATUS.value).not.toBe(RebuildStatus.Idle);

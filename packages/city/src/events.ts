@@ -36,8 +36,15 @@ export interface CityEvents {
   /** How far through the current stage, 0-100. Only the pack measures itself. */
   'build:progress': { percent: number };
   /** The city is ON SCREEN: the meshes exist and a frame carrying them has been
-   *  presented. Not when applyManifest resolves — see render/LOADING.md. */
-  'build:done': Record<string, never>;
+   *  presented. Not when applyManifest resolves — see render/LOADING.md.
+   *
+   *  `pending` is what the manifest THIS build drew says is still to come, and
+   *  it is the difference between "a city is up" and "the city is finished".
+   *  A scan streams more than once: the first manifest draws real buildings
+   *  while history is still coming, and history is where commits come from, so
+   *  the trees land on a later build. A consumer that treats the first done as
+   *  the last one reveals a city that then grows a forest. Empty means final. */
+  'build:done': { pending: Manifest['pending'] };
   'build:error': { error: unknown };
   /** What the POINTER is over, the moment it resolves — not the debounced
    *  hover the outlines settle on, and never a programmatic one: this is the
