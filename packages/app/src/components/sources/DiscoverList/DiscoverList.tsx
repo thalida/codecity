@@ -4,7 +4,7 @@
 // "Featured" note, since what a row can usefully say is whether you can see it.
 import { DISCOVER } from '@/state/stores/serverData';
 import { ACTIVE_SOURCE } from '@/state/stores/source';
-import { sameSourceIdentity } from '@/utils/sources';
+import { sameSourceIdentity } from '@codecity/city';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
 import { cityHref } from '@/router/location';
 

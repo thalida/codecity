@@ -8,7 +8,7 @@
 import type { City, CityStatus } from '@codecity/city';
 import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
 import { signal, effect } from '@preact/signals';
-import { SourceKind } from '@/utils/sources';
+import { SourceKind } from '@codecity/city';
 import {
   LoadingStep,
   LOADING_STEPS,

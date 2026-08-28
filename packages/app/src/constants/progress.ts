@@ -4,7 +4,7 @@
 
 import { CityPhase, TimelineStage, BuildStage } from '@codecity/city';
 import type { CityStatus } from '@codecity/city';
-import { SourceKind } from '@/utils/sources';
+import { SourceKind } from '@codecity/city';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 

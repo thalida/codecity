@@ -20,7 +20,7 @@ import {
   identityBranch,
   sourceKey,
   sameSourceIdentity,
-} from '@/utils/sources';
+} from '@codecity/city';
 import type { SourceError } from '@/types/ui';
 
 // ── Currently-loaded source ──────────────────────────────────────────

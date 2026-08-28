@@ -8,7 +8,7 @@ import {
   clearExcludes,
   activeExcludePathsFor,
 } from '@/state/stores/source';
-import { sourceKey } from '@/utils/sources';
+import { sourceKey } from '@codecity/city';
 
 beforeEach(() => {
   EXCLUDES.value = {};

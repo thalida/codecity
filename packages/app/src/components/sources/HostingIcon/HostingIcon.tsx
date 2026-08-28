@@ -4,7 +4,7 @@
 // own. Every glyph carries .icon, so a caller's font-size is what sizes it.
 
 import { Folder, Globe } from 'lucide-preact';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind } from '@codecity/city';
 
 export interface HostingIconProps {
   /** Source URL or local path — the kind is sniffed from it. */

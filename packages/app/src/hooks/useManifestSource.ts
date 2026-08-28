@@ -32,7 +32,7 @@ import {
   sourceKey,
   sameSourceIdentity,
   sourceIdentity,
-} from '@/utils/sources';
+} from '@codecity/city';
 import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';

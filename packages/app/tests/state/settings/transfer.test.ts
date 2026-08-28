@@ -22,7 +22,7 @@ import {
 } from '@/state/settings/transfer';
 import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
 import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
-import { sourceKey } from '@/utils/sources';
+import { sourceKey } from '@codecity/city';
 
 const FIELDS = {
   A: {

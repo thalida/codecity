@@ -62,57 +62,70 @@ function revealDetails(): void {
   collapseDrawerOnPhone();
 }
 
-/** Point the scene city at `ref`. False before it boots, or when there is
- *  nothing there to look at, so the chrome stays put. */
-function _pointAt(ref: FocusRef, mode?: FocusMode): boolean {
-  return SCENE_HANDLE.peek()?.focus(ref, mode) ?? false;
+/** This app's chrome reaction to a command: a focus asks to LOOK at the node,
+ *  so the details get out of the way; a go-to names it, so the details are the
+ *  answer. Both are decisions about this app's screen, which is why they are
+ *  here and `city.focus` is not. */
+export interface CityCommands {
+  /** Hover-highlight the node at `path` (tree-row hover → city highlight). */
+  hoverPath(path: string): void;
+  clearHover(): void;
+  /** Clear the current selection (closes the contextual right sidebar). */
+  clearSelection(): void;
+  /** Focus a node, selecting it first if it isn't: an almanac row is a Focus
+   *  button for something you haven't picked yet. Re-selecting is identity. */
+  focusPath(path: string, mode?: FocusMode): void;
+  /** focusPath for a commit's tree, by sha. */
+  focusCommit(sha: string, mode?: FocusMode): void;
+  /** Focus whatever is selected, whichever kind. Here rather than in the key
+   *  handler: a keystroke and a Focus button are the same request. */
+  focusSelection(mode?: FocusMode): void;
+  /** Go to a node named in a list. The details open, unlike the Focus commands:
+   *  there you act on what's in front of you, here you asked for the name. */
+  goToPath(path: string, mode?: FocusMode): void;
+  /** goToPath for a commit's tree, by sha (almanac landmarks). */
+  goToCommit(sha: string, mode?: FocusMode): void;
 }
 
-// Thin wrappers the UI calls instead of reaching into the handle itself. All
-// no-op before the scene boots.
+/** Bind this app's chrome to ONE city. Every command is that city's, plus what
+ *  this app does to its own screen afterwards; nothing here reaches for a
+ *  particular city, so a second one on the page can be driven the same way.
+ *
+ *  Takes a getter rather than a city: the chrome outlives any one instance, and
+ *  a command issued before the canvas mounts is a no-op rather than a crash. */
+export function cityCommands(cityOf: () => City | null): CityCommands {
+  /** False before it boots, or when there is nothing there to look at — so the
+   *  chrome stays put rather than clearing itself for nothing. */
+  const pointAt = (ref: FocusRef, mode?: FocusMode): boolean => cityOf()?.focus(ref, mode) ?? false;
 
-/** Hover-highlight the node at `path` (tree-row hover → city highlight). */
-export function hoverPath(path: string): void {
-  SCENE_HANDLE.peek()?.picker.hoverByPath(path);
+  return {
+    hoverPath: (path) => cityOf()?.picker.hoverByPath(path),
+    clearHover: () => cityOf()?.picker.setHover(null),
+    clearSelection: () => cityOf()?.picker.clearSelection(),
+    focusPath: (path, mode) => void (pointAt({ path }, mode) && revealCityChrome()),
+    focusCommit: (sha, mode) => void (pointAt({ sha }, mode) && revealCityChrome()),
+    focusSelection: (mode) => void (pointAt(null, mode) && revealCityChrome()),
+    goToPath: (path, mode) => void (pointAt({ path }, mode) && revealDetails()),
+    goToCommit: (sha, mode) => void (pointAt({ sha }, mode) && revealDetails()),
+  };
 }
 
-/** Clear the hover highlight. */
-export function clearHover(): void {
-  SCENE_HANDLE.peek()?.picker.setHover(null);
-}
+/** The scene city's, which is what this app's chrome talks to. One binding, in
+ *  one place: the wallpaper on the landing has no chrome, so it gets none. */
+export const SCENE_COMMANDS = cityCommands(() => SCENE_HANDLE.peek());
 
-/** Clear the current selection (closes the contextual right sidebar). */
-export function clearSelection(): void {
-  SCENE_HANDLE.peek()?.picker.clearSelection();
-}
-
-/** Focus a node, selecting it first if it isn't: an almanac row is a Focus
- *  button for something you haven't picked yet. Re-selecting is identity. */
-export function focusPath(path: string, mode?: FocusMode): void {
-  if (_pointAt({ path }, mode)) revealCityChrome();
-}
-
-/** focusPath for a commit's tree, by sha. */
-export function focusCommit(sha: string, mode?: FocusMode): void {
-  if (_pointAt({ sha }, mode)) revealCityChrome();
-}
-
-/** Focus whatever is selected, whichever kind. Here rather than in the key
- *  handler: a keystroke and a Focus button are the same request. */
-export function focusSelection(mode?: FocusMode): void {
-  if (_pointAt(null, mode)) revealCityChrome();
-}
-
-/** Go to a node named in a list. The details open, unlike the Focus commands:
- *  there you act on what's in front of you, here you asked for the name. */
-export function goToPath(path: string, mode?: FocusMode): void {
-  if (_pointAt({ path }, mode)) revealDetails();
-}
-
-/** goToPath for a commit's tree, by sha (almanac landmarks). */
-export function goToCommit(sha: string, mode?: FocusMode): void {
-  if (_pointAt({ sha }, mode)) revealDetails();
-}
+// Named for the call sites, which read as sentences: `goToPath(p)` is what a
+// list row does. They are this app's scene commands and nothing else's.
+export const {
+  hoverPath,
+  clearHover,
+  clearSelection,
+  focusPath,
+  focusCommit,
+  focusSelection,
+  goToPath,
+  goToCommit,
+} = SCENE_COMMANDS;
 
 /** A commit's details, with the camera left alone: the timeline's own row,
  *  where you are already looking at what you asked about. */

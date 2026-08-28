@@ -8,6 +8,23 @@ export { createCity } from './createCity';
 export type { City, FocusRef, SceneComponent, SceneContext, FrameContext } from './types';
 export { BuildStage } from './types/build';
 
+// ── Sources ──────────────────────────────────────────────────────────────
+// What a source string is: cloned or on disk, which branch it means, whether
+// two of them are the same repo. A host asks rather than deciding for itself,
+// or it answers "same repo?" differently from the city it is driving.
+export {
+  SourceKind,
+  srcKind,
+  resolveBranch,
+  identityBranch,
+  sourceIdentity,
+  sameSourceIdentity,
+  sourceKey,
+  looksResolvable,
+  looksLikePath,
+  validateGitUrl,
+} from './source';
+
 // ── What a city is doing ─────────────────────────────────────────────────
 // One value, folded from the eleven events below it. A readout binds to this;
 // the events are the detail behind it.

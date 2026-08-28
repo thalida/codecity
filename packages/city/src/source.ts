@@ -1,5 +1,12 @@
-// utils/sources.ts — classify a source string and derive its identity.
-// Display names are the server's (see SOURCES.md); nothing here makes one.
+// city/source.ts — what a source string IS: whether it is cloned or already on
+// disk, which branch it means, whether two of them are the same repo, and
+// whether one is worth sending anywhere. See SOURCE.md.
+//
+// The city's, not a host's: every one of these is a fact about a git source,
+// and a host that had to reimplement them would get a DIFFERENT answer to "are
+// these the same repo" from the city it is driving.
+//
+// Display names are the server's; nothing here makes one.
 
 /** Every source is a git repo; this is whether it's cloned or already on disk. */
 export enum SourceKind {
@@ -13,7 +20,7 @@ export function srcKind(src: string): SourceKind {
 }
 
 /** A requested branch wins; else the manifest's HEAD, if it names a real
- *  branch rather than a detached one (see SOURCES.md). */
+ *  branch rather than a detached one (see SOURCE.md). */
 export function resolveBranch(
   // Nullable, not optional: null is what the scanner sends for a repo with no HEAD.
   manifest: { repo: { branch?: string | null } },
@@ -25,12 +32,12 @@ export function resolveBranch(
 }
 
 /** A local source commits no branch: it scans whatever is checked out, so a
- *  stored one would be a lie. Normalized here, once (see SOURCES.md). */
+ *  stored one would be a lie. Normalized here, once (see SOURCE.md). */
 export function identityBranch(src: string, branch?: string): string | undefined {
   return srcKind(src) === SourceKind.Local ? undefined : branch;
 }
 
-// ── Source identity: (src + identity branch). See SOURCES.md.
+// ── Source identity: (src + identity branch). See SOURCE.md.
 
 /** Two sources with the same identity string are the same source. NUL-joined:
  *  it can't appear in a path or URL, so the halves can't collide. */
@@ -54,7 +61,9 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36); // unsigned, base-36 — ~6-7 chars
 }
 
-/** Namespaces per-source state (selection, camera pose) in localStorage. */
+/** A short, stable, filename-safe name for a source. What a host namespaces
+ *  per-source state by (a selection, a camera pose), and what a city calls the
+ *  load it is running. */
 export function sourceKey(src: string, branch?: string): string {
   return djb2(sourceIdentity(src, branch));
 }

@@ -8,7 +8,7 @@ import {
   clearSourceUrl,
   RECENTS,
 } from '@/state/stores/source';
-import { sourceKey } from '@/utils/sources';
+import { sourceKey } from '@codecity/city';
 import { setManifest } from '@/state/stores/manifest';
 import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';

@@ -6,7 +6,7 @@
 import './LoadingProgress.css';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 
-import { SourceKind } from '@/utils/sources';
+import { SourceKind } from '@codecity/city';
 import {
   LoadingStep,
   LoadingStepState,

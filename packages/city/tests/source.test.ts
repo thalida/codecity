@@ -7,7 +7,7 @@ import {
   sameSourceIdentity,
   sourceKey,
   looksLikePath,
-} from '@/utils/sources';
+} from '../src/source';
 
 // NOTE: repo display-name derivation lives entirely server-side now (see
 // api/tests/test_source.py — label_from_source / display_name_for_manifest).

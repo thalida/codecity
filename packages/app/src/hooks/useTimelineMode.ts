@@ -37,7 +37,7 @@ import {
   stepForTimelineStage,
   transferTail,
 } from '@/constants/progress';
-import { srcKind } from '@/utils/sources';
+import { srcKind } from '@codecity/city';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,

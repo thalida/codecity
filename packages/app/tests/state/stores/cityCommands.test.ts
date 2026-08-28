@@ -1,150 +1,103 @@
-// What each "take me to this node" command does to the CHROME, which is real
-// state these assert against. A focus icon promises the city, so those commands
-// clear the panel away; a name in a list promises the thing itself, so those
-// open it. The camera half is guarded against a real city in builtCity.test.ts.
+// A command is one city's, plus what this app does to its own screen after it.
+// It used to reach a module-level SCENE_HANDLE from inside every function, so
+// only one city on the page could be told anything, and a host copying the
+// pattern inherited a singleton it never asked for.
 
-import { FocusMode, NodeKind, PickTarget } from '@codecity/city';
-import type { FocusRef } from '@codecity/city';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { signal } from '@preact/signals';
-import {
-  SCENE_HANDLE,
-  focusPath,
-  focusCommit,
-  focusSelection,
-  goToPath,
-  goToCommit,
-} from '@/state/stores/city';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { FocusMode } from '@codecity/city';
+import type { City } from '@codecity/city';
+import { cityCommands } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 
-const FILE_TARGET = {
-  kind: NodeKind.File,
-  file: { name: 'a.ts', path: 'src/a.ts', type: NodeKind.File },
-} as unknown as PickTarget;
-
-const COMMIT_TARGET = {
-  kind: NodeKind.Commit,
-  commit: { sha: 'abc1234' },
-} as unknown as PickTarget;
-
-// A ref that matches nothing, which the city answers false to.
-const UNRESOLVED = 'no-such-node';
-
-// Pointing the camera is the CITY's job and is tested against a real one in
-// builtCity.test.ts. What this file is about is the other half: what the chrome
-// does once the city says whether there was anything to look at. So the city is
-// stubbed at its contract — `focus(ref, mode) -> did it land?` — rather than
-// having its internals restated here.
-function makeHandle() {
-  const selection = signal<PickTarget | null>(null);
-  const calls: string[] = [];
+/** A city that reports whether it found anything to look at. */
+function fakeCity(found = true) {
   return {
-    calls,
-    selection,
-    focus(ref: FocusRef, mode: FocusMode = FocusMode.Overhead): boolean {
-      if (ref === null) {
-        if (!selection.peek()) return false;
-        calls.push(`focus:selection:${mode}`);
-        return true;
-      }
-      const name = 'sha' in ref ? ref.sha : ref.path;
-      if (name === UNRESOLVED) {
-        calls.push(`miss:${name}`);
-        return false;
-      }
-      selection.value = 'sha' in ref ? COMMIT_TARGET : FILE_TARGET;
-      calls.push(`focus:${name}:${mode}`);
-      return true;
+    focus: vi.fn(() => found),
+    picker: {
+      hoverByPath: vi.fn(),
+      setHover: vi.fn(),
+      clearSelection: vi.fn(),
     },
-  };
+  } as unknown as City;
 }
 
-describe('scene navigation commands', () => {
-  let handle: ReturnType<typeof makeHandle>;
-
+describe('cityCommands', () => {
   beforeEach(() => {
-    handle = makeHandle();
-    SCENE_HANDLE.value = handle as never;
     SELECTION_PANE_DISMISSED.value = false;
   });
 
-  afterEach(() => {
-    SCENE_HANDLE.value = null;
-    SELECTION_PANE_DISMISSED.value = false;
+  it('points the city it was bound to, and no other', () => {
+    const scene = fakeCity();
+    const backdrop = fakeCity();
+    const commands = cityCommands(() => scene);
+
+    commands.focusPath('src/main.ts', FocusMode.Recenter);
+
+    expect(scene.focus).toHaveBeenCalledWith({ path: 'src/main.ts' }, FocusMode.Recenter);
+    expect(backdrop.focus).not.toHaveBeenCalled();
   });
 
-  it('goToPath selects, moves the camera, and shows the details', () => {
-    goToPath('src/a.ts');
-    expect(handle.calls).toEqual(['focus:src/a.ts:overhead']);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+  it('drives two cities independently', () => {
+    const a = fakeCity();
+    const b = fakeCity();
+    const forA = cityCommands(() => a);
+    const forB = cityCommands(() => b);
+
+    forA.goToPath('one.ts');
+    forB.goToPath('two.ts');
+
+    expect(a.focus).toHaveBeenCalledWith({ path: 'one.ts' }, undefined);
+    expect(b.focus).toHaveBeenCalledWith({ path: 'two.ts' }, undefined);
   });
 
-  // The details are what you asked for by clicking the name, so an earlier
-  // dismissal of this same node doesn't get to withhold them.
-  it('goToPath reopens details you had put away for that node', () => {
-    goToPath('src/a.ts');
-    dismissSelectionPane();
-    expect(SELECTION_PANE_DISMISSED.value).toBe(true);
-
-    goToPath('src/a.ts');
-
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+  // The getter, not a city: the chrome outlives any one instance, and a command
+  // issued before the canvas mounts must be a no-op rather than a crash.
+  it('does nothing before a city exists', () => {
+    const commands = cityCommands(() => null);
+    expect(() => commands.focusPath('src/main.ts')).not.toThrow();
+    expect(() => commands.clearSelection()).not.toThrow();
+    expect(() => commands.hoverPath('src/main.ts')).not.toThrow();
   });
 
-  it('focusPath selects, moves the camera, and clears the panel away', () => {
-    focusPath('src/a.ts');
-    expect(handle.calls).toEqual(['focus:src/a.ts:overhead']);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(true);
-  });
+  describe('and what this app does about it', () => {
+    it('clears the details out of the way for a focus', () => {
+      const commands = cityCommands(() => fakeCity());
+      commands.focusPath('src/main.ts');
+      expect(SELECTION_PANE_DISMISSED.value).toBe(true);
+    });
 
-  it('focusCommit does the same for a commit', () => {
-    focusCommit('abc1234');
-    expect(handle.calls).toEqual(['focus:abc1234:overhead']);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(true);
-  });
+    it('opens them for a go-to, which named the node', () => {
+      const commands = cityCommands(() => fakeCity());
+      dismissSelectionPane();
+      commands.goToPath('src/main.ts');
+      expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    });
 
-  // What the URL restore asks for: the same commands, framed so the camera
-  // keeps the angle it loaded at instead of swinging overhead.
-  it('passes a focus mode through to the scene, whichever command carries it', () => {
-    goToPath('src/a.ts', FocusMode.Recenter);
-    goToCommit('abc1234', FocusMode.Recenter);
-    focusSelection(FocusMode.Recenter);
+    // Nothing to look at: the chrome stays where it is rather than clearing
+    // itself for a node that is not in this city.
+    it('leaves the screen alone when the city found nothing', () => {
+      const commands = cityCommands(() => fakeCity(false));
+      commands.focusPath('gone.ts');
+      expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    });
 
-    expect(handle.calls).toEqual([
-      'focus:src/a.ts:recenter',
-      'focus:abc1234:recenter',
-      'focus:selection:recenter', // the live selection, left by goToCommit
-    ]);
-  });
+    it('routes a commit the same way as a path', () => {
+      const city = fakeCity();
+      const commands = cityCommands(() => city);
+      commands.goToCommit('abc123', FocusMode.Recenter);
+      expect(city.focus).toHaveBeenCalledWith({ sha: 'abc123' }, FocusMode.Recenter);
+      expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    });
 
-  // Nothing to look at means nothing happens: the chrome does not move for a
-  // node the picker could not resolve.
-  it('leaves the camera and the chrome alone for a ref that resolves to nothing', () => {
-    goToPath(UNRESOLVED);
-    focusPath(UNRESOLVED);
-    focusCommit(UNRESOLVED);
-
-    expect(handle.calls).toEqual([
-      `miss:${UNRESOLVED}`,
-      `miss:${UNRESOLVED}`,
-      `miss:${UNRESOLVED}`,
-    ]);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
-  });
-
-  it('focusSelection no-ops when nothing is selected', () => {
-    focusSelection();
-    expect(handle.calls).toEqual([]);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
-  });
-
-  it('every command no-ops before the scene boots', () => {
-    SCENE_HANDLE.value = null;
-    goToPath('src/a.ts');
-    goToCommit('abc1234');
-    focusPath('src/a.ts');
-    focusCommit('abc1234');
-    focusSelection();
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    it('sends hover and clear straight to that city’s picker', () => {
+      const city = fakeCity();
+      const commands = cityCommands(() => city);
+      commands.hoverPath('src/main.ts');
+      commands.clearHover();
+      commands.clearSelection();
+      expect(city.picker.hoverByPath).toHaveBeenCalledWith('src/main.ts');
+      expect(city.picker.setHover).toHaveBeenCalledWith(null);
+      expect(city.picker.clearSelection).toHaveBeenCalled();
+    });
   });
 });

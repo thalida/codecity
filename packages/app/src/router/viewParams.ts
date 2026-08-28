@@ -5,7 +5,7 @@
 
 import { URL_PARAMS, NodeKind, PickerSelectionKey } from '@codecity/city';
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM, SELECTION_KIND_PARAMS } from '@/router/params';
-import { identityBranch } from '@/utils/sources';
+import { identityBranch } from '@codecity/city';
 
 /** The view a URL is asking for. */
 export interface UrlView {

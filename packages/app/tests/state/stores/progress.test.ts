@@ -15,7 +15,7 @@ import {
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 
-import { SourceKind } from '@/utils/sources';
+import { SourceKind } from '@codecity/city';
 import { LoadingStep } from '@/constants/progress';
 
 /** Put the city in a state, the way its own status would report it. */

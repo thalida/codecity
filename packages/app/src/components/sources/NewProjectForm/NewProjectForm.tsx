@@ -18,7 +18,7 @@ import {
   validateGitUrl,
   looksResolvable,
   looksLikePath,
-} from '@/utils/sources';
+} from '@codecity/city';
 import {
   UnreachableSource,
   NoticeReason,

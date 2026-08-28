@@ -10,6 +10,7 @@ import { ScanError, ScanPhase, type ScanStreamEvent } from './client/manifest';
 import type { CodecityClient } from './client';
 import type { CityEmitter } from './events';
 import type { Manifest } from './types/manifest';
+import { sourceKey } from './source';
 
 /** Which repo, and how to read it. `src` is the only required part: everything
  *  else narrows what the server does with it. */
@@ -34,11 +35,6 @@ export interface SourceLoader {
   /** Abort whatever is in flight. */
   cancel(): void;
   dispose(): void;
-}
-
-/** One string for (src, branch), so "did the repo change?" is one comparison. */
-export function sourceKey(src: string, branch?: string): string {
-  return branch ? `${src}@${branch}` : src;
 }
 
 export function createSourceLoader({

@@ -13,7 +13,7 @@ import {
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/progress';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { SourceKind } from '@/utils/sources';
+import { SourceKind } from '@codecity/city';
 import { flush } from '../_helpers/preact';
 
 // The overlay is signal-driven, so these tests render the component and poke
