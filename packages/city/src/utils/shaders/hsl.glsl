@@ -1,6 +1,6 @@
-// hsl.glsl — color-shading helpers ported from app/scene/hsl.ts.
-// Math must match hsl.ts byte-for-byte (within float precision).
-// Verified by app/tests/city/hsl-glsl-parity.test.ts.
+// hsl.glsl — color-shading helpers ported from utils/color/colors.ts.
+// Math must match shadeColor byte-for-byte (within float precision).
+// Verified by tests/utils/shaders/hslShader.test.ts.
 //
 // NOTE: hsl.ts operates on HSL strings where l and s are percentages (0–100)
 // and h is in degrees (0–360). This shader port works on the same domain but

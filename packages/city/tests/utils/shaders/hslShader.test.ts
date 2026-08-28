@@ -1,7 +1,7 @@
 // hsl.glsl has no runnable twin: vitest has no GPU, and a JS reimplementation
 // would only ever prove itself. Pinning the operative lines is what is left, so
 // an edited formula has to break something. It cannot catch a compile error.
-// The TS side is covered directly by utils/color/hsl.test.ts.
+// The TS side is covered directly by tests/utils/color/hsl.test.ts.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';

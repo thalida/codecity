@@ -1,5 +1,4 @@
-// tests/city/components/buildings/cellMesh.test.ts — Round-trip write test for
-// the cell-aware building InstancedMesh factory.
+// Round-trip write test for the cell-aware building InstancedMesh factory.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';

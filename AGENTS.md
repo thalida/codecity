@@ -124,23 +124,38 @@ untangling.
   There is no npm project at the repo root, so nothing formats `README.md`,
   `AGENTS.md`, the compose files or the workflows: those belong to no package
   and are hand-formatted on purpose.
-- `packages/city/` is empty scaffolding for now. `packages/app/src/city/` and
-  `packages/app/src/api/` both move into it over the course of
-  [#208](https://github.com/thalida/codecity/issues/208) — one package talks to
-  the api, and it is this one. Until then it holds a `src/index.ts` that exports
-  nothing, and a temporary `@/*` alias pointing back at `packages/app/src/` so
-  code can move one family at a time.
+- `packages/city/` (`@codecity/city`) — the 3D renderer and the client every
+  backend call goes through. `createCity(canvas)` is the whole entry point: hand
+  it a canvas and an api base, and it fetches, builds, and reports what it is
+  doing. It depends on `three`, `three-mesh-bvh` and `rbush`, and on nothing
+  else — no Preact, no signals, no reactive runtime. Everything is per instance,
+  so two cities on one page share no settings, selection, timeline or GPU
+  resources; the landing's wallpaper and the `/city` scene are two such cities.
+  - Values in, events out. The consumer owns settings values and pushes them
+    with `updateSettings`; the city reports with `on(kind, listener)`. Layout
+    runs in a worker under `src/layout/` (snapshot-tested — keep output
+    identical).
+  - `src/index.ts` is the public surface. `tests/index.ts` is a second one,
+    `@codecity/city/testing`: the wire fixtures and stubs a consumer needs to
+    test against a city. The renderer stubs sit behind
+    `@codecity/city/testing/three` — a `vi.mock('three')` factory that awaits
+    the main barrel deadlocks, because the barrel reaches source that imports
+    three.
 - `packages/app/` — Preact + TypeScript frontend. Two routes, one view each:
   `/` is the landing (pick a project) and `/city?src=…` is a world. The URL is
   the source of truth for both — `router/` owns it, and `?src`, `?mode`,
   `?commit` and `?sel` all survive Back and Forward.
-  - `src/city/` — the 3D city, a signals-driven mini-app. Layout runs in a
-    worker under `src/city/layout/` (snapshot-tested — keep output identical).
-  - `src/state/` — seven stores under `stores/`, each named for the question it
-    answers. `settings/` is its own subsystem: schema, drafts, reactions and
-    indicators over the fields they operate on.
+  - This is where signals live. `state/stores/city.ts` is the seam: it holds the
+    handle, mirrors the city's hover and selection onto app signals, and
+    attaches the app's half of each event family (`attachCityChrome`,
+    `attachBuildProgress`, `attachScanProgress`).
+  - `src/state/` — stores under `stores/`, each named for the question it
+    answers. `settings/` is its own subsystem: the city declares the fields and
+    what each one costs, the app owns their values, persistence and signals.
   - `src/components/` — grouped by what a component is, not where it appears. A
     component used by exactly one thing lives beside that thing instead.
+  - `tests/integration/` is the seam under test: the app driving a real city.
+    Everything testing the city itself lives in `packages/city/tests/`.
 - `packages/api/` — the Python project: `pyproject.toml`, `uv.lock`, and its own
   README and LICENSE (hatchling refuses paths outside the project directory).
   The importable package is `packages/api/api/`, because Python resolves
