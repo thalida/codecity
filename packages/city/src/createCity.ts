@@ -18,6 +18,9 @@ import { createSettingsStore } from './settings/store';
 import { ChangeRoute } from './settings/schema';
 import { createEmitter } from './events';
 import { createCityStatus } from './status';
+import { createChangeHub, CHANGE_FOR_EVENT } from './change';
+import type { CityChange, CityChangeListener } from './change';
+import type { CityViewState } from './viewState';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
 import { createTimelineState } from './timeline/state';
@@ -38,7 +41,7 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, FocusRef, SceneComponent, SceneContext } from './types';
+import type { City, CityExtension, FocusRef, SceneComponent, SceneContext } from './types';
 import { createCameraRig, type FocusMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -51,10 +54,15 @@ export async function createCity(
   {
     settings: initialSettings,
     baseUrl = '/api',
+    extensions = [],
     keyboard = true,
   }: {
     settings?: CitySettingsPatch;
     baseUrl?: string;
+    /** Layers of your own, built after the city's and drawn on top of them.
+     *  Each gets the same context the city's own components get, is ticked by
+     *  the same loop, and is disposed with the city. */
+    extensions?: readonly CityExtension[];
     /** The city's own shortcuts (Esc, R, focus). `false` turns them off; a
      *  predicate is asked per keystroke, which is how a consumer with a modal
      *  open keeps the keyboard while it is. */
@@ -163,6 +171,14 @@ export async function createCity(
     footprint,
     sky,
   ];
+
+  // A host's layers go on the END: they draw over the city's own, and they tick
+  // after sky, which has to be the last of OURS (its camera-follow runs
+  // immediately before the render). One that returns null adds nothing, which
+  // is how an extension turns itself off without the host branching.
+  const hostLayers = extensions.map((make) => make(ctx)).filter((c): c is SceneComponent => !!c);
+  components.push(...hostLayers);
+
   for (const c of components) scene.add(c.group);
 
   // No boot apply: a scene with no manifest is a real state, so the components
@@ -378,6 +394,29 @@ export async function createCity(
   // the first scan:start, and a host that subscribes late still gets the truth.
   const status = createCityStatus(events.on);
 
+  // One notification for a host that re-renders, batched to a microtask: an
+  // apply publishes a manifest, moves the selection and ends a build inside one
+  // turn, and a host that repainted three times for it did two nobody asked for.
+  const changes = createChangeHub(() => ({
+    status: status.value,
+    manifest: cityState.manifest,
+    selection: picker.selection,
+    hover: picker.hover,
+  }));
+  const stopChangeRelay = Object.entries(CHANGE_FOR_EVENT).map(([name, part]) =>
+    events.on(name as keyof typeof CHANGE_FOR_EVENT, () => changes.mark(part as keyof CityChange))
+  );
+  // A manifest is applied, however it got here: through the stream, or from a
+  // host calling applyManifest itself. The publish is the change, not the
+  // stream event that only one of those two paths produces.
+  stopChangeRelay.push(cityState.on('published', () => changes.mark('manifestChanged')));
+  // The timeline reports on its own object, not through the emitter.
+  stopChangeRelay.push(
+    ...(['mode', 'bundle', 'position'] as const).map((kind) =>
+      timeline.on(kind, () => changes.mark('timelineChanged'))
+    )
+  );
+
   const stopSettingsRebuild = settings.onRoute(ChangeRoute.Rebuild, () => {
     // The manifest is unchanged, so the layout would be reused and the setting
     // would do nothing visible.
@@ -450,6 +489,42 @@ export async function createCity(
       return status.value;
     },
     onStatus: status.on,
+
+    /** Told once, with what moved. The door a UI binds to: read the city for
+     *  the values, read the change to decide whether to bother. Batched to a
+     *  microtask, so one apply is one notification. */
+    onChange(listener: CityChangeListener): () => void {
+      return changes.on(listener);
+    },
+
+    /** Where you are in this city, as one value: what is selected, and where
+     *  the scrubber sits. Write it down, hand it back later. */
+    getViewState(): CityViewState {
+      return {
+        selection: picker.selectionKey,
+        timeline: timeline.mode ? { mode: true, pos: timeline.pos } : null,
+      };
+    },
+
+    /** Put a city back where a snapshot says. An absent field is left alone, so
+     *  a caller restoring only a selection says only that.
+     *
+     *  The selection goes in by KEY, not by target: the meshes it named are
+     *  gone by now, and the picker re-resolves a key against whatever city is
+     *  on screen — which is the same path a rebuild takes. */
+    setViewState(next: CityViewState): void {
+      if (next.timeline !== undefined) {
+        if (next.timeline) {
+          if (!timeline.mode) timeline.enter();
+          timeline.setPosition(next.timeline.pos);
+        } else if (timeline.mode) {
+          timeline.exit();
+        }
+      }
+      if (next.selection !== undefined) {
+        picker.setSelectionKey(next.selection);
+      }
+    },
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
@@ -469,6 +544,8 @@ export async function createCity(
     dispose(): void {
       // Listeners first: nothing below may call back into a view that is on its
       // way out, and a torn-down city has nothing left worth reporting.
+      for (const off of stopChangeRelay) off();
+      changes.dispose();
       status.dispose();
       events.clear();
       sourceLoader.dispose();

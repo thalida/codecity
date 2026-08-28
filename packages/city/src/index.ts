@@ -5,7 +5,14 @@
 // settings schema that says what is tunable.
 
 export { createCity } from './createCity';
-export type { City, FocusRef, SceneComponent, SceneContext, FrameContext } from './types';
+export type {
+  City,
+  CityExtension,
+  FocusRef,
+  SceneComponent,
+  SceneContext,
+  FrameContext,
+} from './types';
 export { BuildStage } from './types/build';
 
 // ── Sources ──────────────────────────────────────────────────────────────
@@ -29,6 +36,13 @@ export {
 // One value, folded from the eleven events below it. A readout binds to this;
 // the events are the detail behind it.
 export { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from './status';
+
+// Where you are in a city, as one value: what a link, a restored session or an
+// undo stack is made of.
+export type { CityViewState } from './viewState';
+
+// One notification saying what moved, for a host that re-renders.
+export type { CityChange, CityChangeContext, CityChangeListener } from './change';
 export type { CityStatus, CityStatusCounts, CityStatusTracker } from './status';
 
 // ── Timeline ─────────────────────────────────────────────────────────────

@@ -8,6 +8,8 @@ import type { CityResources } from '../resources';
 import type { CitySettingsStore } from '../settings/store';
 import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../status';
+import type { CityChangeListener } from '../change';
+import type { CityViewState } from '../viewState';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -45,6 +47,12 @@ export interface FrameContext {
 }
 
 /** Minimal uniform contract every scene component satisfies. */
+/** A layer of a city. Everything the city draws is one of these, and so is
+ *  anything a host adds: same contract, same frame loop, same teardown.
+ *
+ *  `group` is added to the scene, `tick` is called every frame if present, and
+ *  `dispose` has to free GPU resources AND stop any subscription it opened —
+ *  a city can be torn down and rebuilt on the same page. */
 export interface SceneComponent {
   /** The composer adds this to the scene. */
   group: THREE.Object3D;
@@ -55,6 +63,12 @@ export interface SceneComponent {
   /** Frees GPU resources AND stops own effects. */
   dispose(): void;
 }
+
+/** A host's own layer, built once the city's context exists. Given everything
+ *  the city's own components get: the scene, the picker, this city's settings
+ *  and timeline, and its client. Returns a component, or null to add nothing —
+ *  which is how an extension turns itself off without the host branching. */
+export type CityExtension = (ctx: SceneContext) => SceneComponent | null;
 
 /** The scene-internal surface the view layer can't reach through signals.
  *  Plain manifest data is read from MANIFEST, never duplicated here. */
@@ -108,6 +122,14 @@ export interface City {
   readonly status: CityStatus;
   /** Hear that `status` changed. Returns the unsubscribe. */
   onStatus(listener: (status: CityStatus) => void): () => void;
+  /** Hear ONCE that something moved, with what moved and the values to read.
+   *  What a UI binds to; the eleven events are the detail behind it. */
+  onChange(listener: CityChangeListener): () => void;
+  /** Where you are in this city — selection and scrub position — as one plain
+   *  value a host can store, put in a URL, or hand back later. */
+  getViewState(): CityViewState;
+  /** Put this city back where a snapshot says. An absent field is left alone. */
+  setViewState(next: CityViewState): void;
   /** Subscribe to what this city is doing, event by event. Everything the
    *  consumer used to get by reading a global it now gets here, per instance. */
   on: CityEmitter['on'];
