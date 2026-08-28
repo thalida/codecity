@@ -2,6 +2,7 @@
 // bunch and quiet stretches spread, driving SCRUB_POS as a float commit index so
 // the scrub controller stays index-based. See scrubberScale for the mapping.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import './TimelineScrubber.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import {
@@ -14,7 +15,6 @@ import {
   setScrubPos,
 } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/settings/fields/theme';
-import { SCRUBBER } from '@/state/settings/fields/scrubber';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/city';
 import {
@@ -31,7 +31,7 @@ export function TimelineScrubber() {
   const bundle = TIMELINE_BUNDLE.value;
   const commits = bundle?.commits ?? [];
 
-  const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
+  const indexWeight = CITY_STORES.SCRUBBER.value.INDEX_WEIGHT;
   const todayMs = SCRUB_TODAY_MS.value;
   const scale = useMemo(
     () =>

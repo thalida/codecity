@@ -1,7 +1,7 @@
 // views/ControlsPane/sections/Trees.ts — one tree per commit.
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { TREES } from '@/state/settings/fields/trees';
 
 export const TREES_SECTION: SectionNode = {
   key: 'trees',
@@ -9,57 +9,57 @@ export const TREES_SECTION: SectionNode = {
   description:
     'One tree per commit: height tracks age, width tracks file count, color tracks commits-per-day.',
   children: [
-    field(TREES, 'ENABLED'),
+    field(CITY_STORES.TREES, 'ENABLED'),
     {
       key: 'placement',
       label: 'Placement',
       children: [
-        field(TREES, 'CITY_CLEARANCE_PERCENT'),
-        field(TREES, 'CITY_CLEARANCE_LIMITS'),
-        field(TREES, 'DENSITY_FALLOFF'),
-        field(TREES, 'EDGE_INSET_PERCENT'),
-        field(TREES, 'EDGE_INSET_LIMITS'),
+        field(CITY_STORES.TREES, 'CITY_CLEARANCE_PERCENT'),
+        field(CITY_STORES.TREES, 'CITY_CLEARANCE_LIMITS'),
+        field(CITY_STORES.TREES, 'DENSITY_FALLOFF'),
+        field(CITY_STORES.TREES, 'EDGE_INSET_PERCENT'),
+        field(CITY_STORES.TREES, 'EDGE_INSET_LIMITS'),
       ],
     },
     {
       key: 'height',
       label: 'Height by Age',
       children: [
-        field(TREES, 'MIN_HEIGHT'),
-        field(TREES, 'MAX_HEIGHT'),
-        field(TREES, 'HALF_LIFE_DAYS'),
-        field(TREES, 'TRUNK_HEIGHT_FRAC'),
-        field(TREES, 'CANOPY_TRUNK_OVERLAP_FRAC'),
+        field(CITY_STORES.TREES, 'MIN_HEIGHT'),
+        field(CITY_STORES.TREES, 'MAX_HEIGHT'),
+        field(CITY_STORES.TREES, 'HALF_LIFE_DAYS'),
+        field(CITY_STORES.TREES, 'TRUNK_HEIGHT_FRAC'),
+        field(CITY_STORES.TREES, 'CANOPY_TRUNK_OVERLAP_FRAC'),
       ],
     },
     {
       key: 'width',
       label: 'Width by Files',
       children: [
-        field(TREES, 'MIN_WIDTH'),
-        field(TREES, 'MAX_WIDTH'),
-        field(TREES, 'TRUNK_RADIUS_FRAC'),
-        field(TREES, 'WIDTH_AGE_FLOOR'),
+        field(CITY_STORES.TREES, 'MIN_WIDTH'),
+        field(CITY_STORES.TREES, 'MAX_WIDTH'),
+        field(CITY_STORES.TREES, 'TRUNK_RADIUS_FRAC'),
+        field(CITY_STORES.TREES, 'WIDTH_AGE_FLOOR'),
       ],
     },
     {
       key: 'trees-color',
       label: 'Color by Commits-per-Day',
       children: [
-        field(TREES, 'COLOR_BUSY_DAY'),
-        field(TREES, 'COLOR_SOLO_DAY'),
-        field(TREES, 'TRUNK_COLOR'),
-        field(TREES, 'SHADING_STRENGTH'),
+        field(CITY_STORES.TREES, 'COLOR_BUSY_DAY'),
+        field(CITY_STORES.TREES, 'COLOR_SOLO_DAY'),
+        field(CITY_STORES.TREES, 'TRUNK_COLOR'),
+        field(CITY_STORES.TREES, 'SHADING_STRENGTH'),
       ],
     },
     {
       key: 'trees-interaction',
       label: 'Interaction',
       children: [
-        field(TREES, 'OUTLINE_WIDTH'),
-        field(TREES, 'OUTLINE_HOVER_COLOR'),
-        field(TREES, 'OUTLINE_HOVER_OPACITY'),
-        field(TREES, 'OUTLINE_SELECTED_OPACITY'),
+        field(CITY_STORES.TREES, 'OUTLINE_WIDTH'),
+        field(CITY_STORES.TREES, 'OUTLINE_HOVER_COLOR'),
+        field(CITY_STORES.TREES, 'OUTLINE_HOVER_OPACITY'),
+        field(CITY_STORES.TREES, 'OUTLINE_SELECTED_OPACITY'),
       ],
     },
   ],

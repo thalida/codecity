@@ -2,11 +2,11 @@
 // structure_signature cache and returns the old positions. The ordering below
 // is the fix: invalidate before applying, so a Save always re-packs.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
-import { STREET_LAYOUT } from '@/state/settings/fields/streets';
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];
@@ -16,14 +16,17 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
   beforeEach(() => {
     calls = [];
     detach = null;
-    originalChildGap = STREET_LAYOUT.value.BUILDING_GAP;
+    originalChildGap = CITY_STORES.STREET_LAYOUT.value.BUILDING_GAP;
   });
 
   afterEach(() => {
     if (detach) detach();
     detach = null;
     // Restore so other tests don't see a drifted BUILDING_GAP.
-    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap };
+    CITY_STORES.STREET_LAYOUT.value = {
+      ...CITY_STORES.STREET_LAYOUT.value,
+      BUILDING_GAP: originalChildGap,
+    };
     setManifest(null);
   });
 
@@ -48,7 +51,10 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
 
     // What Save does: commit() fires setKey on the real store, which is what
     // this subscription sees.
-    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap + 1 };
+    CITY_STORES.STREET_LAYOUT.value = {
+      ...CITY_STORES.STREET_LAYOUT.value,
+      BUILDING_GAP: originalChildGap + 1,
+    };
 
     // scheduleRebuild is async; let the microtask queue drain so the
     // applyManifest await resolves before we assert.

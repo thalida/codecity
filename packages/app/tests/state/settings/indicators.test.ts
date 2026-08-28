@@ -1,8 +1,8 @@
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/fields/theme';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settings/schema';
@@ -10,7 +10,7 @@ import { getFieldKeys } from '@/state/settings/schema';
 beforeEach(() => {
   LIVE_UPDATES.value = getDefault(LIVE_UPDATES);
   ACCENT_THEME.value = ACCENT_THEME_DEFAULT;
-  BUILDINGS.value = getDefault(BUILDINGS);
+  CITY_STORES.BUILDINGS.value = getDefault(CITY_STORES.BUILDINGS);
   EXCLUDES.value = {};
   CURRENT_SOURCE.value = { src: 's', branch: undefined };
 });
@@ -37,8 +37,8 @@ describe('CHANGED_SETTINGS_COUNT', () => {
 
   it('counts a changed World field, which the pane does hold', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    const key = getFieldKeys(BUILDINGS)[0];
-    const cur = (BUILDINGS.value as Record<string, unknown>)[key];
+    const key = getFieldKeys(CITY_STORES.BUILDINGS)[0];
+    const cur = (CITY_STORES.BUILDINGS.value as Record<string, unknown>)[key];
     const next =
       typeof cur === 'boolean'
         ? !cur
@@ -47,10 +47,10 @@ describe('CHANGED_SETTINGS_COUNT', () => {
           : Array.isArray(cur)
             ? [...cur, 0]
             : `${cur}__changed`;
-    BUILDINGS.value = {
-      ...(BUILDINGS.value as Record<string, unknown>),
+    CITY_STORES.BUILDINGS.value = {
+      ...(CITY_STORES.BUILDINGS.value as Record<string, unknown>),
       [key]: next,
-    } as typeof BUILDINGS.value;
+    } as typeof CITY_STORES.BUILDINGS.value;
     expect(CHANGED_SETTINGS_COUNT.value).toBeGreaterThan(base);
   });
 });

@@ -2,6 +2,7 @@
 // date span and what it is made of, ranked by extension. Where you are lives in
 // the breadcrumb, so this answers what the neighbourhood is made of.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { extHueColor, ROOT_PATH, DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
@@ -14,7 +15,6 @@ import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/remoteUrls';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 
@@ -147,7 +147,10 @@ function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
         <span
           class="street-ext-fill"
           aria-hidden="true"
-          style={{ width: `${pct}%`, background: extHueColor(s.ext, BUILDINGS.value.HUE_EXT_MAP) }}
+          style={{
+            width: `${pct}%`,
+            background: extHueColor(s.ext, CITY_STORES.BUILDINGS.value.HUE_EXT_MAP),
+          }}
         />
       </div>
       <span class="street-ext-meta" aria-label={`${share}, ${pluralize(s.count, 'file')}`}>

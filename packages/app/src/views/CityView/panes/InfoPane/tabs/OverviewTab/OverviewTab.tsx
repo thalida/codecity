@@ -1,6 +1,7 @@
 // panes/InfoPane/tabs/OverviewTab — a travel guide of the repo's superlatives,
 // a section per layer. A landmark row is itself the button that flies there.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { DirNode, Manifest, NodeKind } from '@codecity/city';
 import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
@@ -8,7 +9,6 @@ import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { focusPath, focusCommit } from '@/state/stores/city';
-import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
@@ -109,7 +109,7 @@ export function OverviewTab({ manifest }: OverviewTabProps) {
   const current = manifest.value;
   // The Forest section's contents depend on whether the Trees layer is on, so
   // it's a compute input — the section's notice comes back as an empty state.
-  const treesEnabled = TREES.value.ENABLED;
+  const treesEnabled = CITY_STORES.TREES.value.ENABLED;
   const almanac = useMemo(
     () => computeAlmanac(current as Manifest | DirNode | null, treesEnabled),
     [current, treesEnabled]

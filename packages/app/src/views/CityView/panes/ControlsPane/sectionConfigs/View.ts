@@ -1,9 +1,9 @@
 // views/ControlsPane/sections/View.ts — the opening pose of each camera the app
 // has: the one a project opens at, and the one the landing's wallpaper orbits.
 // Two cities, so two cameras, declared from the same fields.
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { CAMERA } from '@/state/settings/fields/camera';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 
 export const VIEW_SECTION: SectionNode = {
@@ -18,12 +18,12 @@ export const VIEW_SECTION: SectionNode = {
       description:
         'How a project opens, and where Reset view returns to. Always looking at the root gem.',
       children: [
-        field(CAMERA, 'TARGET'),
-        field(CAMERA, 'ELEVATION'),
-        field(CAMERA, 'AZIMUTH'),
-        field(CAMERA, 'DISTANCE_SCALE'),
-        field(CAMERA, 'AUTO_ROTATE'),
-        field(CAMERA, 'ROTATE_SPEED'),
+        field(CITY_STORES.CAMERA, 'TARGET'),
+        field(CITY_STORES.CAMERA, 'ELEVATION'),
+        field(CITY_STORES.CAMERA, 'AZIMUTH'),
+        field(CITY_STORES.CAMERA, 'DISTANCE_SCALE'),
+        field(CITY_STORES.CAMERA, 'AUTO_ROTATE'),
+        field(CITY_STORES.CAMERA, 'ROTATE_SPEED'),
       ],
     },
     {

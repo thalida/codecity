@@ -2,6 +2,7 @@
 // files with two near-identical fixtures, which is how the set and the filtered
 // tree could have drifted apart without a test noticing.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { NodeKind, TreeNode, TimelineBundle } from '@codecity/city';
 import { afterEach, expect, test } from 'vitest';
 import {
@@ -15,7 +16,6 @@ import {
   setScrubPos,
   setTimelineBundle,
 } from '@/state/stores/timeline';
-import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '@codecity/city/testing';
 
 function paths(m: unknown): Set<string> {
@@ -71,7 +71,7 @@ test('the pane tree carries exactly the present set (empty dirs pruned)', () => 
 
 test('the pane tree is present-only regardless of the ruins toggle', () => {
   atCommitTwo();
-  RUINS.value = { ...RUINS.value, ENABLED: true };
+  CITY_STORES.RUINS.value = { ...CITY_STORES.RUINS.value, ENABLED: true };
 
   const p = paths(PANE_MANIFEST.value);
   expect(p.has('src/gone.txt')).toBe(false);

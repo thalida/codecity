@@ -2,6 +2,7 @@
 // painted from that thing's own colour in the city so a Controls change repaints
 // it too. Its text colour is chosen by luminance against that fill.
 
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { getHue, NodeKind } from '@codecity/city';
 import './KindBadge.css';
 import {
@@ -11,8 +12,6 @@ import {
   FILE_TAG_SATURATION,
   FILE_TAG_LIGHTNESS,
 } from '@/utils/colors';
-import { BUILDINGS } from '@/state/settings/fields/buildings';
-import { STREETS } from '@/state/settings/fields/streets';
 
 // The luminance check reads the same saturation and lightness the CSS paints,
 // so it judges the colour actually on screen.
@@ -50,8 +49,8 @@ export function KindBadge({
 }: KindBadgeProps) {
   // Read the live theme directly so callers don't have to thread these through —
   // the city's extension→hue palette and the dir badge's asphalt color.
-  const huePalette = BUILDINGS.value.HUE_EXT_MAP;
-  const asphaltColor = STREETS.value.ASPHALT_COLOR;
+  const huePalette = CITY_STORES.BUILDINGS.value.HUE_EXT_MAP;
+  const asphaltColor = CITY_STORES.STREETS.value.ASPHALT_COLOR;
   const contrastingText = (rgb: [number, number, number] | null): string =>
     pickContrastingText(rgb, textDark, textLight);
 

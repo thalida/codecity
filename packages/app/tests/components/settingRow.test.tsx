@@ -1,8 +1,8 @@
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
 import { Field } from '@/components/fields/Field/Field';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { flush } from '../_helpers/preact';
 
 describe('FieldRow layout B', () => {
@@ -115,7 +115,7 @@ describe('Field a11y wiring (description via aria-describedby)', () => {
   };
 
   it('associates the control with its description when the field has a tip', async () => {
-    mount(<Field store={BUILDING_DIMENSIONS} fieldKey="MIN_FLOORS" />);
+    mount(<Field store={CITY_STORES.BUILDING_DIMENSIONS} fieldKey="MIN_FLOORS" />);
     await flush();
     const input = container.querySelector('input');
     const desc = container.querySelector('.setting-row-desc');
@@ -125,7 +125,7 @@ describe('Field a11y wiring (description via aria-describedby)', () => {
   });
 
   it('renders no description and no aria-describedby when the field has no tip', async () => {
-    mount(<Field store={BUILDINGS} fieldKey="OUTLINE_HOVER_OPACITY" />);
+    mount(<Field store={CITY_STORES.BUILDINGS} fieldKey="OUTLINE_HOVER_OPACITY" />);
     await flush();
     const input = container.querySelector('input');
     expect(container.querySelector('.setting-row-desc')).toBeNull();

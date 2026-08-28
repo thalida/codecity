@@ -1,9 +1,9 @@
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { describe, it, expect } from 'vitest';
 import { TRANSFER_GROUPS } from '@/views/CityView/chrome/CityFooter/transferGroups';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { forEachSettingStore, type SettingStore } from '@/state/settings/schema';
 import { getStoreName } from '@/state/persist';
-import { TREES } from '@/state/settings/fields/trees';
 import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { TransferFamily } from '@/state/settings/transfer';
@@ -64,7 +64,7 @@ describe('TRANSFER_GROUPS', () => {
     TRANSFER_GROUPS.find((g) => g.key === key)?.stores.includes(store) ?? false;
 
   it('groups a section store under its section', () => {
-    expect(holds('trees', TREES)).toBe(true);
+    expect(holds('trees', CITY_STORES.TREES)).toBe(true);
   });
 
   // Its own family, and a row per field, so you can send just the syntax theme.

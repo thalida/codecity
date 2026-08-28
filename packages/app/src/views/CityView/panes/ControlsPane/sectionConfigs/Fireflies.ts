@@ -1,42 +1,48 @@
 // views/ControlsPane/sections/Fireflies.ts — motes orbiting each commit-tree.
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
 
 export const FIREFLIES_SECTION: SectionNode = {
   key: 'fireflies',
   label: 'Fireflies',
   description: 'Glowing motes that orbit each commit-tree, colored per author.',
   children: [
-    field(FIREFLIES, 'ENABLED'),
+    field(CITY_STORES.FIREFLIES, 'ENABLED'),
     {
       key: 'fireflies-size',
       label: 'Size',
-      children: [field(FIREFLIES, 'SCALE_MIN'), field(FIREFLIES, 'SCALE_MAX')],
+      children: [
+        field(CITY_STORES.FIREFLIES, 'SCALE_MIN'),
+        field(CITY_STORES.FIREFLIES, 'SCALE_MAX'),
+      ],
     },
     {
       key: 'motion',
       label: 'Motion',
       children: [
-        field(FIREFLIES, 'ORBIT_SPEED'),
-        field(FIREFLIES, 'BOB_AMPLITUDE'),
-        field(FIREFLIES, 'BOB_SPEED'),
+        field(CITY_STORES.FIREFLIES, 'ORBIT_SPEED'),
+        field(CITY_STORES.FIREFLIES, 'BOB_AMPLITUDE'),
+        field(CITY_STORES.FIREFLIES, 'BOB_SPEED'),
       ],
     },
     {
       key: 'brightness',
       label: 'Brightness',
       children: [
-        field(FIREFLIES, 'EMISSION_STRENGTH'),
-        field(FIREFLIES, 'PULSE_AMPLITUDE'),
-        field(FIREFLIES, 'PULSE_SPEED'),
-        field(FIREFLIES, 'FLICKER_AMOUNT'),
+        field(CITY_STORES.FIREFLIES, 'EMISSION_STRENGTH'),
+        field(CITY_STORES.FIREFLIES, 'PULSE_AMPLITUDE'),
+        field(CITY_STORES.FIREFLIES, 'PULSE_SPEED'),
+        field(CITY_STORES.FIREFLIES, 'FLICKER_AMOUNT'),
       ],
     },
     {
       key: 'orbit-ring',
       label: 'Orbit Ring',
-      children: [field(FIREFLIES, 'ORBIT_RING_ENABLED'), field(FIREFLIES, 'ORBIT_RING_THICKNESS')],
+      children: [
+        field(CITY_STORES.FIREFLIES, 'ORBIT_RING_ENABLED'),
+        field(CITY_STORES.FIREFLIES, 'ORBIT_RING_THICKNESS'),
+      ],
     },
   ],
 };

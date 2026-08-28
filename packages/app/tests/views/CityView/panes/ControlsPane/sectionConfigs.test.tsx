@@ -1,3 +1,4 @@
+import { CITY_STORES } from '@/state/settings/cityStores';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
@@ -5,19 +6,7 @@ import type { SectionChild, FieldRef } from '@/types/controls';
 import { TREES_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Trees';
 import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { CAMERA } from '@/state/settings/fields/camera';
 import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
-import { SCENE } from '@/state/settings/fields/scene';
-import { ISLAND, WORLD } from '@/state/settings/fields/island';
-import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/settings/fields/streets';
-import { FOOTPRINT } from '@/state/settings/fields/footprint';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
-import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/settings/fields/gem';
-import { TREES } from '@/state/settings/fields/trees';
-import { FIREFLIES } from '@/state/settings/fields/fireflies';
-import { RUINS } from '@/state/settings/fields/ruins';
-import { SCRUBBER } from '@/state/settings/fields/scrubber';
-import { RAINBOW, BLOOM } from '@/state/settings/fields/effects';
 import { getFieldKeys, isAutosave } from '@/state/settings/schema';
 import { flush } from '../../../../_helpers/preact';
 
@@ -34,26 +23,26 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
 // Every store the controls pane is responsible for surfacing. A store added
 // here but left unplaced, or a field dropped in a move, fails below.
 const CONTROLS_STORES: [string, object][] = [
-  ['CAMERA', CAMERA],
+  ['CITY_STORES.CAMERA', CITY_STORES.CAMERA],
   ['HOME_BACKDROP', HOME_BACKDROP],
-  ['SCENE', SCENE],
-  ['WORLD', WORLD],
-  ['ISLAND', ISLAND],
-  ['STREETS', STREETS],
-  ['STREET_TIERS', STREET_TIERS],
-  ['STREET_LAYOUT', STREET_LAYOUT],
-  ['FOOTPRINT', FOOTPRINT],
-  ['BUILDING_DIMENSIONS', BUILDING_DIMENSIONS],
-  ['BUILDINGS', BUILDINGS],
-  ['GEM', GEM],
-  ['GEM_SIZING', GEM_SIZING],
-  ['REPO_LABEL', REPO_LABEL],
-  ['TREES', TREES],
-  ['FIREFLIES', FIREFLIES],
-  ['RUINS', RUINS],
-  ['SCRUBBER', SCRUBBER],
-  ['RAINBOW', RAINBOW],
-  ['BLOOM', BLOOM],
+  ['CITY_STORES.SCENE', CITY_STORES.SCENE],
+  ['CITY_STORES.WORLD', CITY_STORES.WORLD],
+  ['CITY_STORES.ISLAND', CITY_STORES.ISLAND],
+  ['CITY_STORES.STREETS', CITY_STORES.STREETS],
+  ['CITY_STORES.STREET_TIERS', CITY_STORES.STREET_TIERS],
+  ['CITY_STORES.STREET_LAYOUT', CITY_STORES.STREET_LAYOUT],
+  ['CITY_STORES.FOOTPRINT', CITY_STORES.FOOTPRINT],
+  ['CITY_STORES.BUILDING_DIMENSIONS', CITY_STORES.BUILDING_DIMENSIONS],
+  ['CITY_STORES.BUILDINGS', CITY_STORES.BUILDINGS],
+  ['CITY_STORES.GEM', CITY_STORES.GEM],
+  ['CITY_STORES.GEM_SIZING', CITY_STORES.GEM_SIZING],
+  ['CITY_STORES.REPO_LABEL', CITY_STORES.REPO_LABEL],
+  ['CITY_STORES.TREES', CITY_STORES.TREES],
+  ['CITY_STORES.FIREFLIES', CITY_STORES.FIREFLIES],
+  ['CITY_STORES.RUINS', CITY_STORES.RUINS],
+  ['CITY_STORES.SCRUBBER', CITY_STORES.SCRUBBER],
+  ['CITY_STORES.RAINBOW', CITY_STORES.RAINBOW],
+  ['CITY_STORES.BLOOM', CITY_STORES.BLOOM],
 ];
 
 describe('World tab coverage', () => {

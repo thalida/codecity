@@ -6,19 +6,12 @@ import { SyntaxThemeField } from '@/components/fields/SyntaxThemeField/SyntaxThe
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/syntaxTheme';
 import { _resetForTests } from '@/state/settings/drafts';
 // Load every settings store for its registration side-effect (settingSignal
-// registers each store at module-load) so every field renders.
+// registers each store at module-load) so every field renders. The city's
+// stores come as one module now, and it can no longer fall behind the list.
+import '@/state/settings/cityStores';
 import '@/state/settings/fields/updates';
-import '@/state/settings/fields/scene';
 import '@/state/settings/fields/syntaxTheme';
 import '@/state/settings/fields/theme';
-import '@/state/settings/fields/streets';
-import '@/state/settings/fields/buildings';
-import '@/state/settings/fields/gem';
-import '@/state/settings/fields/island';
-import '@/state/settings/fields/footprint';
-import '@/state/settings/fields/trees';
-import '@/state/settings/fields/fireflies';
-import '@/state/settings/fields/effects';
 import { flush } from '../../../../_helpers/preact';
 
 describe('ControlsPane', () => {
