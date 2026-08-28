@@ -9,6 +9,10 @@
 # always safe to delete.
 .local/
 
+# The root is not an npm project, but running a package's vitest from here
+# leaves vite's cache behind. Nothing installs into it.
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
