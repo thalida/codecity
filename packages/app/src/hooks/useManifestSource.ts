@@ -42,14 +42,11 @@ import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
-/** Route one city's scan reports into the overlay and the app's own manifest.
- *  The city does the fetching now, so what is left here is the reduction: what
- *  the readout shows, what the project is called, and the tree every pane reads.
- *
- *  Attached to the scene city only. The landing's wallpaper scans its own repo
- *  and reaches none of this, which is what stopped the two of them fighting
- *  over one MANIFEST. */
-export function attachScanProgress(on: City['on']): () => void {
+/** Put one city's scan onto the app's own stores: which KIND of source is
+ *  loading (a local path skips the rows a remote one runs), what the repo is
+ *  called, and the manifest every pane reads. Not progress — the city reports
+ *  that itself, as one value. Returns the unsubscribe. */
+export function attachScanToStores(on: City['on']): () => void {
   const offs = [
     // The kind of source is what THIS app knows before the city reports
     // anything: a local path skips the rows a remote one runs.
@@ -141,7 +138,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
 
   try {
     // The city fetches its own repo and applies what comes back; the skeleton
-    // reaches MANIFEST through attachScanProgress on the way past. Peeked
+    // reaches MANIFEST through attachScanToStores on the way past. Peeked
     // first, so only a cold boot waits: an await here would push the stream a
     // microtask out, and the overlay with it.
     const city = SCENE_HANDLE.peek() ?? (await whenSceneHandle());

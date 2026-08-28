@@ -33,9 +33,3 @@ export function layoutConfigFrom(settings: CitySettingsStore): LayoutConfig {
     STREET_TIERS: settings.STREET_TIERS,
   };
 }
-
-/** Stock packer settings. For tests and for any caller packing a tree outside
- *  a city; a real city always passes its own. */
-export function defaultLayoutConfig(): LayoutConfig {
-  return layoutConfigOf(defaultCitySettings());
-}

@@ -9,7 +9,7 @@ import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@codecity/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { attachScanProgress } from '@/hooks/useManifestSource';
+import { attachScanToStores } from '@/hooks/useManifestSource';
 import { attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
 import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/values/city';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/state/stores/city';
@@ -106,7 +106,7 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // used to arrive by watching a global now arrives by the same call that
         // asked for it. Two cities on one page each build what they were asked
         // to build, which one shared MANIFEST could never express.
-        unsubEvents.push(attachScanProgress(handle.on));
+        unsubEvents.push(attachScanToStores(handle.on));
       })
       .catch((err) => {
         // No WebGL, or a context the driver refused. There is no city to report

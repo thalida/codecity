@@ -12,7 +12,7 @@ import type { TimelineState, Manifest } from '@codecity/city';
 import { createEmitter } from '../../../city/src/events';
 import { createSourceLoader } from '../../../city/src/loadSource';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/city';
-import { attachScanProgress } from '@/hooks/useManifestSource';
+import { attachScanToStores } from '@/hooks/useManifestSource';
 
 export interface StubSceneCity {
   /** Every manifest the city was asked to render, in order. */
@@ -33,7 +33,7 @@ export function stubSceneCity(): StubSceneCity {
     events,
     applyManifest: async (m) => void applied.push(m),
   });
-  const detach = attachScanProgress(events.on);
+  const detach = attachScanToStores(events.on);
   const timeline = createTimelineState();
 
   SCENE_HANDLE.value = {

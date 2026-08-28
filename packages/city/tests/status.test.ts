@@ -31,12 +31,11 @@ describe('a city’s status', () => {
   it('is readable without having listened', () => {
     const { events, status } = tracked();
     events.emit('scan:start', { src: '/repo' });
-    events.emit('scan:label', { label: 'codecity' });
 
     // No subscription was ever made. The value is still the truth, which is the
     // whole point: a host that mounts mid-load asks rather than reassembles.
     expect(status.value.lifecycle).toBe(CityLifecycle.Loading);
-    expect(status.value.label).toBe('codecity');
+    expect(status.value.phase).toBe(CityPhase.Resolving);
   });
 
   it('reports one phase vocabulary across the stream and the build', () => {

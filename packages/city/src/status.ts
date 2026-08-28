@@ -81,8 +81,6 @@ export interface CityStatus {
    *  known. A phase that measures itself fills its own share. */
   readonly fraction: number | null;
   readonly counts: CityStatusCounts;
-  /** What this repo is called, as soon as anything knows. */
-  readonly label: string | null;
   readonly error: unknown | null;
 }
 
@@ -95,7 +93,6 @@ export const EMPTY_CITY_STATUS: CityStatus = {
   stage: null,
   fraction: null,
   counts: {},
-  label: null,
   error: null,
 };
 
@@ -172,7 +169,6 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
       merged.phase === value.phase &&
       merged.stage === value.stage &&
       merged.fraction === value.fraction &&
-      merged.label === value.label &&
       merged.error === value.error &&
       sameCounts(merged.counts, value.counts)
     ) {
@@ -202,7 +198,6 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         error: null,
       })
     ),
-    on('scan:label', ({ label }) => set({ label })),
     on('scan:progress', ({ event }) =>
       set({
         phase: PHASE_FOR_SCAN[event.phase] ?? value.phase,

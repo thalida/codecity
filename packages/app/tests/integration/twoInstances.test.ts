@@ -19,7 +19,7 @@ import {
   PENDING_SOURCE_LABEL,
   LOADING_SOURCE,
 } from '@/state/stores/progress';
-import { attachScanProgress } from '@/hooks/useManifestSource';
+import { attachScanToStores } from '@/hooks/useManifestSource';
 
 import { settingsStore, statusFrom } from '@codecity/city/testing';
 import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
@@ -287,7 +287,7 @@ describe('two cities scan their own repos', () => {
     const scene = createEmitter();
     const backdrop = createEmitter();
     const detach = attachCityStatus(statusFrom(scene));
-    const detachScan = attachScanProgress(scene.on);
+    const detachScan = attachScanToStores(scene.on);
     scene.emit('scan:start', { src: 'https://github.com/o/r' });
     scene.emit('scan:progress', {
       event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,

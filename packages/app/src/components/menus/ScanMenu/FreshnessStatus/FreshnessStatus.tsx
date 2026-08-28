@@ -8,7 +8,7 @@ import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
-import { CityLifecycle, CityPhase } from '@codecity/city';
+import { CityLifecycle } from '@codecity/city';
 import { CITY_STATUS, HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/state/stores/progress';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
@@ -27,7 +27,6 @@ enum LiveClass {
 // composed inline below.
 const DETAIL_TEXT = {
   rebuilding: 'rebuilding…',
-  decorating: 'decorating…',
   // An exception message is for the console, not the chrome: it names our
   // internals and tells a user nothing they can act on.
   error: "couldn't render",
@@ -75,10 +74,6 @@ export function useFreshness(): Freshness {
   if (failed) {
     buildClass = BuildClass.Error;
     detailText = DETAIL_TEXT.error;
-  } else if (status.phase === CityPhase.Building && status.fetching) {
-    // The city is up and its deferred pass is still running.
-    buildClass = BuildClass.Rebuilding;
-    detailText = DETAIL_TEXT.decorating;
   } else if (working) {
     buildClass = BuildClass.Rebuilding;
     // A rebuild with nothing else on screen to report it (Timeline refetching

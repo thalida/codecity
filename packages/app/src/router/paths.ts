@@ -9,8 +9,6 @@ export const ROUTES = {
   CITY: '/city',
 } as const;
 
-export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
-
 /** On the landing: it shows because of where you are, not because a flag says
  *  so, which is what makes back and forward land on it correctly. */
 export const ON_HOME = computed(() => ROUTE_PATH.value === ROUTES.HOME);

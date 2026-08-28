@@ -152,15 +152,6 @@ export const BUILD_STAGE_LABELS: Record<BuildStage, string> = {
   [BuildStage.Decorate]: 'trees',
 };
 
-/** What an apply runs at most, for a caller opening the readout before it has a
- *  manifest to ask. A shorter real plan only moves the percent forward. */
-export const PACK_STAGES: readonly BuildStage[] = [
-  BuildStage.Icons,
-  BuildStage.Layout,
-  BuildStage.Assemble,
-  BuildStage.Decorate,
-];
-
 /** The Building row's tail: the city's own fraction over the whole build, and
  *  this app's word for the part it is in. */
 export function buildStageTail(status: CityStatus): string | null {

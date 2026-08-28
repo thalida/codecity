@@ -169,11 +169,6 @@ export function cityKeyboardEnabled(): boolean {
   return !OVERLAY_OPEN.peek();
 }
 
-/** Reset the camera framing to the current mode's default pose. */
-export function resetView(): void {
-  SCENE_HANDLE.peek()?.rig.reset();
-}
-
 /** Debug: run the building/street collision check. */
 export function runCollisionCheck(): void {
   SCENE_HANDLE.peek()?.world.runCollisionCheck();

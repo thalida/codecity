@@ -9,7 +9,6 @@ import {
   markAutosave,
   FieldKind,
   ChangeRoute,
-  type ConfigOf,
   type FieldMap,
 } from '@/state/settings/schema';
 
@@ -36,8 +35,6 @@ const LIVE_UPDATES_FIELDS = {
 export const LIVE_UPDATES = settingSignal('LIVE_UPDATES', LIVE_UPDATES_FIELDS);
 // Autosave (write-through): the Updates tab applies on change, no Save step.
 markAutosave(LIVE_UPDATES);
-export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;
-
 /** The toggle AND a local source. Remote is excluded on cost: ensure_clone
  *  fetches on every open, so polling one means a git fetch every few seconds. */
 export const LIVE_UPDATES_ACTIVE = computed<boolean>(
