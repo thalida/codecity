@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>codecity — plain JS</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0b10;
+        color: #f4f6ff;
+        font: 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+      }
+      #city {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        position: fixed;
+        inset: 16px 16px auto auto;
+        width: 280px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgb(20 22 32 / 0.9);
+        border: 1px solid rgb(255 255 255 / 0.1);
+      }
+      #panel h1 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.6;
+      }
+      #status {
+        font-variant-numeric: tabular-nums;
+      }
+      #bar {
+        height: 3px;
+        margin-top: 8px;
+        border-radius: 2px;
+        background: rgb(255 255 255 / 0.12);
+        overflow: hidden;
+      }
+      #fill {
+        height: 100%;
+        width: 0;
+        background: #a78bfa;
+        transition: width 0.2s;
+      }
+      #selection {
+        margin-top: 10px;
+        opacity: 0.75;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="city"></canvas>
+    <div id="panel">
+      <h1>A city, in no framework</h1>
+      <div id="status">idle</div>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="selection">nothing selected</div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
