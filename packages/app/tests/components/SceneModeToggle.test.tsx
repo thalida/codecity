@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
-import { TIMELINE_MODE, beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
+import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 
 vi.mock('@/hooks/useTimelineMode', () => ({

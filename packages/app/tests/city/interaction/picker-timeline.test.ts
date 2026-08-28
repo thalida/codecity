@@ -8,7 +8,6 @@ import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';

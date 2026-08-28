@@ -10,7 +10,7 @@ import { createBuildingFader } from '@/city/components/buildings/fader';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 
 const _res = createTestCityResources();
-import { makeCityState, seedCityState, republishCity } from '../../../_helpers/cityFixtures';
+import { makeCityState, seedCityState } from '../../../_helpers/cityFixtures';
 import { FadeDetail } from '@/city/types/animation';
 import { Building } from '@/city/types/building';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';

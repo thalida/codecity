@@ -2,7 +2,7 @@
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TIMELINE_MODE, beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
+import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 
 const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
 

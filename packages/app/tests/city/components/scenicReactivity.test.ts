@@ -9,7 +9,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { makeCityState, makeSceneContext } from '../../_helpers/cityFixtures';
+import { makeSceneContext } from '../../_helpers/cityFixtures';
 import { createStreets } from '@/city/components/streets';
 import { createGem } from '@/city/components/gem';
 import { createIsland } from '@/city/components/island';

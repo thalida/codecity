@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { BACKDROP_CAMERA, CameraTarget } from '@/city/settings/fields/camera';
-import { commitTarget, makeCityState, seedCityState } from '../../_helpers/cityFixtures';
+import { commitTarget, seedCityState } from '../../_helpers/cityFixtures';
 import type { CityState } from '@/city/state';
 import { Building, BuildingOrient } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';

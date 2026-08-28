@@ -1,5 +1,4 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { effect } from '@preact/signals';
 
 import { createEmitter } from '@/city/events';
 import { createTimelineState } from '@/city/timeline/state';

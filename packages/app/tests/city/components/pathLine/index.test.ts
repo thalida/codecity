@@ -9,7 +9,6 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import {
-  makeCityState,
   seedCityState,
   republishCity,
   makePickableSceneContext,

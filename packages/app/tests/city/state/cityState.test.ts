@@ -1,8 +1,6 @@
-// Unit coverage for the per-city signals object that replaced the old mutable
-// cityState bag. Asserts: independent instances, the four source signals are
-// settable, and the two computeds (rootStreet / gemWorldPos) derive off layout
-// exactly as the old _computeRootStreetAndGem did — including the
-// orientation-aware gem anchor math for BOTH axes and the null cases.
+// What a city holds and what it derives: independent instances, the values an
+// apply fills in, and the geometry that follows from a layout — the gem anchor
+// on both street axes included, since that maths is orientation-aware.
 
 import { describe, it, expect } from 'vitest';
 import { makeCityState, seedCityState, stubPlacementClient } from '../../_helpers/cityFixtures';
@@ -90,7 +88,6 @@ describe('createCityState', () => {
   });
 
   it('gemWorldPos derives the orientation-X anchor math', async () => {
-    let cs = makeCityState();
     const root = makeStreet({
       isRoot: true,
       orientation: StreetAxis.X,
@@ -99,7 +96,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs = await withLayout(makeLayout([root]));
+    const cs = await withLayout(makeLayout([root]));
     const pos = cs.gemWorldPos!;
     // orientation 'x' → set(x - length/2 + width/2, 0, y)
     expect(pos.x).toBe(100 - 80 / 2 + 10 / 2); // 65
@@ -108,7 +105,6 @@ describe('createCityState', () => {
   });
 
   it('gemWorldPos derives the orientation-Z anchor math', async () => {
-    let cs = makeCityState();
     const root = makeStreet({
       isRoot: true,
       orientation: StreetAxis.Y, // 'y' (non-'x' branch)
@@ -117,7 +113,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs = await withLayout(makeLayout([root]));
+    const cs = await withLayout(makeLayout([root]));
     const pos = cs.gemWorldPos!;
     // else branch → set(x, 0, y - length/2 + width/2)
     expect(pos.x).toBe(100);
@@ -151,17 +147,15 @@ describe('createCityState', () => {
     expect(Object.keys(map).sort()).toEqual(['a', 'b']);
   });
 
-  it('computeds react to a structure change', async () => {
-    let cs = makeCityState();
+  it('the derived geometry follows a structure change', async () => {
     const r1 = makeStreet({ isRoot: true, x: 1, orientation: StreetAxis.X });
-    cs = await withLayout(makeLayout([r1]));
-    expect(cs.rootStreet).toBe(r1);
-    const z1 = cs.gemWorldPos!.x;
+    const first = await withLayout(makeLayout([r1]));
+    expect(first.rootStreet).toBe(r1);
 
     const r2 = makeStreet({ isRoot: true, x: 999, orientation: StreetAxis.X });
-    cs = await withLayout(makeLayout([r2]));
-    expect(cs.rootStreet).toBe(r2);
-    expect(cs.gemWorldPos!.x).not.toBe(z1);
+    const second = await withLayout(makeLayout([r2]));
+    expect(second.rootStreet).toBe(r2);
+    expect(second.gemWorldPos!.x).not.toBe(first.gemWorldPos!.x);
   });
 
   describe('tallestBuilding', () => {
@@ -181,10 +175,8 @@ describe('createCityState', () => {
       expect(cs.tallestBuilding).toBe(tall);
     });
 
-    // Crux of #62: a REUSE apply turns skeleton placeholder heights into real
-    // ones without changing the geometry, so this has to recompute on every
-    // apply and not just on a structure change, or the framing keeps the stale
-    // placeholder height.
+    // Crux of #62: a reuse apply turns placeholder heights real without moving
+    // the geometry, so this recomputes per apply, not per structure change.
     it('updates on a reuse apply, which publishes no structure change', async () => {
       // One city, two applies of the SAME layout signature: the second reuses,
       // and the layout it gets back carries the real heights.

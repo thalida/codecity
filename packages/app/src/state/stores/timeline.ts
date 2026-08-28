@@ -10,7 +10,7 @@
 // would be a second answer to "where is the scrubber", which is the class of
 // bug this whole refactor is about.
 
-import { computed, effect, type ReadonlySignal } from '@preact/signals';
+import { computed, type ReadonlySignal } from '@preact/signals';
 import { findNodeByPath } from '@/city/utils/manifest';
 import { SCENE_HANDLE } from '@/state/stores/city';
 import { createTimelineState, type ScrubbedFileStats } from '@/city/timeline/state';
