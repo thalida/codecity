@@ -2,7 +2,7 @@
 // declaration. The dark paved apron slab that follows the city silhouette,
 // inflated outward from every layout rect. Its own top-level section (sits
 // after Streets) — the slab frames the whole city, it isn't a street surface.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 

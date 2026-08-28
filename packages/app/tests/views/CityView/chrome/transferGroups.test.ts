@@ -1,11 +1,11 @@
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { describe, it, expect } from 'vitest';
 import { TRANSFER_GROUPS } from '@/views/CityView/chrome/CityFooter/transferGroups';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { forEachSettingStore, type SettingStore } from '@/state/settings/schema';
 import { getStoreName } from '@/state/persist';
-import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { SYNTAX_THEME } from '@/state/settings/values/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
 import { TransferFamily } from '@/state/settings/transfer';
 import { NON_TRANSFERABLE } from '@/views/CityView/chrome/CityFooter/transferGroups';
 

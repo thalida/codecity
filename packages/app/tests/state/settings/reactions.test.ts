@@ -1,4 +1,4 @@
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';

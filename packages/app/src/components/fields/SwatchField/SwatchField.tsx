@@ -6,7 +6,7 @@ import './SwatchField.css';
 import { useRef } from 'preact/hooks';
 import { RotateCcw } from 'lucide-preact';
 import { getEffective, setDraft, stageReset } from '@/state/settings/drafts';
-import type { ThemePresetOption } from '@/state/settings/fields/theme';
+import type { ThemePresetOption } from '@/state/settings/values/theme';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
 
 interface SignalLike {

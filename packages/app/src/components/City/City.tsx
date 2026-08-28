@@ -11,7 +11,7 @@ import { createCity } from '@codecity/city';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { attachScanProgress } from '@/hooks/useManifestSource';
 import { attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
-import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/cityStores';
+import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/values/city';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { attachBuildProgress, markError } from '@/state/stores/progress';

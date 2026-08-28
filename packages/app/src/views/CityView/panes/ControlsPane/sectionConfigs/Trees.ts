@@ -1,5 +1,5 @@
 // views/ControlsPane/sections/Trees.ts — one tree per commit.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 

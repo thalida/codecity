@@ -6,7 +6,7 @@ import { render } from 'preact';
 import './styles/index.css';
 // Sets data-cc-* from the persisted theme before Preact mounts, so there's
 // no flash (persistedSignal hydrates synchronously).
-import '@/state/settings/fields/theme';
+import '@/state/settings/values/theme';
 import { normalizeBootRoute } from '@/router/location';
 import { App } from '@/App';
 

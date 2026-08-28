@@ -7,7 +7,7 @@ import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   type SyntaxThemeValue,
-} from '@/state/settings/fields/syntaxTheme';
+} from '@/state/settings/values/syntaxTheme';
 
 import a11yDark from 'highlight.js/styles/a11y-dark.min.css?url';
 import agate from 'highlight.js/styles/agate.min.css?url';

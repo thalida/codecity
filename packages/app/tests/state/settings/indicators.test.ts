@@ -1,8 +1,8 @@
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
-import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/fields/theme';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
+import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/values/theme';
 import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
 import { getDefault } from '@/state/persist';
 import { getFieldKeys } from '@/state/settings/schema';

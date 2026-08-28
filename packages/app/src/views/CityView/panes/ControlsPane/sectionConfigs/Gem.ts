@@ -1,5 +1,5 @@
 // views/ControlsPane/sections/Gem.ts — the root gem and its repo label.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 

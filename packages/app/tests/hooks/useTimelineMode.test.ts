@@ -31,7 +31,7 @@ import {
   SCAN_PROGRESS,
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { StubEventSource, installEventSource } from '@codecity/city/testing';

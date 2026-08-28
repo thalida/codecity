@@ -1,7 +1,7 @@
 // views/ControlsPane/sections/Buildings.ts — per-file boxes. Hover/selected
 // states and the enter transition live under Interaction, matching Streets
 // and Trees.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 

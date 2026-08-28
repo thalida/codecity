@@ -8,7 +8,7 @@ import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
-} from '@/state/settings/fields/syntaxTheme';
+} from '@/state/settings/values/syntaxTheme';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
 
 export interface SyntaxThemeFieldProps {

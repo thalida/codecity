@@ -1,10 +1,10 @@
 // views/ControlsPane/sections/View.ts — the opening pose of each camera the app
 // has: the one a project opens at, and the one the landing's wallpaper orbits.
 // Two cities, so two cameras, declared from the same fields.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
+import { HOME_BACKDROP } from '@/state/settings/values/city';
 
 export const VIEW_SECTION: SectionNode = {
   key: 'view',

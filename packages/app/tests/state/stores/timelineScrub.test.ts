@@ -2,7 +2,7 @@
 // files with two near-identical fixtures, which is how the set and the filtered
 // tree could have drifted apart without a test noticing.
 
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { NodeKind, TreeNode, TimelineBundle } from '@codecity/city';
 import { afterEach, expect, test } from 'vitest';
 import {

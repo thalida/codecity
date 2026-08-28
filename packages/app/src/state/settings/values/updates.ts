@@ -1,4 +1,4 @@
-// state/settings/fields/updates.ts — live-update polling: re-fetch the manifest
+// state/settings/values/updates.ts — live-update polling: re-fetch the manifest
 // every POLL_SECONDS and re-render in place when its content_signature moves.
 // On by default so the city tracks edits out of the box. manifestPoll owns the
 // hard bounds POLL_SECONDS is clamped to.

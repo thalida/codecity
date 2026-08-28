@@ -13,7 +13,7 @@ import {
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
   SURFACE_PRESETS,
-} from '@/state/settings/fields/theme';
+} from '@/state/settings/values/theme';
 
 const PANEL_LABEL = 'Appearance';
 

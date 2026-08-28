@@ -1,4 +1,4 @@
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
@@ -6,7 +6,7 @@ import type { SectionChild, FieldRef } from '@/types/controls';
 import { TREES_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Trees';
 import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
+import { HOME_BACKDROP } from '@/state/settings/values/city';
 import { getFieldKeys, isAutosave } from '@/state/settings/schema';
 import { flush } from '../../../../_helpers/preact';
 

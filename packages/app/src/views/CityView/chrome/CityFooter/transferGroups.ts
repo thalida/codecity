@@ -6,9 +6,9 @@ import type { SectionChild, SectionNode } from '@/types/controls';
 import type { SettingStore } from '@/state/settings/schema';
 import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/fields/theme';
-import { SYNTAX_THEME } from '@/state/settings/fields/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/values/theme';
+import { SYNTAX_THEME } from '@/state/settings/values/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
 
 /** Settings that deliberately do not travel. Auto-refresh is a fact about this
  *  machine and this server, not a look: an imported 1s poll hammers a stranger's. */

@@ -1,6 +1,6 @@
 // panes/ControlsPane/sectionConfigs/World.ts — everything the city sits on and in:
 // the island it stands on, and the sky and haze around it.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 

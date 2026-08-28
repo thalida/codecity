@@ -14,8 +14,8 @@ import {
 } from '@/state/settings/drafts';
 import { persistedSignal } from '@/state/persist';
 import { markSettingStore, _unregisterForTests } from '@/state/settings/schema';
-import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/fields/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/values/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
 
 interface FooConfig {
   COLOR: string;

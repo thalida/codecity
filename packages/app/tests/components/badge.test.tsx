@@ -11,7 +11,7 @@ const settings = vi.hoisted(() => ({
 // The two stores the badge reads. They are generated from the city's own
 // CITY_FIELDS now, so the whole set is one module and the mock replaces the
 // two entries rather than two files.
-vi.mock('@/state/settings/cityStores', () => ({
+vi.mock('@/state/settings/values/city', () => ({
   CITY_STORES: {
     BUILDINGS: {
       get value() {

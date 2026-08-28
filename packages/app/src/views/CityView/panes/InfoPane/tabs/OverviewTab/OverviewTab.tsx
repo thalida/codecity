@@ -1,7 +1,7 @@
 // panes/InfoPane/tabs/OverviewTab — a travel guide of the repo's superlatives,
 // a section per layer. A landmark row is itself the button that flies there.
 
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { DirNode, Manifest, NodeKind } from '@codecity/city';
 import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';

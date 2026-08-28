@@ -1,5 +1,5 @@
-// state/settings/cityStores.ts — a persisted, panel-bindable signal for every
-// store the city declares, and the one value object a city instance is handed.
+// A persisted, panel-bindable signal for every store the city declares, and the
+// value object each city instance on the page is handed.
 //
 // The city owns the list: CITY_FIELDS says which stores exist and what each
 // one's knobs are, so this derives from it rather than restating it. It used to
@@ -8,10 +8,14 @@
 // the city was three edits, of which two failed silently by doing nothing.
 
 import { computed, type Signal } from '@preact/signals';
-import { CITY_FIELDS, type CityStore, type CitySettings } from '@codecity/city';
+import {
+  BACKDROP_CAMERA_FIELDS,
+  CITY_FIELDS,
+  type CityStore,
+  type CitySettings,
+} from '@codecity/city';
 
 import { settingSignal } from '@/state/settings/schema';
-import { HOME_BACKDROP } from '@/state/settings/fields/homeBackdrop';
 
 /** Every city store, by the name the city gave it. Reached through the object
  *  rather than re-exported one by one: ESM cannot generate named exports, and a
@@ -29,9 +33,13 @@ export const CITY_SETTINGS = computed<CitySettings>(
     ) as CitySettings
 );
 
-/** The same settings with the landing wallpaper's own camera over the top. Two
- *  cities on the page, two cameras: the package declares one camera vocabulary,
- *  and the app keeps a set of values per city it mounts. */
+/** The landing's wallpaper is a second city, so it holds a second camera: the
+ *  same fields the scene's declares, opening on the backdrop's values. */
+export const HOME_BACKDROP = settingSignal('HOME_BACKDROP', BACKDROP_CAMERA_FIELDS);
+
+/** The same settings with that camera over the top. Two cities on the page, two
+ *  cameras: the package declares one camera vocabulary, and the app keeps a set
+ *  of values per city it mounts. */
 export const BACKDROP_SETTINGS = computed<CitySettings>(() => ({
   ...CITY_SETTINGS.value,
   CAMERA: HOME_BACKDROP.value,

@@ -7,7 +7,7 @@ import './FreshnessStatus.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
-import { LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import {
   REBUILD_STATUS,
   RebuildStatus,

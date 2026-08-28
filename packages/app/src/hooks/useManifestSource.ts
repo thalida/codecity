@@ -8,7 +8,7 @@ import type { Manifest, City } from '@codecity/city';
 import { useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
 
-import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import {
   RECENTS,
   SOURCE_ERROR,

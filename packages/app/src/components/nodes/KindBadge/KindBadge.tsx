@@ -2,7 +2,7 @@
 // painted from that thing's own colour in the city so a Controls change repaints
 // it too. Its text colour is chosen by luminance against that fill.
 
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { getHue, NodeKind } from '@codecity/city';
 import './KindBadge.css';
 import {

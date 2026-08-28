@@ -7,7 +7,7 @@ import {
   SURFACE_PRESETS,
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME_DEFAULT,
-} from '@/state/settings/fields/theme';
+} from '@/state/settings/values/theme';
 
 // new URL(literal, import.meta.url) is Vite's asset pattern and resolves to a
 // dev-server URL, not a path, so read through __dirname.

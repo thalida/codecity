@@ -1,4 +1,4 @@
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { FieldRow } from '@/components/fields/FieldRow/FieldRow';

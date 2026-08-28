@@ -1,4 +1,4 @@
-// state/settings/fields/theme.ts — accent + surface presets, applied by setting
+// state/settings/values/theme.ts — accent + surface presets, applied by setting
 // data-cc-accent / data-cc-surface on <html>. The applier is a module-scope
 // effect rather than a component so the first paint is already themed: main.tsx
 // imports this before render() and persistedSignal hydrates synchronously.

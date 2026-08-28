@@ -7,7 +7,7 @@ import {
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
-} from '@/state/settings/fields/theme';
+} from '@/state/settings/values/theme';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 

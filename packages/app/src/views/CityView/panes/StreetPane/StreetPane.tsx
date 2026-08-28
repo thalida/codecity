@@ -2,7 +2,7 @@
 // date span and what it is made of, ranked by extension. Where you are lives in
 // the breadcrumb, so this answers what the neighbourhood is made of.
 
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { extHueColor, ROOT_PATH, DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';

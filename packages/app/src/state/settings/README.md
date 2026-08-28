@@ -1,6 +1,7 @@
 # Settings
 
-Five machinery files and the fields they operate on. Each file is one stage of a
+Five machinery files, and under them the settings those files operate on. The
+top level is all piping — no file here holds a value. Each is one stage of a
 setting's life:
 
 ```
@@ -9,8 +10,14 @@ drafts.ts      edit it      staged changes, behind the Save button
 reactions.ts   apply it     a committed change → rebuild or refresh the scene
 indicators.ts  report it    how many differ from default → the dirty dot
 transfer.ts    move it      settings out to a file, and a file back in
-fields/        the settings themselves, one file per group
+values/        the settings themselves: the stores, and what they hold
 ```
+
+`values/city.ts` is generated from the city's own `CITY_FIELDS` rather than
+written: the package declares which stores exist, and the app derives a signal
+per store, the object a city is handed, and the landing backdrop's variant of it
+from that one list. The other three files are settings the app owns outright,
+so they declare their own fields.
 
 ## The schema is the single source
 

@@ -13,7 +13,7 @@ import {
 import { Field } from '@/components/fields/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
-import { LIVE_UPDATES } from '@/state/settings/fields/updates';
+import { LIVE_UPDATES } from '@/state/settings/values/updates';
 import {
   CURRENT_SOURCE_IS_LOCAL,
   ACTIVE_EXCLUDES,

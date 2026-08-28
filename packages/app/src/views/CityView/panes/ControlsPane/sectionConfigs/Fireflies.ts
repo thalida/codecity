@@ -1,5 +1,5 @@
 // views/ControlsPane/sections/Fireflies.ts — motes orbiting each commit-tree.
-import { CITY_STORES } from '@/state/settings/cityStores';
+import { CITY_STORES } from '@/state/settings/values/city';
 import { field } from '@/utils/field';
 import type { SectionNode } from '@/types/controls';
 
