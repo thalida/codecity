@@ -150,3 +150,82 @@ describe('startFrameLoop()', () => {
     expect(_rafCallbacks.size).toBe(0);
   });
 });
+
+// A component throwing used to end rendering for the life of the page: the
+// re-arm was the LAST statement of frame(), so the throw skipped it. One bad
+// property access in facadePanels read as an empty world with a single console
+// line, which is the failure these guard.
+describe('a component that throws', () => {
+  let errors: string[];
+
+  beforeEach(() => {
+    _rafCallbacks = new Map();
+    _nextRafId = 1;
+    errors = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback): number => {
+      const id = _nextRafId++;
+      _rafCallbacks.set(id, cb);
+      return id;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
+      _rafCallbacks.delete(id);
+    });
+    vi.spyOn(console, 'error').mockImplementation((msg: unknown) => void errors.push(String(msg)));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** A loop whose only component throws on the frames `throwOn` names. */
+  function loopThrowingOn(throwOn: (frame: number) => boolean) {
+    let ticks = 0;
+    const renders: string[] = [];
+    const component: SceneComponent = {
+      group: new THREE.Group(),
+      dispose: () => {},
+      tick: () => {
+        if (throwOn(++ticks)) throw new Error(`frame ${ticks}`);
+      },
+    };
+    const stop = startFrameLoop([component], makeCtx(), {
+      rig: { update: () => {}, camera: CAMERA },
+      postFx: { render: () => renders.push('render') },
+    });
+    return { stop, renders, ticks: () => ticks };
+  }
+
+  it('draws the frames after it', () => {
+    const loop = loopThrowingOn((n) => n === 1);
+
+    // The throwing frame still re-armed, so there is a next one to flush.
+    expect(_rafCallbacks.size).toBe(1);
+    flushFrame();
+    flushFrame();
+
+    expect(loop.ticks()).toBe(3);
+    // Frame 1 threw before postFx; 2 and 3 completed.
+    expect(loop.renders).toEqual(['render', 'render']);
+    loop.stop();
+  });
+
+  it('reports every failure rather than swallowing it', () => {
+    const loop = loopThrowingOn((n) => n <= 2);
+    flushFrame();
+
+    expect(errors.filter((e) => e.includes('frame failed'))).toHaveLength(2);
+    loop.stop();
+  });
+
+  it('gives up rather than re-entering a broken build at 60fps forever', () => {
+    const loop = loopThrowingOn(() => true);
+    // Well past the limit: the loop has to stop arming itself, not just log.
+    for (let i = 0; i < 40; i++) flushFrame();
+
+    expect(loop.ticks()).toBe(10);
+    expect(_rafCallbacks.size).toBe(0);
+    expect(errors.some((e) => e.includes('stopping the loop'))).toBe(true);
+    loop.stop();
+  });
+});

@@ -27,6 +27,12 @@ export interface PerFrame {
   after?(frame: FrameContext): void;
 }
 
+/** How many frames in a row may throw before the loop gives up. One is a
+ *  transient — a texture that arrived half-uploaded, a resize mid-tick — and
+ *  the next frame usually clears it. A run this long is a broken build, and
+ *  re-entering it 60 times a second only burns the battery. */
+const CONSECUTIVE_FRAME_ERROR_LIMIT = 10;
+
 /** Start the loop. The first frame runs synchronously (direct animate() call);
  *  subsequent frames re-arm via requestAnimationFrame. Returns stop(). */
 export function startFrameLoop(
@@ -38,9 +44,9 @@ export function startFrameLoop(
   let lastTime: number | null = null;
   let rafId = 0;
   let running = true;
+  let consecutiveErrors = 0;
 
-  function frame(): void {
-    if (!running) return;
+  function drawFrame(): void {
     const time = (performance.now() - startTime) / 1000;
     const dt = lastTime === null ? 0 : Math.max(0, time - lastTime);
     lastTime = time;
@@ -56,7 +62,29 @@ export function startFrameLoop(
     for (const c of components) c.tick?.(dt, f);
     perFrame.after?.(f);
     perFrame.postFx.render();
+  }
+
+  function frame(): void {
+    if (!running) return;
+    // Re-armed BEFORE the work, not after. A throw anywhere below used to skip
+    // the last statement of this function, which was the re-arm — so one bad
+    // property access in one component's tick() stopped every subsequent frame
+    // for the life of the page, and the city just sat there.
     rafId = requestAnimationFrame(frame);
+    try {
+      drawFrame();
+      consecutiveErrors = 0;
+    } catch (err) {
+      // Reported every time: a frame loop that eats exceptions is how a
+      // one-line bug reads as "the renderer is slow". The count is what keeps
+      // that from being 60 identical lines a second forever.
+      console.error('[codecity] frame failed', err);
+      if (++consecutiveErrors >= CONSECUTIVE_FRAME_ERROR_LIMIT) {
+        console.error(`[codecity] ${consecutiveErrors} frames failed in a row; stopping the loop`);
+        running = false;
+        cancelAnimationFrame(rafId);
+      }
+    }
   }
 
   frame();

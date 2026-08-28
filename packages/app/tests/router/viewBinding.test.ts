@@ -35,6 +35,7 @@ import {
   setTodayMs,
 } from '@/state/stores/timeline';
 import { makeCommitBundle } from '@codecity/city/testing';
+import { stubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -58,6 +59,10 @@ function commitWorld(src = SRC): void {
 
 describe('view URL', () => {
   let dispose: (() => void) | null = null;
+  // The timeline store answers through the scene handle, so without a city
+  // published these read a detached stand-in that no route ever binds to — and
+  // the URL⇄mode reflection below is precisely what that gap hid.
+  let city: ReturnType<typeof stubSceneCity> | null = null;
 
   const attach = (search = ''): void => {
     navigate(`/city${search}`, { replace: true });
@@ -67,6 +72,8 @@ describe('view URL', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     navigate(ROUTES.HOME, { replace: true });
+    // Before the resets below: they write through the handle.
+    city = stubSceneCity();
     CURRENT_SOURCE.value = null;
     MANIFEST.value = null;
     BUILT_MANIFEST.value = null;
@@ -77,6 +84,9 @@ describe('view URL', () => {
   afterEach(() => {
     dispose?.();
     dispose = null;
+    // A fresh city per case, so nothing carries a mode or a bundle forward.
+    city?.dispose();
+    city = null;
   });
 
   describe('reflection', () => {
