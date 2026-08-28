@@ -11,7 +11,7 @@
 
 import type * as THREE from 'three';
 
-import type { FrameContext, SceneComponent, SceneContext } from '@/city/types';
+import type { FrameContext, SceneComponent, SceneContext } from '../types';
 
 /** Frame collaborators that are not SceneComponents. */
 export interface PerFrame {

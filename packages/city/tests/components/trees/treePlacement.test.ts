@@ -1,12 +1,12 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
-import type { CitySettingsPatch } from '@/city/settings';
+import { placeTrees, type TreePlacement } from '../../../src/components/trees/treePlacement';
+import type { CitySettingsPatch } from '../../../src/settings';
 import { treeCfg } from '../../_helpers/citySettings';
 import { bbox, emptyLayout, TEST_TREES } from '../../_helpers/cityFixtures';
 import { building } from '../../_helpers/buildingFixture';
-import type { CityLayout } from '@/city/types/scene';
+import type { CityLayout } from '../../../src/types/scene';
 
 describe('placeTrees (commit-driven)', () => {
   // The settings this test is currently placing under. Reset per case, then

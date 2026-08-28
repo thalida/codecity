@@ -1,3 +1,4 @@
+import { FileNode, NodeKind, TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
@@ -19,8 +20,6 @@ import {
   setScrubPos,
   setTimelineBundle,
 } from '@/state/stores/timeline';
-import { FileNode, NodeKind } from '@/city/types/manifest';
-import { TimelineBundle } from '@/city/types/timeline';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

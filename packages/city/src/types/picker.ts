@@ -9,11 +9,11 @@
 // when they cross, so does this.
 
 import type * as THREE from 'three';
-import type { Building } from '@/city/types/building';
-import type { CommitEntry, DirNode, FileNode, NodeKind } from '@/city/types/manifest';
-import type { Street } from '@/city/types/street';
-import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { CellTile } from '@/city/components/buildings/cellTile';
+import type { Building } from './building';
+import type { CommitEntry, DirNode, FileNode, NodeKind } from './manifest';
+import type { Street } from './street';
+import type { BuildingIndex } from '../components/buildings/buildingIndex';
+import type { CellTile } from '../components/buildings/cellTile';
 
 /** Hovered/selected file (a building mesh). */
 export interface FileTarget {

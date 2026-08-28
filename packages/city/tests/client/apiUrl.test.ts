@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createClient } from '@/city/client/index';
+import { createClient } from '../../src/client/index';
 
 // The app used to hand these its own singleton; the client under test is
 // this package's, so build one here with the base every caller passes.

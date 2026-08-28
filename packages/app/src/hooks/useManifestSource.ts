@@ -3,6 +3,8 @@
 // (MANIFEST, SCAN_PROGRESS, CURRENT_SOURCE via setCurrentSource, SOURCE_ERROR).
 // The render layer consumes them and owns the apply's rebuild status.
 
+import { ScanError, ScanPhase } from '@codecity/city';
+import type { Manifest, City } from '@codecity/city';
 import { useEffect } from 'preact/hooks';
 import { computed, effect } from '@preact/signals';
 
@@ -36,10 +38,7 @@ import { readUrlView, type UrlView } from '@/router/viewParams';
 import { ROUTE_PARAMS, ROUTE_PATH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import type { SourcePayload } from '@/types/ui';
-import { ScanError, ScanPhase } from '@/city/client/manifest';
 import { API } from '@/apiClient';
-import type { Manifest } from '@/city/types/manifest';
-import type { City } from '@/city/types';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
 
 // ── Shared helpers ───────────────────────────────────────────────────

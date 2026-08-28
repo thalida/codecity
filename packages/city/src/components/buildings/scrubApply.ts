@@ -7,7 +7,7 @@ import type { InstancedFacadePanels } from './facadePanels';
 import type { BuildingIndex } from './buildingIndex';
 import { BuildingLane, type BuildingScrubState } from './scrubState';
 import type { BuildingMaterial } from './material';
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../types/building';
 
 export interface BuildingScrubApplyCtx {
   getBuildingIndex(): BuildingIndex | null;

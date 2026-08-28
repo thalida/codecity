@@ -6,7 +6,7 @@ import {
   pointInIslandPolygon,
   type IslandBuildParams,
   type IslandColors,
-} from '@/city/components/island/islandGeometry';
+} from '../../../src/components/island/islandGeometry';
 
 describe('buildTopPolygon', () => {
   const baseParams: IslandBuildParams = {

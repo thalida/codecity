@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { createFireflies } from '@/city/components/fireflies';
-import { FIREFLY_ORBS_MESH } from '@/city/components/fireflies/firefliesRenderer';
+import { createFireflies } from '../../../src/components/fireflies';
+import { FIREFLY_ORBS_MESH } from '../../../src/components/fireflies/firefliesRenderer';
 import {
   commitTarget,
   makeCityState,
@@ -15,10 +15,10 @@ import {
 } from '../../_helpers/cityFixtures';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { commitStats } from '../../_helpers/statsFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
+import type { Picker } from '../../../src/interaction/picker';
+import type { SceneContext } from '../../../src/types';
 import { settingsStore } from '../../_helpers/citySettings';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../../src/settings/store';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);

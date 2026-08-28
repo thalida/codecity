@@ -16,9 +16,9 @@ export default defineConfig({
     // One Signal identity across both packages, or an effect on one side never
     // sees a write from the other.
     dedupe: ['@preact/signals', '@preact/signals-core', 'three'],
-    // Array form: order matters, and '@/city' has to win over '@'.
+    // Array form: order matters, and the /testing subpath has to win over the
+    // bare package name.
     alias: [
-      { find: /^@\/city\//, replacement: `${resolve(appDir, '../city/src')}/` },
       { find: /^@\//, replacement: `${resolve(appDir, 'src')}/` },
       // @codecity/city ships TypeScript source, not a build, for as long as the
       // extraction is in flight (#208). Vite will not process TS inside

@@ -42,7 +42,7 @@ import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
-import type { Manifest, RangeStat } from '@/city/types/manifest';
+import type { Manifest, RangeStat } from './types/manifest';
 
 export async function createCity(
   canvas: HTMLCanvasElement,

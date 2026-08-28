@@ -5,19 +5,19 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
-import { dataFacadeKind } from '@/city/components/buildings/dataFacade';
-import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
-import { NodeKind } from '@/city/types/manifest';
-import type { FileNode } from '@/city/types/manifest';
+import { buildCellsFromLayout } from '../../../src/components/buildings/cellAssembly';
+import { BuildingIndex } from '../../../src/components/buildings/buildingIndex';
+import { createEmptyCellTile } from '../../../src/components/buildings/cellTile';
+import { dataFacadeKind } from '../../../src/components/buildings/dataFacade';
+import { SpatialGrid } from '../../../src/components/buildings/spatialGrid';
+import { NodeKind } from '../../../src/types/manifest';
+import type { FileNode } from '../../../src/types/manifest';
 import { building } from '../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
 import { settingsStore } from '../../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
-import { createClient } from '@/city/client';
+import { createTimelineState } from '../../../src/timeline/state';
+import { createClient } from '../../../src/client';
 
 const CLIENT = createClient({ baseUrl: '/api' });
 

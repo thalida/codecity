@@ -1,12 +1,12 @@
 // Native-harness tests for BranchSelect — mirrors app/tests/layout/leftSidebar.test.tsx's
 // render/flush/container pattern (this repo has no @testing-library/preact dependency).
 
+import { ScanError } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
 import { API } from '@/apiClient';
 import { flush, drainAsync } from '../_helpers/preact';
-import { ScanError } from '@/city/client/manifest';
 
 describe('BranchSelect', () => {
   let container: HTMLDivElement;

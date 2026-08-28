@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
-import { colorForAuthor } from '@/city/components/fireflies/authorColor';
+import { placeFireflies } from '../../../src/components/fireflies/firefliesPlacement';
+import { colorForAuthor } from '../../../src/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { commitStats } from '../../_helpers/statsFixtures';
 import { treePlacement } from '../../_helpers/cityFixtures';

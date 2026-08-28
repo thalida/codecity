@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 import vertSrc from './island.vert.glsl?raw';
 import fragSrc from './island.frag.glsl?raw';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 
 export function createIslandMaterial(settings: CitySettingsStore): THREE.ShaderMaterial {
   const mats = settings.ISLAND;

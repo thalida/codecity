@@ -2,10 +2,16 @@
 // node. Rendered as <img>, not a lucide-style mask, because the COLOUR is the
 // information: these are full-colour brand glyphs, so they cannot take
 // currentColor. The browser caches per URL, so N files cost K unique fetches.
+import {
+  MATERIAL_ICON_URLS,
+  getFileIconName,
+  getFolderIconName,
+  DirNode,
+  FileNode,
+  NodeKind,
+  TreeNode,
+} from '@codecity/city';
 import './NodeIcon.css';
-import { MATERIAL_ICON_URLS } from '@/city/constants/materialIcons';
-import { getFileIconName, getFolderIconName } from '@/city/utils/fileIcons';
-import { DirNode, FileNode, NodeKind, TreeNode } from '@/city/types/manifest';
 
 export interface NodeIconProps {
   node: TreeNode | { name?: string; type?: NodeKind; extension?: string };

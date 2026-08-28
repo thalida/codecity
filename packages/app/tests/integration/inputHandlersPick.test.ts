@@ -2,15 +2,18 @@
 // dismissal used to be cleared by an effect watching the selection, which also
 // fired on the picker's own bookkeeping (a backdrop save/restore round trip).
 
+import { FileNode, NodeKind, PickTarget } from '@codecity/city';
+
+// The imports below reach past the package's public surface on purpose, and
+// say so by path: they are its internal wiring, which no consumer needs and
+// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+import { createInputHandlers } from '../../../city/src/interaction/inputHandlers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createInputHandlers } from '@/city/interaction/inputHandlers';
 import {
   SELECTION_PANE_DISMISSED,
   dismissSelectionPane,
   openSelectionPane,
 } from '@/state/stores/chrome';
-import { FileNode, NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 import { createEmitter } from '@codecity/city/testing';
 import { fakePicker } from '@codecity/city/testing';
 import { attachCityChrome } from '@/state/stores/city';

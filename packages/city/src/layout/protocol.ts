@@ -4,8 +4,8 @@
 // the two ends can never drift. Mirrors components/trees/treePlacementProtocol.ts.
 
 import type { LayoutConfig } from './config';
-import type { Manifest } from '@/city/types/manifest';
-import type { CityLayout } from '@/city/types/scene';
+import type { Manifest } from '../types/manifest';
+import type { CityLayout } from '../types/scene';
 
 /** The only slice the worker needs. Sending the whole Manifest structured-
  *  clones its commits array across postMessage every apply, for nothing. */

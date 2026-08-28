@@ -3,8 +3,8 @@
 // answer the same question differently: `scrub.ts` for what a Timeline position
 // implies, `build.ts` for whether the world is currently being built from this.
 
+import type { DirNode, Manifest } from '@codecity/city';
 import { signal } from '@preact/signals';
-import type { DirNode, Manifest } from '@/city/types/manifest';
 
 // The union spans a final Manifest, a bare DirNode, and the loose skeleton the
 // stream emits before it is fully typed.

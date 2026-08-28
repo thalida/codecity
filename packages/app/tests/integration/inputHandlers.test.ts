@@ -2,24 +2,27 @@
 // owns the keyboard. Driven through the real createCity path, so it covers the
 // actual listener wiring rather than a stand-in for it.
 
+import { createCity, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
 import { SCENE_HANDLE, attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
+// The two mocks below reach past the package's public surface on purpose, and
+// say so by path: they replace what jsdom has no implementation of (a WebGL
+// post pipeline, an icon atlas that waits on image onload). There is no export
+// for either, and there should not be — substituting a city's internals is a
+// test's business, not an API.
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');
   return { ...actual, WebGLRenderer: fakeWebGLRenderer() };
 });
 
-vi.mock('@/city/render/postFx', async () =>
+vi.mock('../../../city/src/render/postFx', async () =>
   (await import('@codecity/city/testing/three')).postFxMock()
 );
-
-import { createCity } from '@/city/index';
-import { NodeKind } from '@/city/types/manifest';
 
 describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

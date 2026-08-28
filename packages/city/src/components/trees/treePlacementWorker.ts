@@ -8,7 +8,7 @@ import {
   type LayoutGeometry,
 } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import type { CityBbox } from '@/city/types/scene';
+import type { CityBbox } from '../../types/scene';
 
 interface PlaceRequest {
   type: typeof MSG.REQUEST;

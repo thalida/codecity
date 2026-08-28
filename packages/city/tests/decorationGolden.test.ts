@@ -3,10 +3,10 @@
 
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { placeTrees } from '@/city/components/trees/treePlacement';
-import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
-import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
+import { layoutCity } from '../src/layout/algorithm.js';
+import { placeTrees } from '../src/components/trees/treePlacement';
+import { createTreeRenderer } from '../src/components/trees/treeRenderer';
+import { placeFireflies } from '../src/components/fireflies/firefliesPlacement';
 import {
   makeRng,
   genNestedTree,

@@ -1,4 +1,4 @@
-import type { Street } from '@/city/types/street';
+import type { Street } from '../../types/street';
 // How a street renders at a scrub position, from the rollup over its descendant
 // buildings. No meshes, no signals: the pass gathers, this decides, the
 // component applies.

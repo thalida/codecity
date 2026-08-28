@@ -4,12 +4,12 @@
 // with an ellipsis rather than shrink further.
 
 import * as THREE from 'three';
-import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/city/constants/streets';
+import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '../../constants/streets';
 import { asphaltDims } from './streets';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { NodeKind } from '@/city/types/manifest';
-import { Street, StreetAxis } from '@/city/types/street';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { NodeKind } from '../../types/manifest';
+import { Street, StreetAxis } from '../../types/street';
+import type { CitySettingsStore } from '../../settings/store';
 
 // Hardcoded label constants — these have no visible effect at normal viewing
 // distances, so they are baked in here rather than exposed as UI controls.

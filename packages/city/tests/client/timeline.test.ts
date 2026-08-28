@@ -1,7 +1,7 @@
 import { test, expect, describe, it } from 'vitest';
 import { makeES } from '../_helpers/eventSource';
-import { createClient } from '@/city/client/index';
-import type { TimelineBundle } from '@/city/types/timeline';
+import { createClient } from '../../src/client/index';
+import type { TimelineBundle } from '../../src/types/timeline';
 
 // The app used to hand these its own singleton; the client under test is
 // this package's, so build one here with the base every caller passes.

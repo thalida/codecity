@@ -2,11 +2,11 @@
 // structure_signature cache and returns the old positions. The ordering below
 // is the fix: invalidate before applying, so a Save always re-packs.
 
+import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
 import { STREET_LAYOUT } from '@/state/settings/fields/streets';
-import type { Manifest } from '@/city/types/manifest';
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];

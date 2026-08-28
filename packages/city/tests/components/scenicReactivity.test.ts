@@ -10,16 +10,16 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { makeSceneContext } from '../_helpers/cityFixtures';
-import { createStreets } from '@/city/components/streets';
-import { createGem } from '@/city/components/gem';
-import { createIsland } from '@/city/components/island';
-import { createRepoLabel } from '@/city/components/repoLabel';
-import { Manifest, NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { createStreets } from '../../src/components/streets';
+import { createGem } from '../../src/components/gem';
+import { createIsland } from '../../src/components/island';
+import { createRepoLabel } from '../../src/components/repoLabel';
+import { Manifest, NodeKind } from '../../src/types/manifest';
+import { CityLayout } from '../../src/types/scene';
+import { Street, StreetAxis } from '../../src/types/street';
 import { settingsStore } from '../_helpers/citySettings';
-import { createEmitter } from '@/city/events';
-import { createCityState } from '@/city/state';
+import { createEmitter } from '../../src/events';
+import { createCityState } from '../../src/state';
 import { stubPlacementClient } from '../_helpers/cityFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
 

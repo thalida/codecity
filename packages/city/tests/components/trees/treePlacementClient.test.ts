@@ -2,9 +2,9 @@
 // Worker is unavailable, the supersede protocol, and dispose behavior.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTreePlacementClient } from '@/city/components/trees/treePlacementClient';
+import { createTreePlacementClient } from '../../../src/components/trees/treePlacementClient';
 import { bbox, emptyLayout } from '../../_helpers/cityFixtures';
-import type { CityLayout } from '@/city/types/scene';
+import type { CityLayout } from '../../../src/types/scene';
 import { treeCfg } from '../../_helpers/citySettings';
 const TREE_CFG = treeCfg();
 

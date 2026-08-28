@@ -3,6 +3,8 @@
 // clear the panel away; a name in a list promises the thing itself, so those
 // open it. The camera half is guarded against a real city in builtCity.test.ts.
 
+import { FocusMode, NodeKind, PickTarget } from '@codecity/city';
+import type { FocusRef } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import {
@@ -13,11 +15,7 @@ import {
   goToPath,
   goToCommit,
 } from '@/state/stores/city';
-import { FocusMode } from '@/city/render/cameraRig';
-import type { FocusRef } from '@/city/types';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
-import { NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 
 const FILE_TARGET = {
   kind: NodeKind.File,

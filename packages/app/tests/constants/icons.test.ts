@@ -1,15 +1,15 @@
 // Every icon name the resolvers can produce must be bundled, or an edit to a
 // lookup map ships an undefined URL and a blank glyph.
 
-import { describe, it, expect } from 'vitest';
 import {
   EXT_ICON,
   FOLDER_ICON,
   GENERIC_FILE,
   GENERIC_FOLDER,
   NAME_ICON,
-} from '@/city/constants/fileIconMap';
-import { MATERIAL_ICON_URLS } from '@/city/constants/materialIcons';
+  MATERIAL_ICON_URLS,
+} from '@codecity/city';
+import { describe, it, expect } from 'vitest';
 
 describe('material icons: every resolvable name is bundled', () => {
   const folders = [...Object.values(FOLDER_ICON), GENERIC_FOLDER];

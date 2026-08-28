@@ -8,10 +8,10 @@ import {
   BuildingLane,
   blankBuildingScrubState,
   resolveBuildingScrubState,
-} from '@/city/components/buildings/scrubState';
-import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { getBuildingColorForRecency } from '@/city/components/buildings/color';
-import { getBuildingDimensions } from '@/city/layout/dimensions';
+} from '../../../src/components/buildings/scrubState';
+import { BuildingKind } from '../../../src/components/buildings/buildingKind';
+import { getBuildingColorForRecency } from '../../../src/components/buildings/color';
+import { getBuildingDimensions } from '../../../src/layout/dimensions';
 import {
   BYTE_STATS,
   LINE_STATS,
@@ -21,8 +21,8 @@ import {
   makeScrubFrame,
   scrubSubject,
 } from '../../_helpers/scrub';
-import { FadeDetail } from '@/city/types/animation';
-import { FileNode } from '@/city/types/manifest';
+import { FadeDetail } from '../../../src/types/animation';
+import { FileNode } from '../../../src/types/manifest';
 import { citySettings, layoutCfg } from '../../_helpers/citySettings';
 
 const CFG = layoutCfg();

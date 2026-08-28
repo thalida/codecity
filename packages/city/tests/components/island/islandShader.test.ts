@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import { createIslandMaterial } from '@/city/components/island/islandShader';
+import { createIslandMaterial } from '../../../src/components/island/islandShader';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const SETTINGS = settingsStore();

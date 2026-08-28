@@ -4,7 +4,7 @@
 // on top of a small repo and miles off a large one.
 
 import { describe, it, expect } from 'vitest';
-import { backdropRadius } from '@/city/render/backdropRadius';
+import { backdropRadius } from '../../src/render/backdropRadius';
 
 const LIMITS = { minDistance: 1, maxDistance: 100000 };
 

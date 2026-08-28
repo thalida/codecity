@@ -141,6 +141,12 @@ untangling.
     `@codecity/city/testing/three` — a `vi.mock('three')` factory that awaits
     the main barrel deadlocks, because the barrel reaches source that imports
     three.
+  - Every import inside this package is RELATIVE, and there is no path alias to
+    add one back. An alias in published source resolves only if the consumer
+    maps the same prefix; ours did, which hid the fact that nobody else could.
+    The app reaches this package through `@codecity/city` and nothing else — a
+    test may reach past that surface, by explicit path so it says so, but no
+    file under `src/` may.
 - `packages/app/` — Preact + TypeScript frontend. Two routes, one view each:
   `/` is the landing (pick a project) and `/city?src=…` is a world. The URL is
   the source of truth for both — `router/` owns it, and `?src`, `?mode`,

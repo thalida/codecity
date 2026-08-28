@@ -8,7 +8,7 @@ import {
   type LayoutGeometry,
 } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import type { CityBbox, CityLayout } from '@/city/types/scene';
+import type { CityBbox, CityLayout } from '../../types/scene';
 
 interface PendingRequest {
   resolve(placements: TreePlacement[]): void;

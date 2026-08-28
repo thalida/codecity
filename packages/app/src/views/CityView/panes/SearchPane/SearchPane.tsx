@@ -3,6 +3,7 @@
 // string; scoring favours earlier matches, prefixes and word boundaries. Cheap
 // enough to re-run over tens of thousands of paths on every keystroke.
 
+import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
 import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
@@ -12,7 +13,6 @@ import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
-import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@/city/types/manifest';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

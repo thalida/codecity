@@ -5,7 +5,7 @@ import {
   shadeColor,
   shadeAndShiftHue,
   shadeByRatio,
-} from '@/city/utils/color/colors';
+} from '../../../src/utils/color/colors';
 
 describe('hslToComponents', () => {
   it('parses a standard hsl() string', () => {

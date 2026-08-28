@@ -3,7 +3,7 @@
 import type { components } from './manifest.generated';
 import { NodeKind } from './manifest';
 import { TimelineStage } from './timeline';
-import { CloneStage, ScanPhase } from '@/city/client/manifest';
+import { CloneStage, ScanPhase } from '../client/manifest';
 
 type Schemas = components['schemas'];
 

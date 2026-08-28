@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { startFrameLoop } from '@/city/render/frameLoop';
-import type { FrameContext, SceneComponent, SceneContext } from '@/city/types';
+import { startFrameLoop } from '../../src/render/frameLoop';
+import type { FrameContext, SceneComponent, SceneContext } from '../../src/types';
 
 // Deterministic rAF: collect callbacks; the test flushes them manually.
 let _rafCallbacks: Map<number, FrameRequestCallback>;

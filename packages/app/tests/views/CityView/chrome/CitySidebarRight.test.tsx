@@ -1,3 +1,4 @@
+import { DirNode, FileNode, Manifest, NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
@@ -8,8 +9,6 @@ import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush, drainAsync } from '../../../_helpers/preact';
-import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 import { fakePicker } from '@codecity/city/testing';
 
 const FILE_NODE: FileNode = {

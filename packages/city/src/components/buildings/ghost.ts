@@ -4,11 +4,11 @@
 // clears the hover, which hides it, so it needs no rebuild handling.
 
 import * as THREE from 'three';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { createPicker } from '@/city/interaction/picker';
-import { Building } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { FileTarget } from '@/city/types/picker';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import type { createPicker } from '../../interaction/picker';
+import { Building } from '../../types/building';
+import { NodeKind } from '../../types/manifest';
+import { FileTarget } from '../../types/picker';
 
 // Narrow world surface the ghost needs (mesh resolver only). Supplied by the
 // buildings component.

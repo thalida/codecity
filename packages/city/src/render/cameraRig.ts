@@ -17,17 +17,17 @@ import {
   CAMERA_INITIAL_DISTANCE_MULT,
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
-} from '@/city/constants/camera';
-import type { CityState } from '@/city/state';
-import { CameraTarget } from '@/city/settings/fields/camera';
+} from '../constants/camera';
+import type { CityState } from '../state';
+import { CameraTarget } from '../settings/fields/camera';
 import { computeFramingDir } from './framingDir';
-import { gemRadiusFor } from '@/city/components/gem/mesh';
+import { gemRadiusFor } from '../components/gem/mesh';
 import { backdropRadius } from './backdropRadius';
-import { Building } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { Street, StreetAxis } from '@/city/types/street';
-import { PickTarget } from '@/city/types/picker';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { Building } from '../types/building';
+import { NodeKind } from '../types/manifest';
+import { Street, StreetAxis } from '../types/street';
+import { PickTarget } from '../types/picker';
+import type { CitySettingsStore } from '../settings/store';
 
 /** How a focus command frames the node it looks at. */
 export enum FocusMode {

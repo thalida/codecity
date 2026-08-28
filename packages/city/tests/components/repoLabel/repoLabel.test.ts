@@ -3,11 +3,11 @@
 // releasing GPU resources and stopping the effect.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createRepoLabel } from '@/city/components/repoLabel';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { createRepoLabel } from '../../../src/components/repoLabel';
+import { RENDER_ORDERS } from '../../../src/types/renderOrders';
 import { TEST_BUILDING_DIMENSIONS, makeSceneContext } from '../../_helpers/cityFixtures';
 import { settingsStore } from '../../_helpers/citySettings';
-import type { FrameContext } from '@/city/types';
+import type { FrameContext } from '../../../src/types';
 
 // The positioning math assumes MAX_FLOORS=96 and FLOOR_HEIGHT=16 (maxBldgH
 // 1536), and a label at 85% of it. Stated, not defaulted: production defaults

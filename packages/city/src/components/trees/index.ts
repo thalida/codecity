@@ -10,7 +10,7 @@ import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
 import type { TreePlacement } from './treePlacement';
-import type { BusynessThresholds, CommitEntry, RepoStats } from '@/city/types/manifest';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '../../types/manifest';
 
 export type { Trees };
 

@@ -15,7 +15,7 @@ import type { BuildStage } from './build';
 import type { CityEmitter } from '../events';
 import type { SourceLoader } from '../loadSource';
 import type { CodecityClient } from '../client';
-import type { Manifest, RangeStat } from '@/city/types/manifest';
+import type { Manifest, RangeStat } from './manifest';
 
 /** What a component needs to wire itself in. picker is null until after the
  *  components exist, so anything needing it arms on the first tick. */

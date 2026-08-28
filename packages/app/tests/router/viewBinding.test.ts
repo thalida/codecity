@@ -1,3 +1,4 @@
+import { FocusMode, Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // The selection commands, stubbed: what matters is the URL's selection being
@@ -20,7 +21,6 @@ vi.mock('@/hooks/useTimelineMode', async (importOriginal) => ({
 
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { goToPath, goToCommit, clearSelection } from '@/state/stores/city';
-import { FocusMode } from '@/city/render/cameraRig';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -39,7 +39,6 @@ import { stubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS, ROUTE_SEARCH } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { Manifest, NodeKind } from '@/city/types/manifest';
 
 const SRC = '/repos/codecity';
 // A loaded manifest, repo and all: commitSource reads it the way the header does.

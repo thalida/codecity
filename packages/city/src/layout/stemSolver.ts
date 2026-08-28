@@ -8,7 +8,7 @@ import type { Rect } from './rect';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
 import { _profNow, _profEnd, _profCount } from './profiling';
-import { StreetAxis } from '@/city/types/street';
+import { StreetAxis } from '../types/street';
 
 // findSmallestValidStem's sort-free scan grows the stem one forbidden-interval
 // link per round (O(F·chain)). Past this many rounds the chain is long enough

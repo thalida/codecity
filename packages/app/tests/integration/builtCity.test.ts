@@ -3,6 +3,7 @@
 // of any one part — stubbing a world whose meshes already exist is how a city you
 // could only drag got shipped. jsdom has no WebGL, so only that is mocked.
 
+import { createCity, Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
@@ -15,26 +16,29 @@ import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
+// The two mocks below reach past the package's public surface on purpose, and
+// say so by path: they replace what jsdom has no implementation of (a WebGL
+// post pipeline, an icon atlas that waits on image onload). There is no export
+// for either, and there should not be — substituting a city's internals is a
+// test's business, not an API.
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');
   return { ...actual, WebGLRenderer: fakeWebGLRenderer() };
 });
 
-vi.mock('@/city/render/postFx', async () =>
+vi.mock('../../../city/src/render/postFx', async () =>
   (await import('@codecity/city/testing/three')).postFxMock()
 );
 
 // Icon images never fire onload in jsdom and would hang the apply.
-vi.mock('@/city/components/buildings/atlas', async () => {
-  const actual = await vi.importActual<typeof import('@/city/components/buildings/atlas')>(
-    '@/city/components/buildings/atlas'
-  );
+vi.mock('../../../city/src/components/buildings/atlas', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../city/src/components/buildings/atlas')
+  >('../../../city/src/components/buildings/atlas');
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCity } from '@/city/index';
-import { Manifest, NodeKind } from '@/city/types/manifest';
 import { nextBuild } from '@codecity/city/testing';
 import { attachBuildProgress } from '@/state/stores/progress';
 import { attachCityChrome } from '@/state/stores/city';

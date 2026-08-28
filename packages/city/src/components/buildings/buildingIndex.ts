@@ -8,7 +8,7 @@
 // so reverse lookups are O(1). A fresh index is built per rebuild
 // (cellAssembly), so there is no removal/clearing API.
 
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../types/building';
 
 export class BuildingIndex {
   readonly byPath = new Map<string, Building>();

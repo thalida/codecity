@@ -2,7 +2,7 @@
 // a baseline captured from a broken run would enshrine the NaN.
 
 import { describe, it, expect } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
+import { layoutCity } from '../../src/layout/algorithm.js';
 import {
   edgeCaseFiles,
   mkDir,
@@ -10,7 +10,7 @@ import {
   makeRng,
   statsFromTree,
 } from '../_helpers/layoutTreeFixtures';
-import { NodeKind } from '@/city/types/manifest';
+import { NodeKind } from '../../src/types/manifest';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

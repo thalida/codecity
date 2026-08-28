@@ -1,6 +1,7 @@
 // panes/InfoPane/tabs/OverviewTab — a travel guide of the repo's superlatives,
 // a section per layer. A landmark row is itself the button that flies there.
 
+import { DirNode, Manifest, NodeKind } from '@codecity/city';
 import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
@@ -11,7 +12,6 @@ import { TREES } from '@/state/settings/fields/trees';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
-import { DirNode, Manifest, NodeKind } from '@/city/types/manifest';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.

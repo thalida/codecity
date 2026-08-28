@@ -8,7 +8,7 @@ import {
   createGemPalette,
   paletteColors,
   type GemFacePalette,
-} from '@/city/components/gem/palette';
+} from '../../../src/components/gem/palette';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const PALETTE: GemFacePalette = {

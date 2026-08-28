@@ -2,9 +2,9 @@
 // the shape @codecity/city takes. The panel binds to the individual signals;
 // a city instance is handed the whole object and diffs it itself.
 
+import type { CitySettings } from '@codecity/city';
 import { computed } from '@preact/signals';
 
-import type { CitySettings } from '@/city/settings';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/settings/fields/buildings';
 import { CAMERA } from '@/state/settings/fields/camera';
 import { BLOOM, RAINBOW } from '@/state/settings/fields/effects';

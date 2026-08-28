@@ -7,8 +7,8 @@ import { layoutCity } from './algorithm';
 import type { LayoutConfig } from './config';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';
-import type { FileNode, Manifest, TreeNode } from '@/city/types/manifest';
-import type { CityLayout } from '@/city/types/scene';
+import type { FileNode, Manifest, TreeNode } from '../types/manifest';
+import type { CityLayout } from '../types/scene';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;

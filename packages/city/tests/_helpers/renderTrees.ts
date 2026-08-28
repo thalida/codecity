@@ -4,13 +4,13 @@
 // drive the real commitForFace without a GPU.
 
 import * as THREE from 'three';
-import { createTreeRenderer, type Trees } from '@/city/components/trees/treeRenderer';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
+import { createTreeRenderer, type Trees } from '../../src/components/trees/treeRenderer';
+import type { TreePlacement } from '../../src/components/trees/treePlacement';
+import { VERTS_PER_TRIANGLE } from '../../src/utils/bufferLayout';
 import { commitStats } from './statsFixtures';
-import type { BusynessThresholds, CommitEntry } from '@/city/types/manifest';
+import type { BusynessThresholds, CommitEntry } from '../../src/types/manifest';
 import { settingsStore } from './citySettings';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../src/settings/store';
 
 export function renderTrees(
   placements: TreePlacement[],

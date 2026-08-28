@@ -5,16 +5,16 @@
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
+import { SafeLineSegmentsGeometry } from '../../utils/safeLineSegmentsGeometry';
 
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { rainbowRgbAt } from '@/city/utils/rainbowChase';
-import type { CitySettingsStore } from '@/city/settings/store';
-import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
-import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { rainbowRgbAt } from '../../utils/rainbowChase';
+import type { CitySettingsStore } from '../../settings/store';
+import { FLOATS_PER_SEGMENT } from '../../utils/bufferLayout';
+import { createSafeLineMaterial } from '../../utils/safeLineMaterial';
 import { buildCanopyEdges } from './treeRenderer';
-import type { PickTarget } from '@/city/types/picker';
-import { NodeKind } from '@/city/types/manifest';
+import type { PickTarget } from '../../types/picker';
+import { NodeKind } from '../../types/manifest';
 
 interface TreesHandle {
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;

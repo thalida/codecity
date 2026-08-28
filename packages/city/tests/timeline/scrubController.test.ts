@@ -4,20 +4,20 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 
-import { createScrubController } from '@/city/timeline/scrubController';
-import type { ScrubGate } from '@/city/timeline/scrubController';
-import type { ScrubStates } from '@/city/timeline/scrubPass';
-import { BuildingLane } from '@/city/components/buildings/scrubState';
-import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
-import type { StreetScrubState } from '@/city/components/streets/scrubState';
-import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import { buildPathTimelines } from '@/city/timeline/replay';
+import { createScrubController } from '../../src/timeline/scrubController';
+import type { ScrubGate } from '../../src/timeline/scrubController';
+import type { ScrubStates } from '../../src/timeline/scrubPass';
+import { BuildingLane } from '../../src/components/buildings/scrubState';
+import type { BuildingScrubState } from '../../src/components/buildings/scrubState';
+import type { StreetScrubState } from '../../src/components/streets/scrubState';
+import { BuildingIndex } from '../../src/components/buildings/buildingIndex';
+import { buildPathTimelines } from '../../src/timeline/replay';
 import { BYTE_STATS, LINE_STATS, SUBJECT_BUNDLE, makeBuilding, makeFile } from '../_helpers/scrub';
-import type { RangeStat } from '@/city/types/manifest';
-import type { Street } from '@/city/types/street';
-import type { PickTarget } from '@/city/types/picker';
+import type { RangeStat } from '../../src/types/manifest';
+import type { Street } from '../../src/types/street';
+import type { PickTarget } from '../../src/types/picker';
 import { settingsStore } from '../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
+import { createTimelineState } from '../../src/timeline/state';
 import { fakePicker } from '../_helpers/cityFixtures';
 
 const TIMELINE = createTimelineState();

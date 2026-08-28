@@ -12,22 +12,22 @@
 //   published  the components have rebuilt off the above; the city is the one
 //              on screen now
 import * as THREE from 'three';
-import { BuildStage } from '@/city/types/build';
+import { BuildStage } from '../types/build';
 import type { CityEmitter } from '../events';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
 import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
 import type { TreePlacementClient } from '../components/trees/treePlacementClient';
-import { gemAnchorXZ } from '@/city/components/gem/anchor';
+import { gemAnchorXZ } from '../components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import type { createLayoutClient } from '../layout';
 import { layoutConfigFrom } from '../layout/config';
 import type { CitySettingsStore } from '../settings/store';
 import type { CityResources } from '../resources';
-import { Building } from '@/city/types/building';
-import { Manifest } from '@/city/types/manifest';
-import { CityBbox, CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { Building } from '../types/building';
+import { Manifest } from '../types/manifest';
+import { CityBbox, CityLayout } from '../types/scene';
+import { Street, StreetAxis } from '../types/street';
 
 /** The kinds of change a component can redraw for. See the header. */
 export type CityChange = 'structure' | 'apply' | 'published';

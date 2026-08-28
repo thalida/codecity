@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { buildCanopyEdges, type Trees } from '@/city/components/trees/treeRenderer';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
+import { buildCanopyEdges, type Trees } from '../../../src/components/trees/treeRenderer';
+import type { TreePlacement } from '../../../src/components/trees/treePlacement';
+import { RENDER_ORDERS } from '../../../src/types/renderOrders';
+import { VERTS_PER_TRIANGLE } from '../../../src/utils/bufferLayout';
 import { commits as buildCommits, commitSeries } from '../../_helpers/commits';
 import { renderTrees } from '../../_helpers/renderTrees';
-import { epochDay, parseDateMs } from '@/city/utils/dates';
+import { epochDay, parseDateMs } from '../../../src/utils/dates';
 import { settingsStore } from '../../_helpers/citySettings';
-import type { CitySettingsPatch } from '@/city/settings';
+import type { CitySettingsPatch } from '../../../src/settings';
 
 // Stated, not defaulted: the heights, the trunk fraction and the shading
 // strength are what these buffer assertions are written against.

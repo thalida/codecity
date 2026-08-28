@@ -2,13 +2,13 @@
 // is closed. Nothing else on screen says so, and Esc is invisible on a desktop
 // and absent on a phone.
 
+import { NodeKind } from '@codecity/city';
 import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { CITY_SELECTION, clearSelection } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
-import { NodeKind } from '@/city/types/manifest';
 
 /** What the chip names: the node's own label, plus the kind badge its pane
  *  header would have carried. */

@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { setColorFromHex } from '../../../src/utils/color/setColorFromHex';
 
 describe('setColorFromHex()', () => {
   it('writes hex bytes through unchanged (no sRGB→linear conversion)', () => {

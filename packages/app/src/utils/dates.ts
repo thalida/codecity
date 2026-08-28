@@ -1,8 +1,7 @@
+import { parseLocalDate } from '@codecity/city';
 // utils/dates.ts — every date the app PRINTS goes through here. The parse rule
 // itself lives in @codecity/city, so a printed label and a scene position can
 // never disagree about which day a commit landed on.
-
-import { parseLocalDate } from '@/city/utils/dates';
 
 const MS_SECOND = 1_000;
 const MS_MINUTE = 60_000;

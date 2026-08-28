@@ -1,3 +1,4 @@
+import { NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 
@@ -23,7 +24,6 @@ vi.mock('@/state/settings/fields/streets', () => ({
 }));
 
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
-import { NodeKind } from '@/city/types/manifest';
 
 let container: HTMLDivElement;
 

@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '@/city/layout/algorithm';
-import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
-import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
+import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '../../src/layout/algorithm';
+import {
+  getStreetWidth,
+  getBuildingDimensions,
+  computeFileStats,
+} from '../../src/layout/dimensions';
+import type { BuildingDimensionsConfig } from '../../src/settings/fields/buildings';
 import { layoutCfg } from '../_helpers/citySettings';
 import { EMPTY_REPO_STATS } from '../_helpers/manifestFixtures';
-import type { StreetTier } from '@/city/settings/fields/streets';
+import type { StreetTier } from '../../src/settings/fields/streets';
 import {
   assertNoOverlap,
   assertStemOrder,
@@ -20,10 +24,10 @@ import {
   genNestedTree,
 } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
-import { BuildingOrient } from '@/city/types/building';
-import { NodeKind, RepoStats } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { StreetAxis } from '@/city/types/street';
+import { BuildingOrient } from '../../src/types/building';
+import { NodeKind, RepoStats } from '../../src/types/manifest';
+import { CityLayout } from '../../src/types/scene';
+import { StreetAxis } from '../../src/types/street';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

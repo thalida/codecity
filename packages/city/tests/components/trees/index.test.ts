@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
-import { createTrees } from '@/city/components/trees';
-import { createCityState } from '@/city/state';
+import { createTrees } from '../../../src/components/trees';
+import { createCityState } from '../../../src/state';
 import {
   commitTarget,
   makeCityState,
@@ -17,13 +17,13 @@ import {
 } from '../../_helpers/cityFixtures';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { commitStats } from '../../_helpers/statsFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
+import type { Picker } from '../../../src/interaction/picker';
+import type { SceneContext } from '../../../src/types';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import { NodeKind } from '@/city/types/manifest';
-import { StreetAxis } from '@/city/types/street';
+import { NodeKind } from '../../../src/types/manifest';
+import { StreetAxis } from '../../../src/types/street';
 import { settingsStore } from '../../_helpers/citySettings';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../../src/settings/store';
 import { createEmitter } from '../../_helpers/cityEvents';
 
 const SETTINGS = settingsStore();

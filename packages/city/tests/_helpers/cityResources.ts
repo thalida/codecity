@@ -1,5 +1,5 @@
-import { createCityResources, type CityResources } from '@/city/resources';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { createCityResources, type CityResources } from '../../src/resources';
+import type { CitySettingsStore } from '../../src/settings/store';
 import { settingsStore } from './citySettings';
 
 /** A city's GPU resources without a WebGLRenderer. jsdom has no WebGL, and the

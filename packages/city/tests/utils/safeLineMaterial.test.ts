@@ -4,7 +4,7 @@ import {
   createSafeLineMaterial,
   STOCK_NORMALIZE,
   GUARDED_NORMALIZE,
-} from '@/city/utils/safeLineMaterial';
+} from '../../src/utils/safeLineMaterial';
 
 describe('createSafeLineMaterial', () => {
   // Pins the stock shader text: a three upgrade that rephrases it would make

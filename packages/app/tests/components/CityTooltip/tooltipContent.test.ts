@@ -1,3 +1,4 @@
+import { DirNode, FileNode, NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect } from 'vitest';
 import {
   hoverTooltipContent,
@@ -5,8 +6,6 @@ import {
   middleTruncatePath,
 } from '@/components/CityTooltip/tooltipContent';
 import { commits as buildCommits } from '@codecity/city/testing';
-import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 
 // The formatter reads a handful of fields but the types want the whole shape,
 // so the rest are inert defaults.

@@ -3,15 +3,15 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
-import { createCityState } from '@/city/state';
-import { createStreets } from '@/city/components/streets';
+import { createCityState } from '../src/state';
+import { createStreets } from '../src/components/streets';
 import { makeSceneContext, stubPlacementClient } from './_helpers/cityFixtures';
 import { createTestCityResources } from './_helpers/cityResources';
-import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { DateRanges, Manifest, NodeKind } from '../src/types/manifest';
+import { CityLayout } from '../src/types/scene';
+import { Street, StreetAxis } from '../src/types/street';
 import { settingsStore } from './_helpers/citySettings';
-import type { LayoutConfig } from '@/city/layout/config';
+import type { LayoutConfig } from '../src/layout/config';
 import { createEmitter } from './_helpers/cityEvents';
 
 const SETTINGS = settingsStore();

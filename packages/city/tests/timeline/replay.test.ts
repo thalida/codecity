@@ -6,8 +6,8 @@ import {
   entryAt,
   presenceAt,
   statsAtDeletion,
-} from '@/city/timeline/replay';
-import type { TimelineBundle } from '@/city/types/timeline';
+} from '../../src/timeline/replay';
+import type { TimelineBundle } from '../../src/types/timeline';
 
 const bundle = {
   commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],

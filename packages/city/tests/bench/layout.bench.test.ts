@@ -4,8 +4,8 @@
 // timed run per shape, so vitest's bench() API buys nothing here.
 
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { NodeKind } from '@/city/types/manifest';
+import { layoutCity } from '../../src/layout/algorithm.js';
+import { NodeKind } from '../../src/types/manifest';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

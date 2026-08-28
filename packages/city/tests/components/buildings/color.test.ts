@@ -6,9 +6,9 @@ import {
   getBuildingColor,
   getBuildingColorForRecency,
   getModifiedAge,
-} from '@/city/components/buildings/color';
+} from '../../../src/components/buildings/color';
 import { citySettings } from '../../_helpers/citySettings';
-import { NodeKind, RangeStat } from '@/city/types/manifest';
+import { NodeKind, RangeStat } from '../../../src/types/manifest';
 
 // Test palette + saturation/lightness ranges, stated rather than defaulted:
 // every expected hue and lightness below is derived from these.

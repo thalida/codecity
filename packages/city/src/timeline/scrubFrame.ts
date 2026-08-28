@@ -1,15 +1,15 @@
 // The only per-frame reader of SCRUB_POS, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-import type { BuildingsConfig } from '@/city/settings/fields/buildings';
-import type { CitySettingsStore } from '@/city/settings/store';
-import { layoutConfigFrom, type LayoutConfig } from '@/city/layout/config';
-import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
-import type { createPicker } from '@/city/interaction/picker';
-import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
-import { Street } from '@/city/types/street';
-import { TimelineBundle } from '@/city/types/timeline';
-import type { TimelineState } from '@/city/timeline/state';
+import type { BuildingsConfig } from '../settings/fields/buildings';
+import type { CitySettingsStore } from '../settings/store';
+import { layoutConfigFrom, type LayoutConfig } from '../layout/config';
+import { resolveDirTarget } from '../components/buildings/fadeTiers';
+import type { createPicker } from '../interaction/picker';
+import { FileNode, NodeKind, RangeStat } from '../types/manifest';
+import { Street } from '../types/street';
+import { TimelineBundle } from '../types/timeline';
+import type { TimelineState } from './state';
 
 export type CommitDateRange = NonNullable<TimelineBundle['commitDateRanges']>[number];
 

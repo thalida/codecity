@@ -4,12 +4,12 @@
 // driver (Samsung Xclipse) under both browsers' GL stacks; ~50 bytes/orb.
 
 import * as THREE from 'three';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { VEC3_COMPONENTS } from '../../utils/bufferLayout';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 
 export interface FireflyRenderer {
   group: THREE.Group;

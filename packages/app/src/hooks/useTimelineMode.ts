@@ -3,7 +3,14 @@
 // Every exit path only flips TIMELINE_MODE: the city layer (city/index.ts)
 // reacts to that and does the scene teardown itself.
 
-import { buildPathTimelines } from '@/city/timeline/replay';
+import {
+  buildPathTimelines,
+  nextPaint,
+  Manifest,
+  TimelineBundle,
+  TimelineProgress,
+  TimelineStage,
+} from '@codecity/city';
 import {
   CURRENT_SOURCE,
   SOURCE_INFO,
@@ -34,7 +41,6 @@ import {
   stepForTimelineStage,
   transferTail,
 } from '@/constants/progress';
-import { nextPaint } from '@/city/utils/nextPaint';
 import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,
@@ -53,8 +59,6 @@ import {
   setTimelineBootHandler,
 } from '@/hooks/useManifestSource';
 import { API } from '@/apiClient';
-import { Manifest } from '@/city/types/manifest';
-import { TimelineBundle, TimelineProgress, TimelineStage } from '@/city/types/timeline';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */

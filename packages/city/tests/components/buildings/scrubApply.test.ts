@@ -6,17 +6,17 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createBuildingScrubApply } from '@/city/components/buildings/scrubApply';
+import { createBuildingScrubApply } from '../../../src/components/buildings/scrubApply';
 import {
   BuildingLane,
   blankBuildingScrubState,
   type BuildingScrubState,
-} from '@/city/components/buildings/scrubState';
-import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
+} from '../../../src/components/buildings/scrubState';
+import { BuildingIndex } from '../../../src/components/buildings/buildingIndex';
+import type { InstancedFacadePanels } from '../../../src/components/buildings/facadePanels';
 import { makeBuilding, makeFile } from '../../_helpers/scrub';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../../src/types/building';
 
 const _res = createTestCityResources();
 

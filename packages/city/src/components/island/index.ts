@@ -4,11 +4,11 @@
 
 import * as THREE from 'three';
 
-import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
+import { getWorldBounds, type WorldBounds } from '../../utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { IslandConfig } from '@/city/settings/fields/island';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import type { IslandConfig } from '../../settings/fields/island';
 import type { SceneComponent, SceneContext } from '../../types';
 
 // Coplanar with the city, because it is the ground the city stands on. Dropping

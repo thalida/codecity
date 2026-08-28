@@ -5,23 +5,23 @@
 import { describe, it } from 'vitest';
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
-import { createStreetLabels } from '@/city/components/streets/streetLabels';
-import { isMediaFile } from '@/city/utils/fileKind';
+import { layoutCity } from '../../src/layout/algorithm.js';
+import { buildCellsFromLayout } from '../../src/components/buildings/cellAssembly';
+import { InstancedFacadePanels } from '../../src/components/buildings/facadePanels';
+import { createStreetLabels } from '../../src/components/streets/streetLabels';
+import { isMediaFile } from '../../src/utils/fileKind';
 import { makeRng, genWeightedTree } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
-import { Building } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { StreetAxis } from '@/city/types/street';
+import { Building } from '../../src/types/building';
+import { NodeKind } from '../../src/types/manifest';
+import { CityLayout } from '../../src/types/scene';
+import { StreetAxis } from '../../src/types/street';
 import { layoutCfg } from '../_helpers/citySettings';
 import { settingsStore } from '../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
-import { createClient } from '@/city/client';
+import { createTimelineState } from '../../src/timeline/state';
+import { createClient } from '../../src/client';
 
 const CLIENT = createClient({ baseUrl: '/api' });
 

@@ -4,9 +4,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { createSky } from '@/city/components/sky';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { FrameContext } from '@/city/types';
+import { createSky } from '../../../src/components/sky';
+import { RENDER_ORDERS } from '../../../src/types/renderOrders';
+import type { FrameContext } from '../../../src/types';
 import { makeSceneContext } from '../../_helpers/cityFixtures';
 import { settingsStore } from '../../_helpers/citySettings';
 

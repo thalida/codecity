@@ -2,14 +2,14 @@
 // default change is a real output change and requires recapturing EXPECTED.
 
 import { describe, it, expect } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
+import { layoutCity } from '../../src/layout/algorithm.js';
 import {
   makeRng,
   genWeightedTree,
   makeDigestHasher,
   statsFromTree,
 } from '../_helpers/layoutTreeFixtures';
-import type { CityLayout } from '@/city/types/scene';
+import type { CityLayout } from '../../src/types/scene';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

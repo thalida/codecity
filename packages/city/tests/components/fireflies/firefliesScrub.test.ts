@@ -2,12 +2,12 @@
 // the work is theirs, and that has to be the work done BY THAT DATE.
 
 import { describe, it, expect } from 'vitest';
-import { createFirefliesScrub } from '@/city/components/fireflies/firefliesScrub';
-import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
+import { createFirefliesScrub } from '../../../src/components/fireflies/firefliesScrub';
+import { placeFireflies } from '../../../src/components/fireflies/firefliesPlacement';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { commitStats } from '../../_helpers/statsFixtures';
 import { TEST_TREES, treePlacement } from '../../_helpers/cityFixtures';
-import { parseDateMs } from '@/city/utils/dates';
+import { parseDateMs } from '../../../src/utils/dates';
 import { settingsStore } from '../../_helpers/citySettings';
 
 // Canopy width follows height only with the age attenuation on, and the orb

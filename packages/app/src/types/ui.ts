@@ -1,9 +1,9 @@
 // types/ui.ts — the shapes the UI shell and its panes render against, and the
 // discriminants that pick between them.
 
+import { ScanErrorCode } from '@codecity/city';
 import type { SourceKind } from '@/utils/sources';
 import type { LoadingStep } from '@/constants/progress';
-import { ScanErrorCode } from '@/city/client/manifest';
 
 /** Left-sidebar tab IDs. Discriminator on the activity bar's mounted pane. */
 export enum SidebarTab {

@@ -2,7 +2,7 @@
 // actually about. Nothing here reaches a store: an event is a statement the
 // city makes, and what a consumer does with it is the consumer's test.
 
-import { createEmitter, type CityEmitter, type CityEventName } from '@/city/events';
+import { createEmitter, type CityEmitter, type CityEventName } from '../../src/events';
 
 export { createEmitter };
 

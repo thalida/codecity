@@ -2,25 +2,25 @@
 // because street opacity is a rollup over descendant buildings, so the
 // buildings must be walked before the streets resolve.
 
-import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
+import type { BuildingIndex } from '../components/buildings/buildingIndex';
 import {
   BuildingLane,
   blankBuildingScrubState,
   resolveBuildingScrubState,
   type BuildingScrubInput,
   type BuildingScrubState,
-} from '@/city/components/buildings/scrubState';
+} from '../components/buildings/scrubState';
 import {
   resolveStreetScrubState,
   type StreetRollup,
   type StreetScrubState,
-} from '@/city/components/streets/scrubState';
-import { streetChainForDirPath } from '@/city/layout/streetPath';
-import { parentDirPath } from '@/city/utils/path';
+} from '../components/streets/scrubState';
+import { streetChainForDirPath } from '../layout/streetPath';
+import { parentDirPath } from '../utils/path';
 import type { PathTimeline } from './replay';
 import type { ScrubFrame } from './scrubFrame';
-import type { Building } from '@/city/types/building';
-import type { Street } from '@/city/types/street';
+import type { Building } from '../types/building';
+import type { Street } from '../types/street';
 
 export interface ScrubStates {
   /** Every union building, whether or not it has a mesh. */

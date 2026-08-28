@@ -4,15 +4,15 @@
 // plaza, so no separate pad mesh exists.
 
 import * as THREE from 'three';
-import { type GemSizingConfig } from '@/city/settings/fields/gem';
-import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
-import { BYTE_MAX } from '@/city/utils/bufferLayout';
+import { type GemSizingConfig } from '../../settings/fields/gem';
+import { NEUTRAL_POLYGON_OFFSET } from '../../utils/neutralPolygonOffset';
+import { BYTE_MAX } from '../../utils/bufferLayout';
 import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
-import { NodeKind } from '@/city/types/manifest';
-import { Street } from '@/city/types/street';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { NodeKind } from '../../types/manifest';
+import { Street } from '../../types/street';
+import type { CitySettingsStore } from '../../settings/store';
 
 // Hover-lift as a fraction of street width — fixed, not user-tunable;
 // index.ts recomputes baseY from it on Save.

@@ -3,7 +3,7 @@
 // project, so measuring in that put one setting on top of a small repo and
 // miles off a large one.
 
-import type { WorldBounds } from '@/city/utils/floorBounds';
+import type { WorldBounds } from '../utils/floorBounds';
 
 export interface BackdropGeometry {
   /** The gem's own radius, from the layout. */

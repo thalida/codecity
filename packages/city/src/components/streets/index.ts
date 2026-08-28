@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { setColorFromHex } from '../../utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -18,10 +18,10 @@ import {
 import { createStreetLabels, disposeStreetLabelResources } from './streetLabels';
 import { RUINED_STREET_DIRS } from './scrubState';
 import type { StreetScrubState } from './scrubState';
-import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { disposeObject3D } from '../../utils/disposeObject3D';
+import { NodeKind } from '../../types/manifest';
+import { CityLayout } from '../../types/scene';
+import { Street, StreetAxis } from '../../types/street';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 

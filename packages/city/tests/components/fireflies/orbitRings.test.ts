@@ -4,8 +4,8 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createOrbitRings, ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
-import type { FireflyPlacement } from '@/city/components/fireflies/firefliesPlacement';
+import { createOrbitRings, ORBIT_RINGS_GROUP } from '../../../src/components/fireflies/orbitRings';
+import type { FireflyPlacement } from '../../../src/components/fireflies/firefliesPlacement';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const SETTINGS = settingsStore();

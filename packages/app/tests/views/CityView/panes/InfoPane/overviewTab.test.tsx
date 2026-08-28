@@ -1,3 +1,4 @@
+import { Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { render } from 'preact';
@@ -26,7 +27,6 @@ import { OverviewTab } from '@/views/CityView/panes/InfoPane/tabs/OverviewTab/Ov
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { commits as buildCommits } from '@codecity/city/testing';
 import { uniformFileStats } from '@codecity/city/testing';
-import { Manifest, NodeKind } from '@/city/types/manifest';
 
 const tree = {
   name: 'repo',

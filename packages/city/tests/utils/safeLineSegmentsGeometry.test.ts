@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
+import { SafeLineSegmentsGeometry } from '../../src/utils/safeLineSegmentsGeometry';
 
 const TWO_SEGMENTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 

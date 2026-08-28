@@ -12,8 +12,8 @@ import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
-import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import { sourceOf } from '@/city/utils/manifest';
+import { disposeObject3D } from '../../utils/disposeObject3D';
+import { sourceOf } from '../../utils/manifest';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
@@ -21,10 +21,10 @@ import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 import { createBuildingScrubApply } from './scrubApply';
 import type { BuildingScrubState } from './scrubState';
-import { parseDateMs } from '@/city/utils/dates';
-import type { Building } from '@/city/types/building';
-import type { DateRanges } from '@/city/types/manifest';
-import type { CityLayout, EnteringBuilding, StayingBuilding } from '@/city/types/scene';
+import { parseDateMs } from '../../utils/dates';
+import type { Building } from '../../types/building';
+import type { DateRanges } from '../../types/manifest';
+import type { CityLayout, EnteringBuilding, StayingBuilding } from '../../types/scene';
 
 /** The diff rebuild() computes against the prior cells and feeds to the tween
  *  queue. No exiting bucket: nothing animates on the way out. */

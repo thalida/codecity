@@ -7,6 +7,8 @@
 // holds the manifest it was given, so a wallpaper cannot reach the project you
 // opened. That used to be a rule to remember; it is a fact about the shape now.
 
+import { ScanPhase } from '@codecity/city';
+import type { Manifest } from '@codecity/city';
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
@@ -14,9 +16,7 @@ import { BACKDROP_HANDLE, type SceneHandle } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@/utils/sources';
-import { ScanPhase } from '@/city/client/manifest';
 import { API } from '@/apiClient';
-import type { Manifest } from '@/city/types/manifest';
 
 interface Candidate {
   src: string;

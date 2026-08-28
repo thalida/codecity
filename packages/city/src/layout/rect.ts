@@ -1,5 +1,5 @@
-import { Building } from '@/city/types/building';
-import { Street, StreetAxis } from '@/city/types/street';
+import { Building } from '../types/building';
+import { Street, StreetAxis } from '../types/street';
 // city/layout/rect.ts — the city's canonical 2D footprint rectangle, plus the
 // ONE place that knows how a Street/Building maps onto it.
 //

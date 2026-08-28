@@ -3,11 +3,10 @@
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.
 
+import { BACKDROP_CAMERA, DirNode, Manifest, NodeKind } from '@codecity/city';
 import type { SceneHandle } from '@/state/stores/city';
-import { BACKDROP_CAMERA } from '@/city/settings/fields/camera';
 import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
-import { DirNode, Manifest, NodeKind } from '@/city/types/manifest';
 
 /** Set the default-view angle (degrees) on the city being shot; the rig
  *  re-frames the whole city to it. Elevation is height above the horizon,

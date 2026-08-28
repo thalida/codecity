@@ -4,18 +4,18 @@
 // active targets, so per-frame work is O(active) not O(buildings).
 
 import * as THREE from 'three';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
+import { SafeLineSegmentsGeometry } from '../../utils/safeLineSegmentsGeometry';
 
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { rainbowRgbAt } from '@/city/utils/rainbowChase';
-import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
-import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { rainbowRgbAt } from '../../utils/rainbowChase';
+import { FLOATS_PER_SEGMENT } from '../../utils/bufferLayout';
+import { createSafeLineMaterial } from '../../utils/safeLineMaterial';
 import type { CellTile } from './cellTile';
-import type { createPicker } from '@/city/interaction/picker';
-import { NodeKind } from '@/city/types/manifest';
-import { FileTarget } from '@/city/types/picker';
+import type { createPicker } from '../../interaction/picker';
+import { NodeKind } from '../../types/manifest';
+import { FileTarget } from '../../types/picker';
 
 // Narrow world surface the outline renderer needs (cell lookup only). Supplied
 // by the buildings component (cells are component-local).

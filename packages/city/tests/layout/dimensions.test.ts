@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getBuildingDimensions } from '@/city/layout/dimensions';
+import { getBuildingDimensions } from '../../src/layout/dimensions';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

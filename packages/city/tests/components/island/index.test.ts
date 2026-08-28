@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createIsland } from '@/city/components/island';
+import { createIsland } from '../../../src/components/island';
 import { makeCityState } from '../../_helpers/cityFixtures';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { SceneContext } from '@/city/types';
+import { RENDER_ORDERS } from '../../../src/types/renderOrders';
+import type { SceneContext } from '../../../src/types';
 import { settingsStore } from '../../_helpers/citySettings';
 
 // The polygon assertions are written against a 12-sided island at these

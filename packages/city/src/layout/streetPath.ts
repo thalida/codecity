@@ -4,8 +4,8 @@
 // them without casts.
 
 import { parentDirPath } from '../utils/path';
-import { NodeKind } from '@/city/types/manifest';
-import { StreetAxis } from '@/city/types/street';
+import { NodeKind } from '../types/manifest';
+import { StreetAxis } from '../types/street';
 
 /** Minimal street shape these helpers read. Real Streets satisfy this. */
 interface StreetLike {

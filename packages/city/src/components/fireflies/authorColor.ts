@@ -2,7 +2,7 @@
 // lightness/chroma so every author reads against the dark sky. Shared by the
 // commit pane's dot and the fireflies renderer's orbs.
 
-import { oklchToLinearRgb, linearRgbToHex } from '@/city/utils/color/colors';
+import { oklchToLinearRgb, linearRgbToHex } from '../../utils/color/colors';
 
 // Base palette used for firefly orbs — saturated, mid-lightness.
 const ORB_L = 0.78;

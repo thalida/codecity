@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parentDirPath } from '@/city/utils/path';
+import { parentDirPath } from '../../src/utils/path';
 import {
   streetChainForDirPath,
   computePathPoints,
   streetEndOpposite,
-} from '@/city/layout/streetPath';
-import { NodeKind } from '@/city/types/manifest';
-import { StreetAxis } from '@/city/types/street';
+} from '../../src/layout/streetPath';
+import { NodeKind } from '../../src/types/manifest';
+import { StreetAxis } from '../../src/types/street';
 
 // Local minimal-shape type matches the StreetLike structural contract that
 // scene/path.ts reads (orientation, position, dimensions, dir.path).

@@ -1,10 +1,10 @@
+import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { setManifest } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 import { TREES } from '@/state/settings/fields/trees';
 import { GEM } from '@/state/settings/fields/gem';
-import type { Manifest } from '@/city/types/manifest';
 
 // The routing contract: rebuild keys call rebuildScene, refresh keys only flash
 // the status (the refresh itself is reactive), live keys do neither.

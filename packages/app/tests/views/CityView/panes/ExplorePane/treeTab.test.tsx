@@ -1,10 +1,10 @@
+import type { DirNode, Manifest, TreeNode } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal, type Signal } from '@preact/signals';
 import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
 import { flush } from '../../../../_helpers/preact';
-import type { DirNode, Manifest, TreeNode } from '@/city/types/manifest';
 
 type TreeLike = Manifest | DirNode | { tree?: unknown; [k: string]: unknown };
 

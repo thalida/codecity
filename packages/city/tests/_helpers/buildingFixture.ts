@@ -1,5 +1,5 @@
-import { Building, BuildingOrient } from '@/city/types/building';
-import { FileNode, NodeKind } from '@/city/types/manifest';
+import { Building, BuildingOrient } from '../../src/types/building';
+import { FileNode, NodeKind } from '../../src/types/manifest';
 // Overrides are merged field by field rather than spread: spreading a
 // Partial<Building> defeats TS narrowing and forces a cast at every call site.
 

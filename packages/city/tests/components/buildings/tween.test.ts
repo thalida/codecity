@@ -4,10 +4,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { createBuildingTweens } from '@/city/components/buildings/tween';
+import { createBuildingTweens } from '../../../src/components/buildings/tween';
 import { building } from '../../_helpers/buildingFixture';
-import type { Building } from '@/city/types/building';
-import type { EnteringBuilding, StayingBuilding } from '@/city/types/scene';
+import type { Building } from '../../../src/types/building';
+import type { EnteringBuilding, StayingBuilding } from '../../../src/types/scene';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const SETTINGS = settingsStore();

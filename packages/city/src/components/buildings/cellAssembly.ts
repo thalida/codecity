@@ -7,14 +7,14 @@ import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedFacadePanels } from './facadePanels';
-import { isDataBuilding, isEmptyFile, isMediaFile } from '@/city/utils/fileKind';
+import { isDataBuilding, isEmptyFile, isMediaFile } from '../../utils/fileKind';
 import { BuildingIndex } from './buildingIndex';
-import type { Building } from '@/city/types/building';
-import type { SourceRef } from '@/city/types/manifest';
-import type { CityResources } from '@/city/resources';
-import type { CitySettingsStore } from '@/city/settings/store';
-import type { TimelineState } from '@/city/timeline/state';
-import type { CodecityClient } from '@/city/client';
+import type { Building } from '../../types/building';
+import type { SourceRef } from '../../types/manifest';
+import type { CityResources } from '../../resources';
+import type { CitySettingsStore } from '../../settings/store';
+import type { TimelineState } from '../../timeline/state';
+import type { CodecityClient } from '../../client';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;

@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { disposeObject3D } from '@/city/utils/disposeObject3D';
+import { disposeObject3D } from '../../src/utils/disposeObject3D';
 
 // A material whose .dispose and texture-valued props we can spy on. We attach
 // a fake texture under an own property (mirrors how three materials carry maps).

@@ -3,6 +3,7 @@
 // the URL (replace only, off the SETTLED scrub position, or a drag buries your
 // history), and the URL writes the view, which is what Back and Forward need.
 
+import { FocusMode, NodeKind, PickerSelectionKey } from '@codecity/city';
 import { signal, effect, untracked, type Signal } from '@preact/signals';
 
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
@@ -12,7 +13,6 @@ import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/progress';
 import { goToPath, goToCommit, clearSelection } from '@/state/stores/city';
-import { FocusMode } from '@/city/render/cameraRig';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
@@ -22,8 +22,6 @@ import {
 } from '@/state/stores/timeline';
 import { PICKER_SELECTION_KEY } from '@/state/stores/city';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { NodeKind } from '@/city/types/manifest';
-import { PickerSelectionKey } from '@/city/types/picker';
 
 const REPLACE: NavigateOptions = { replace: true };
 

@@ -2,17 +2,20 @@
 // city" used to sit silent for the whole apply; it now names each stage, and
 // the count beside it has to come from the stages this apply actually runs.
 
+import { DateRanges, Manifest, NodeKind, CityLayout } from '@codecity/city';
+
+// The imports below reach past the package's public surface on purpose, and
+// say so by path: they are its internal wiring, which no consumer needs and
+// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+import type { LayoutConfig } from '../../../city/src/layout/config';
+import { createCityState } from '../../../city/src/state';
 import { stubPlacementClient } from '@codecity/city/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
-import { createCityState } from '@/city/state';
 import { BUILD_PROGRESS, attachBuildProgress } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
 import { createTestCityResources } from '@codecity/city/testing';
-import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
 import { settingsStore } from '@codecity/city/testing';
-import type { LayoutConfig } from '@/city/layout/config';
 import { createEmitter } from '@codecity/city/testing';
 
 const SETTINGS = settingsStore();

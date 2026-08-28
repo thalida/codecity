@@ -1,20 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
+import { InstancedFacadePanels } from '../../../src/components/buildings/facadePanels';
 import {
   FacadePanelTextureArray,
   MAX_PAGES,
   PANEL_TEX_SIZE,
-} from '@/city/components/buildings/facadePanelTextureArray';
-import { BuildingOrient } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import type { Building } from '@/city/types/building';
+} from '../../../src/components/buildings/facadePanelTextureArray';
+import { BuildingOrient } from '../../../src/types/building';
+import { NodeKind } from '../../../src/types/manifest';
+import type { Building } from '../../../src/types/building';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { makeBundle } from '../../_helpers/scrub';
-import type { TimelineBundle } from '@/city/types/timeline';
+import type { TimelineBundle } from '../../../src/types/timeline';
 import { settingsStore } from '../../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
-import { createClient } from '@/city/client';
+import { createTimelineState } from '../../../src/timeline/state';
+import { createClient } from '../../../src/client';
 
 const CLIENT = createClient({ baseUrl: '/api' });
 

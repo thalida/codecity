@@ -2,11 +2,11 @@
 // Pure functions over manifest stats and the packer's settings slice; no DOM
 // or Three.js.
 
-import type { StreetTier } from '@/city/settings/fields/streets';
-import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
+import type { StreetTier } from '../settings/fields/streets';
+import type { BuildingDimensionsConfig } from '../settings/fields/buildings';
 import type { LayoutConfig } from './config';
-import { isDataBuilding, isEmptyFile, isMediaFile } from '@/city/utils/fileKind';
-import type { RangeStat, RepoStats } from '@/city/types/manifest';
+import { isDataBuilding, isEmptyFile, isMediaFile } from '../utils/fileKind';
+import type { RangeStat, RepoStats } from '../types/manifest';
 
 // Lenient on purpose, so a fixture omitting fields these helpers never read
 // still satisfies them structurally.

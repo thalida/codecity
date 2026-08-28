@@ -5,17 +5,17 @@
 
 import * as THREE from 'three';
 
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
-import type { Rect } from '@/city/layout/rect';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { setColorFromHex } from '../../utils/color/setColorFromHex';
+import { rectOfBuilding, rectOfStreet } from '../../layout/rect';
+import type { Rect } from '../../layout/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
 import { BuildingLane } from '../buildings/scrubState';
-import type { ScrubStates } from '@/city/timeline/scrubPass';
+import type { ScrubStates } from '../../timeline/scrubPass';
 import FOOTPRINT_VERT from './footprint.vert.glsl?raw';
 import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
-import type { CityLayout } from '@/city/types/scene';
+import type { CityLayout } from '../../types/scene';
 
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {

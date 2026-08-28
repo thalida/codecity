@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getWorldBounds } from '@/city/utils/floorBounds';
+import { getWorldBounds } from '../../src/utils/floorBounds';
 import { citySettings } from '../_helpers/citySettings';
 import { bbox } from '../_helpers/cityFixtures';
 

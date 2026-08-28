@@ -3,10 +3,10 @@
 // here, since the trees and the firefly orbits would each redo it. Every
 // degenerate case (no stats, no commits, no spread) collapses to the midpoint.
 
-import type { TreesConfig } from '@/city/settings/fields/trees';
-import { recencyT } from '@/city/utils/recency';
-import { epochDay } from '@/city/utils/dates';
-import type { BusynessThresholds, CommitEntry, RepoStats } from '@/city/types/manifest';
+import type { TreesConfig } from '../../settings/fields/trees';
+import { recencyT } from '../../utils/recency';
+import { epochDay } from '../../utils/dates';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '../../types/manifest';
 
 export interface AgeRange {
   /** Epoch days of the oldest commit. */

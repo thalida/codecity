@@ -2,9 +2,8 @@
 // the overlay advances through, and the sub-stages that run inside its last row
 // once the stream has handed over to the build.
 
+import { ScanPhase, TimelineStage, BuildStage } from '@codecity/city';
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase } from '@/city/client/manifest';
-import { TimelineStage } from '@/city/types/timeline';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 
@@ -135,7 +134,6 @@ export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
 // The stages themselves are the city's: it is the thing running them. What
 // they are CALLED is ours (BUILD_STAGE_LABELS), and so is the whole reduction
 // into LoadingSteps below.
-import { BuildStage } from '@/city/types/build';
 export { BuildStage };
 
 /** How far one build has got. The stage list is per-build (see buildStageTail). */

@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { recencyT } from '@/city/utils/recency';
+import { recencyT } from '../../src/utils/recency';
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2024, 0, 1);

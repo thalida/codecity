@@ -14,10 +14,10 @@ import type { LayoutConfig } from './config';
 import type { DirLike, FileLike, TreeLike } from './dimensions';
 import { applyFlips, computeFlips, placeChild } from './stemSolver';
 import type { PlaceChildResult, StemPlacementTrace, VariantTrace } from './stemSolver';
-import { Building, BuildingOrient } from '@/city/types/building';
-import { NodeKind, RangeStat, RepoStats } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { JoinSide, Street, StreetAxis } from '@/city/types/street';
+import { Building, BuildingOrient } from '../types/building';
+import { NodeKind, RangeStat, RepoStats } from '../types/manifest';
+import { CityLayout } from '../types/scene';
+import { JoinSide, Street, StreetAxis } from '../types/street';
 
 // Dead space past the gem at the root street's origin end, in gem diameters.
 // Fixed, not user-tunable.

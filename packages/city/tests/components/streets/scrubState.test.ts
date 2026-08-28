@@ -7,8 +7,8 @@ import {
   resolveStreetScrubState,
   StreetTint,
   type StreetRollup,
-} from '@/city/components/streets/scrubState';
-import type { Street } from '@/city/types/street';
+} from '../../../src/components/streets/scrubState';
+import type { Street } from '../../../src/types/street';
 
 const street = (isRoot = false) => ({ isRoot, dir: { path: 'src' } }) as unknown as Street;
 

@@ -4,8 +4,8 @@
 // tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
-import type { CitySettingsStore } from '@/city/settings/store';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import type { CitySettingsStore } from '../../settings/store';
+import { RENDER_ORDERS } from '../../types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import {
   computeAgeRange,
@@ -16,18 +16,18 @@ import {
   type AgeRange,
   type SizeRange,
 } from './treeEncoding';
-import { interpolateOklch } from '@/city/utils/color/colors';
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { interpolateOklch } from '../../utils/color/colors';
+import { setColorFromHex } from '../../utils/color/setColorFromHex';
 
-import { TREES_PER_CHUNK } from '@/city/utils/instanceChunkSize';
-import { BYTE_MAX, VEC3_COMPONENTS, VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
-import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
+import { TREES_PER_CHUNK } from '../../utils/instanceChunkSize';
+import { BYTE_MAX, VEC3_COMPONENTS, VERTS_PER_TRIANGLE } from '../../utils/bufferLayout';
+import { NEUTRAL_POLYGON_OFFSET } from '../../utils/neutralPolygonOffset';
 import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
-import { sunDir } from '@/city/utils/shaders/sunDir';
-import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/city/constants/lighting';
-import { epochDay, epochDayAt } from '@/city/utils/dates';
-import type { BusynessThresholds, CommitEntry, RepoStats } from '@/city/types/manifest';
+import { sunDir } from '../../utils/shaders/sunDir';
+import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '../../constants/lighting';
+import { epochDay, epochDayAt } from '../../utils/dates';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '../../types/manifest';
 
 export interface Trees {
   group: THREE.Group;

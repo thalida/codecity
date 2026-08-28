@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
-import { ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
-import { lightColorForAuthor } from '@/city/components/fireflies/authorColor';
+import { createFireflyAssembly } from '../../../src/components/fireflies/fireflies';
+import { ORBIT_RINGS_GROUP } from '../../../src/components/fireflies/orbitRings';
+import { lightColorForAuthor } from '../../../src/components/fireflies/authorColor';
 import { commits as buildCommits } from '../../_helpers/commits';
 import { commitStats } from '../../_helpers/statsFixtures';
 import { treePlacement } from '../../_helpers/cityFixtures';

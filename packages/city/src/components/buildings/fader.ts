@@ -8,12 +8,12 @@ import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
 import type { InstancedFacadePanels } from './facadePanels';
-import type { createPicker } from '@/city/interaction/picker';
-import type { CityState } from '@/city/state';
-import { FadeDetail } from '@/city/types/animation';
-import { NodeKind } from '@/city/types/manifest';
-import type { CitySettingsStore } from '@/city/settings/store';
-import type { TimelineState } from '@/city/timeline/state';
+import type { createPicker } from '../../interaction/picker';
+import type { CityState } from '../../state';
+import { FadeDetail } from '../../types/animation';
+import { NodeKind } from '../../types/manifest';
+import type { CitySettingsStore } from '../../settings/store';
+import type { TimelineState } from '../../timeline/state';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
 // handle; the street-by-dir lookup comes from cityState directly.

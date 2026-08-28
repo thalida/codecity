@@ -3,6 +3,8 @@
 // on top of both. The overlay is a reduction over the other two (a running max
 // over rows, the last tail each saw), which is why it needs the driver below.
 
+import { CloneStage, ScanPhase } from '@codecity/city';
+import type { Manifest, City } from '@codecity/city';
 import { signal, effect } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import {
@@ -17,9 +19,6 @@ import {
 } from '@/constants/progress';
 import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
-import { CloneStage, ScanPhase } from '@/city/client/manifest';
-import type { Manifest } from '@/city/types/manifest';
-import type { City } from '@/city/types';
 
 // ── What the server is doing ─────────────────────────────────────────
 

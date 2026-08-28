@@ -3,8 +3,8 @@
 // three-co-author commit shows three orbits. Hover tints each ring with its
 // author's pastel; selected shares one vertexColors material for the chase.
 import * as THREE from 'three';
-import { rainbowRgbAt } from '@/city/utils/rainbowChase';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { rainbowRgbAt } from '../../utils/rainbowChase';
+import type { CitySettingsStore } from '../../settings/store';
 import type { FireflyPlacement } from './firefliesPlacement';
 
 const TUBULAR_SEGMENTS = 96; // segments around the loop

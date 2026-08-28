@@ -4,14 +4,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { createStreets } from '@/city/components/streets';
+import { createStreets } from '../../../src/components/streets';
 import { makeCityState, makePickableSceneContext } from '../../_helpers/cityFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
-import { PickTarget } from '@/city/types/picker';
+import type { Picker } from '../../../src/interaction/picker';
+import type { SceneContext } from '../../../src/types';
+import { NodeKind } from '../../../src/types/manifest';
+import { CityLayout } from '../../../src/types/scene';
+import { Street, StreetAxis } from '../../../src/types/street';
+import { PickTarget } from '../../../src/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const DEFAULTS = {

@@ -4,15 +4,15 @@
 // mesh swap that stales it. In memory only, and per city.
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
-import { sidewalkStreetForFace } from '@/city/components/streets/streets';
-import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
+import { sidewalkStreetForFace } from '../components/streets/streets';
+import { BuildingKind } from '../components/buildings/buildingKind';
+import { RUINED_STREET_DIRS } from '../components/streets/scrubState';
 
-import type { CityState } from '@/city/state';
+import type { CityState } from '../state';
 import type { CityEmitter } from '../events';
-import { CommitEntry, NodeKind } from '@/city/types/manifest';
-import { PickTarget, PickerSelectionKey, PickerWorld } from '@/city/types/picker';
-import type { TimelineState } from '@/city/timeline/state';
+import { CommitEntry, NodeKind } from '../types/manifest';
+import { PickTarget, PickerSelectionKey, PickerWorld } from '../types/picker';
+import type { TimelineState } from '../timeline/state';
 
 // The selection key lives on the PICKER, one per city. It used to be a module
 // signal, which meant two cities on one page shared a selection — invisible

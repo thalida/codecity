@@ -3,6 +3,7 @@
 // <html data-cc-capture-ready="1"> for the screenshot script. Lazy-loaded from
 // main.tsx only when ?shot is present, so it never ships in a normal session.
 
+import type { Manifest } from '@codecity/city';
 import { effect } from '@preact/signals';
 
 import { isDebugMode } from '@/utils/debugMode';
@@ -11,7 +12,6 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
 
 import { SHOTS, type ShotOverrides } from './shots';
-import type { Manifest } from '@/city/types/manifest';
 
 // Camera tween + bloom ramp + ad-panel texture fades all settle well under this.
 const SETTLE_MS = 2200;

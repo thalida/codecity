@@ -4,9 +4,9 @@
 // else, and the fader writes iFade, so the two can't conflict by construction.
 
 import * as THREE from 'three';
-import type { Building } from '@/city/types/building';
-import type { EnteringBuilding, StayingBuilding } from '@/city/types/scene';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { Building } from '../../types/building';
+import type { EnteringBuilding, StayingBuilding } from '../../types/scene';
+import type { CitySettingsStore } from '../../settings/store';
 
 /** Narrow resolver surface the tween queue needs from the buildings
  *  component (re-resolved per frame so tweens survive rebuilds). */

@@ -1,5 +1,5 @@
-import { CommitEntry, NodeKind, RepoStats } from '@/city/types/manifest';
-import { CityBbox, CityLayout } from '@/city/types/scene';
+import { CommitEntry, NodeKind, RepoStats } from '../../src/types/manifest';
+import { CityBbox, CityLayout } from '../../src/types/scene';
 // The deterministic generators behind the bench and golden suites. The digests
 // depend on them byte for byte, so a change here means recapturing a golden.
 

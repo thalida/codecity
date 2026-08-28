@@ -1,6 +1,8 @@
 // Native-harness tests for NewProjectForm — mirrors app/tests/layout/leftSidebar.test.tsx's
 // render/flush/container pattern (this repo has no @testing-library/preact dependency).
 
+import { ScanError } from '@codecity/city';
+import type { BranchList } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
@@ -8,8 +10,6 @@ import { API } from '@/apiClient';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
-import { ScanError } from '@/city/client/manifest';
-import type { BranchList } from '@/city/client/branches';
 
 // Label-independent: the source field's label switches on allowLocalRepos.
 const FIELD = 'input.form-input';

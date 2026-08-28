@@ -1,8 +1,8 @@
 // A structurally valid but empty Manifest, for tests that need the shape rather
 // than the data. Not production state: "nothing loaded" there is a null MANIFEST.
 
-import { ROOT_PATH } from '@/city/constants/manifest';
-import { Manifest, NodeKind, RepoStats, SourceRef } from '@/city/types/manifest';
+import { ROOT_PATH } from '../../src/constants/manifest';
+import { Manifest, NodeKind, RepoStats, SourceRef } from '../../src/types/manifest';
 
 export const EMPTY_REPO_STATS: RepoStats = {
   lineCountRange: { min: 0, max: 0 },

@@ -3,6 +3,7 @@
 // Pane chrome + active-subtab state; the subtab bodies render themselves. The
 // repo's own content (file tree, README) lives in the Explore pane.
 
+import type { DirNode, Manifest } from '@codecity/city';
 import './InfoPane.css';
 import { useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
@@ -16,7 +17,6 @@ import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
-import type { DirNode, Manifest } from '@/city/types/manifest';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 

@@ -3,7 +3,7 @@
 // the Save rewrite and the glow lerp cannot drift. The triples are memoized per
 // city over its own GEM settings, so the per-frame glow allocates nothing.
 import * as THREE from 'three';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 
 /** Structural slice of GEM settings — only the face-color keys, so tests
  *  (and any future palette source) can pass a minimal object. */

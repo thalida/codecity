@@ -19,9 +19,9 @@
 // icon" until the next reload.
 
 import * as THREE from 'three';
-import { MATERIAL_ICON_URLS } from '@/city/constants/materialIcons';
-import { getFileIconName } from '@/city/utils/fileIcons';
-import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@/city/types/manifest';
+import { MATERIAL_ICON_URLS } from '../../constants/materialIcons';
+import { getFileIconName } from '../../utils/fileIcons';
+import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '../../types/manifest';
 
 // Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique icons.
 // Memory: 2048×2048×4 bytes = 16 MiB texture (one-time, persistent).

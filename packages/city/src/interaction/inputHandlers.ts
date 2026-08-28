@@ -15,8 +15,8 @@ import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { CityEmitter } from '../events';
-import { NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
+import { NodeKind } from '../types/manifest';
+import { PickTarget } from '../types/picker';
 
 export function createInputHandlers({
   canvas,

@@ -4,7 +4,7 @@
 //   hue = wrap(timeMs * SPEED + fraction) -> setHSL(hue, SATURATION, LIGHTNESS)
 import * as THREE from 'three';
 
-import type { RainbowConfig } from '@/city/settings/fields/effects';
+import type { RainbowConfig } from '../settings/fields/effects';
 
 // Scratch reused across calls so steady-state frames allocate nothing.
 const _scratchColor = new THREE.Color();

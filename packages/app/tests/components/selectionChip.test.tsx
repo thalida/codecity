@@ -1,6 +1,7 @@
 // The chip is the only thing on screen that says something is selected once its
 // pane is closed, and the only pointer-reachable way to clear one.
 
+import { FileNode, NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
@@ -8,8 +9,6 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
 import { flush } from '../_helpers/preact';
-import { FileNode, NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 
 const FILE: FileNode = {
   name: 'index.ts',

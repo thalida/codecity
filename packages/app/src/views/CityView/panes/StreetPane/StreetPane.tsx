@@ -2,6 +2,7 @@
 // date span and what it is made of, ranked by extension. Where you are lives in
 // the breadcrumb, so this answers what the neighbourhood is made of.
 
+import { extHueColor, ROOT_PATH, DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { Pane } from '@/components/panes/Pane/Pane';
@@ -13,12 +14,9 @@ import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/remoteUrls';
-import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { pluralize } from '@/utils/format';
-import { ROOT_PATH } from '@/city/constants/manifest';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
-import { DirNode, ExtBreakdownEntry, NodeKind } from '@/city/types/manifest';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 

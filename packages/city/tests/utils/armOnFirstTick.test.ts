@@ -3,9 +3,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { armOnFirstTick } from '@/city/utils/armOnFirstTick';
-import type { SceneContext } from '@/city/types';
-import type { Picker } from '@/city/interaction/picker';
+import { armOnFirstTick } from '../../src/utils/armOnFirstTick';
+import type { SceneContext } from '../../src/types';
+import type { Picker } from '../../src/interaction/picker';
 
 // Mutable fake: picker starts null (the construction window) and is flipped live
 // to simulate createCity backfilling ctx before the first tick. The helper reads

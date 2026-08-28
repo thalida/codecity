@@ -4,15 +4,15 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker } from '@/city/interaction/picker';
+import { createPicker } from '../../src/interaction/picker';
 import { drivableCityState } from '../_helpers/cityFixtures';
-import { Building } from '@/city/types/building';
-import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
-import { Street } from '@/city/types/street';
-import { DirTarget, FileTarget, PickerWorld } from '@/city/types/picker';
+import { Building } from '../../src/types/building';
+import { DirNode, FileNode, NodeKind } from '../../src/types/manifest';
+import { Street } from '../../src/types/street';
+import { DirTarget, FileTarget, PickerWorld } from '../../src/types/picker';
 import { createEmitter } from '../_helpers/cityEvents';
-import { createTimelineState } from '@/city/timeline/state';
-import type { PickTarget } from '@/city/types/picker';
+import { createTimelineState } from '../../src/timeline/state';
+import type { PickTarget } from '../../src/types/picker';
 
 const TIMELINE = createTimelineState();
 

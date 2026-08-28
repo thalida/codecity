@@ -2,17 +2,12 @@
 // a live, persisted signal. What a field IS lives in @codecity/city; this is
 // where the app gives it a value. See README.md.
 
+import { ChangeRoute, coerceField } from '@codecity/city';
+import type { ConfigOf, FieldDef, FieldMap } from '@codecity/city';
 import { computed, type Signal } from '@preact/signals';
 
 import { persistedSignal, getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
-import {
-  ChangeRoute,
-  coerceField,
-  type ConfigOf,
-  type FieldDef,
-  type FieldMap,
-} from '@/city/settings/schema';
 
 // Re-exported so the panel and the app's own fields (theme, syntaxTheme,
 // updates) declare themselves the same way the city's do. Straight through
@@ -26,7 +21,7 @@ export {
   type FieldDef,
   type FieldMap,
   type ConfigOf,
-} from '@/city/settings/schema';
+} from '@codecity/city';
 
 // store signal → its field map. A Map, not WeakMap, so it is iterable; the
 // stores are module-level singletons and are never collected.

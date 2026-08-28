@@ -4,14 +4,14 @@
 
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 
-import { readScrubFrame } from '@/city/timeline/scrubFrame';
-import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
-import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
-import { Street } from '@/city/types/street';
-import { TimelineBundle } from '@/city/types/timeline';
-import { PickTarget } from '@/city/types/picker';
+import { readScrubFrame } from '../../src/timeline/scrubFrame';
+import type { ScrubFrameDeps } from '../../src/timeline/scrubFrame';
+import { FileNode, NodeKind, RangeStat } from '../../src/types/manifest';
+import { Street } from '../../src/types/street';
+import { TimelineBundle } from '../../src/types/timeline';
+import { PickTarget } from '../../src/types/picker';
 import { settingsStore } from '../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
+import { createTimelineState } from '../../src/timeline/state';
 import { fakePicker } from '../_helpers/cityFixtures';
 
 const TIMELINE = createTimelineState();

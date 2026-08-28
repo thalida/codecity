@@ -6,7 +6,7 @@
 // Derived reads live beside the position they read: resetting the mode moves
 // the position, so splitting them would make the two files cyclic.
 
-import { epochDayAt, parseDateMs } from '@/city/utils/dates';
+import { epochDayAt, parseDateMs } from '../utils/dates';
 import {
   buildPathTimelines,
   blobShaAt,
@@ -14,7 +14,7 @@ import {
   statsAtDeletion,
   type PathTimeline,
 } from './replay';
-import type { TimelineBundle } from '@/city/types/timeline';
+import type { TimelineBundle } from '../types/timeline';
 
 /** A file's measures at the scrub position, or at its deletion if already gone. */
 export interface ScrubbedFileStats {

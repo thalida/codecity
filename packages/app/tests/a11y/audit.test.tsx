@@ -3,6 +3,7 @@
 // labels, positive tabindex. Contrast needs real layout, so that rule is off
 // here and verified separately through the OKLCH token math.
 
+import type { DirNode, Manifest } from '@codecity/city';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 
@@ -33,7 +34,6 @@ import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/st
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
 import { setManifest } from '@/state/stores/manifest';
-import type { DirNode, Manifest } from '@/city/types/manifest';
 
 /** Enough of a loaded project for the chrome bars to render everything they
  *  have: the project cluster, the freshness readout and the refresh control. */

@@ -4,16 +4,16 @@
 // vertex and index buffers stay shared.
 
 import * as THREE from 'three';
-import { BuildingOrient } from '@/city/types/building';
+import { BuildingOrient } from '../../types/building';
 import type { CellTile } from './cellTile';
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../types/building';
 import type { BuildingMaterial } from './material';
-import { getFileIconName } from '@/city/utils/fileIcons';
-import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/city/utils/fileKind';
+import { getFileIconName } from '../../utils/fileIcons';
+import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '../../utils/fileKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 
 // The unit box every building scales from, built once.
 

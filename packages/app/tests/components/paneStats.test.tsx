@@ -1,3 +1,5 @@
+import { DirNode, FileNode, NodeKind } from '@codecity/city';
+import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
@@ -9,8 +11,6 @@ import {
   setScrubPos,
   setTimelineBundle,
 } from '@/state/stores/timeline';
-import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
-import type { TimelineBundle } from '@/city/types/timeline';
 
 const NOW = Date.UTC(2024, 2, 25);
 

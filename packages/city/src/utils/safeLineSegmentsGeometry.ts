@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { FLOATS_PER_SEGMENT, VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
+import { FLOATS_PER_SEGMENT, VEC3_COMPONENTS } from './bufferLayout';
 
 export class SafeLineSegmentsGeometry extends LineSegmentsGeometry {
   override setPositions(array: Float32Array | number[]): this {

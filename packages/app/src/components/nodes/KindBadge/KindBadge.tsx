@@ -2,8 +2,8 @@
 // painted from that thing's own colour in the city so a Controls change repaints
 // it too. Its text colour is chosen by luminance against that fill.
 
+import { getHue, NodeKind } from '@codecity/city';
 import './KindBadge.css';
-import { getHue } from '@/city/components/buildings/color';
 import {
   parseHex,
   hslToRgb,
@@ -13,7 +13,6 @@ import {
 } from '@/utils/colors';
 import { BUILDINGS } from '@/state/settings/fields/buildings';
 import { STREETS } from '@/state/settings/fields/streets';
-import { NodeKind } from '@/city/types/manifest';
 
 // The luminance check reads the same saturation and lightness the CSS paints,
 // so it judges the colour actually on screen.

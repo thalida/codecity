@@ -1,11 +1,10 @@
+import { NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
 import { flush } from '../_helpers/preact';
-import { NodeKind } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 
 describe('SelectionAnnouncer', () => {
   let container: HTMLDivElement;

@@ -1,3 +1,10 @@
+import {
+  TimelineBundle,
+  TimelineProgress,
+  TimelineStage,
+  PickTarget,
+  createTimelineState,
+} from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { signal } from '@preact/signals';
 
@@ -31,9 +38,6 @@ import { StubEventSource, installEventSource } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { API } from '@/apiClient';
-import { TimelineBundle, TimelineProgress, TimelineStage } from '@/city/types/timeline';
-import { PickTarget } from '@/city/types/picker';
-import { createTimelineState } from '@/city/timeline/state';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).

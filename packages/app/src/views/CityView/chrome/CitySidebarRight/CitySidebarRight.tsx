@@ -2,6 +2,16 @@
 // which of the three panes the selection calls for. Their view-state is computed
 // from the picker and MANIFEST, so a live-update poll re-derives them.
 
+import {
+  ROOT_PATH,
+  findNodeByPath,
+  sourceOf,
+  CommitEntry,
+  DirNode,
+  FileNode,
+  Manifest,
+  NodeKind,
+} from '@codecity/city';
 import './CitySidebarRight.css';
 import { useComputed } from '@preact/signals';
 import {
@@ -20,9 +30,7 @@ import {
   scrubbedDirFor,
 } from '@/state/stores/timeline';
 import { SOURCE_INFO, addExclude } from '@/state/stores/source';
-import { ROOT_PATH } from '@/city/constants/manifest';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
-import { findNodeByPath, sourceOf } from '@/city/utils/manifest';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
@@ -31,7 +39,6 @@ import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
 import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
-import { CommitEntry, DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

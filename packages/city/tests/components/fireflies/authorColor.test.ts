@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { colorForAuthor, lightColorForAuthor } from '@/city/components/fireflies/authorColor';
+import { colorForAuthor, lightColorForAuthor } from '../../../src/components/fireflies/authorColor';
 
 // The name -> hue hash lives on the backend now (AuthorStat.hue, covered by
 // api/tests/test_stats.py). What's left here is hue -> display colour.

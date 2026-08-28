@@ -1,25 +1,25 @@
 // How one building renders at a scrub position. No THREE and no meshes, so the
 // decision table is exercisable without a scene; scrubApply.ts does the writes.
 
-import { getBuildingDimensions } from '@/city/layout/dimensions';
-import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/city/utils/fileKind';
-import type { PathTimeline } from '@/city/timeline/replay';
+import { getBuildingDimensions } from '../../layout/dimensions';
+import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '../../utils/fileKind';
+import type { PathTimeline } from '../../timeline/replay';
 import {
   PathState,
   lastModifiedIndexAt,
   linesAt,
   presenceAt,
   ruinStateAt,
-} from '@/city/timeline/replay';
-import type { ColorTriple, ScrubFrame } from '@/city/timeline/scrubFrame';
-import { recencyT } from '@/city/utils/recency';
+} from '../../timeline/replay';
+import type { ColorTriple, ScrubFrame } from '../../timeline/scrubFrame';
+import { recencyT } from '../../utils/recency';
 import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
-import { parseDateMs } from '@/city/utils/dates';
-import { FadeDetail } from '@/city/types/animation';
-import { Building } from '@/city/types/building';
-import { FileNode } from '@/city/types/manifest';
+import { parseDateMs } from '../../utils/dates';
+import { FadeDetail } from '../../types/animation';
+import { Building } from '../../types/building';
+import { FileNode } from '../../types/manifest';
 
 /** PathState read through the ruin settings.
  *  Absent is still driven every frame, or a Live fade sweep lingers on it. */

@@ -2,6 +2,16 @@
 // video, audio, pdf or highlighted-code preview of the selected file. Owns
 // nothing about the sidebar shell itself, which is layout/CitySidebarRight.tsx.
 
+import {
+  AUDIO_EXTS,
+  FONT_EXTS,
+  IMAGE_EXTS,
+  PDF_EXTS,
+  VIDEO_EXTS,
+  isDataBuilding,
+  ContentPendingError,
+} from '@codecity/city';
+import type { FileNode, SourceRef } from '@codecity/city';
 import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
@@ -21,13 +31,6 @@ import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
 import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
 import {
-  AUDIO_EXTS,
-  FONT_EXTS,
-  IMAGE_EXTS,
-  PDF_EXTS,
-  VIDEO_EXTS,
-} from '@/city/constants/fileExtensions';
-import {
   FileWarning,
   FileX,
   Info,
@@ -44,10 +47,7 @@ import { nodeUrl } from '@/utils/remoteUrls';
 import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
-import { isDataBuilding } from '@/city/utils/fileKind';
-import { ContentPendingError } from '@/city/client/file';
 import { API } from '@/apiClient';
-import type { FileNode, SourceRef } from '@/city/types/manifest';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.

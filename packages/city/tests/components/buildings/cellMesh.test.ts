@@ -2,21 +2,21 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
-import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
-import type { CellTile } from '@/city/components/buildings/cellTile';
+import { SpatialGrid } from '../../../src/components/buildings/spatialGrid';
+import { createEmptyCellTile } from '../../../src/components/buildings/cellTile';
+import type { CellTile } from '../../../src/components/buildings/cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
-} from '@/city/components/buildings/cellMesh';
+} from '../../../src/components/buildings/cellMesh';
 
-import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { BuildingOrient } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import type { IconAtlas } from '@/city/components/buildings/atlas';
+import { BuildingKind } from '../../../src/components/buildings/buildingKind';
+import { BuildingOrient } from '../../../src/types/building';
+import { NodeKind } from '../../../src/types/manifest';
+import type { IconAtlas } from '../../../src/components/buildings/atlas';
 import { building } from '../../_helpers/buildingFixture';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import type { FileNode } from '@/city/types/manifest';
+import type { FileNode } from '../../../src/types/manifest';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const SETTINGS = settingsStore();

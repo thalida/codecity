@@ -7,10 +7,10 @@ import {
   mergeCitySettings,
   type CitySettings,
   type CitySettingsPatch,
-} from '@/city/settings';
-import { createSettingsStore, type CitySettingsStore } from '@/city/settings/store';
-import { layoutConfigOf, type LayoutConfig } from '@/city/layout/config';
-import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
+} from '../../src/settings';
+import { createSettingsStore, type CitySettingsStore } from '../../src/settings/store';
+import { layoutConfigOf, type LayoutConfig } from '../../src/layout/config';
+import type { TreePlacementConfig } from '../../src/components/trees/treePlacement';
 
 /** Stock settings, or stock with `over` merged in store by store. */
 export function citySettings(over: CitySettingsPatch = {}): CitySettings {

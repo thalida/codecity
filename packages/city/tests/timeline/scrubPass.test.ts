@@ -5,13 +5,13 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { createScrubPass } from '@/city/timeline/scrubPass';
-import { StreetTint } from '@/city/components/streets/scrubState';
-import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import { buildPathTimelines } from '@/city/timeline/replay';
+import { createScrubPass } from '../../src/timeline/scrubPass';
+import { StreetTint } from '../../src/components/streets/scrubState';
+import { BuildingIndex } from '../../src/components/buildings/buildingIndex';
+import { buildPathTimelines } from '../../src/timeline/replay';
 import { makeBuilding, makeBundle, makeFile, makeScrubFrame } from '../_helpers/scrub';
-import type { Street } from '@/city/types/street';
-import type { TimelineBundle } from '@/city/types/timeline';
+import type { Street } from '../../src/types/street';
+import type { TimelineBundle } from '../../src/types/timeline';
 
 const street = (path: string, over: Partial<Street> = {}): Street =>
   ({ dir: { path }, ...over }) as unknown as Street;

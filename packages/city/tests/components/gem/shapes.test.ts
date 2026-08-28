@@ -4,9 +4,9 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 
-import { GEM_SHAPES, buildGemGeometry } from '@/city/components/gem/shapes';
-import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/city/constants/gem';
-import { GEM_FIELDS } from '@/city/settings/fields/gem';
+import { GEM_SHAPES, buildGemGeometry } from '../../../src/components/gem/shapes';
+import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '../../../src/constants/gem';
+import { GEM_FIELDS } from '../../../src/settings/fields/gem';
 
 describe('GEM_SHAPES table', () => {
   it('covers exactly the canonical GEM_SIDES key set', () => {

@@ -9,11 +9,11 @@ import {
   treeHeight,
   treeRadius,
   type AgeRange,
-} from '@/city/components/trees/treeEncoding';
-import { epochDayAt } from '@/city/utils/dates';
+} from '../trees/treeEncoding';
+import { epochDayAt } from '../../utils/dates';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
-import type { CommitEntry, RepoStats } from '@/city/types/manifest';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CommitEntry, RepoStats } from '../../types/manifest';
+import type { CitySettingsStore } from '../../settings/store';
 
 export interface FirefliesScrub {
   /** The commit in effect and the date. Either null restores the live sizes;

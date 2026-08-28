@@ -3,11 +3,9 @@
 // selection is written back. Pure, and free of the reaction layer: the fetch
 // layer decodes here, and going through viewUrl would make a cycle of it.
 
+import { URL_PARAMS, NodeKind, PickerSelectionKey } from '@codecity/city';
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM, SELECTION_KIND_PARAMS } from '@/router/params';
 import { identityBranch } from '@/utils/sources';
-import { URL_PARAMS } from '@/city/client/urlParams';
-import { NodeKind } from '@/city/types/manifest';
-import { PickerSelectionKey } from '@/city/types/picker';
 
 /** The view a URL is asking for. */
 export interface UrlView {

@@ -3,33 +3,37 @@
 // rides BUILT_MANIFEST, gated on a CURRENT_SOURCE_KEY change.
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
+import { createCity } from '@codecity/city';
+import type { City, Manifest } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { mkDir } from '@codecity/city/testing';
 
+// The two mocks below reach past the package's public surface on purpose, and
+// say so by path: they replace what jsdom has no implementation of (a WebGL
+// post pipeline, an icon atlas that waits on image onload). There is no export
+// for either, and there should not be — substituting a city's internals is a
+// test's business, not an API.
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');
   return { ...actual, WebGLRenderer: fakeWebGLRenderer() };
 });
 
-vi.mock('@/city/render/postFx', async () =>
+vi.mock('../../../city/src/render/postFx', async () =>
   (await import('@codecity/city/testing/three')).postFxMock()
 );
 
 // buildIconAtlas loads icon images, which never fire onload in jsdom and hang
 // applyManifest. Icons are irrelevant to camera framing — stub it out.
-vi.mock('@/city/components/buildings/atlas', async () => {
-  const actual = await vi.importActual<typeof import('@/city/components/buildings/atlas')>(
-    '@/city/components/buildings/atlas'
-  );
+vi.mock('../../../city/src/components/buildings/atlas', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../city/src/components/buildings/atlas')
+  >('../../../city/src/components/buildings/atlas');
   return { ...actual, buildIconAtlas: async () => null };
 });
 
-import { createCity } from '@/city/index';
-import type { City } from '@/city/types';
-import type { Manifest } from '@/city/types/manifest';
 import { nextBuild } from '@codecity/city/testing';
 
 describe('initial-load framing (issue #62)', () => {

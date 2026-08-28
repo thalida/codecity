@@ -2,21 +2,21 @@
 // nodes, and the trees/buildings config resets.
 
 import * as THREE from 'three';
-import type { SceneContext } from '@/city/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { TreesConfig } from '@/city/settings/fields/trees';
-import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
-import type { CitySettingsStore } from '@/city/settings/store';
-import { createCityState, type CityChange, type CityState } from '@/city/state';
-import type { Manifest } from '@/city/types/manifest';
+import type { SceneContext } from '../../src/types';
+import type { Picker } from '../../src/interaction/picker';
+import type { TreesConfig } from '../../src/settings/fields/trees';
+import type { BuildingDimensionsConfig } from '../../src/settings/fields/buildings';
+import type { CitySettingsStore } from '../../src/settings/store';
+import { createCityState, type CityChange, type CityState } from '../../src/state';
+import type { Manifest } from '../../src/types/manifest';
 import { settingsStore } from './citySettings';
-import { createEmitter } from '@/city/events';
-import { createTimelineState, type TimelineState } from '@/city/timeline/state';
+import { createEmitter } from '../../src/events';
+import { createTimelineState, type TimelineState } from '../../src/timeline/state';
 import { commits } from './commits';
 import { createTestCityResources } from './cityResources';
-import { CommitEntry, NodeKind } from '@/city/types/manifest';
-import { CityBbox, CityLayout } from '@/city/types/scene';
-import { PickTarget } from '@/city/types/picker';
+import { CommitEntry, NodeKind } from '../../src/types/manifest';
+import { CityBbox, CityLayout } from '../../src/types/scene';
+import { PickTarget } from '../../src/types/picker';
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.
@@ -207,7 +207,7 @@ export function treePlacement(
   x = 0,
   y = 0,
   seed = 0
-): import('@/city/components/trees/treePlacement').TreePlacement {
+): import('../../src/components/trees/treePlacement').TreePlacement {
   return { x, y, seed, commitIndex };
 }
 

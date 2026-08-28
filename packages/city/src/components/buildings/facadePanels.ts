@@ -4,26 +4,26 @@
 // Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
-import { BuildingOrient } from '@/city/types/building';
-import { type SourceRef } from '@/city/types/manifest';
-import { MEDIA_ERROR_COLOR } from '@/city/constants/buildings';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { MediaKind, isDataBuilding, mediaKindOf } from '@/city/utils/fileKind';
+import { BuildingOrient } from '../../types/building';
+import { type SourceRef } from '../../types/manifest';
+import { MEDIA_ERROR_COLOR } from '../../constants/buildings';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { MediaKind, isDataBuilding, mediaKindOf } from '../../utils/fileKind';
 import {
   FacadePanelTextureArray,
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../types/building';
 
 import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
 import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
 import type { RendererRegistry } from './facadePanelTextureArray';
-import { ContentPendingError } from '@/city/client/file';
-import type { CitySettingsStore } from '@/city/settings/store';
-import type { TimelineState } from '@/city/timeline/state';
-import type { CodecityClient } from '@/city/client';
+import { ContentPendingError } from '../../client/file';
+import type { CitySettingsStore } from '../../settings/store';
+import type { TimelineState } from '../../timeline/state';
+import type { CodecityClient } from '../../client';
 
 // The only thing keeping the quad out of co-planar z-fighting with the wall:
 // depthWrite:false makes polygonOffset a no-op (see FACADE_PANELS.md).

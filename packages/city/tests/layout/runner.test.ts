@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createLayoutClient } from '@/city/layout';
+import { createLayoutClient } from '../../src/layout';
 import { EMPTY_REPO_STATS } from '../_helpers/manifestFixtures';
-import { FileNode, Manifest, NodeKind, RepoStats } from '@/city/types/manifest';
+import { FileNode, Manifest, NodeKind, RepoStats } from '../../src/types/manifest';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

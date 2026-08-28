@@ -4,15 +4,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
-import { BACKDROP_CAMERA, CameraTarget } from '@/city/settings/fields/camera';
+import { createCameraRig, FocusMode, type CameraRig } from '../../src/render/cameraRig';
+import { BACKDROP_CAMERA, CameraTarget } from '../../src/settings/fields/camera';
 import { commitTarget, seedCityState } from '../_helpers/cityFixtures';
-import type { CityState } from '@/city/state';
-import { Building, BuildingOrient } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
-import { PickTarget } from '@/city/types/picker';
+import type { CityState } from '../../src/state';
+import { Building, BuildingOrient } from '../../src/types/building';
+import { NodeKind } from '../../src/types/manifest';
+import { CityLayout } from '../../src/types/scene';
+import { Street, StreetAxis } from '../../src/types/street';
+import { PickTarget } from '../../src/types/picker';
 import { settingsStore } from '../_helpers/citySettings';
 
 // Rebuilt per case, so a tweak in one cannot leak into the next — including

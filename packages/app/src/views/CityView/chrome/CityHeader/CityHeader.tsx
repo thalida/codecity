@@ -3,6 +3,7 @@
 // repo you have open: which one it is, what you can do with its address, and
 // how fresh it is. Two clusters, each outlined: see .chrome-cluster.
 
+import type { Manifest } from '@codecity/city';
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
@@ -14,7 +15,6 @@ import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeClust
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { ScanMenu } from '@/components/menus/ScanMenu/ScanMenu';
-import type { Manifest } from '@/city/types/manifest';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */

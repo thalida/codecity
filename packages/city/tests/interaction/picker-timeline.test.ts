@@ -4,24 +4,24 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createPicker } from '@/city/interaction/picker';
-import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
-import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
-import { BuildingKind } from '@/city/components/buildings/buildingKind';
+import { createPicker } from '../../src/interaction/picker';
+import { buildCellsFromLayout } from '../../src/components/buildings/cellAssembly';
+import { createMergedSidewalkMesh } from '../../src/components/streets/streets';
+import { RUINED_STREET_DIRS } from '../../src/components/streets/scrubState';
+import { BuildingKind } from '../../src/components/buildings/buildingKind';
 import { makeCityState, treePlacement } from '../_helpers/cityFixtures';
 import { commitSeries } from '../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../_helpers/renderTrees';
 import { TEST_SOURCE } from '../_helpers/manifestFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';
-import { Building } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { Street, StreetAxis } from '@/city/types/street';
-import { PickerWorld } from '@/city/types/picker';
+import { Building } from '../../src/types/building';
+import { NodeKind } from '../../src/types/manifest';
+import { Street, StreetAxis } from '../../src/types/street';
+import { PickerWorld } from '../../src/types/picker';
 import { settingsStore } from '../_helpers/citySettings';
 import { createEmitter } from '../_helpers/cityEvents';
-import { createTimelineState } from '@/city/timeline/state';
-import { createClient } from '@/city/client';
+import { createTimelineState } from '../../src/timeline/state';
+import { createClient } from '../../src/client';
 
 const CLIENT = createClient({ baseUrl: '/api' });
 

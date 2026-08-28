@@ -3,13 +3,13 @@
 // stores into position.
 
 import { citySettings, layoutCfg } from './citySettings';
-import { buildPathTimelines } from '@/city/timeline/replay';
-import type { PathTimeline } from '@/city/timeline/replay';
-import type { ScrubFrame } from '@/city/timeline/scrubFrame';
-import type { BuildingScrubInput } from '@/city/components/buildings/scrubState';
-import { Building } from '@/city/types/building';
-import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
-import { TimelineBundle } from '@/city/types/timeline';
+import { buildPathTimelines } from '../../src/timeline/replay';
+import type { PathTimeline } from '../../src/timeline/replay';
+import type { ScrubFrame } from '../../src/timeline/scrubFrame';
+import type { BuildingScrubInput } from '../../src/components/buildings/scrubState';
+import { Building } from '../../src/types/building';
+import { FileNode, NodeKind, RangeStat } from '../../src/types/manifest';
+import { TimelineBundle } from '../../src/types/timeline';
 
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
 export const BYTE_STATS: RangeStat = { min: 1, max: 5000 };

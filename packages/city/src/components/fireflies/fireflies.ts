@@ -3,13 +3,13 @@
 // handle (orbs + orbit rings). The persistent component door is ./index.ts.
 
 import * as THREE from 'three';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../../settings/store';
 import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';
 import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer';
 import { createOrbitRings } from './orbitRings';
 import { createFirefliesScrub } from './firefliesScrub';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import type { CommitEntry, RepoStats } from '@/city/types/manifest';
+import type { TreePlacement } from '../trees/treePlacement';
+import type { CommitEntry, RepoStats } from '../../types/manifest';
 
 /** createFireflyAssembly's handle: the renderer plus sha-based hover/select
  *  so callers never manage the sha→index map. */

@@ -5,13 +5,13 @@
 
 import * as THREE from 'three';
 
-import { disposeObject3D } from '@/city/utils/disposeObject3D';
+import { disposeObject3D } from '../../utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { createGemPalette, writeFaceColors, type Rgb } from './palette';
-import { NodeKind } from '@/city/types/manifest';
-import { Street } from '@/city/types/street';
+import { NodeKind } from '../../types/manifest';
+import { Street } from '../../types/street';
 
 // Cycle a Color in place through the palette (one loop per `period`
 // seconds); `offset` phases multiple halos apart without allocating.

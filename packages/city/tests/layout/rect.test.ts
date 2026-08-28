@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { rectOfBuilding, rectOfStreet, _rectsOverlap } from '@/city/layout/rect';
-import { Building } from '@/city/types/building';
-import { Street, StreetAxis } from '@/city/types/street';
+import { rectOfBuilding, rectOfStreet, _rectsOverlap } from '../../src/layout/rect';
+import { Building } from '../../src/types/building';
+import { Street, StreetAxis } from '../../src/types/street';
 
 // Minimal fixtures: the helpers only read geometry fields, so cast through
 // unknown rather than constructing full Building/Street instances.

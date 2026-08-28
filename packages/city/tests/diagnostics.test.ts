@@ -5,15 +5,15 @@ import {
   _formatStemDiagnostic,
   _formatTreeGroundingReport,
   auditTreeGrounding,
-} from '@/city/diagnostics';
-import { WorldRectKind } from '@/city/layout/occupancyIndex';
-import { LayoutOverlapCategory } from '@/city/layout/overlaps';
-import type { LayoutOverlap } from '@/city/layout/overlaps';
+} from '../src/diagnostics';
+import { WorldRectKind } from '../src/layout/occupancyIndex';
+import { LayoutOverlapCategory } from '../src/layout/overlaps';
+import type { LayoutOverlap } from '../src/layout/overlaps';
 import type {
   StemPlacementTrace,
   ChildPlacementTrace,
   VariantTrace,
-} from '@/city/layout/stemSolver';
+} from '../src/layout/stemSolver';
 
 describe('_formatCollisionReport', () => {
   it('clean case — 0 unexpected, 0 t-junctions', () => {

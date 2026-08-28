@@ -3,11 +3,11 @@
 // white-on-transparent like the server fingerprint, and browser-native, so the
 // backend needs no decoder for either.
 
-import { AUDIO_EXTS, FONT_EXTS } from '@/city/constants/fileExtensions';
+import { AUDIO_EXTS, FONT_EXTS } from '../../constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
-import type { SourceRef } from '@/city/types/manifest';
-import type { TimelineState } from '@/city/timeline/state';
-import type { CodecityClient } from '@/city/client';
+import type { SourceRef } from '../../types/manifest';
+import type { TimelineState } from '../../timeline/state';
+import type { CodecityClient } from '../../client';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 

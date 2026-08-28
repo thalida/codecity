@@ -5,11 +5,11 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
-import type { PickTarget } from '@/city/types/picker';
+import { createTreeOutlineRenderer } from '../../../src/components/trees/outline';
+import type { PickTarget } from '../../../src/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
 import { fakePicker, commitTarget } from '../../_helpers/cityFixtures';
-import { NodeKind } from '@/city/types/manifest';
+import { NodeKind } from '../../../src/types/manifest';
 
 function fakeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');

@@ -2,8 +2,8 @@
 // the main thread has to be far coarser than that.
 
 import { describe, it, expect } from 'vitest';
-import { createPackReporter } from '@/city/layout/packProgress';
-import { layoutCity } from '@/city/layout/algorithm';
+import { createPackReporter } from '../../src/layout/packProgress';
+import { layoutCity } from '../../src/layout/algorithm';
 import { makeRng, genNestedTree } from '../_helpers/layoutTreeFixtures';
 import { layoutCfg } from '../_helpers/citySettings';
 

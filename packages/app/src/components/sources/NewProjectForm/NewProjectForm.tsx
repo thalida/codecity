@@ -6,6 +6,7 @@
 // Submits on Enter (a real <form>) or the split button, whose menu carries the
 // fresh-scan variant: skipping the cache is a way of opening, not a setting.
 
+import { ScanErrorCode } from '@codecity/city';
 import './NewProjectForm.css';
 import { useEffect, useState } from 'preact/hooks';
 import { DatabaseZap } from 'lucide-preact';
@@ -24,7 +25,6 @@ import {
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import type { SourcePayload } from '@/types/ui';
 import { SCAN_PROGRESS } from '@/state/stores/progress';
-import { ScanErrorCode } from '@/city/client/manifest';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.

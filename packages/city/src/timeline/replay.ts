@@ -1,4 +1,4 @@
-import type { TimelineBundle } from '@/city/types/timeline';
+import type { TimelineBundle } from '../types/timeline';
 
 export interface PathTimeline {
   // lines/bytes null: the blob was never fetched, so it has no measurement

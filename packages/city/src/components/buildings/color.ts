@@ -3,10 +3,10 @@
 // utils/recency, so dim means nobody has touched this in a long time rather than
 // merely that it is the oldest here. getCreatedAge is a separate axis.
 
-import type { BuildingsConfig } from '@/city/settings/fields/buildings';
-import { recencyT } from '@/city/utils/recency';
-import { parseDateMs } from '@/city/utils/dates';
-import { DateRanges, NodeKind } from '@/city/types/manifest';
+import type { BuildingsConfig } from '../../settings/fields/buildings';
+import { recencyT } from '../../utils/recency';
+import { parseDateMs } from '../../utils/dates';
+import { DateRanges, NodeKind } from '../../types/manifest';
 
 // created/modified stay optional so a sparse mock still reaches the no-date
 // branches; a real FileNode always carries both.

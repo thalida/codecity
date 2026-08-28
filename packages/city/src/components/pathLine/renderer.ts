@@ -4,18 +4,18 @@
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
+import { SafeLineSegmentsGeometry } from '../../utils/safeLineSegmentsGeometry';
 
-import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
-import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/city/constants/streets';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { computePathPoints } from '@/city/layout/streetPath';
-import { rainbowRgbAt } from '@/city/utils/rainbowChase';
-import type { CitySettingsStore } from '@/city/settings/store';
-import type { PickTarget } from '@/city/types/picker';
-import type { CityState } from '@/city/state';
-import type { StreetTier } from '@/city/settings/fields/streets';
-import { NodeKind } from '@/city/types/manifest';
+import { createSafeLineMaterial } from '../../utils/safeLineMaterial';
+import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '../../constants/streets';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { computePathPoints } from '../../layout/streetPath';
+import { rainbowRgbAt } from '../../utils/rainbowChase';
+import type { CitySettingsStore } from '../../settings/store';
+import type { PickTarget } from '../../types/picker';
+import type { CityState } from '../../state';
+import type { StreetTier } from '../../settings/fields/streets';
+import { NodeKind } from '../../types/manifest';
 
 /** LINEWIDTH_PCT → screen pixels off the narrowest street tier, so the line
  *  stays proportional to the streets at any zoom (worldUnits: false). */

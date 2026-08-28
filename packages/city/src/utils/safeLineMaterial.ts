@@ -4,7 +4,7 @@
 // seen top-down), which Android GLES rasterizes as giant flickering triangles.
 
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
+import { NEUTRAL_POLYGON_OFFSET } from './neutralPolygonOffset';
 
 // String-based swap: the test pins the stock shader text so a three upgrade
 // that rewrites it goes red instead of silently dropping the guard.

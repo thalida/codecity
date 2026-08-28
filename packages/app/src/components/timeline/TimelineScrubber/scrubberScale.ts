@@ -1,8 +1,7 @@
+import { parseDateMs } from '@codecity/city';
 // The scrubber's date/index mapping. Track position blends a commit's moment
 // with its ordinal, and dates parse through utils/dates, the same rule the
 // labels print by, so the handle's day is the day the axis names.
-
-import { parseDateMs } from '@/city/utils/dates';
 
 export interface ScrubberScale {
   /** Commit date ms, index-aligned, clamped non-decreasing. A trailing entry

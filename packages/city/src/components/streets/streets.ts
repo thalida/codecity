@@ -5,12 +5,12 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { ASPHALT_WIDTH_FRAC } from '@/city/constants/streets';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { NodeKind } from '@/city/types/manifest';
-import { CapStyle, JoinSide, Street, StreetAxis } from '@/city/types/street';
-import type { CitySettingsStore } from '@/city/settings/store';
+import { ASPHALT_WIDTH_FRAC } from '../../constants/streets';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { setColorFromHex } from '../../utils/color/setColorFromHex';
+import { NodeKind } from '../../types/manifest';
+import { CapStyle, JoinSide, Street, StreetAxis } from '../../types/street';
+import type { CitySettingsStore } from '../../settings/store';
 
 // `joinSide` says which end of a child street merges into its parent, so that
 // end can be capped flat.

@@ -3,13 +3,16 @@
 // EventSource and every assertion about phases and cancellation still means
 // something; only the rendering is stubbed, which jsdom has no GPU for anyway.
 
-import { createClient } from '@/city/client';
-import { createEmitter } from '@/city/events';
-import { createSourceLoader } from '@/city/loadSource';
-import { createTimelineState, type TimelineState } from '@/city/timeline/state';
+import { createClient, createTimelineState } from '@codecity/city';
+import type { TimelineState, Manifest } from '@codecity/city';
+
+// The imports below reach past the package's public surface on purpose, and
+// say so by path: they are its internal wiring, which no consumer needs and
+// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+import { createEmitter } from '../../../city/src/events';
+import { createSourceLoader } from '../../../city/src/loadSource';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/city';
 import { attachScanProgress } from '@/hooks/useManifestSource';
-import type { Manifest } from '@/city/types/manifest';
 
 export interface StubSceneCity {
   /** Every manifest the city was asked to render, in order. */

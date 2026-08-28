@@ -1,6 +1,8 @@
 // Native render/flush harness (mirrors the other component tests). The scrubber
 // is a custom role="slider" track over a TIME axis, not a native range input.
 
+import { parseDateMs } from '@codecity/city';
+import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
@@ -13,10 +15,8 @@ import {
   setTimelineBundle,
   setTodayMs,
 } from '@/state/stores/timeline';
-import { parseDateMs } from '@/city/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
 import { commits as buildCommits } from '@codecity/city/testing';
-import type { TimelineBundle } from '@/city/types/timeline';
 
 const [old, mid, head] = buildCommits(
   { date: '2026-01-01', files: 1, subject: 'oldest', authors: ['Someone'] },

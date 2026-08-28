@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { BuildingKind } from '@/city/components/buildings/buildingKind';
+import { BuildingKind } from '../../../src/components/buildings/buildingKind';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SHADERS = resolve(__dirname, '../../../src/components/buildings');

@@ -27,14 +27,15 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
-    // Path alias mirrored in vite.config.js + vitest.config.js. `@/`
-    // maps to packages/app/src so cross-directory imports stay short and survive
-    // file moves. Editor + tsc resolve through `paths`; bundler +
-    // tests resolve through `resolve.alias`.
+    // Path alias mirrored in vite.config.js + vitest.config.js. `@/` maps to
+    // packages/app/src and nowhere else: the renderer is reached through
+    // @codecity/city, the same entry an installed consumer gets. Editor + tsc
+    // resolve through `paths`; bundler + tests resolve through `resolve.alias`.
     "paths": {
-      // The renderer lives in @codecity/city now. Mapping the old prefix keeps
-      // every existing import valid until the alias is cut (#208 step 10).
-      "@/city/*": ["../city/src/*"],
+      // Mapped explicitly rather than left to node_modules: the workspace link
+      // makes tsc reach the same files by a second realpath, and two identities
+      // for one declaration stop a discriminated union narrowing.
+      "@codecity/city": ["../city/src/index.ts"],
       // The package's test kit: fixtures for its wire types, and stand-ins for
       // what jsdom has no implementation of. Test-only, like its contents.
       "@codecity/city/testing": ["../city/tests/index.ts"],

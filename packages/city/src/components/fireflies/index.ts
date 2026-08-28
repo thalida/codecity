@@ -5,12 +5,12 @@
 
 import * as THREE from 'three';
 
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
+import type { TreePlacement } from '../trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createFireflyAssembly, type Fireflies } from './fireflies';
-import { CommitEntry, NodeKind, RepoStats } from '@/city/types/manifest';
+import { CommitEntry, NodeKind, RepoStats } from '../../types/manifest';
 
 export type { Fireflies };
 

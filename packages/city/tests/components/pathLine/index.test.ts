@@ -6,19 +6,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
-import { createPathLine } from '@/city/components/pathLine';
-import { createCityState } from '@/city/state';
+import { createPathLine } from '../../../src/components/pathLine';
+import { createCityState } from '../../../src/state';
 import {
   seedCityState,
   republishCity,
   makePickableSceneContext,
 } from '../../_helpers/cityFixtures';
-import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
+import { computePathLinewidthPixels } from '../../../src/components/pathLine/renderer';
 import { citySettings, settingsStore } from '../../_helpers/citySettings';
-import type { PickTarget } from '@/city/types/picker';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import type { PickTarget } from '../../../src/types/picker';
+import { NodeKind } from '../../../src/types/manifest';
+import { CityLayout } from '../../../src/types/scene';
+import { Street, StreetAxis } from '../../../src/types/street';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

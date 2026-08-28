@@ -1,19 +1,19 @@
 // Timeline mode's per-frame driver: read the frame, run the pass, hand each
 // component its slice. It writes nobody else's buffers.
 
-import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
-import type { StreetScrubState } from '@/city/components/streets/scrubState';
-import type { HeightContext } from '@/city/layout/dimensions';
-import type { CitySettingsStore } from '@/city/settings/store';
-import type { createPicker } from '@/city/interaction/picker';
+import type { BuildingIndex } from '../components/buildings/buildingIndex';
+import type { BuildingScrubState } from '../components/buildings/scrubState';
+import type { StreetScrubState } from '../components/streets/scrubState';
+import type { HeightContext } from '../layout/dimensions';
+import type { CitySettingsStore } from '../settings/store';
+import type { createPicker } from '../interaction/picker';
 import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
-import { parseDateMs } from '@/city/utils/dates';
-import type { RangeStat } from '@/city/types/manifest';
-import type { Street } from '@/city/types/street';
-import type { TimelineState } from '@/city/timeline/state';
+import { parseDateMs } from '../utils/dates';
+import type { RangeStat } from '../types/manifest';
+import type { Street } from '../types/street';
+import type { TimelineState } from './state';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
  *  this and nothing more. */

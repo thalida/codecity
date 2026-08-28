@@ -1,9 +1,18 @@
+import { createTimelineState, BuildStage, ScanPhase, defaultCitySettings } from '@codecity/city';
+import type { TimelineBundle } from '@codecity/city';
+
+// The imports below reach past the package's public surface on purpose, and
+// say so by path: they are its internal wiring, which no consumer needs and
+// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+import { createEmitter } from '../../../city/src/events';
+import {
+  SHARED_MEDIA_LOAD_LIMITER,
+  createMediaLoadLimiter,
+} from '../../../city/src/mediaLoadLimiter';
+import { createCityResources } from '../../../city/src/resources';
+import { createSettingsStore } from '../../../city/src/settings/store';
 import { describe, it, expect, afterEach } from 'vitest';
 
-import { createEmitter } from '@/city/events';
-import { createTimelineState } from '@/city/timeline/state';
-import type { TimelineBundle } from '@/city/types/timeline';
-import { BuildStage } from '@/city/types/build';
 import {
   attachBuildProgress,
   BUILD_PROGRESS,
@@ -13,12 +22,7 @@ import {
   SCAN_PROGRESS,
 } from '@/state/stores/progress';
 import { attachScanProgress } from '@/hooks/useManifestSource';
-import { ScanPhase } from '@/city/client/manifest';
 
-import { createCityResources } from '@/city/resources';
-import { createSettingsStore } from '@/city/settings/store';
-import { defaultCitySettings } from '@/city/settings';
-import { createMediaLoadLimiter, SHARED_MEDIA_LOAD_LIMITER } from '@/city/mediaLoadLimiter';
 import { settingsStore } from '@codecity/city/testing';
 
 /** Two cities on one page must share no GPU resource.

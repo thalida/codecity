@@ -1,16 +1,9 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
-
-const packageDir = import.meta.dirname;
 
 // Two projects, matching the app's split: `unit` runs tests/**, `bench` runs
 // tests/bench/** and is excluded from unit, or every run pays its 60s
 // harnesses (see tests/bench/README.md).
 export default defineConfig({
-  resolve: {
-    // Mirrors tsconfig.json paths and vite.config.js.
-    alias: { '@/city': resolve(packageDir, 'src') },
-  },
   test: {
     projects: [
       {

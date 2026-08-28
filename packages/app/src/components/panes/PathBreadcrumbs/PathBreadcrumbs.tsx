@@ -2,6 +2,7 @@
 // and a path truncated in the middle to fit the header, with the leaf
 // emphasised. Segments are buttons only when there's something to do with one.
 
+import { NodeKind } from '@codecity/city';
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
 import { useContext } from 'preact/hooks';
@@ -9,7 +10,6 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { PaneTitleBudgetContext } from '@/components/panes/PaneHeader/PaneHeader';
 import { buildPathCrumbs } from '@/components/panes/PathBreadcrumbs/pathCrumbs';
-import { NodeKind } from '@/city/types/manifest';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */

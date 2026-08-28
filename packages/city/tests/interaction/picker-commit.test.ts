@@ -4,17 +4,17 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker } from '@/city/interaction/picker';
-import { createCityState } from '@/city/state';
+import { createPicker } from '../../src/interaction/picker';
+import { createCityState } from '../../src/state';
 import { drivableCityState, treePlacement } from '../_helpers/cityFixtures';
 import { commitSeries } from '../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../_helpers/renderTrees';
-import type { Trees } from '@/city/components/trees/treeRenderer';
-import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
-import { NodeKind } from '@/city/types/manifest';
-import { CommitTarget, PickerWorld } from '@/city/types/picker';
+import type { Trees } from '../../src/components/trees/treeRenderer';
+import { VERTS_PER_TRIANGLE } from '../../src/utils/bufferLayout';
+import { NodeKind } from '../../src/types/manifest';
+import { CommitTarget, PickerWorld } from '../../src/types/picker';
 import { createEmitter } from '../_helpers/cityEvents';
-import { createTimelineState } from '@/city/timeline/state';
+import { createTimelineState } from '../../src/timeline/state';
 
 const TIMELINE = createTimelineState();
 

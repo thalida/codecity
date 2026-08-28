@@ -1,3 +1,4 @@
+import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   loadSource,
@@ -27,7 +28,6 @@ import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 import { navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import type { TimelineBundle } from '@/city/types/timeline';
 
 // The city does the fetching now, so every load in this file needs one to load
 // into. The real source loader over the real client, so the stream still runs

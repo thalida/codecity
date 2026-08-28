@@ -1,3 +1,4 @@
+import { CloneStage, ScanPhase } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   attachOverlayDriver,
@@ -17,7 +18,6 @@ import {
 
 import { SourceKind } from '@/utils/sources';
 import { LoadingStep, BuildStage } from '@/constants/progress';
-import { CloneStage, ScanPhase } from '@/city/client/manifest';
 
 describe('loadingReactions', () => {
   let dispose: () => void;

@@ -4,9 +4,9 @@
 // effect, its per-frame work and its GPU teardown.
 import * as THREE from 'three';
 
-import { CAMERA_FAR } from '@/city/constants/camera';
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { CAMERA_FAR } from '../../constants/camera';
+import { RENDER_ORDERS } from '../../types/renderOrders';
+import { setColorFromHex } from '../../utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import skyVertSrc from './sky.vert.glsl?raw';

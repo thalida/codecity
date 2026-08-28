@@ -11,9 +11,9 @@ vi.mock('three', async () => {
   return { ...actual, WebGLRenderer: fakeWebGLRenderer(forceContextLossSpy) };
 });
 
-vi.mock('@/city/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
+vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '@/city/index';
+import { createCity } from '../src/index';
 
 describe('createCity', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;

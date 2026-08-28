@@ -3,13 +3,13 @@
 // per commit. Diagnostic driver for finding the decoration-pass bottleneck.
 
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/city/layout/algorithm.js';
-import { placeTrees } from '@/city/components/trees/treePlacement';
-import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
-import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
-import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
-import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
-import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
+import { layoutCity } from '../../src/layout/algorithm.js';
+import { placeTrees } from '../../src/components/trees/treePlacement';
+import { createTreeRenderer } from '../../src/components/trees/treeRenderer';
+import { createFireflyAssembly } from '../../src/components/fireflies/fireflies';
+import { placeFireflies } from '../../src/components/fireflies/firefliesPlacement';
+import { createOrbitRings } from '../../src/components/fireflies/orbitRings';
+import { createFireflyRenderer } from '../../src/components/fireflies/firefliesRenderer';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
 import { layoutCfg, settingsStore, treeCfg } from '../_helpers/citySettings';

@@ -4,7 +4,7 @@
 // its own component). Non-tunable constants live with their consumers.
 
 import { FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '../schema';
-import { oklchToHex } from '@/city/utils/color/colors';
+import { oklchToHex } from '../../utils/color/colors';
 import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '../../constants/gem';
 
 // Default face palette: an OKLCH rainbow (perceptually uniform) at 8 evenly

@@ -3,10 +3,10 @@
 // hooks at the bottom; effects and pre-paint code read the signals directly,
 // which is why the URL lives here rather than in router context.
 
+import { URL_PARAMS } from '@codecity/city';
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
 import { ROUTES } from './paths';
-import { URL_PARAMS } from '@/city/client/urlParams';
 
 function readHref(): string {
   return `${window.location.pathname}${window.location.search}`;

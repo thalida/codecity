@@ -2,9 +2,12 @@
 // resolve a raycast hit through a baked faceIndex-to-street map. This guards
 // that map and the per-street vertex spans the hover tint uses.
 import { describe, it, expect } from 'vitest';
-import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/components/streets/streets';
-import { NodeKind } from '@/city/types/manifest';
-import { Street, StreetAxis } from '@/city/types/street';
+import {
+  createMergedSidewalkMesh,
+  sidewalkStreetForFace,
+} from '../../../src/components/streets/streets';
+import { NodeKind } from '../../../src/types/manifest';
+import { Street, StreetAxis } from '../../../src/types/street';
 import { settingsStore } from '../../_helpers/citySettings';
 
 const SETTINGS = settingsStore();

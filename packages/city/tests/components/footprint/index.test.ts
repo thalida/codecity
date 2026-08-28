@@ -2,17 +2,17 @@
 // effect, so these tests drive it by mutating store.FOOTPRINT.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createFootprint } from '@/city/components/footprint';
+import { createFootprint } from '../../../src/components/footprint';
 import {
   BuildingLane,
   blankBuildingScrubState,
   type BuildingScrubState,
-} from '@/city/components/buildings/scrubState';
-import { StreetTint, type StreetScrubState } from '@/city/components/streets/scrubState';
-import type { ScrubStates } from '@/city/timeline/scrubPass';
+} from '../../../src/components/buildings/scrubState';
+import { StreetTint, type StreetScrubState } from '../../../src/components/streets/scrubState';
+import type { ScrubStates } from '../../../src/timeline/scrubPass';
 import { makeSceneContext } from '../../_helpers/cityFixtures';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { CityLayout } from '../../../src/types/scene';
+import { Street, StreetAxis } from '../../../src/types/street';
 import { settingsStore } from '../../_helpers/citySettings';
 
 // Stated, not defaulted: the halo width and corner radius are what the

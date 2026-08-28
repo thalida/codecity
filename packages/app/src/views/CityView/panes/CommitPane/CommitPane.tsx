@@ -2,6 +2,7 @@
 // age, files changed, and how busy its day was. The body is fetched lazily, and
 // the open-on-origin link becomes a hint when the repo has no remote.
 
+import { colorForAuthor, CommitEntry, NodeKind, SourceRef } from '@codecity/city';
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
@@ -12,9 +13,7 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/remoteUrls';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
-import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { API } from '@/apiClient';
-import { CommitEntry, NodeKind, SourceRef } from '@/city/types/manifest';
 
 const SHORT_SHA_LEN = 7;
 

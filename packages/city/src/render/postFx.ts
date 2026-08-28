@@ -8,7 +8,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import type { CitySettingsStore } from '@/city/settings/store';
+import type { CitySettingsStore } from '../settings/store';
 
 // Fraction of the DRAWING BUFFER, not the CSS box: composer.setSize already
 // applies the pixel ratio, so CSS sizing cost DPR-1 displays 4x per scene pixel.

@@ -2,13 +2,13 @@
 // panes hand to <PaneStats>. Pure: the caller supplies the node, so the same
 // formatting rules serve both panes without either reaching for the picker.
 
+import { parseDateMs } from '@codecity/city';
+import type { DirNode, FileNode } from '@codecity/city';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
-import { parseDateMs } from '@/city/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { scrubbedStatsFor } from '@/state/stores/timeline';
 import type { PaneStatItem } from './PaneStats';
-import type { DirNode, FileNode } from '@/city/types/manifest';
 
 /** Direct and recursive counts as one item, collapsing to a single number when
  *  a folder has no subfolders to distinguish them. */

@@ -5,10 +5,10 @@
 
 import * as THREE from 'three';
 
-import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { RENDER_ORDERS } from '../../types/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
+import { NEUTRAL_POLYGON_OFFSET } from '../../utils/neutralPolygonOffset';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';

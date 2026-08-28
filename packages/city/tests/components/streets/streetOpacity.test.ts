@@ -5,16 +5,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { createStreets } from '@/city/components/streets';
+import { createStreets } from '../../../src/components/streets';
 import {
   RUINED_STREET_DIRS,
   StreetTint,
   type StreetScrubState,
-} from '@/city/components/streets/scrubState';
+} from '../../../src/components/streets/scrubState';
 import { makeSceneContext } from '../../_helpers/cityFixtures';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import { NodeKind } from '../../../src/types/manifest';
+import { CityLayout } from '../../../src/types/scene';
+import { Street, StreetAxis } from '../../../src/types/street';
 
 function mkStreet(path: string, over: Partial<Street> = {}): Street {
   return {

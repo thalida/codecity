@@ -9,12 +9,12 @@ import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island';
 import { gemAnchorXZ } from '../gem/anchor';
-import type { IslandConfig, WorldConfig } from '@/city/settings/fields/island';
-import type { TreesConfig } from '@/city/settings/fields/trees';
-import type { FootprintConfig } from '@/city/settings/fields/footprint';
-import { Building } from '@/city/types/building';
-import { CityBbox } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
+import type { IslandConfig, WorldConfig } from '../../settings/fields/island';
+import type { TreesConfig } from '../../settings/fields/trees';
+import type { FootprintConfig } from '../../settings/fields/footprint';
+import { Building } from '../../types/building';
+import { CityBbox } from '../../types/scene';
+import { Street, StreetAxis } from '../../types/street';
 
 interface Rect {
   minX: number;

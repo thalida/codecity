@@ -5,19 +5,19 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { createBuildingFader } from '@/city/components/buildings/fader';
+import { createBuildingFader } from '../../../src/components/buildings/fader';
 import { createTestCityResources } from '../../_helpers/cityResources';
 
 const _res = createTestCityResources();
 import { makeCityState, seedCityState, fakePicker } from '../../_helpers/cityFixtures';
-import { FadeDetail } from '@/city/types/animation';
-import { Building } from '@/city/types/building';
-import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street } from '@/city/types/street';
-import { PickTarget } from '@/city/types/picker';
+import { FadeDetail } from '../../../src/types/animation';
+import { Building } from '../../../src/types/building';
+import { DirNode, FileNode, NodeKind } from '../../../src/types/manifest';
+import { CityLayout } from '../../../src/types/scene';
+import { Street } from '../../../src/types/street';
+import { PickTarget } from '../../../src/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
+import { createTimelineState } from '../../../src/timeline/state';
 
 const TIMELINE = createTimelineState();
 

@@ -1,4 +1,4 @@
-import type { CityLayout } from '@/city/types/scene';
+import type { CityLayout } from '../types/scene';
 // city/layout/profiling.ts — opt-in per-phase profiler for the layout packer.
 
 // ─── Profiling ───────────────────────────────────────────────────────────────

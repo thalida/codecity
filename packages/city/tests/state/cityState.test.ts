@@ -4,14 +4,14 @@
 
 import { describe, it, expect } from 'vitest';
 import { makeCityState, seedCityState, stubPlacementClient } from '../_helpers/cityFixtures';
-import { Building } from '@/city/types/building';
-import { NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { Street, StreetAxis } from '@/city/types/street';
-import type { CityState } from '@/city/state';
+import { Building } from '../../src/types/building';
+import { NodeKind } from '../../src/types/manifest';
+import { CityLayout } from '../../src/types/scene';
+import { Street, StreetAxis } from '../../src/types/street';
+import type { CityState } from '../../src/state';
 import { settingsStore } from '../_helpers/citySettings';
-import { createEmitter } from '@/city/events';
-import { createCityState } from '@/city/state';
+import { createEmitter } from '../../src/events';
+import { createCityState } from '../../src/state';
 import { createTestCityResources } from '../_helpers/cityResources';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads

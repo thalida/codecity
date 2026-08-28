@@ -1,8 +1,8 @@
+import { NodeKind } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
 import { flush } from '../_helpers/preact';
-import { NodeKind } from '@/city/types/manifest';
 
 // jsdom never fetches the src, so these assert the URL the component picks, via
 // the data-icon-name attribute rather than by parsing it.

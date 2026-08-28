@@ -5,8 +5,8 @@
 import { rectOfBuilding, rectOfStreet, _rectsOverlap, rectEdges } from './rect';
 import type { Rect } from './rect';
 import { WorldRectKind } from './occupancyIndex';
-import { Building } from '@/city/types/building';
-import { Street, StreetAxis } from '@/city/types/street';
+import { Building } from '../types/building';
+import { Street, StreetAxis } from '../types/street';
 
 // Perpendicular streets whose endpoint sits on the other's centerline: the flat
 // join the renderer fuses, and so the one overlap a layout may contain. The

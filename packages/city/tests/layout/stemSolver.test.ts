@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { WorldOccupancy, WorldRectKind } from '@/city/layout/occupancyIndex';
+import { WorldOccupancy, WorldRectKind } from '../../src/layout/occupancyIndex';
 import {
   applyFlips,
   computeFlips,
   findSmallestValidStem,
   isMirrorInvariant,
   placeChild,
-} from '@/city/layout/stemSolver';
-import { StreetAxis } from '@/city/types/street';
+} from '../../src/layout/stemSolver';
+import { StreetAxis } from '../../src/types/street';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {

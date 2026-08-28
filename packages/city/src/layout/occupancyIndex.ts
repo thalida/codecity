@@ -4,8 +4,8 @@
 // frame.
 
 import RBush from 'rbush';
-import type { Building } from '@/city/types/building';
-import type { Street } from '@/city/types/street';
+import type { Building } from '../types/building';
+import type { Street } from '../types/street';
 
 // Touches at edges (zero-area overlap) are NOT reported as overlap.
 const OVERLAP_EPS = 1e-9;

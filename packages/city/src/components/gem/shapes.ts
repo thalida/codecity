@@ -6,7 +6,7 @@
 // switch over the shape set anywhere.
 
 import * as THREE from 'three';
-import { GEM_SIDES_DEFAULT, type GemSides } from '@/city/constants/gem';
+import { GEM_SIDES_DEFAULT, type GemSides } from '../../constants/gem';
 
 /** Face count → geometry builder. detail 0 keeps the raw polyhedron
  *  (un-subdivided), so the face count matches the key. */

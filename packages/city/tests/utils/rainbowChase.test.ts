@@ -2,7 +2,7 @@
 // and the gem-to-selection path line. Expected values are literal: a reference
 // implementation here would only restate the formula under test.
 import { describe, it, expect } from 'vitest';
-import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { rainbowRgbAt } from '../../src/utils/rainbowChase';
 
 describe('rainbowRgbAt', () => {
   it('hue 0 at full saturation is pure red', () => {

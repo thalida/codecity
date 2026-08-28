@@ -2,6 +2,7 @@
 // files with two near-identical fixtures, which is how the set and the filtered
 // tree could have drifted apart without a test noticing.
 
+import { NodeKind, TreeNode, TimelineBundle } from '@codecity/city';
 import { afterEach, expect, test } from 'vitest';
 import {
   PANE_MANIFEST,
@@ -16,8 +17,6 @@ import {
 } from '@/state/stores/timeline';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '@codecity/city/testing';
-import { NodeKind, TreeNode } from '@/city/types/manifest';
-import { TimelineBundle } from '@/city/types/timeline';
 
 function paths(m: unknown): Set<string> {
   const out = new Set<string>();

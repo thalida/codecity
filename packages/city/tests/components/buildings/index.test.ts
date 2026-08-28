@@ -5,20 +5,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { createBuildings } from '@/city/components/buildings';
+import { createBuildings } from '../../../src/components/buildings';
 import { makeCityState, makePickableSceneContext } from '../../_helpers/cityFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
+import buildingFragSrc from '../../../src/components/buildings/building.frag.glsl?raw';
+import type { Picker } from '../../../src/interaction/picker';
+import type { SceneContext } from '../../../src/types';
 import { building } from '../../_helpers/buildingFixture';
-import { Building } from '@/city/types/building';
-import { DateRanges, NodeKind } from '@/city/types/manifest';
-import { CityLayout } from '@/city/types/scene';
-import { FileTarget } from '@/city/types/picker';
+import { Building } from '../../../src/types/building';
+import { DateRanges, NodeKind } from '../../../src/types/manifest';
+import { CityLayout } from '../../../src/types/scene';
+import { FileTarget } from '../../../src/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
-import type { CitySettingsStore } from '@/city/settings/store';
-import { createTimelineState } from '@/city/timeline/state';
+import type { CitySettingsStore } from '../../../src/settings/store';
+import { createTimelineState } from '../../../src/timeline/state';
 
 // A context whose picker exposes drivable selection and hover, and a canvas the
 // outline material can measure during arming.

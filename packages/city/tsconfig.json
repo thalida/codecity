@@ -20,13 +20,6 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
-    // `@/city/*` is this package's own root, kept so the ~700 import sites
-    // that already spell it that way stay valid. It resolves HERE: nothing in
-    // src/ reaches outside this directory any more (#208 step 10).
-    "paths": {
-      "@/city/*": ["./src/*"]
-    },
-
     // Explicit allowlist prevents auto-inclusion of every package under
     // node_modules/@types/ (the TS default) — @types/node in particular, which
     // belongs to tsconfig.node.json alone. three ships no bundled .d.ts; webxr

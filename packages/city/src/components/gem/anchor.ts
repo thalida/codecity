@@ -1,4 +1,4 @@
-import { StreetAxis } from '@/city/types/street';
+import { StreetAxis } from '../../types/street';
 // city/components/gem/anchor.ts — Single source of truth for the gem's anchor point
 // (the center of the root street's origin-end cap). Computed from the
 // street geometry; shared by the gem mesh and tree placement.

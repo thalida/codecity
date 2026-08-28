@@ -1,14 +1,14 @@
 // layoutTrace.test.ts — exercise the optional `trace` params on
-import { WorldRectKind, WorldOccupancy } from '@/city/layout/occupancyIndex';
+import { WorldRectKind, WorldOccupancy } from '../../src/layout/occupancyIndex';
 // findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
-import { layoutCityWithTrace } from '@/city/layout/algorithm';
-import { findSmallestValidStem, placeChild } from '@/city/layout/stemSolver';
-import type { VariantTrace } from '@/city/layout/stemSolver';
+import { layoutCityWithTrace } from '../../src/layout/algorithm';
+import { findSmallestValidStem, placeChild } from '../../src/layout/stemSolver';
+import type { VariantTrace } from '../../src/layout/stemSolver';
 import { EMPTY_REPO_STATS } from '../_helpers/manifestFixtures';
-import { DirNode, FileNode, Manifest, NodeKind } from '@/city/types/manifest';
-import { StreetAxis } from '@/city/types/street';
+import { DirNode, FileNode, Manifest, NodeKind } from '../../src/types/manifest';
+import { StreetAxis } from '../../src/types/street';
 import { layoutCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();

@@ -5,17 +5,17 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
-import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
-import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { createBuildingTweens } from '@/city/components/buildings/tween';
+import { SpatialGrid } from '../../../src/components/buildings/spatialGrid';
+import { createEmptyCellTile } from '../../../src/components/buildings/cellTile';
+import { buildCellsFromLayout } from '../../../src/components/buildings/cellAssembly';
+import { createBuildingTweens } from '../../../src/components/buildings/tween';
 import { building } from '../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../_helpers/cityResources';
-import type { Building } from '@/city/types/building';
+import type { Building } from '../../../src/types/building';
 import { settingsStore } from '../../_helpers/citySettings';
-import { createTimelineState } from '@/city/timeline/state';
-import { createClient } from '@/city/client';
+import { createTimelineState } from '../../../src/timeline/state';
+import { createClient } from '../../../src/client';
 
 const CLIENT = createClient({ baseUrl: '/api' });
 

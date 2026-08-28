@@ -1,15 +1,9 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'node:path';
 
-// The package has no build of its own yet. This config exists for the `@/`
-// alias below, so anything run from this directory (a lib build, a
-// package-local vitest) resolves it the same way tsconfig.json does.
+// The package has no build of its own yet, and no aliases: every import inside
+// src/ and tests/ is relative, so this file resolves nothing that node would
+// not. That is the point — a path alias in published source resolves only if
+// the CONSUMER happens to map the same prefix, which no installed consumer
+// does.
 
-const packageDir = import.meta.dirname;
-
-export default defineConfig({
-  resolve: {
-    // Mirrors tsconfig.json paths: `@/city/*` is this package's own src.
-    alias: { '@/city': resolve(packageDir, 'src') },
-  },
-});
+export default defineConfig({});

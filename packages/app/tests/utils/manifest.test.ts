@@ -1,6 +1,5 @@
+import { findNodeByPath, NodeKind } from '@codecity/city';
 import { describe, it, expect } from 'vitest';
-import { findNodeByPath } from '@/city/utils/manifest';
-import { NodeKind } from '@/city/types/manifest';
 
 const manifest = {
   tree: {

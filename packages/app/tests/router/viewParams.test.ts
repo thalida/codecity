@@ -1,8 +1,8 @@
+import { NodeKind } from '@codecity/city';
 import { describe, it, expect, afterEach } from 'vitest';
 import { readUrlView } from '@/router/viewParams';
 import { normalizeBootRoute, HREF, navigate, ROUTE_PARAMS } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { NodeKind } from '@/city/types/manifest';
 
 function boot(href: string) {
   navigate(href, { replace: true });

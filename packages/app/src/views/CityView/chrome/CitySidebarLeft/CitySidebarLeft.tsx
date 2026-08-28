@@ -2,6 +2,7 @@
 // is collapsed, its resize handle, and the bridge between the tree pane and the
 // picker.
 
+import { NodeKind, TreeNode, PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
@@ -24,8 +25,6 @@ import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { NodeKind, TreeNode } from '@/city/types/manifest';
-import { PickTarget } from '@/city/types/picker';
 import { SidebarTab } from '@/types/ui';
 
 // ── Helpers ──────────────────────────────────────────────────────────

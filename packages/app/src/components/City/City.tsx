@@ -3,6 +3,7 @@
 // change, unmount tears the scene down so a remount cannot stack a second
 // renderer on it, and the variant is all a view says about what it is FOR.
 
+import type { Manifest } from '@codecity/city';
 import './City.css';
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -18,7 +19,6 @@ import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
-import type { Manifest } from '@/city/types/manifest';
 
 export enum CityVariant {
   /** The app's main view: opaque, so a sub-frame gap during resize blends into

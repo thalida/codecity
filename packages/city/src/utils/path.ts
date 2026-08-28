@@ -1,7 +1,7 @@
 // city/utils/path.ts — Generic manifest-path string helper. No DOM, no
 // Three.js scene access — just data → data.
 
-import { ROOT_PATH } from '@/city/constants/manifest';
+import { ROOT_PATH } from '../constants/manifest';
 
 // parentDirPath(p) — return the parent directory path for a manifest path.
 // Returns null for root (ROOT_PATH / empty). Examples:
