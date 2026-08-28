@@ -16,6 +16,9 @@ import { building } from '../../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import { settingsStore } from '../../../_helpers/citySettings';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 const SETTINGS = settingsStore();
 
@@ -43,7 +46,14 @@ describe('buildCellsFromLayout', () => {
   it('returns a Map, SpatialGrid, BuildingIndex, and a sceneRoot Group', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
     const buildings = [building({ x: 10, y: 10 }), building({ x: 20, y: 20 })];
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.cells).toBeInstanceOf(Map);
     expect(out.grid).toBeDefined();
@@ -60,6 +70,7 @@ describe('buildCellsFromLayout', () => {
     const sparse = [20, 32, 44, 56].map((x) => building({ x, y: 1 }));
     const out = buildCellsFromLayout(
       SETTINGS.signals,
+      TIMELINE,
       bounds,
       [...dense, ...sparse],
       TEST_SOURCE,
@@ -80,7 +91,14 @@ describe('buildCellsFromLayout', () => {
       building({ x: 7, y: 2 }),
       building({ x: 10, y: 9 }),
     ];
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     // All buildings land in the same cell (x<CELL_SIZE and z<CELL_SIZE).
     expect(out.cells.size).toBe(1);
@@ -97,7 +115,14 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
     const buildings = Array.from({ length: N }, (_, i) => building({ x: i * CELL_SIZE + 1, y: 1 }));
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.cells.size).toBe(N);
     expect(out.grid.cellCount).toBeGreaterThan(N);
@@ -111,7 +136,14 @@ describe('buildCellsFromLayout', () => {
       building({ x: 1, y: 1 }), // cell at grid-col 0, row 0
       building({ x: CELL_SIZE + 1, y: 1 }), // cell at grid-col 1, row 0
     ];
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.cells.size).toBe(2);
     // 2 cells × 1 mesh (detail) = 2 children in sceneRoot.
@@ -121,7 +153,14 @@ describe('buildCellsFromLayout', () => {
   it('each occupied cell has a detailMesh', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
@@ -131,7 +170,14 @@ describe('buildCellsFromLayout', () => {
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, buildings, TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(
+      SETTINGS.signals,
+      TIMELINE,
+      bounds,
+      buildings,
+      TEST_SOURCE,
+      _res
+    );
 
     for (const child of out.sceneRoot.children) {
       expect(child).toBeInstanceOf(THREE.InstancedMesh);
@@ -156,14 +202,14 @@ describe('buildCellsFromLayout', () => {
         modified: '',
       },
     });
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, [b], TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(SETTINGS.signals, TIMELINE, bounds, [b], TEST_SOURCE, _res);
 
     expect(out.index.byPath.get('src/foo.ts')).toBeDefined();
   });
 
   it('handles empty buildings array without throwing', () => {
     const bounds = { minX: 0, maxX: 200, minZ: 0, maxZ: 200 };
-    const out = buildCellsFromLayout(SETTINGS.signals, bounds, [], TEST_SOURCE, _res);
+    const out = buildCellsFromLayout(SETTINGS.signals, TIMELINE, bounds, [], TEST_SOURCE, _res);
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
@@ -197,6 +243,7 @@ describe('buildCellsFromLayout', () => {
     it('builds an ad-panel mesh for media buildings when MEDIA_ENABLED (default)', () => {
       const out = buildCellsFromLayout(
         SETTINGS.signals,
+        TIMELINE,
         bounds,
         [mediaBuilding()],
         TEST_SOURCE,
@@ -209,6 +256,7 @@ describe('buildCellsFromLayout', () => {
       SETTINGS.update({ BUILDINGS: { MEDIA_ENABLED: false } });
       const out = buildCellsFromLayout(
         SETTINGS.signals,
+        TIMELINE,
         bounds,
         [mediaBuilding()],
         TEST_SOURCE,
@@ -238,7 +286,14 @@ describe('buildCellsFromLayout', () => {
           modified: '',
         },
       });
-      const out = buildCellsFromLayout(SETTINGS.signals, bounds, [empty], TEST_SOURCE, _res);
+      const out = buildCellsFromLayout(
+        SETTINGS.signals,
+        TIMELINE,
+        bounds,
+        [empty],
+        TEST_SOURCE,
+        _res
+      );
       expect(out.facadePanels).toBeNull();
       expect(out.index.byPath.get('blank.png')).toBeDefined();
     });
@@ -271,8 +326,14 @@ describe('buildCellsFromLayout', () => {
 
     it('registers a facade panel for a binary building when DATA_ENABLED (default)', () => {
       expect(
-        buildCellsFromLayout(SETTINGS.signals, bounds, [dataBuilding()], TEST_SOURCE, _res)
-          .facadePanels
+        buildCellsFromLayout(
+          SETTINGS.signals,
+          TIMELINE,
+          bounds,
+          [dataBuilding()],
+          TEST_SOURCE,
+          _res
+        ).facadePanels
       ).not.toBeNull();
     });
 
@@ -280,6 +341,7 @@ describe('buildCellsFromLayout', () => {
       SETTINGS.update({ BUILDINGS: { DATA_ENABLED: false } });
       const out = buildCellsFromLayout(
         SETTINGS.signals,
+        TIMELINE,
         bounds,
         [dataBuilding()],
         TEST_SOURCE,
@@ -308,7 +370,14 @@ describe('buildCellsFromLayout', () => {
           modified: '',
         },
       });
-      const out = buildCellsFromLayout(SETTINGS.signals, bounds, [empty], TEST_SOURCE, _res);
+      const out = buildCellsFromLayout(
+        SETTINGS.signals,
+        TIMELINE,
+        bounds,
+        [empty],
+        TEST_SOURCE,
+        _res
+      );
       expect(out.facadePanels).toBeNull();
       expect(out.index.byPath.get('empty.db')).toBeDefined();
     });
@@ -352,6 +421,7 @@ describe('buildCellsFromLayout', () => {
 
       const out = buildCellsFromLayout(
         SETTINGS.signals,
+        TIMELINE,
         bounds,
         [empty, nonEmpty],
         TEST_SOURCE,

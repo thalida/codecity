@@ -11,6 +11,9 @@ import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
 import { DirTarget, FileTarget, PickerWorld } from '@/city/types/picker';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 // Minimal building / street fixture shapes for the fake scene.
 interface FakeBuildingFixture {
@@ -145,6 +148,7 @@ describe('createPicker', () => {
   it('names its selection key so consumers can key off it', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -158,6 +162,7 @@ describe('createPicker', () => {
   it('setSelection derives selectionKey for a file target', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -172,6 +177,7 @@ describe('createPicker', () => {
   it('setSelection derives selectionKey for a directory target', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -186,6 +192,7 @@ describe('createPicker', () => {
   it('setSelection(null) clears selectionKey', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -202,6 +209,7 @@ describe('createPicker', () => {
     const meshA = { name: 'meshA' };
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: meshA }], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -221,6 +229,7 @@ describe('createPicker', () => {
   it('selectByPath(missing) leaves selection alone', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -240,6 +249,7 @@ describe('createPicker', () => {
     const oldMesh = { id: 'old' };
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: oldMesh }], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -262,6 +272,7 @@ describe('createPicker', () => {
   it('world rebuild that removes the selected path clears selection + key', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -281,6 +292,7 @@ describe('createPicker', () => {
   it('world rebuild always clears hover (transient, can dangle on disposed mesh otherwise)', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -298,6 +310,7 @@ describe('createPicker', () => {
   it('interpretHit returns NodeKind.Gem for a gem hit', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -312,6 +325,7 @@ describe('createPicker', () => {
   it('interpretHit returns null for an uninterpretable hit', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,

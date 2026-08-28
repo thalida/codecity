@@ -27,12 +27,12 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/progress';
 import { PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import {
-  TIMELINE_MODE,
-  TIMELINE_BUNDLE,
   SCRUB_DRAGGING,
-  setScrubPos,
-  setTodayMs,
+  beginTimelineMode,
   resetTimelineMode,
+  setScrubPos,
+  setTimelineBundle,
+  setTodayMs,
 } from '@/state/stores/timeline';
 import { makeCommitBundle } from '../_helpers/scrub';
 import { flush } from '../_helpers/preact';
@@ -113,8 +113,8 @@ describe('view URL', () => {
     it('writes the commit the scrubber rests on, and nothing at the present', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = makeCommitBundle(4);
-      TIMELINE_MODE.value = true;
+      setTimelineBundle(makeCommitBundle(4));
+      beginTimelineMode();
 
       setScrubPos(1);
       expect(params().get('mode')).toBe('timeline');
@@ -130,9 +130,9 @@ describe('view URL', () => {
     it('tells the newest commit from the today stop past it', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = makeCommitBundle(4, '2020-01-01T00:00:00Z');
+      setTimelineBundle(makeCommitBundle(4, '2020-01-01T00:00:00Z'));
       setTodayMs(Date.parse('2024-01-01T00:00:00Z'));
-      TIMELINE_MODE.value = true;
+      beginTimelineMode();
 
       setScrubPos(3); // the last commit
       expect(params().get('commit')).toBe('c3');
@@ -144,8 +144,8 @@ describe('view URL', () => {
     it('holds the URL still through a drag, and writes where it comes to rest', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = makeCommitBundle(4);
-      TIMELINE_MODE.value = true;
+      setTimelineBundle(makeCommitBundle(4));
+      beginTimelineMode();
       setScrubPos(0);
 
       SCRUB_DRAGGING.value = true;
@@ -162,7 +162,7 @@ describe('view URL', () => {
     it('writes no commit while Live, bundle or no bundle', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = makeCommitBundle(4);
+      setTimelineBundle(makeCommitBundle(4));
       setScrubPos(1);
 
       expect(params().has('mode')).toBe(false);
@@ -172,8 +172,8 @@ describe('view URL', () => {
     it('drops the mode and the commit on the way back to Live', () => {
       attach();
       commitWorld();
-      TIMELINE_BUNDLE.value = makeCommitBundle(4);
-      TIMELINE_MODE.value = true;
+      setTimelineBundle(makeCommitBundle(4));
+      beginTimelineMode();
       setScrubPos(1);
       expect(params().get('commit')).toBe('c1');
 
@@ -268,8 +268,8 @@ describe('view URL', () => {
       });
 
       it('back out of Timeline exits it', async () => {
-        TIMELINE_BUNDLE.value = makeCommitBundle(4);
-        TIMELINE_MODE.value = true;
+        setTimelineBundle(makeCommitBundle(4));
+        beginTimelineMode();
         await loadedAndFollowed('&mode=timeline');
 
         navigate('/city?src=%2Frepos%2Fcodecity');
@@ -280,8 +280,8 @@ describe('view URL', () => {
       });
 
       it('a different commit scrubs there, without refetching the bundle', async () => {
-        TIMELINE_BUNDLE.value = makeCommitBundle(4);
-        TIMELINE_MODE.value = true;
+        setTimelineBundle(makeCommitBundle(4));
+        beginTimelineMode();
         setScrubPos(1);
         await loadedAndFollowed('&mode=timeline&commit=c1');
 
@@ -293,8 +293,8 @@ describe('view URL', () => {
       });
 
       it('the same commit asks for nothing', async () => {
-        TIMELINE_BUNDLE.value = makeCommitBundle(4);
-        TIMELINE_MODE.value = true;
+        setTimelineBundle(makeCommitBundle(4));
+        beginTimelineMode();
         setScrubPos(1);
         await loadedAndFollowed('&mode=timeline&commit=c1');
 
@@ -308,8 +308,8 @@ describe('view URL', () => {
       // The reported hang: the follow woke on its own writes and re-asked for the
       // restored commit, dragging the scrub back under the user every frame.
       it('lets the user scrub away from the commit it restored', async () => {
-        TIMELINE_BUNDLE.value = makeCommitBundle(4);
-        TIMELINE_MODE.value = true;
+        setTimelineBundle(makeCommitBundle(4));
+        beginTimelineMode();
         setScrubPos(1);
         attach('?src=%2Frepos%2Fcodecity&mode=timeline&commit=c1');
         commitWorld();

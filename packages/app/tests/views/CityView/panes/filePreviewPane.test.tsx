@@ -14,10 +14,10 @@ import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { makeBundle } from '../../../_helpers/scrub';
 import {
-  SETTLED_COMMIT,
-  TIMELINE_BUNDLE,
-  TIMELINE_MODE,
+  beginTimelineMode,
+  resetTimelineMode,
   setScrubPos,
+  setTimelineBundle,
 } from '@/state/stores/timeline';
 import { FileNode, NodeKind } from '@/city/types/manifest';
 import { TimelineBundle } from '@/city/types/timeline';
@@ -382,7 +382,6 @@ describe('FilePreviewPane in Timeline', () => {
   async function showAt(commit: number): Promise<void> {
     await act(async () => {
       setScrubPos(commit);
-      SETTLED_COMMIT.value = commit;
       state.value = { file: IMAGE_NODE, source: TEST_SOURCE };
     });
     await drainAsync();
@@ -391,8 +390,8 @@ describe('FilePreviewPane in Timeline', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    TIMELINE_BUNDLE.value = BUNDLE;
-    TIMELINE_MODE.value = true;
+    setTimelineBundle(BUNDLE);
+    beginTimelineMode();
     state = signal<FilePreviewPaneState>({ file: null });
     render(<FilePreviewPane state={state} />, container);
   });
@@ -400,10 +399,9 @@ describe('FilePreviewPane in Timeline', () => {
   afterEach(() => {
     render(null, container);
     container.remove();
-    TIMELINE_MODE.value = false;
-    TIMELINE_BUNDLE.value = null;
+    resetTimelineMode();
+    setTimelineBundle(null);
     setScrubPos(0);
-    SETTLED_COMMIT.value = 0;
   });
 
   it('asks for the blob at this commit, not for whatever HEAD has', async () => {

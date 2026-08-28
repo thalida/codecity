@@ -1,7 +1,6 @@
 // The only per-frame reader of SCRUB_POS, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
 
-import { SCRUB_POS } from '@/state/stores/timeline';
 import type { BuildingsConfig } from '@/city/settings/fields/buildings';
 import type { SettingSignals } from '@/city/settings/store';
 import { layoutConfigFrom, type LayoutConfig } from '@/city/layout/config';
@@ -10,6 +9,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
 import { TimelineBundle } from '@/city/types/timeline';
+import type { TimelineState } from '@/city/timeline/state';
 
 export type CommitDateRange = NonNullable<TimelineBundle['commitDateRanges']>[number];
 
@@ -57,6 +57,7 @@ export interface ScrubFrameDeps {
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
   settings: SettingSignals;
+  timeline: TimelineState;
 }
 
 /** The date the handle sits on, interpolated toward the next commit so a quiet
@@ -69,7 +70,7 @@ function scrubNow(pos: number, deps: ScrubFrameDeps): number {
 }
 
 export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
-  const pos = SCRUB_POS.peek();
+  const pos = deps.timeline.pos.peek();
 
   // SCRUB_POS is clamped to the bundle; only the range arrays can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];

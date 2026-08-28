@@ -4,14 +4,15 @@
 
 import { afterEach, expect, test } from 'vitest';
 import {
-  TIMELINE_MODE,
-  TIMELINE_BUNDLE,
-  setScrubPos,
-  PRESENT_PATHS,
   PANE_MANIFEST,
+  PRESENT_PATHS,
+  beginTimelineMode,
+  resetTimelineMode,
   scrubbedBlobShaFor,
-  scrubbedStatsFor,
   scrubbedDirFor,
+  scrubbedStatsFor,
+  setScrubPos,
+  setTimelineBundle,
 } from '@/state/stores/timeline';
 import { RUINS } from '@/state/settings/fields/ruins';
 import { makeBundle, PRESENCE_BUNDLE } from '../../_helpers/scrub';
@@ -30,14 +31,14 @@ function paths(m: unknown): Set<string> {
 }
 
 function atCommitTwo(): void {
-  TIMELINE_BUNDLE.value = PRESENCE_BUNDLE;
-  TIMELINE_MODE.value = true;
+  setTimelineBundle(PRESENCE_BUNDLE);
+  beginTimelineMode();
   setScrubPos(2);
 }
 
 afterEach(() => {
-  TIMELINE_MODE.value = false;
-  TIMELINE_BUNDLE.value = null;
+  resetTimelineMode();
+  setTimelineBundle(null);
   setScrubPos(0);
 });
 
@@ -54,8 +55,8 @@ test('present files + their ancestor dirs are in the set; deleted/future are not
 });
 
 test('empty outside Timeline mode', () => {
-  TIMELINE_BUNDLE.value = PRESENCE_BUNDLE;
-  TIMELINE_MODE.value = false;
+  setTimelineBundle(PRESENCE_BUNDLE);
+  resetTimelineMode();
   expect(PRESENT_PATHS.value.size).toBe(0);
 });
 
@@ -95,8 +96,8 @@ const growing = makeBundle({
 } as unknown as Partial<TimelineBundle>);
 
 test('displayed stats describe the blob being served, across unchanged commits', () => {
-  TIMELINE_BUNDLE.value = growing;
-  TIMELINE_MODE.value = true;
+  setTimelineBundle(growing);
+  beginTimelineMode();
 
   // Each of these still serves the commit-0 blob, so each must report its
   // numbers: the drift is what put "42 lines" over a 36-line body.
@@ -196,16 +197,16 @@ function rollups(d: unknown): Record<string, unknown> {
 }
 
 test('at HEAD the derived rollups equal the ones the backend authored', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
+  setTimelineBundle(steady);
+  beginTimelineMode();
   setScrubPos(2);
 
   expect(rollups(scrubbedDirFor('src'))).toEqual(HEAD_SRC_ROLLUPS);
 });
 
 test('earlier commits count only what existed, at the size it was then', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
+  setTimelineBundle(steady);
+  beginTimelineMode();
   setScrubPos(0);
 
   const d = scrubbedDirFor('src')!;
@@ -215,8 +216,8 @@ test('earlier commits count only what existed, at the size it was then', () => {
 });
 
 test('the newest change never runs ahead of the scrub', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = true;
+  setTimelineBundle(steady);
+  beginTimelineMode();
   setScrubPos(1);
 
   // The union says a.txt was last touched at C2. Reading that here is what put
@@ -233,7 +234,7 @@ test('a deleted file leaves the folder totals, and an emptied folder is gone', (
 });
 
 test('null in Live, where MANIFEST is already the answer', () => {
-  TIMELINE_BUNDLE.value = steady;
-  TIMELINE_MODE.value = false;
+  setTimelineBundle(steady);
+  resetTimelineMode();
   expect(scrubbedDirFor('src')).toBeNull();
 });

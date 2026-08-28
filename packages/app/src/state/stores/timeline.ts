@@ -1,133 +1,117 @@
-// state/stores/timeline.ts — the history you are looking at and where you are in
-// it: the mode, the loaded bundle, the scrub position, and everything that
-// position implies. Derived reads live beside the position they read because
-// resetting the mode moves it, so splitting them would make the two files cyclic.
+// state/stores/timeline.ts — the scene city's history, as the app reads it.
+//
+// The engine itself lives in the city now (city/timeline/state.ts), because a
+// bundle is one repo's history and the landing mounts a second city showing a
+// different one. What is left here is the app's half: a bound view of the scene
+// city's timeline, and the reductions the panes render off it.
+//
+// Every signal below reads THROUGH the scene handle rather than holding a value
+// of its own. One source of truth, and it is the city's — a second copy here
+// would be a second answer to "where is the scrubber", which is the class of
+// bug this whole refactor is about.
 
-import { signal, batch, computed, effect, type ReadonlySignal } from '@preact/signals';
-import { epochDayAt, parseDateMs } from '@/city/utils/dates';
+import { computed, effect, type ReadonlySignal } from '@preact/signals';
 import { findNodeByPath } from '@/city/utils/manifest';
+import { SCENE_HANDLE } from '@/city/sceneHandle';
+import { createTimelineState, type ScrubbedFileStats } from '@/city/timeline/state';
 import { MANIFEST, type ManifestValue } from './manifest';
-import {
-  buildPathTimelines,
-  ruinStateAt,
-  PathState,
-  blobShaAt,
-  entryAt,
-  statsAtDeletion,
-  lastModifiedIndexAt,
-} from '@/city/timeline/replay';
+import { ruinStateAt, PathState, entryAt, lastModifiedIndexAt } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import { DirNode, Manifest, NodeKind, TreeNode } from '@/city/types/manifest';
 import { TimelineBundle } from '@/city/types/timeline';
 
+export type { ScrubbedFileStats };
+
+// Before the canvas mounts there is no city to ask, and a boot-time read must
+// still answer. Detached: nothing drives it, so it reads as "not in Timeline".
+const DETACHED = createTimelineState();
+
+/** The scene city's timeline, or a detached stand-in before it exists. */
+function _engine() {
+  return SCENE_HANDLE.value?.timeline ?? DETACHED;
+}
+
 // ── Mode, history, and where you are in it ───────────────────────────
 
-// Distinct render mode (union city + scrub). SCRUB_POS is a float commit index so scrubbing interpolates.
-export const TIMELINE_MODE = signal(false);
-export const TIMELINE_BUNDLE = signal<TimelineBundle | null>(null);
+export const TIMELINE_MODE: ReadonlySignal<boolean> = computed(() => _engine().mode.value);
+export const TIMELINE_BUNDLE: ReadonlySignal<TimelineBundle | null> = computed(
+  () => _engine().bundle.value
+);
+export const SCRUB_TODAY_MS: ReadonlySignal<number | null> = computed(
+  () => _engine().todayMs.value
+);
+export const SCRUB_MAX: ReadonlySignal<number> = computed(() => _engine().max.value);
+export const SCRUB_POS: ReadonlySignal<number> = computed(() => _engine().pos.value);
+export const SCRUB_COMMIT: ReadonlySignal<number> = computed(() => _engine().commit.value);
+export const SETTLED_COMMIT: ReadonlySignal<number> = computed(() => _engine().settledCommit.value);
+export const SETTLED_POS: ReadonlySignal<number> = computed(() => _engine().settledPos.value);
 
-/** How many commits the loaded bundle holds. */
-const COMMIT_COUNT = computed(() => TIMELINE_BUNDLE.value?.commits.length ?? 0);
+/** Writable: the scrubber holds it down while you drag. */
+export const SCRUB_DRAGGING = {
+  get value(): boolean {
+    return _engine().dragging.value;
+  },
+  set value(next: boolean) {
+    _engine().dragging.value = next;
+  },
+  peek(): boolean {
+    return _engine().dragging.peek();
+  },
+};
 
-/** Read once per Timeline entry rather than per frame: the stop today sits at
- *  has to hold still while it is being scrubbed to. */
-const _todayMs = signal(Date.now());
+/** The only way to move the scrubber; readonly SCRUB_POS makes bypassing it a
+ *  type error. */
+export function setScrubPos(pos: number): void {
+  _engine().setPosition(pos);
+}
 
-/** Today, when it is later than the last commit: the city goes on aging after
- *  the last thing anyone committed. Null when the newest commit is today. */
-export const SCRUB_TODAY_MS = computed(() => {
-  const bundle = TIMELINE_BUNDLE.value;
-  if (!bundle || bundle.commits.length === 0) return null;
-  // Parsed the way the bar prints dates, so the stop lands on the day it names.
-  const newest = parseDateMs(bundle.commits[bundle.commits.length - 1].date);
-  const today = _todayMs.value;
-  if (!Number.isFinite(newest)) return null;
-  // Whole days: a commit from this morning is not a stop away from now, and a
-  // track ending hours past its last tick reads as a rounding error.
-  return Math.floor(epochDayAt(today)) > Math.floor(epochDayAt(newest)) ? today : null;
-});
+/** The history the scene city is scrubbing. */
+export function setTimelineBundle(bundle: TimelineBundle | null): void {
+  _engine().setBundle(bundle);
+}
 
 /** The moment Timeline treats as now. Set on entry; tests pin it. */
 export function setTodayMs(ms: number): void {
-  _todayMs.value = ms;
+  _engine().setTodayMs(ms);
 }
 
-/** Highest valid scrub index for the loaded bundle, 0 when there is none. One
- *  past the last commit when today is a stop of its own. */
-export const SCRUB_MAX = computed(
-  () => Math.max(0, COMMIT_COUNT.value - 1) + (SCRUB_TODAY_MS.value === null ? 0 : 1)
-);
-
-const _scrubPos = signal(0);
-
-// Clamped against the current bundle, not at each write, so a bundle swap alone
-// can't leave a stale position out of range. Readers never clamp defensively.
-export const SCRUB_POS: ReadonlySignal<number> = computed(() =>
-  Math.min(Math.max(_scrubPos.value, 0), SCRUB_MAX.value)
-);
-
-/** The only way to move the scrubber; readonly SCRUB_POS makes that a type error to bypass. */
-export function setScrubPos(pos: number): void {
-  _scrubPos.value = pos;
-}
-
-// The whole commit SCRUB_POS lands on, so anything keyed on presence recomputes
-// once a crossing. Capped: past the last one the city is still its, only older.
-export const SCRUB_COMMIT = computed(() =>
-  Math.min(Math.floor(SCRUB_POS.value), Math.max(0, COMMIT_COUNT.value - 1))
-);
-
-// Anything that would reflow the layout waits for this to clear, or the track
-// resizes under the pointer mid-drag and the position jumps.
-export const SCRUB_DRAGGING = signal(false);
-
-// The commit content fetches key on: follows the scrub but holds still mid-drag,
-// so dragging across a long history doesn't refetch once per commit crossed.
-export const SETTLED_COMMIT = signal(0);
-
-// The same rest point as a position. SETTLED_COMMIT caps at the newest commit,
-// so it can't tell that stop from the today stop past it; this can.
-export const SETTLED_POS = signal(0);
-
-effect(() => {
-  const commit = SCRUB_COMMIT.value;
-  const pos = SCRUB_POS.value;
-  if (SCRUB_DRAGGING.value) return;
-  batch(() => {
-    SETTLED_COMMIT.value = commit;
-    SETTLED_POS.value = pos;
-  });
-});
-
-// Called BEFORE the union city is packed: the mode tells the scene layer whose
+// Called BEFORE the union city is packed: the mode tells the renderer whose
 // city to pack. The position follows, once its bundle is loaded.
 export function beginTimelineMode(): void {
-  batch(() => {
-    TIMELINE_MODE.value = true;
-    _todayMs.value = Date.now();
-  });
+  _engine().enter();
 }
 
-// Shared by every exit path (toggle-off, source switch); scene-free, the scene layer reacts to TIMELINE_MODE.
+// Shared by every exit path (toggle-off, source switch): the mode goes, and so
+// does the history it was showing.
 export function resetTimelineMode(): void {
-  batch(() => {
-    TIMELINE_MODE.value = false;
-    setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
-    SCRUB_DRAGGING.value = false;
-  });
+  _engine().exit();
 }
+
+/** Leave the mode but keep the loaded history, so re-entering lands on the
+ *  bundle and position it left. */
+export function leaveTimelineMode(): void {
+  _engine().setMode(false);
+}
+
+export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
+  return _engine().scrubbedStatsFor(path);
+}
+
+export function scrubbedBlobShaFor(path: string | null | undefined): string | null {
+  return _engine().scrubbedBlobShaFor(path);
+}
+
+export function hasNoContentAtScrub(path: string | null | undefined): boolean {
+  return _engine().hasNoContentAtScrub(path);
+}
+
+const _TIMELINES: ReadonlySignal<Map<string, PathTimeline> | null> = computed(
+  () => _engine().timelines.value
+);
 
 // ── What that position implies ───────────────────────────────────────
 
 const EMPTY: ReadonlySet<string> = new Set();
-
-// Timelines depend only on the bundle — rebuild when it changes, NOT per scrub.
-// (A second copy from the scrub controller's; both are pure reads of the bundle.)
-const _TIMELINES = computed<Map<string, PathTimeline> | null>(() => {
-  const bundle = TIMELINE_BUNDLE.value;
-  return bundle ? buildPathTimelines(bundle) : null;
-});
 
 // Record present paths into `out`; returns whether this node is present. A file
 // is present when live at pos; a directory is present iff any descendant is.
@@ -149,43 +133,6 @@ function _collect(
   }
   if (anyPresent && node.path != null) out.add(node.path);
   return anyPresent;
-}
-
-/** A file's measures at the scrub position, or at its deletion if already gone. */
-export interface ScrubbedFileStats {
-  // Null when the blob was never fetched: unknown at this commit, not zero.
-  lines: number | null;
-  bytes: number | null;
-  /** True when these are the values the file had when it was deleted. */
-  atDeletion: boolean;
-}
-
-// .value, not .peek(): the footer reads this in render. At the SETTLED commit,
-// so the number always describes the blob the content fetch serves.
-export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
-  if (!TIMELINE_MODE.value) return null;
-  const pt = _TIMELINES.value?.get(path);
-  if (!pt) return null;
-  const pos = SETTLED_COMMIT.value;
-  const gone = statsAtDeletion(pt, pos);
-  if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
-  const entry = entryAt(pt, pos);
-  if (!entry) return null;
-  return { lines: entry.lines, bytes: entry.bytes, atDeletion: false };
-}
-
-/** Blob sha for a path at the scrub position; null in Live or when absent. */
-export function scrubbedBlobShaFor(path: string | null | undefined): string | null {
-  if (!path || !TIMELINE_MODE.value) return null;
-  const pt = _TIMELINES.value?.get(path);
-  // Settled, not live: content fetches wait for the drag to end.
-  return pt ? blobShaAt(pt, SETTLED_COMMIT.value) : null;
-}
-
-/** No content to fetch at this scrub position, so callers must NOT fall back to
- *  a by-path read: that hits HEAD, where a union file may not exist (#122). */
-export function hasNoContentAtScrub(path: string | null | undefined): boolean {
-  return TIMELINE_MODE.value && scrubbedBlobShaFor(path) === null;
 }
 
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {

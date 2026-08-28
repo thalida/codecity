@@ -5,7 +5,7 @@ import { signal } from '@preact/signals';
 import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { EMPTY_MANIFEST } from '../../../_helpers/manifestFixtures';
 import { flush, drainAsync } from '../../../_helpers/preact';
@@ -114,7 +114,7 @@ describe('CitySidebarRight', () => {
     render(null, container);
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     SELECTION_PANE_DISMISSED.value = false;
   });
 
@@ -154,7 +154,7 @@ describe('CitySidebarRight', () => {
   });
 
   it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
 
@@ -183,7 +183,7 @@ describe('CitySidebarRight', () => {
   // #128: excludes now re-fetch the union in Timeline, so the exclude button is
   // offered there too (previously hidden as a would-be no-op).
   it('Timeline mode: the exclude button is available for a selected file', async () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
     const aside = container.querySelector<HTMLElement>('aside#city-sidebar-right')!;
     handle.picker.setSelection({

@@ -17,6 +17,9 @@ import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
 import { settingSignals } from '../../_helpers/citySettings';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 const SETTINGS = settingSignals();
 
@@ -38,7 +41,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 // live InstancedMeshes (streets/gem/trees empty for this geometry-only guard).
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(SETTINGS, bounds, buildings, TEST_SOURCE, _res);
+  const cellOut = buildCellsFromLayout(SETTINGS, TIMELINE, bounds, buildings, TEST_SOURCE, _res);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {
@@ -82,6 +85,7 @@ describe('picker BVH raycast', () => {
     camera.updateMatrixWorld(true);
 
     const picker = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera,
@@ -125,6 +129,7 @@ describe('picker BVH raycast', () => {
     camera.lookAt(2000, 0, 2000);
     camera.updateMatrixWorld(true);
     const picker = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera,
@@ -175,7 +180,14 @@ describe('picker BVH raycast', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ events: createEmitter(), canvas, camera, world, cityState });
+    const picker = createPicker({
+      timeline: TIMELINE,
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState,
+    });
     const hit = picker.pickAt(400, 300);
     expect(hit).not.toBeNull();
     const t = picker.interpretHit(hit);
@@ -189,6 +201,7 @@ describe('picker BVH raycast', () => {
     const camera = new THREE.PerspectiveCamera(50, 800 / 600, 1, 100000);
     camera.updateMatrixWorld(true);
     const picker = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera,

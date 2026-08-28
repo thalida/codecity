@@ -7,12 +7,14 @@ import { signal } from '@preact/signals';
 
 import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
-import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { FileNode, NodeKind, RangeStat } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
 import { TimelineBundle } from '@/city/types/timeline';
 import { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 // Rebuilt per case, so a settings change in one does not leak into the next.
 let SETTINGS = settingsStore();
@@ -24,14 +26,14 @@ const SCANNED_AT = Date.UTC(2024, 5, 1);
 // with dates: the clamp runs a stop past the last commit.
 beforeEach(() => {
   SETTINGS = settingsStore();
-  TIMELINE_BUNDLE.value = {
+  TIMELINE.setBundle({
     commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
     unionManifest: { scanned_at: new Date(SCANNED_AT).toISOString() },
-  } as unknown as TimelineBundle;
+  } as unknown as TimelineBundle);
 });
 afterEach(() => {
-  setScrubPos(0);
-  TIMELINE_BUNDLE.value = null;
+  TIMELINE.setPosition(0);
+  TIMELINE.setBundle(null);
 });
 
 const RANGES: RangeStat[] = [
@@ -55,6 +57,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     commitMs: COMMIT_MS,
     trackEndMs: SCANNED_AT,
     settings: SETTINGS.signals,
+    timeline: TIMELINE,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
     picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
@@ -63,7 +66,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
 }
 
 const at = (pos: number, over: Partial<ScrubFrameDeps> = {}) => {
-  setScrubPos(pos);
+  TIMELINE.setPosition(pos);
   return readScrubFrame(deps(over));
 };
 

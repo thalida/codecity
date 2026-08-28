@@ -7,13 +7,13 @@ import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { CityState } from '@/city/state';
 import type { CityEmitter } from '../events';
 import { CommitEntry, NodeKind } from '@/city/types/manifest';
 import { PickTarget, PickerSelectionKey, PickerWorld } from '@/city/types/picker';
+import type { TimelineState } from '@/city/timeline/state';
 
 // In-memory selection key. Reset to null on a fresh load; survives in-session
 // world rebuilds via the re-resolution below. Never written to localStorage.
@@ -25,12 +25,14 @@ export function createPicker({
   world,
   cityState,
   events,
+  timeline,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   world: PickerWorld;
   cityState: CityState;
   events: CityEmitter;
+  timeline: TimelineState;
 }) {
   const hover = signal<PickTarget | null>(null);
   const selection = signal<PickTarget | null>(null);
@@ -185,8 +187,8 @@ export function createPicker({
   // The scrub rewrites building matrices per frame but the BVH caches bounds
   // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
   const _disposeScrubBvhEffect = effect(() => {
-    void SCRUB_POS.value;
-    if (!TIMELINE_MODE.peek()) return;
+    void timeline.pos.value;
+    if (!timeline.mode.peek()) return;
     _bvh = null;
     _bvhDirty = true;
   });
@@ -245,7 +247,7 @@ export function createPicker({
   /** The commit itself, for one the city drew no tree for. Timeline's list is
    *  the one the scrubber names; Live's comes off the manifest. */
   function _commitBySha(sha: string): CommitEntry | null {
-    const commits = TIMELINE_BUNDLE.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
+    const commits = timeline.bundle.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
     return commits.find((c) => c.sha === sha) ?? null;
   }
 
@@ -394,7 +396,7 @@ export function createPicker({
     slot: number | undefined
   ): PickTarget | null {
     if (slot == null) return null;
-    if (TIMELINE_MODE.peek() && _buildingScrubHidden(mesh, slot)) return null;
+    if (timeline.mode.peek() && _buildingScrubHidden(mesh, slot)) return null;
     const building = world.getBuildingIndex()?.byCellSlot(`${cellId}:${slot}`);
     if (!building?.file) return null;
     return {
@@ -403,7 +405,7 @@ export function createPicker({
       data: building,
       file: building.file,
       instanceId: slot,
-      isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(mesh, slot),
+      isRuin: timeline.mode.peek() && _buildingIsRuin(mesh, slot),
     };
   }
 
@@ -411,7 +413,7 @@ export function createPicker({
    *  its street through the faceIndex map baked onto userData. */
   function sidewalkTargetFor(hit: THREE.Intersection<THREE.Object3D>): PickTarget | null {
     const mesh = hit.object as THREE.Mesh;
-    if (TIMELINE_MODE.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
+    if (timeline.mode.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
     const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
     if (!street?.dir) return null;
     return {
@@ -419,7 +421,7 @@ export function createPicker({
       sidewalk: mesh,
       street,
       dir: street.dir,
-      isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+      isRuin: timeline.mode.peek() && RUINED_STREET_DIRS.has(street.dir.path),
       vertexHint: hit.face?.a,
     };
   }

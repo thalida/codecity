@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
-
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
 import { makeHeightContext } from './layout/dimensions';
@@ -21,6 +19,7 @@ import { createSettingsStore } from './settings/store';
 import { createEmitter } from './events';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
+import { createTimelineState } from './timeline/state';
 import type { CitySettingsPatch } from './settings';
 import { layoutConfigFrom } from './layout/config';
 import {
@@ -63,6 +62,9 @@ export async function createCity(
   // Same-origin only, and a path rather than an origin: a city fetches from the
   // server that served the page it is on.
   const client = createClient({ baseUrl });
+  // The history this city is showing. Per instance, so two cities scrub their
+  // own repos and neither drags the other's position.
+  const timeline = createTimelineState();
 
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
@@ -103,7 +105,7 @@ export async function createCity(
   async function applyManifest(...args: Parameters<typeof _applyManifest>): Promise<void> {
     try {
       await _applyManifest(...args);
-      if (!TIMELINE_MODE.peek()) liveManifest = args[0];
+      if (!timeline.mode.peek()) liveManifest = args[0];
     } catch (err) {
       events.emit('build:error', { error: err });
       throw err;
@@ -122,6 +124,7 @@ export async function createCity(
     cityState,
     resources,
     settings,
+    timeline,
     picker: null,
   } as unknown as SceneContext;
 
@@ -212,6 +215,7 @@ export async function createCity(
     camera: rig.camera,
     cityState,
     events,
+    timeline,
     world: {
       getStreetPickables: () => streets.getPickables(),
       getRootGem: () => gem.getRootGroup(),
@@ -282,8 +286,8 @@ export async function createCity(
     after() {
       // Drop a selection the scrub removed, but not mid-drag: closing the right
       // sidebar then reflows the track under the pointer and jumps the position.
-      if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
-      const pos = SCRUB_POS.peek();
+      if (!timeline.mode.peek() || timeline.dragging.peek()) return;
+      const pos = timeline.pos.peek();
       if (pos === _lastPrunedScrubPos) return;
       _lastPrunedScrubPos = pos;
       picker.pruneScrubHiddenSelection();
@@ -291,6 +295,7 @@ export async function createCity(
   });
 
   const timelineApi = {
+    ...timeline,
     installScrubController(
       timelines: Map<string, PathTimeline>,
       commitLineRanges: RangeStat[]
@@ -310,6 +315,7 @@ export async function createCity(
         scannedAt: cityState.manifest.peek()?.scanned_at,
         streetsByDir: cityState.streetsByDirMap.peek(),
         settings,
+        timeline,
         scrubGates: [
           {
             setScrubCommit: (i) => trees.setScrubCommit(i),
@@ -336,7 +342,7 @@ export async function createCity(
   // HEAD, so only a rebuild from this city's own live manifest is a valid live
   // city — the app's would be a different repo on the landing.
   const stopTimelineTeardown = effect(() => {
-    if (TIMELINE_MODE.value || !_scrubController) return;
+    if (timeline.mode.value || !_scrubController) return;
     timelineApi.uninstallScrubController();
     const live = liveManifest;
     // Best-effort: a dispose or a newer apply can supersede this mid-flight,
@@ -375,6 +381,7 @@ export async function createCity(
       // way out, and a torn-down city has nothing left worth reporting.
       events.clear();
       sourceLoader.dispose();
+      timeline.dispose();
       stopFrameLoop();
       stopReframe();
       stopOnScreen();

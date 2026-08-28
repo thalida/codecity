@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 
 vi.mock('@/hooks/useTimelineMode', () => ({
@@ -34,7 +34,7 @@ describe('TimelineToggle', () => {
     document.body.removeChild(container);
     CURRENT_SOURCE.value = null;
     setManifest(null);
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     vi.clearAllMocks();
   });
 
@@ -59,7 +59,7 @@ describe('TimelineToggle', () => {
   it('Timeline is active when TIMELINE_MODE is on', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     render(<TimelineToggle />, container);
     await flush();
 
@@ -82,7 +82,7 @@ describe('TimelineToggle', () => {
   it('clicking Live while in timeline calls exitTimelineMode, not enter', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     render(<TimelineToggle />, container);
     await flush();
 

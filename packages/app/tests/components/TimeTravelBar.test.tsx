@@ -5,10 +5,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
 import {
-  TIMELINE_MODE,
   SCRUB_POS,
-  TIMELINE_BUNDLE,
+  beginTimelineMode,
+  leaveTimelineMode,
+  resetTimelineMode,
   setScrubPos,
+  setTimelineBundle,
   setTodayMs,
 } from '@/state/stores/timeline';
 import { parseDateMs } from '@/city/utils/dates';
@@ -42,8 +44,8 @@ describe('TimelineScrubber', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    TIMELINE_MODE.value = true;
-    TIMELINE_BUNDLE.value = BUNDLE;
+    beginTimelineMode();
+    setTimelineBundle(BUNDLE);
     // Today IS the last commit's day, so these cases have no extra stop; the
     // ones that need one move it forward.
     setTodayMs(parseDateMs('2026-03-01'));
@@ -53,9 +55,9 @@ describe('TimelineScrubber', () => {
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
+    setTimelineBundle(null);
   });
 
   // The city keeps aging after the last commit, so the track runs one stop past
@@ -96,7 +98,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('renders nothing when timeline mode is off', async () => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     render(<TimelineScrubber />, container);
     await flush();
     expect(container.querySelector('.timeline-scrubber')).toBeNull();
@@ -272,7 +274,7 @@ describe('TimelineScrubber', () => {
 
   it('single-commit repo: handle pins right, track is inert (no drag)', async () => {
     const [only] = buildCommits({ date: '2026-07-24', files: 1, subject: 'init' });
-    TIMELINE_BUNDLE.value = {
+    setTimelineBundle({
       commits: [only],
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
       deltas: [],
@@ -280,7 +282,7 @@ describe('TimelineScrubber', () => {
       blobSizes: {},
       notes: [],
       note: null,
-    } as unknown as TimelineBundle;
+    } as unknown as TimelineBundle);
     setScrubPos(0);
     render(<TimelineScrubber />, container);
     await flush();
@@ -309,7 +311,7 @@ describe('TimelineScrubber', () => {
 
   it('same-day repo stays scrubbable: track is live, a press moves SCRUB_POS', async () => {
     const day = '2026-07-24';
-    TIMELINE_BUNDLE.value = {
+    setTimelineBundle({
       commits: buildCommits(
         { date: day, files: 1, subject: 'c1' },
         { date: day, files: 1, subject: 'c2' },
@@ -321,7 +323,7 @@ describe('TimelineScrubber', () => {
       blobSizes: {},
       notes: [],
       note: null,
-    } as unknown as TimelineBundle;
+    } as unknown as TimelineBundle);
     setScrubPos(2);
     render(<TimelineScrubber />, container);
     await flush();
@@ -380,11 +382,13 @@ describe('TimelineScrubber', () => {
       const first = ticks()!;
       expect(first.width).toBe(200);
 
-      TIMELINE_MODE.value = false;
+      // The mode alone, not resetTimelineMode: this is about re-entering on
+      // deps that did NOT change, so the bundle and position have to survive.
+      leaveTimelineMode();
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       expect(ticks()).toBeNull();
 
-      TIMELINE_MODE.value = true; // same bundle, same position: no dep changes
+      beginTimelineMode(); // same bundle, same position: no dep changes
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       const second = ticks()!;
       expect(second, 'the canvas is rebuilt, not reused').not.toBe(first);

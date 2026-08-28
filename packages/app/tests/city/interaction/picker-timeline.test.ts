@@ -21,6 +21,9 @@ import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
 import { settingSignals } from '../../_helpers/citySettings';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 const SETTINGS = settingSignals();
 
@@ -42,7 +45,7 @@ function mkBuilding(path: string, x: number, y: number): Building {
 
 function makeCellWorld(buildings: Building[]) {
   const bounds = { minX: -200, maxX: 200, minZ: -200, maxZ: 200 };
-  const cellOut = buildCellsFromLayout(SETTINGS, bounds, buildings, TEST_SOURCE, _res);
+  const cellOut = buildCellsFromLayout(SETTINGS, TIMELINE, bounds, buildings, TEST_SOURCE, _res);
   cellOut.sceneRoot.updateMatrixWorld(true);
   const cityState = makeCityState();
   const api: PickerWorld = {
@@ -68,7 +71,7 @@ beforeEach(() => {
   PICKER_SELECTION_KEY.value = null;
 });
 afterEach(() => {
-  TIMELINE_MODE.value = false;
+  TIMELINE.exit();
   RUINED_STREET_DIRS.clear();
 });
 
@@ -81,6 +84,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     camera.lookAt(target.x, 0, target.y);
     camera.updateMatrixWorld(true);
     const picker = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera,
@@ -96,7 +100,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('rejects a hit whose iFade.x is scrub-faded to 0', () => {
     const { picker, iFade, slot } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     iFade.setXYZ(slot, 0, 0, 0);
 
     const hit = picker.pickAt(400, 300);
@@ -107,7 +111,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('resolves normally when the same building is at full opacity', () => {
     const { picker, iFade, slot } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     iFade.setXYZ(slot, 1, 0, 0);
 
     const hit = picker.pickAt(400, 300);
@@ -119,7 +123,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('a ghost-ruin building is still selectable, flagged isRuin for the tooltip', () => {
     const { picker, iFade, iKind, slot } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     iFade.setXYZ(slot, 1, 0, 0); // visible stub
     iKind.setX(slot, 1); // a ruin
 
@@ -131,7 +135,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('an empty-file slab is still selectable: it is drawn, so it can be picked', () => {
     const { picker, iFade, iKind, slot } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     iFade.setXYZ(slot, 1, 0, 0);
     iKind.setX(slot, BuildingKind.Empty);
 
@@ -143,7 +147,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('pruneScrubHiddenSelection drops a selected building the scrub removed', () => {
     const { picker, iFade, slot } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     iFade.setXYZ(slot, 1, 0, 0);
     const sel = picker.interpretHit(picker.pickAt(400, 300));
     picker.setSelection(sel);
@@ -162,7 +166,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 
   it('live mode (TIMELINE_MODE off) still picks a faded building — guard is a no-op', () => {
     const { picker, iFade, slot } = setup();
-    TIMELINE_MODE.value = false;
+    TIMELINE.exit();
     iFade.setXYZ(slot, 0, 0, 0);
 
     const hit = picker.pickAt(400, 300);
@@ -191,6 +195,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       getTrees: () => trees,
     };
     const picker = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -211,7 +216,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('a tree the scrub has hidden is not pickable', () => {
     const { trees, picker } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     trees.setScrubCommit(0); // hides commitIndex 1
 
     expect(picker.interpretHit(hitTree(trees, 1))).toBeNull();
@@ -222,7 +227,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('pruneScrubHiddenSelection drops a selection the scrub removes', () => {
     const { trees, picker } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     picker.setSelection(picker.interpretHit(hitTree(trees, 1)));
     expect(picker.selection.value?.kind).toBe(NodeKind.Commit);
 
@@ -238,7 +243,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('live mode (no scrub threshold) picks every tree', () => {
     const { trees, picker } = setup();
-    TIMELINE_MODE.value = false;
+    TIMELINE.exit();
     trees.setScrubCommit(null);
 
     expect(picker.interpretHit(hitTree(trees, 1))?.kind).toBe(NodeKind.Commit);
@@ -287,7 +292,14 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     camera.lookAt(0, 0, 200);
     camera.updateMatrixWorld(true);
 
-    const picker = createPicker({ events: createEmitter(), canvas, camera, world, cityState });
+    const picker = createPicker({
+      timeline: TIMELINE,
+      events: createEmitter(),
+      canvas,
+      camera,
+      world,
+      cityState,
+    });
     const rangeB = built.ranges.find((r) => r.path === 'lib')!;
     const aOpacity = built.mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
     return { picker, aOpacity, rangeB };
@@ -295,7 +307,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
 
   it('rejects a hit on a street whose aOpacity is scrub-faded to 0', () => {
     const { picker, aOpacity, rangeB } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     for (let v = rangeB.vStart; v < rangeB.vStart + rangeB.vCount; v++) aOpacity.setX(v, 0);
 
     const hit = picker.pickAt(400, 300);
@@ -306,7 +318,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
 
   it('resolves normally when the street is at full opacity', () => {
     const { picker } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
 
     const hit = picker.pickAt(400, 300);
     const t = picker.interpretHit(hit);
@@ -317,7 +329,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
 
   it('a ruined street is still selectable, flagged isRuin for the tooltip', () => {
     const { picker } = setup();
-    TIMELINE_MODE.value = true;
+    TIMELINE.enter();
     RUINED_STREET_DIRS.add('lib');
 
     const t = picker.interpretHit(picker.pickAt(400, 300));
@@ -328,7 +340,7 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
 
   it('live mode still picks a faded street — guard is a no-op', () => {
     const { picker, aOpacity, rangeB } = setup();
-    TIMELINE_MODE.value = false;
+    TIMELINE.exit();
     for (let v = rangeB.vStart; v < rangeB.vStart + rangeB.vCount; v++) aOpacity.setX(v, 0);
 
     const hit = picker.pickAt(400, 300);

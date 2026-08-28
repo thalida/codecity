@@ -18,6 +18,9 @@ import { CityLayout } from '@/city/types/scene';
 import { Street } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../../_helpers/citySettings';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 const SETTINGS = settingsStore();
 
@@ -105,6 +108,7 @@ function makeFader(opts: {
   }
 
   const fader = createBuildingFader({
+    timeline: TIMELINE,
     world,
     cityState,
     picker,

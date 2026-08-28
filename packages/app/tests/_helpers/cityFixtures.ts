@@ -11,6 +11,7 @@ import type { SettingSignals } from '@/city/settings/store';
 import { createCityState, type CityState } from '@/city/state';
 import { settingSignals } from './citySettings';
 import { createEmitter } from '@/city/events';
+import { createTimelineState, type TimelineState } from '@/city/timeline/state';
 import { commits } from './commits';
 import { createTestCityResources } from '../_helpers/cityResources';
 import { CommitEntry, NodeKind } from '@/city/types/manifest';
@@ -59,7 +60,8 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
  *  one page do. */
 export function makeSceneContext(
   cityState?: CityState,
-  settings: SettingSignals = settingSignals()
+  settings: SettingSignals = settingSignals(),
+  timeline: TimelineState = createTimelineState()
 ): SceneContext {
   return {
     scene: new THREE.Scene(),
@@ -70,6 +72,7 @@ export function makeSceneContext(
     cityState: cityState ?? makeCityState(settings),
     resources: createTestCityResources(settings),
     settings,
+    timeline,
   } as unknown as SceneContext;
 }
 
@@ -77,7 +80,8 @@ export function makeSceneContext(
  *  test can drive hover/selection and assert what the component does. */
 export function makePickableSceneContext(
   cityState?: CityState,
-  settings: SettingSignals = settingSignals()
+  settings: SettingSignals = settingSignals(),
+  timeline: TimelineState = createTimelineState()
 ): {
   ctx: SceneContext;
   selection: ReturnType<typeof signal<PickTarget | null>>;
@@ -94,6 +98,7 @@ export function makePickableSceneContext(
     cityState: cityState ?? makeCityState(settings),
     resources: createTestCityResources(settings),
     settings,
+    timeline,
   } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }

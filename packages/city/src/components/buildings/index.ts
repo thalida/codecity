@@ -6,8 +6,6 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
@@ -160,6 +158,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       cityState: ctx.cityState,
       material: ctx.resources.buildings,
       settings: ctx.settings,
+      timeline: ctx.timeline,
       picker: ctx.picker!,
     });
     // Their overlays go straight on the scene: explicit renderOrders, so where
@@ -319,7 +318,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function tick(_dt: number, frame: FrameContext): void {
     // First in the tick: outline and ghost read these matrices further down. In
     // Timeline the scrub controller owns them instead and this stays dormant.
-    if (TIMELINE_MODE.peek() && _scrubController) _scrubController.update();
+    if (ctx.timeline.mode.peek() && _scrubController) _scrubController.update();
     else _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
@@ -388,6 +387,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // THIS city's source, not the app's: the landing's backdrop is another repo.
     const cellOut = buildCellsFromLayout(
       ctx.settings,
+      ctx.timeline,
       bounds,
       buildings,
       sourceOf(ctx.cityState.manifest.peek()),
@@ -436,7 +436,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _scrubController = null;
     if (!_firstBuildDone) {
       _firstBuildDone = true;
-    } else if (!TIMELINE_MODE.peek()) {
+    } else if (!ctx.timeline.mode.peek()) {
       // Timeline mode packs the union once; the scrub controller owns the
       // matrix from here, so don't animate a per-commit diff against it.
       _tweens.onDiff(diff);

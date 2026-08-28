@@ -2,7 +2,7 @@
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
 
 const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
 
@@ -34,7 +34,7 @@ describe('createCity', () => {
   afterEach(() => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
   });
 
   function makeCanvas(): HTMLCanvasElement {
@@ -71,10 +71,12 @@ describe('createCity', () => {
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
-      TIMELINE_MODE.value = true; // entering must not trip the teardown
+      // This city's own timeline, not the app's view of the scene one: the
+      // harness publishes no scene handle, and a city tears down off its own.
+      handle.timeline.enter(); // entering must not trip the teardown
       expect(uninstallSpy).not.toHaveBeenCalled();
 
-      TIMELINE_MODE.value = false; // same flip a source switch performs
+      handle.timeline.exit(); // same flip a source switch performs
       expect(uninstallSpy).toHaveBeenCalledTimes(1);
 
       handle.dispose();
@@ -84,8 +86,8 @@ describe('createCity', () => {
       const handle = await createCity(makeCanvas());
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
-      TIMELINE_MODE.value = true;
-      TIMELINE_MODE.value = false;
+      beginTimelineMode();
+      resetTimelineMode();
 
       expect(uninstallSpy).not.toHaveBeenCalled();
       handle.dispose();

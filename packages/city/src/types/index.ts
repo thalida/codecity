@@ -10,6 +10,7 @@ import type { CitySettingsPatch } from '../settings';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
+import type { TimelineState } from '../timeline/state';
 import type { BuildStage } from './build';
 import type { CityEmitter } from '../events';
 import type { SourceLoader } from '../loadSource';
@@ -28,6 +29,9 @@ export interface SceneContext {
   /** This city's own settings — see settings/store.ts. Never a module global:
    *  two cities on one page hold different values. */
   settings: SettingSignals;
+  /** The history this city is showing, and where in it. Per city for the same
+   *  reason: a bundle is one repo's history. */
+  timeline: TimelineState;
 }
 
 /** Per-frame state passed to each component's tick() method. */
@@ -61,7 +65,7 @@ export interface CityWorld {
 
 /** Timeline-mode install surface on the City handle. Owns building the scrub
  *  controller from the components + moving the streets into the transparent pass. */
-export interface CityTimeline {
+export interface CityTimeline extends TimelineState {
   /** Install the scrub controller. Only once the union has been packed. */
   installScrubController(timelines: Map<string, PathTimeline>, commitLineRanges: RangeStat[]): void;
   /** Uninstall + dispose the scrub controller (returns the tweens to the tick). */

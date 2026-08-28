@@ -1,7 +1,6 @@
 // Timeline mode's per-frame driver: read the frame, run the pass, hand each
 // component its slice. It writes nobody else's buffers.
 
-import { TIMELINE_BUNDLE, SCRUB_TODAY_MS } from '@/state/stores/timeline';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
 import type { StreetScrubState } from '@/city/components/streets/scrubState';
@@ -14,6 +13,7 @@ import { createScrubPass, type ScrubStates } from './scrubPass';
 import { parseDateMs } from '@/city/utils/dates';
 import type { RangeStat } from '@/city/types/manifest';
 import type { Street } from '@/city/types/street';
+import type { TimelineState } from '@/city/timeline/state';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
  *  this and nothing more. */
@@ -44,17 +44,18 @@ export interface ScrubControllerDeps {
   streetsByDir: Record<string, Street>;
   scrubGates: ScrubGate[];
   settings: SettingSignals;
+  timeline: TimelineState;
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
   // Fixed for the life of the controller; readScrubFrame owns everything that
   // varies per frame.
-  const bundle = TIMELINE_BUNDLE.peek();
+  const bundle = deps.timeline.bundle.peek();
   const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
   const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
   // The same last stop the bar ends on, so the two agree about the far end.
-  const trackEndMs = SCRUB_TODAY_MS.peek() ?? scannedAtMs;
+  const trackEndMs = deps.timeline.todayMs.peek() ?? scannedAtMs;
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -73,6 +74,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       streetsByDir: deps.streetsByDir,
       picker: deps.picker,
       settings: deps.settings,
+      timeline: deps.timeline,
     });
 
     // Capped at the last commit: the today stop past it shows the same commits.

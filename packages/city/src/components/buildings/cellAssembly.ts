@@ -13,6 +13,7 @@ import type { Building } from '@/city/types/building';
 import type { SourceRef } from '@/city/types/manifest';
 import type { CityResources } from '@/city/resources';
 import type { SettingSignals } from '@/city/settings/store';
+import type { TimelineState } from '@/city/timeline/state';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;
@@ -27,6 +28,7 @@ export interface CellAssemblyOutput {
  *  cells are allocated, so the count tracks directory density, not grid extent. */
 export function buildCellsFromLayout(
   settings: SettingSignals,
+  timeline: TimelineState,
   bounds: WorldBounds,
   buildings: Building[],
   source: SourceRef | null,
@@ -119,6 +121,7 @@ export function buildCellsFromLayout(
       Math.max(64, Math.ceil(panelCount * 1.5)),
       source,
       settings,
+      timeline,
       {
         rendererRegistry: resources.renderer,
       }

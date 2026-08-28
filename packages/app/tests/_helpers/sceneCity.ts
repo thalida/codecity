@@ -6,6 +6,7 @@
 import { createClient } from '@/city/client';
 import { createEmitter } from '@/city/events';
 import { createSourceLoader } from '@/city/loadSource';
+import { createTimelineState, type TimelineState } from '@/city/timeline/state';
 import { SCENE_HANDLE, type SceneHandle } from '@/city/sceneHandle';
 import { attachScanProgress } from '@/hooks/useManifestSource';
 import type { Manifest } from '@/city/types/manifest';
@@ -13,6 +14,8 @@ import type { Manifest } from '@/city/types/manifest';
 export interface StubSceneCity {
   /** Every manifest the city was asked to render, in order. */
   applied: Manifest[];
+  /** The history this city is showing — what the app's timeline store binds to. */
+  timeline: TimelineState;
   dispose(): void;
 }
 
@@ -28,6 +31,7 @@ export function stubSceneCity(): StubSceneCity {
     applyManifest: async (m) => void applied.push(m),
   });
   const detach = attachScanProgress(events.on);
+  const timeline = createTimelineState();
 
   SCENE_HANDLE.value = {
     on: events.on,
@@ -35,14 +39,17 @@ export function stubSceneCity(): StubSceneCity {
     loadSource: loader.load,
     cancelLoad: loader.cancel,
     applyManifest: async (m: Manifest) => void applied.push(m),
+    timeline,
     dispose() {},
   } as unknown as SceneHandle;
 
   return {
     applied,
+    timeline,
     dispose(): void {
       detach();
       loader.dispose();
+      timeline.dispose();
       events.clear();
       SCENE_HANDLE.value = null;
     },

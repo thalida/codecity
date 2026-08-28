@@ -14,6 +14,9 @@ import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { NodeKind } from '@/city/types/manifest';
 import { CommitTarget, PickerWorld } from '@/city/types/picker';
 import { createEmitter } from '../../_helpers/cityEvents';
+import { createTimelineState } from '@/city/timeline/state';
+
+const TIMELINE = createTimelineState();
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 const BUSY = { avg: 1, busy: 1 };
@@ -77,6 +80,7 @@ describe('picker: tree commit picking', () => {
     const { trees, commits } = makeTrees();
     const world = makeWorld(trees);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -98,6 +102,7 @@ describe('picker: tree commit picking', () => {
     const { trees } = makeTrees();
     const world = makeWorld(null);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -114,6 +119,7 @@ describe('picker: tree commit picking', () => {
     const { trees } = makeTrees();
     const world = makeWorld(trees);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -138,6 +144,7 @@ describe('picker: tree commit picking', () => {
     const { trees, commits } = makeTrees(2);
     const world = makeWorld(trees);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -161,6 +168,7 @@ describe('picker: tree commit picking', () => {
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -181,6 +189,7 @@ describe('picker: tree commit picking', () => {
     const { trees: treesA, commits } = makeTrees(2);
     const world = makeWorld(treesA);
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,
@@ -210,6 +219,7 @@ describe('picker: tree commit picking', () => {
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
     const p = createPicker({
+      timeline: TIMELINE,
       events: createEmitter(),
       canvas,
       camera: FAKE_CAMERA,

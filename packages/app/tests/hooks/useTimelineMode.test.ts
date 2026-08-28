@@ -3,7 +3,15 @@ import { signal } from '@preact/signals';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import {
+  SCRUB_POS,
+  TIMELINE_BUNDLE,
+  TIMELINE_MODE,
+  beginTimelineMode,
+  resetTimelineMode,
+  setScrubPos,
+  setTimelineBundle,
+} from '@/state/stores/timeline';
 import { SCENE_HANDLE } from '@/city/sceneHandle';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
@@ -25,6 +33,7 @@ import { flush } from '../_helpers/preact';
 import { API } from '@/apiClient';
 import { TimelineBundle, TimelineProgress, TimelineStage } from '@/city/types/timeline';
 import { PickTarget } from '@/city/types/picker';
+import { createTimelineState } from '@/city/timeline/state';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
@@ -63,7 +72,10 @@ function fakeHandle() {
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
+    // The engine is real: the app's timeline store is a bound view of THIS
+    // city's, so a stub without it would leave the store reading nothing.
     timeline: {
+      ...createTimelineState(),
       installScrubController,
       uninstallScrubController,
       setStreetsTransparent,
@@ -92,27 +104,31 @@ afterEach(() => {
 });
 
 describe('loadTimelineScene', () => {
+  let f: ReturnType<typeof fakeHandle>;
+
   beforeEach(() => {
+    // Published first: the app's timeline store is a view of THIS city's
+    // engine, so state set before it exists lands on a detached one.
+    f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     // Reset: SOURCE_INFO reads it, so a manifest left by a neighbour decides
     // whether this test throws.
     MANIFEST.value = null;
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
+    setTimelineBundle(null);
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     REBUILD_STATUS.value = RebuildStatus.Idle;
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     SCENE_HANDLE.value = null;
   });
 
   it('fetches the bundle, applies the union once, installs the controller, and enters mode at the present', async () => {
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     await loadTimelineScene();
 
@@ -148,8 +164,6 @@ describe('loadTimelineScene', () => {
           resolveFetch = resolve;
         })
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     // The pack is several frames long now, so sample the overlay at the step
     // right after it instead of racing jsdom's frame clock from out here.
     let visibleAfterPack: boolean | null = null;
@@ -184,8 +198,6 @@ describe('loadTimelineScene', () => {
           resolveFetch = resolve;
         })
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     const entering = loadTimelineScene();
     await flush();
@@ -221,8 +233,6 @@ describe('loadTimelineScene', () => {
 
   it('no-ops without a current source', async () => {
     CURRENT_SOURCE.value = null;
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     await loadTimelineScene();
     expect(API.fetchTimelineBundle).not.toHaveBeenCalled();
     expect(TIMELINE_MODE.value).toBe(false);
@@ -233,8 +243,6 @@ describe('loadTimelineScene', () => {
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('boom')
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     await loadTimelineScene();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
@@ -296,13 +304,13 @@ describe('exitTimelineMode', () => {
   beforeEach(() => {
     restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    setTimelineBundle(BUNDLE);
   });
   afterEach(() => {
     restoreEventSource();
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     SCENE_HANDLE.value = null;
   });
 
@@ -322,13 +330,13 @@ describe('exitTimelineMode', () => {
 
 describe('teardownTimelineMode', () => {
   afterEach(() => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
   });
 
   it('is a pure signal flip — no source reload, scene-free', () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    setTimelineBundle(BUNDLE);
 
     teardownTimelineMode();
 
@@ -346,11 +354,11 @@ describe('live poll suspends in Timeline mode', () => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
     SCAN_PROGRESS.value = null;
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
   });
   afterEach(() => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     fetchSpy?.mockRestore();
     restoreEventSource();
     vi.useRealTimers();
@@ -365,12 +373,12 @@ describe('live poll suspends in Timeline mode', () => {
     vi.useFakeTimers();
 
     const dispose = setupLiveUpdates();
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchSpy).toHaveBeenCalled();
 
@@ -379,20 +387,26 @@ describe('live poll suspends in Timeline mode', () => {
 });
 
 describe('loadTimelineScene inPlace refetch', () => {
+  let f: ReturnType<typeof fakeHandle>;
+
   beforeEach(() => {
+    // Published first: the app's timeline store is a view of THIS city's
+    // engine, so state set before it exists lands on a detached one.
+    f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     // SOURCE_INFO reads the loaded manifest for the overlay's repo label.
     MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    setTimelineBundle(BUNDLE);
     REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
     REBUILD_DETAIL.value = null;
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     SCENE_HANDLE.value = null;
   });
 
@@ -402,8 +416,6 @@ describe('loadTimelineScene inPlace refetch', () => {
       unionManifest: { tree: { name: 'r2' }, stats: {}, repo: UNION_REPO },
     } as unknown as TimelineBundle;
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     await loadTimelineScene({ inPlace: true });
 
@@ -440,8 +452,6 @@ describe('loadTimelineScene inPlace refetch', () => {
           resolveFetch = resolve;
         })
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     const refetching = loadTimelineScene({ inPlace: true });
     await flush();
@@ -470,8 +480,6 @@ describe('loadTimelineScene inPlace refetch', () => {
           resolveFetch = resolve;
         })
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
     await flush();
@@ -506,8 +514,6 @@ describe('loadTimelineScene inPlace refetch', () => {
           });
         })
     );
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
 
     const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
     await flush();
@@ -523,29 +529,32 @@ describe('loadTimelineScene inPlace refetch', () => {
 });
 
 describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)', () => {
+  let f: ReturnType<typeof fakeHandle>;
+
   let restoreEventSource: () => void;
   beforeEach(() => {
     restoreEventSource = installEventSource();
+    // Published first, for the same reason as the block above.
+    f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
     SCAN_PROGRESS.value = null;
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     setScrubPos(2);
-    TIMELINE_BUNDLE.value = BUNDLE;
+    setTimelineBundle(BUNDLE);
     EXCLUDES.value = {};
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
     restoreEventSource();
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     SCENE_HANDLE.value = null;
     EXCLUDES.value = {};
   });
 
   it('refetches the union bundle with the new exclude and opens no live stream', async () => {
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     const dispose = setupLiveUpdates();
 
     addExclude('vendor');

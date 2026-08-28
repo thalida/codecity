@@ -3,11 +3,11 @@
 // white-on-transparent like the server fingerprint, and browser-native, so the
 // backend needs no decoder for either.
 
-import { scrubbedBlobShaFor } from '@/state/stores/timeline';
 import { AUDIO_EXTS, FONT_EXTS } from '@/city/constants/fileExtensions';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 import { API } from '@/apiClient';
 import type { SourceRef } from '@/city/types/manifest';
+import type { TimelineState } from '@/city/timeline/state';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 
@@ -34,6 +34,7 @@ let _fontSeq = 0;
 /** A lowercase 'a' in the file's own font. The face is removed after drawing,
  *  so none leaks globally. null on any failure. */
 export async function renderFontGlyphFacade(
+  timeline: TimelineState,
   source: SourceRef,
   path: string,
   version: string
@@ -43,7 +44,7 @@ export async function renderFontGlyphFacade(
   if (!surface) return null;
   let face: FontFace | null = null;
   try {
-    const buf = await API.fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
+    const buf = await API.fetchFileBytes(source, path, version, timeline.scrubbedBlobShaFor(path));
     const family = `cc-facade-font-${(_fontSeq += 1)}`;
     face = await new FontFace(family, buf).load();
     document.fonts.add(face);
@@ -77,6 +78,7 @@ function _getAudioCtx(): AudioContext | null {
 /** A centered waveform, one peak bar per column, decoded with Web Audio.
  *  null on any failure. */
 export async function renderWaveformFacade(
+  timeline: TimelineState,
   source: SourceRef,
   path: string,
   version: string
@@ -85,7 +87,7 @@ export async function renderWaveformFacade(
   const surface = _canvas();
   if (!audioCtx || !surface) return null;
   try {
-    const buf = await API.fetchFileBytes(source, path, version, scrubbedBlobShaFor(path));
+    const buf = await API.fetchFileBytes(source, path, version, timeline.scrubbedBlobShaFor(path));
     // decodeAudioData detaches its input, so hand it a copy.
     const audio = await audioCtx.decodeAudioData(buf.slice(0));
     const data = audio.getChannelData(0);

@@ -15,8 +15,12 @@ import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
 import { settingsStore } from '../../_helpers/citySettings';
 
-// Rebuilt per case, so a backdrop tweak in one does not leak into the next.
+// Rebuilt per case, so a tweak in one cannot leak into the next — including
+// across describes, which is an order dependence and not a test.
 let SETTINGS = settingsStore();
+beforeEach(() => {
+  SETTINGS = settingsStore();
+});
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
@@ -332,7 +336,7 @@ describe('cameraRig gem orbit', () => {
 
   beforeEach(() => {
     // A camera framing the gem: what the landing's wallpaper opens with.
-    SETTINGS = settingsStore({ CAMERA: BACKDROP_CAMERA });
+    SETTINGS.update({ CAMERA: BACKDROP_CAMERA });
   });
   afterEach(() => {
     while (rigs.length) rigs.pop()?.dispose();

@@ -5,7 +5,6 @@
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { BuildingMaterial } from './material';
 import type { CellTile } from './cellTile';
@@ -15,6 +14,7 @@ import type { CityState } from '@/city/state';
 import { FadeDetail } from '@/city/types/animation';
 import { NodeKind } from '@/city/types/manifest';
 import type { SettingSignals } from '@/city/settings/store';
+import type { TimelineState } from '@/city/timeline/state';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
 // handle; the street-by-dir lookup comes from cityState directly.
@@ -29,17 +29,19 @@ export function createBuildingFader({
   picker,
   material,
   settings,
+  timeline,
 }: {
   world: FaderWorld;
   cityState: CityState;
   picker: ReturnType<typeof createPicker>;
   material: BuildingMaterial;
   settings: SettingSignals;
+  timeline: TimelineState;
 }) {
   function _sweepAll(): void {
     // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
     // here would fight it. Live mode never takes this branch, so it stays identical.
-    if (TIMELINE_MODE.peek()) return;
+    if (timeline.mode.peek()) return;
     const sel = picker.selection.value;
     const hov = picker.hover.value;
 

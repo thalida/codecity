@@ -3,7 +3,12 @@ import { render } from 'preact';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
-import { TIMELINE_BUNDLE, TIMELINE_MODE, setScrubPos } from '@/state/stores/timeline';
+import {
+  beginTimelineMode,
+  resetTimelineMode,
+  setScrubPos,
+  setTimelineBundle,
+} from '@/state/stores/timeline';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
 import type { TimelineBundle } from '@/city/types/timeline';
 
@@ -46,7 +51,7 @@ describe('statItems in Timeline', () => {
   const PATH = 'src/index.ts';
 
   beforeEach(() => {
-    TIMELINE_BUNDLE.value = {
+    setTimelineBundle({
       commits: [
         { sha: 'a', date: '2024-01-01T00:00:00Z' },
         { sha: 'b', date: '2024-01-02T00:00:00Z' },
@@ -58,14 +63,14 @@ describe('statItems in Timeline', () => {
       blobLines: { s1: 7, s2: 42 },
       blobSizes: { s1: 100, s2: 900 },
       notes: [],
-    } as unknown as TimelineBundle;
-    TIMELINE_MODE.value = true;
+    } as unknown as TimelineBundle);
+    beginTimelineMode();
     setScrubPos(0);
   });
 
   afterEach(() => {
-    TIMELINE_MODE.value = false;
-    TIMELINE_BUNDLE.value = null;
+    resetTimelineMode();
+    setTimelineBundle(null);
     setScrubPos(0);
   });
 
@@ -80,7 +85,7 @@ describe('statItems in Timeline', () => {
   });
 
   it('falls back to the node itself outside Timeline', () => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('50 lines');
   });
 });

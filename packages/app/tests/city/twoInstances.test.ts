@@ -2,6 +2,8 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { effect } from '@preact/signals';
 
 import { createEmitter } from '@/city/events';
+import { createTimelineState } from '@/city/timeline/state';
+import type { TimelineBundle } from '@/city/types/timeline';
 import { BuildStage } from '@/city/types/build';
 import {
   attachBuildProgress,
@@ -298,6 +300,72 @@ describe('two cities scan their own repos', () => {
     // And it does not rename the project in the header either.
     expect(PENDING_SOURCE_LABEL.value).toBeNull();
     detach();
+  });
+});
+
+/** A bundle is one repo's history, so the scrubber has to be one city's too.
+ *  Sharing it meant the landing's wallpaper and the project behind it could not
+ *  have been at different commits even in principle. */
+describe('two cities scrub their own history', () => {
+  const bundleOf = (shas: string[]) =>
+    ({
+      commits: shas.map((sha, i) => ({ sha, date: `2024-01-0${i + 1}T00:00:00Z` })),
+      deltas: shas.map((sha) => ({ sha, changes: [] })),
+      blobLines: {},
+      blobSizes: {},
+      notes: [],
+    }) as unknown as TimelineBundle;
+
+  it('hold their own position, mode and bundle', () => {
+    const a = createTimelineState();
+    const b = createTimelineState();
+    a.setBundle(bundleOf(['a1', 'a2', 'a3']));
+    b.setBundle(bundleOf(['b1', 'b2']));
+
+    a.enter();
+    a.setPosition(2);
+
+    expect(a.mode.value).toBe(true);
+    expect(a.pos.value).toBe(2);
+    expect(b.mode.value).toBe(false);
+    expect(b.pos.value).toBe(0);
+    a.dispose();
+    b.dispose();
+  });
+
+  it("clamp against their own bundle, not each other's", () => {
+    const short = createTimelineState();
+    const long = createTimelineState();
+    short.setBundle(bundleOf(['s1', 's2']));
+    long.setBundle(bundleOf(['l1', 'l2', 'l3', 'l4', 'l5']));
+
+    short.setPosition(4);
+    long.setPosition(4);
+
+    // Two commits: the last index is 1, plus the today stop the fixture's old
+    // dates earn it.
+    expect(short.pos.value).toBeLessThan(long.pos.value);
+    expect(short.pos.value).toBe(short.max.value);
+    short.dispose();
+    long.dispose();
+  });
+
+  it('exiting one leaves the other where it was', () => {
+    const a = createTimelineState();
+    const b = createTimelineState();
+    a.setBundle(bundleOf(['a1', 'a2']));
+    b.setBundle(bundleOf(['b1', 'b2']));
+    a.enter();
+    b.enter();
+    b.setPosition(1);
+
+    a.exit();
+
+    expect(a.bundle.value).toBeNull();
+    expect(b.mode.value).toBe(true);
+    expect(b.pos.value).toBe(1);
+    a.dispose();
+    b.dispose();
   });
 });
 

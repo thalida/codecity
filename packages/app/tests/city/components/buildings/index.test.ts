@@ -9,7 +9,7 @@ import { createBuildings } from '@/city/components/buildings';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { resetTimelineMode } from '@/state/stores/timeline';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
@@ -19,6 +19,7 @@ import { CityLayout } from '@/city/types/scene';
 import { FileTarget } from '@/city/types/picker';
 import { settingsStore } from '../../../_helpers/citySettings';
 import type { SettingSignals } from '@/city/settings/store';
+import { createTimelineState } from '@/city/timeline/state';
 
 // A context whose picker exposes drivable selection and hover, and a canvas the
 // outline material can measure during arming.
@@ -89,7 +90,7 @@ describe('createBuildings()', () => {
 
   afterEach(() => {
     buildings?.dispose();
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
   });
 
   // Construction
@@ -145,9 +146,11 @@ describe('createBuildings()', () => {
   it('rebuild() drops a scrub controller installed for the previous city', async () => {
     // Same hazard the tween queue already guards: the controller holds the old
     // manifest's Buildings, whose cellId/slotId resolve into the NEW cells.
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    // The city's own timeline, which is what the component reads.
+    const timeline = createTimelineState();
+    const { ctx } = makePickableSceneContext(undefined, store.signals, timeline);
     buildings = createBuildings(ctx);
-    TIMELINE_MODE.value = true;
+    timeline.enter();
 
     const oldA = building({ x: 10, y: 10, h: 4, file: fileOf('old/a.ts') as never });
     await buildings.rebuild(buildingLayout([oldA]), EMPTY_DATE_RANGES);

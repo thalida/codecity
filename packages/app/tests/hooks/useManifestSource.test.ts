@@ -12,7 +12,15 @@ import {
 import { readUrlView } from '@/router/viewParams';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS, EXCLUDES, addExclude } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import {
+  SCRUB_POS,
+  TIMELINE_BUNDLE,
+  TIMELINE_MODE,
+  beginTimelineMode,
+  resetTimelineMode,
+  setScrubPos,
+  setTimelineBundle,
+} from '@/state/stores/timeline';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
@@ -166,15 +174,15 @@ describe('loadSource exits Timeline mode', () => {
 
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     setScrubPos(0);
-    TIMELINE_BUNDLE.value = null;
+    setTimelineBundle(null);
   });
 
   it('flips TIMELINE_MODE off and clears the scrub store before the fetch starts', async () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
     setScrubPos(3);
-    TIMELINE_BUNDLE.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
+    setTimelineBundle({ commits: [{ sha: 'a' }] } as unknown as TimelineBundle);
 
     const p = loadSource({ src: 'https://github.com/o/r' });
 
@@ -187,7 +195,7 @@ describe('loadSource exits Timeline mode', () => {
   });
 
   it('a normal switch when NOT in Timeline mode leaves it untouched', async () => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
 
     const p = loadSource({ src: 'https://github.com/o/r' });
 
@@ -218,12 +226,12 @@ describe('refreshCurrentSource', () => {
   afterEach(() => {
     restoreEventSource();
     setTimelineRefreshHandler(null);
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     CURRENT_SOURCE.value = null;
   });
 
   it('re-reads the history bundle in place, staying in Timeline', () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
 
     refreshCurrentSource(false);
 
@@ -234,7 +242,7 @@ describe('refreshCurrentSource', () => {
   });
 
   it('re-scans live when that is the mode', async () => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
 
     refreshCurrentSource(false);
     await flush();
@@ -248,7 +256,7 @@ describe('refreshCurrentSource', () => {
   // Fresh scan is "ignore the cache", not "leave Timeline": the bundle caches
   // per HEAD like the live scan does, so the flag rides the history read.
   it('carries a fresh scan into the history read, staying in Timeline', () => {
-    TIMELINE_MODE.value = true;
+    beginTimelineMode();
 
     refreshCurrentSource(true);
 
@@ -258,7 +266,7 @@ describe('refreshCurrentSource', () => {
   });
 
   it('sends no_cache on a live fresh scan', async () => {
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
 
     refreshCurrentSource(true);
     await flush();
@@ -347,14 +355,14 @@ describe('the boot load runs the mode the URL asks for', () => {
     restoreEventSource = installEventSource();
     StubEventSource.instances = [];
     SOURCE_ERROR.value = null;
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     navigate(ROUTES.HOME, { replace: true });
   });
 
   afterEach(() => {
     restoreEventSource();
     setTimelineBootHandler(null);
-    TIMELINE_MODE.value = false;
+    resetTimelineMode();
     navigate(ROUTES.HOME, { replace: true });
   });
 
@@ -367,7 +375,7 @@ describe('the boot load runs the mode the URL asks for', () => {
     const loads: unknown[] = [];
     setTimelineBootHandler(async (payload) => {
       loads.push(payload);
-      TIMELINE_MODE.value = true;
+      beginTimelineMode();
     });
 
     await boot('?src=%2Frepos%2Fcodecity&mode=timeline&commit=abc123');

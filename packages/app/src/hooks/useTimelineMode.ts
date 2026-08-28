@@ -39,6 +39,7 @@ import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
+  setTimelineBundle,
   SCRUB_POS,
   SCRUB_MAX,
   resetTimelineMode,
@@ -152,7 +153,7 @@ export async function loadTimelineSource({
     });
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
-    TIMELINE_BUNDLE.value = bundle;
+    setTimelineBundle(bundle);
     if (overlay) setLoadingStep(LoadingStep.Building);
     markRebuilding();
     // The bundle's union manifest is a Manifest like any other — repo info,
