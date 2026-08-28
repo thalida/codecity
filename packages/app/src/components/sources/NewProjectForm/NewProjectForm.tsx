@@ -24,7 +24,7 @@ import {
   NoticeReason,
 } from '@/components/sources/UnreachableSource/UnreachableSource';
 import type { SourcePayload } from '@/types/ui';
-import { SCAN_PROGRESS } from '@/state/stores/progress';
+import { LOADING_SOURCE } from '@/state/stores/progress';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL
 // is valid for most of its last dozen characters. Wait for the typing to stop.
@@ -76,7 +76,7 @@ export function NewProjectForm({
     ? 'https://github.com/owner/repo or /absolute/path/to/repo'
     : 'https://github.com/owner/repo';
 
-  const loading = SCAN_PROGRESS.value !== null;
+  const loading = LOADING_SOURCE.value !== null;
   const activeSrc = source.trim();
   // One field, classified by what's typed. Empty defaults to a URL so the
   // branch dropdown's absence (not a path) is the resting state.

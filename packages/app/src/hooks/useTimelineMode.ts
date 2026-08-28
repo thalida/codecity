@@ -20,11 +20,8 @@ import {
 } from '@/state/stores/source';
 import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
 import {
-  beginBuild,
-  enterBuildStage,
-  setBuildStagePercent,
-  markError,
-  markRebuilding,
+  failHostWork,
+  beginHostWork,
   setRebuildDetail,
   showLoadingOverlay,
   setLoadingStep,
@@ -35,7 +32,6 @@ import {
 } from '@/state/stores/progress';
 import {
   BuildStage,
-  PACK_STAGES,
   LoadingStep,
   TIMELINE_LOADING_STEPS,
   stepForTimelineStage,
@@ -96,7 +92,7 @@ export async function loadTimelineSource({
 
   // Unoverlaid, the readout is the only progress surface: say so now, and the
   // stage tails land beside it. Overlaid, a cancel has nothing to unwind.
-  if (inPlace && !overlay) markRebuilding();
+  if (inPlace && !overlay) beginHostWork();
   if (overlay) {
     // Cancelling keeps whatever is on screen: nothing is touched until the pack
     // below sets `committed`.
@@ -116,26 +112,13 @@ export async function loadTimelineSource({
   const handle = await whenSceneHandle();
   if (cancelled) return;
 
-  // The plan the whole Building row counts over, opened when the server starts
-  // assembling and reopened identically below so the bundle can't reset it.
-  const buildPlan = (clientStages: readonly BuildStage[]): BuildStage[] => [
-    BuildStage.Assembling,
-    BuildStage.Replay,
-    ...clientStages,
-  ];
-
   // One row per server stage, so a stall is attributable to the stage it is in
-  // and the rows below say what is still to come.
-  let assemblyOpen = false;
+  // and the rows below say what is still to come. The percent inside the
+  // Building row is the CITY's now (city.status.fraction), so the app no longer
+  // mirrors a plan of its own alongside it.
   const onProgress = (p: TimelineProgress): void => {
     if (p.stage === TimelineStage.Assemble) {
       // The server's wait, but the same wait as the build after it: one readout.
-
-      if (!assemblyOpen) {
-        assemblyOpen = true;
-        beginBuild(buildPlan(PACK_STAGES));
-      }
-      if (p.percent != null) setBuildStagePercent(p.percent);
       if (overlay) setLoadingStep(LoadingStep.Building);
       return;
     }
@@ -159,14 +142,12 @@ export async function loadTimelineSource({
     committed = true; // past here the scene is repacked; no longer cancellable
     setTimelineBundle(bundle);
     if (overlay) setLoadingStep(LoadingStep.Building);
-    markRebuilding();
+    beginHostWork();
     // The bundle's union manifest is a Manifest like any other — repo info,
     // commits, signals — so the panes, header and tree read Timeline's own.
     const manifest = bundle.unionManifest as unknown as Manifest;
     // The replay and the fan-out below run before the apply that would name
     // them: open the same plan the assembly did, and paint before the freeze.
-    beginBuild(buildPlan(handle.buildStagesFor(manifest)));
-    enterBuildStage(BuildStage.Replay);
     await nextPaint();
     const timelines = buildPathTimelines(bundle);
     // Before the manifest: the mode is what tells the scene layer whose city to
@@ -202,7 +183,7 @@ export async function loadTimelineSource({
       }
     }
     if (overlay) hideLoadingOverlay();
-    markError(err);
+    failHostWork(err);
   }
 }
 

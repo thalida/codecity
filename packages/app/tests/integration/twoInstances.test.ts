@@ -14,16 +14,15 @@ import { createSettingsStore } from '../../../city/src/settings/store';
 import { describe, it, expect, afterEach } from 'vitest';
 
 import {
-  attachBuildProgress,
-  BUILD_PROGRESS,
+  CITY_STATUS,
+  attachCityStatus,
   PENDING_SOURCE_LABEL,
-  REBUILD_STATUS,
-  RebuildStatus,
-  SCAN_PROGRESS,
+  LOADING_SOURCE,
 } from '@/state/stores/progress';
 import { attachScanProgress } from '@/hooks/useManifestSource';
 
-import { settingsStore } from '@codecity/city/testing';
+import { settingsStore, statusFrom } from '@codecity/city/testing';
+import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
 
 /** Two cities on one page must share no GPU resource.
  *
@@ -215,28 +214,27 @@ describe('two cities report to their own subscribers', () => {
   const stages = [BuildStage.Layout, BuildStage.Assemble];
 
   afterEach(() => {
-    BUILD_PROGRESS.value = null;
-    REBUILD_STATUS.value = RebuildStatus.Pending;
+    CITY_STATUS.value = EMPTY_CITY_STATUS;
   });
 
-  it('the overlay follows the city it was attached to', () => {
+  it('the readout follows the city it was attached to', () => {
     const scene = createEmitter();
-    const detach = attachBuildProgress(scene.on);
+    const detach = attachCityStatus(statusFrom(scene));
 
     scene.emit('build:start', { stages });
     scene.emit('build:stage', { stage: BuildStage.Assemble });
 
-    expect(BUILD_PROGRESS.value?.stages).toEqual(stages);
-    expect(BUILD_PROGRESS.value?.index).toBe(1);
+    expect(CITY_STATUS.value.phase).toBe(CityPhase.Building);
+    expect(CITY_STATUS.value.stage).toBe(BuildStage.Assemble);
     detach();
   });
 
   it('a second city building does not touch it', () => {
     const scene = createEmitter();
     const backdrop = createEmitter();
-    const detach = attachBuildProgress(scene.on);
+    const detach = attachCityStatus(statusFrom(scene));
     scene.emit('build:start', { stages });
-    const mid = BUILD_PROGRESS.value;
+    const mid = CITY_STATUS.value;
 
     // The whole of a wallpaper's build, start to finish, behind the page.
     backdrop.emit('build:start', { stages: [BuildStage.Icons] });
@@ -244,18 +242,19 @@ describe('two cities report to their own subscribers', () => {
     backdrop.emit('build:progress', { percent: 80 });
     backdrop.emit('build:done', { pending: [] });
 
-    expect(BUILD_PROGRESS.value).toBe(mid);
-    expect(REBUILD_STATUS.value).not.toBe(RebuildStatus.Idle);
+    expect(CITY_STATUS.value).toBe(mid);
+    // And the scene's city is emphatically not being reported as finished.
+    expect(CITY_STATUS.value.lifecycle).not.toBe(CityLifecycle.Ready);
     detach();
   });
 
   it('detaching stops the reports, so an unmounted city cannot drive it', () => {
     const scene = createEmitter();
-    attachBuildProgress(scene.on)();
+    attachCityStatus(statusFrom(scene))();
 
     scene.emit('build:start', { stages });
 
-    expect(BUILD_PROGRESS.value).toBeNull();
+    expect(CITY_STATUS.value.phase).toBeNull();
   });
 });
 
@@ -265,32 +264,35 @@ describe('two cities report to their own subscribers', () => {
  *  second route into the readout above the project you are reading. */
 describe('two cities scan their own repos', () => {
   afterEach(() => {
-    SCAN_PROGRESS.value = null;
+    CITY_STATUS.value = EMPTY_CITY_STATUS;
+    LOADING_SOURCE.value = null;
     PENDING_SOURCE_LABEL.value = null;
   });
 
-  it('the overlay follows the city it was attached to', () => {
+  it('the readout follows the city it was attached to', () => {
     const scene = createEmitter();
-    const detach = attachScanProgress(scene.on);
+    const detach = attachCityStatus(statusFrom(scene));
 
     scene.emit('scan:start', { src: 'https://github.com/o/r' });
     scene.emit('scan:progress', {
       event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
     });
 
-    expect(SCAN_PROGRESS.value?.filesScanned).toBe(900);
+    expect(CITY_STATUS.value.phase).toBe(CityPhase.Scanning);
+    expect(CITY_STATUS.value.counts.filesScanned).toBe(900);
     detach();
   });
 
   it('a wallpaper scanning a different repo does not touch it', () => {
     const scene = createEmitter();
     const backdrop = createEmitter();
-    const detach = attachScanProgress(scene.on);
+    const detach = attachCityStatus(statusFrom(scene));
+    const detachScan = attachScanProgress(scene.on);
     scene.emit('scan:start', { src: 'https://github.com/o/r' });
     scene.emit('scan:progress', {
       event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
     });
-    const mid = SCAN_PROGRESS.value;
+    const mid = CITY_STATUS.value;
 
     // A whole load of somebody else's repo, behind the page.
     backdrop.emit('scan:start', { src: 'https://github.com/other/repo' });
@@ -299,10 +301,11 @@ describe('two cities scan their own repos', () => {
       event: { phase: ScanPhase.CloneProgress, percent: 12 } as never,
     });
 
-    expect(SCAN_PROGRESS.value).toBe(mid);
+    expect(CITY_STATUS.value).toBe(mid);
     // And it does not rename the project in the header either.
     expect(PENDING_SOURCE_LABEL.value).toBeNull();
     detach();
+    detachScan();
   });
 });
 

@@ -39,7 +39,7 @@ import {
   attachOverlayDriver,
   hideLoadingOverlay,
   PENDING_SOURCE_LABEL,
-  SCAN_PROGRESS,
+  LOADING_SOURCE,
 } from '@/state/stores/progress';
 import {
   BACKDROP_CITY,
@@ -63,7 +63,7 @@ function loadedCity(): void {
 describe('HomeView', () => {
   let container: HTMLDivElement;
 
-  // The real chain: SCAN_PROGRESS feeds the one driver, and the driver decides
+  // The real chain: LOADING_SOURCE feeds the one driver, and the driver decides
   // when a load is over. Setting it by hand is what let the two disagree.
   let stopDriver: () => void;
 
@@ -81,7 +81,7 @@ describe('HomeView', () => {
     SOURCE_ERROR.value = null;
     CURRENT_SOURCE.value = null;
     stopDriver();
-    SCAN_PROGRESS.value = null;
+    LOADING_SOURCE.value = null;
     hideLoadingOverlay();
     PENDING_SOURCE_LABEL.value = null;
     RECENTS.value = [];

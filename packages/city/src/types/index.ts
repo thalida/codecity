@@ -7,6 +7,7 @@ import type { CameraRig, FocusMode } from '../render/cameraRig';
 import type { CityResources } from '../resources';
 import type { CitySettingsStore } from '../settings/store';
 import type { CitySettingsPatch } from '../settings';
+import type { CityStatus } from '../status';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -99,8 +100,16 @@ export interface City {
    *  nothing to look at — the caller's chrome should then stay where it is. */
   focus(ref: FocusRef, mode?: FocusMode): boolean;
   three: CityThree;
-  /** Subscribe to what this city is doing. Everything the consumer used to get
-   *  by reading a global it now gets here, per instance. */
+  /** What this city is doing, as one value: is there something to look at, is
+   *  more coming, which phase, how far, what is it called. Readable at any
+   *  moment — a host that mounts mid-load asks rather than needing to have
+   *  been listening. This is what a readout binds to; `on` is for the detail
+   *  behind it. */
+  readonly status: CityStatus;
+  /** Hear that `status` changed. Returns the unsubscribe. */
+  onStatus(listener: (status: CityStatus) => void): () => void;
+  /** Subscribe to what this city is doing, event by event. Everything the
+   *  consumer used to get by reading a global it now gets here, per instance. */
   on: CityEmitter['on'];
   /** Show a repo. The city fetches it, applies what comes back and reports the
    *  scan as it goes; the manifest arrives on `scan:manifest`. */

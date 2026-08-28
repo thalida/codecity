@@ -22,13 +22,11 @@ import {
 import { SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
-  REBUILD_STATUS,
-  RebuildStatus,
+  HOST_WORK,
   REBUILD_DETAIL,
-  BUILD_PROGRESS,
   LOADING_OVERLAY,
   LOADING_CANCEL,
-  SCAN_PROGRESS,
+  LOADING_SOURCE,
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/values/updates';
@@ -123,7 +121,7 @@ describe('loadTimelineScene', () => {
     setScrubPos(0);
     setTimelineBundle(null);
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
-    REBUILD_STATUS.value = RebuildStatus.Idle;
+    HOST_WORK.value = { busy: false, error: null };
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
@@ -223,9 +221,9 @@ describe('loadTimelineScene', () => {
     // Union assembly opens the build's own readout rather than a tail beside it,
     // so the row counts one percent from here through to the painted city.
     onProgress({ stage: TimelineStage.Assemble, percent: 62 });
+    // The row it lands on is the readout; the percent inside it is the CITY's
+    // (city.status.fraction), so there is no second plan here to assert on.
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    expect(BUILD_PROGRESS.value?.stages[0]).toBe(BuildStage.Assembling);
-    expect(BUILD_PROGRESS.value?.percent).toBe(62);
 
     resolveFetch(BUNDLE);
     await entering;
@@ -251,7 +249,7 @@ describe('loadTimelineScene', () => {
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
+    expect(HOST_WORK.value.error).not.toBeNull();
   });
 
   it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
@@ -269,7 +267,7 @@ describe('loadTimelineScene', () => {
 
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
+    expect(HOST_WORK.value.error).not.toBeNull();
   });
 
   // The bundle caches per HEAD, so a Fresh scan that did not say so would be
@@ -357,7 +355,7 @@ describe('live poll suspends in Timeline mode', () => {
     restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    SCAN_PROGRESS.value = null;
+    LOADING_SOURCE.value = null;
     resetTimelineMode();
   });
   afterEach(() => {
@@ -404,7 +402,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     beginTimelineMode();
     setScrubPos(2);
     setTimelineBundle(BUNDLE);
-    REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
+    HOST_WORK.value = { busy: false, error: null }; // inPlace reports through the footer
     REBUILD_DETAIL.value = null;
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
@@ -460,7 +458,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     const refetching = loadTimelineScene({ inPlace: true });
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
+    expect(HOST_WORK.value.busy).toBe(true);
 
     onProgress({ stage: TimelineStage.History, commits: 12000 });
     expect(REBUILD_DETAIL.value).toBe('12,000 commits');
@@ -528,7 +526,7 @@ describe('loadTimelineScene inPlace refetch', () => {
     expect(TIMELINE_MODE.value).toBe(true); // still in Timeline
     expect(TIMELINE_BUNDLE.value).toBe(BUNDLE); // on the bundle it already had
     expect(f.applyManifest).not.toHaveBeenCalled();
-    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle); // nothing to unwind
+    expect(HOST_WORK.value).toEqual({ busy: false, error: null }); // nothing to unwind
   });
 });
 
@@ -543,7 +541,7 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
     SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    SCAN_PROGRESS.value = null;
+    LOADING_SOURCE.value = null;
     beginTimelineMode();
     setScrubPos(2);
     setTimelineBundle(BUNDLE);

@@ -1,289 +1,220 @@
-import { CloneStage, ScanPhase } from '@codecity/city';
+// The overlay above the scene city. Everything it draws comes from ONE value —
+// the city's own status — plus the one thing the app knows first: that it asked
+// for a source at all. There is no second account of what is happening here to
+// keep in step, which is what this file used to be full of.
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { BuildStage, CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
+import type { CityStatus } from '@codecity/city';
 import {
   attachOverlayDriver,
-  SCAN_PROGRESS,
-  REBUILD_STATUS,
-  RebuildStatus,
+  CITY_STATUS,
+  LOADING_SOURCE,
   REBUILD_DETAIL,
-  BUILD_PROGRESS,
-  beginBuild,
-  enterBuildStage,
-  setBuildStagePercent,
-  markDecorating,
-  markIdle,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 
 import { SourceKind } from '@/utils/sources';
-import { LoadingStep, BuildStage } from '@/constants/progress';
+import { LoadingStep } from '@/constants/progress';
 
-describe('loadingReactions', () => {
+/** Put the city in a state, the way its own status would report it. */
+function say(status: Partial<CityStatus>): void {
+  CITY_STATUS.value = { ...EMPTY_CITY_STATUS, ...status };
+}
+
+/** A load this app asked for, before the city has reported anything. */
+const asked = (kind = SourceKind.Remote, branch?: string) => {
+  LOADING_SOURCE.value = { kind, branch };
+};
+
+const visible = () => LOADING_OVERLAY.value.visible;
+const step = () => LOADING_OVERLAY.value.activeStep;
+const tail = (row: LoadingStep) => LOADING_OVERLAY.value.stepTails[row];
+
+describe('the loading overlay', () => {
   let dispose: () => void;
+
   beforeEach(() => {
-    markIdle();
+    CITY_STATUS.value = EMPTY_CITY_STATUS;
+    LOADING_SOURCE.value = null;
+    PENDING_SOURCE_LABEL.value = null;
     dispose = attachOverlayDriver();
   });
+
   afterEach(() => {
     dispose();
-    SCAN_PROGRESS.value = null;
-    markIdle();
-    BUILD_PROGRESS.value = null;
+    CITY_STATUS.value = EMPTY_CITY_STATUS;
+    LOADING_SOURCE.value = null;
     // Visibility is per attach, so one left up is invisible to the next test.
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
   });
 
-  // The scan streams structure, then per-file metadata, then git history.
-  // History is where commits come from and commits are the trees, so a city
-  // revealed while it is still streaming grows a forest under the reader's
-  // eyes. The overlay comes down when the city ON SCREEN says it is finished,
-  // which is what BUILT_PENDING carries out of the city's own build:done.
+  describe('when it is up', () => {
+    it('shows as soon as a source is asked for, before the city has spoken', () => {
+      asked();
+      expect(visible()).toBe(true);
+      expect(step()).toBe(CityPhase.Resolving);
+    });
 
-  it('keeps the overlay up while per-file metadata is still pending', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    markIdle(['metadata', 'history']);
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
+    it('opens on Scanning for a local path, which has nothing to resolve', () => {
+      asked(SourceKind.Local);
+      expect(step()).toBe(CityPhase.Scanning);
+    });
+
+    it('follows the city down the list', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Cloning, fetching: true });
+      expect(step()).toBe(CityPhase.Cloning);
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Sketching, fetching: true });
+      expect(step()).toBe(CityPhase.Sketching);
+    });
+
+    // The scan streams more than once: history is where commits come from, and
+    // commits are the trees, so a city revealed here grows a forest.
+    it('stays up for a city on screen that is not the final one', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Ready, fetching: true });
+      LOADING_SOURCE.value = null; // the stream has ended
+      expect(visible()).toBe(true);
+    });
+
+    it('stays up through the last build after the stream has ended', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      LOADING_SOURCE.value = null;
+      expect(visible()).toBe(true);
+    });
   });
 
-  it('keeps it up once metadata has landed and only history is streaming', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    // The metadata manifest painted — a real city, but not the whole one.
-    markIdle(['history']);
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
+  describe('when it comes down', () => {
+    it('goes once the city on screen says nothing is left to come', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Ready, fetching: true });
+      expect(visible()).toBe(true);
+
+      say({ lifecycle: CityLifecycle.Ready, fetching: false });
+      LOADING_SOURCE.value = null;
+      expect(visible()).toBe(false);
+    });
+
+    it('goes when the build errored, since no frame is coming', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Error, error: new Error('no such repo') });
+      LOADING_SOURCE.value = null;
+      expect(visible()).toBe(false);
+    });
+
+    // A Save re-packs the city behind an overlay nobody asked for otherwise.
+    it('does not appear for a rebuild with no source asked for', () => {
+      say({ lifecycle: CityLifecycle.Ready, phase: CityPhase.Building, fetching: false });
+      expect(visible()).toBe(false);
+    });
   });
 
-  it('comes down when the city on screen reports nothing left to come', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    markIdle(['history']);
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
+  describe('the list of rows', () => {
+    it('never walks backwards inside one load', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      expect(step()).toBe(CityPhase.Building);
 
-    // The complete manifest paints, trees and all, and the stream ends.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    markIdle([]);
-    SCAN_PROGRESS.value = null;
+      // Re-lighting a row already passed reads as the load starting again.
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Scanning, fetching: true });
+      expect(step()).toBe(CityPhase.Building);
+    });
 
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    it('starts over for a genuinely new load', () => {
+      asked();
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      say({ lifecycle: CityLifecycle.Ready, fetching: false });
+      LOADING_SOURCE.value = null;
+      expect(visible()).toBe(false);
+
+      CITY_STATUS.value = EMPTY_CITY_STATUS;
+      asked();
+      expect(visible()).toBe(true);
+      expect(step()).toBe(CityPhase.Resolving);
+    });
   });
 
-  // The stream ending is not the city appearing: the final manifest still has
-  // to be packed and presented.
-  it('holds through the last build after the stream has ended', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    markIdle(['history']);
-    SCAN_PROGRESS.value = null;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
+  describe('the tails beside a row', () => {
+    it('counts files against the row producing them', () => {
+      asked();
+      say({
+        lifecycle: CityLifecycle.Loading,
+        phase: CityPhase.Scanning,
+        fetching: true,
+        counts: { filesScanned: 1204 },
+      });
+      expect(tail(CityPhase.Scanning)).toBe('1,204 files');
+    });
 
-    markIdle([]);
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    it('shows git’s own counters while cloning, which is what says it is alive', () => {
+      asked();
+      say({
+        lifecycle: CityLifecycle.Loading,
+        phase: CityPhase.Cloning,
+        fetching: true,
+        fraction: 0.4,
+        counts: { objects: 1200, objectsTotal: 4000, mib: 12 },
+      });
+      expect(tail(CityPhase.Cloning)).toBe('40% · 1,200/4,000 · 12 MiB');
+    });
+
+    // The silent promisor blob fetch reports no percent at all.
+    it('falls back to the working tree growing on disk', () => {
+      asked();
+      say({
+        lifecycle: CityLifecycle.Loading,
+        phase: CityPhase.Cloning,
+        fetching: true,
+        counts: { mbOnDisk: 45 },
+      });
+      expect(tail(CityPhase.Cloning)).toBe('45 MB');
+    });
+
+    it('puts the build’s own part on the Building row', () => {
+      asked();
+      say({
+        lifecycle: CityLifecycle.Loading,
+        phase: CityPhase.Building,
+        stage: BuildStage.Layout,
+        fraction: 0.33,
+        fetching: true,
+      });
+      expect(tail(CityPhase.Building)).toBe('33% layout');
+    });
+
+    it('clears a row’s tail when the city hands over to the next', () => {
+      asked();
+      say({
+        lifecycle: CityLifecycle.Loading,
+        phase: CityPhase.Scanning,
+        fetching: true,
+        counts: { filesScanned: 1204 },
+      });
+      expect(tail(CityPhase.Scanning)).toBe('1,204 files');
+
+      // A stale "1,204 files" beside "Building city" reads as a scanner that is
+      // still running.
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      expect(tail(CityPhase.Scanning)).toBeNull();
+    });
   });
 
-  it('a new load shows the overlay even though the previous repo finished', () => {
-    // First load runs to completion…
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.PartialManifest,
-    };
-    markIdle([]);
-    SCAN_PROGRESS.value = null;
-    // …then a second load starts. Nothing of it is applied yet, so the finished
-    // previous city must not be what decides this one's reveal.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-  });
+  describe('what the app knows and the city does not', () => {
+    it('keeps the repo name up for the whole overlay, not just the stream', () => {
+      asked();
+      PENDING_SOURCE_LABEL.value = 'codecity';
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      expect(PENDING_SOURCE_LABEL.value).toBe('codecity');
+    });
 
-  it('shows the overlay immediately on a just-started (phase null) load', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    // git initial step is Resolving (set by showLoadingOverlay), not overridden
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Resolving);
-  });
-
-  it('local just-started shows the Scanning initial step', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Scanning);
-  });
-
-  it('advances the step to Building on the skeleton phase', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
-  });
-
-  it('sets a cloning tail from percent/stage', () => {
-    SCAN_PROGRESS.value = {
-      kind: SourceKind.Remote,
-      phase: ScanPhase.CloneProgress,
-      percent: 45,
-      stage: CloneStage.Receiving,
-    };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Cloning);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Cloning]).toContain('45%');
-  });
-
-  it('hides the overlay when progress clears', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: ScanPhase.ScanProgress };
-    SCAN_PROGRESS.value = null;
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-  });
-
-  it('holds the overlay after the stream ends while the city is still building', () => {
-    // Stream in progress → overlay shows.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    // City build kicked off (applyManifest → layoutCity) BEFORE the stream's
-    // finally clears progress.
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = null;
-    // Overlay stays up (would otherwise flash an empty 3D world), on Building.
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-
-    // Decorating lands before the layout is published, so the overlay stays.
-    REBUILD_STATUS.value = RebuildStatus.Decorating;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-
-    markIdle();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-  });
-
-  it('holds the overlay through Decorating, which lands before the city exists', () => {
-    // markDecorating runs BEFORE applyStructure publishes the layout, so the
-    // city does not exist during it. Idle is what means "on screen" now.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = null;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-
-    REBUILD_STATUS.value = RebuildStatus.Decorating;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-
-    markIdle();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-  });
-
-  it('lets the overlay go when the build errored', () => {
-    // Nothing will ever paint, so holding for a frame would strand it.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = null;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-
-    REBUILD_STATUS.value = RebuildStatus.Error;
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-  });
-
-  it('keeps the repo name up for the whole overlay, not just the stream', () => {
-    // The stream ends well before the city is assembled, so clearing the label
-    // with the stream blanked the header while Building was still on screen.
-    PENDING_SOURCE_LABEL.value = 'owner/repo';
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = null;
-
-    expect(LOADING_OVERLAY.value.visible, 'still building').toBe(true);
-    expect(PENDING_SOURCE_LABEL.value, 'header must survive the build phase').toBe('owner/repo');
-
-    // Decorating is still building; the label clears with the overlay.
-    REBUILD_STATUS.value = RebuildStatus.Decorating;
-    expect(LOADING_OVERLAY.value.visible).toBe(true);
-
-    markIdle();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
-  });
-
-  // Sketching layout owns the skeleton AND the city drawn from it; Building
-  // city is the real heights going up. The list only ever moves forward.
-
-  it('stays on Sketching layout while the skeleton city is being built', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding; // the skeleton's own pack
-
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
-  });
-
-  it('moves to Building city when the complete manifest lands', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-  });
-
-  it('never walks the list backwards inside one load', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-
-    // Re-lighting a row already passed reads as the load starting again.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.ScanProgress };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-  });
-
-  it('starts the list over for a genuinely new load', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-
-    // A new load announces itself with a phase-less first event.
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress, percent: 10 };
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Cloning);
-  });
-
-  it('does NOT show the overlay for a settings rebuild (no stream)', () => {
-    // A config Save sets Rebuilding with no SCAN_PROGRESS — the footer owns that
-    // status, not the loading overlay.
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-  });
-
-  // The build's stages go to the overlay's row and nowhere else. They pass in a
-  // few frames, and the freshness readout flickering through them was noise.
-
-  it('puts the build stage on the Building row', () => {
-    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('0% layout');
-  });
-
-  it('follows the build the whole way down the row', () => {
-    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-    setBuildStagePercent(30);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('15% layout');
-
-    enterBuildStage(BuildStage.Assemble);
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('50% buildings');
-  });
-
-  it('carries on into the decoration pass rather than going blank', () => {
-    // Timeline's overlay outlives the pack, so a row cleared here sits empty
-    // through the tree pass and the scrub install: the wait that needed it.
-    beginBuild([BuildStage.Layout, BuildStage.Assemble, BuildStage.Decorate]);
-    markDecorating();
-
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBe('67% trees');
-  });
-
-  // The readout beside the dot says "rebuilding…" and nothing else; only a
-  // build with no overlay to report it (Timeline's refetch) writes that detail.
-  it('leaves the freshness detail alone through a build', () => {
-    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-    expect(REBUILD_DETAIL.value).toBeNull();
-
-    setBuildStagePercent(30);
-    enterBuildStage(BuildStage.Assemble);
-    markDecorating();
-    expect(REBUILD_DETAIL.value).toBeNull();
-  });
-
-  it('clears the row when the build finishes', () => {
-    beginBuild([BuildStage.Layout, BuildStage.Assemble]);
-    markIdle();
-
-    expect(BUILD_PROGRESS.value).toBeNull();
-    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Building]).toBeNull();
+    it('leaves the freshness detail alone through a build', () => {
+      REBUILD_DETAIL.value = '12,000 commits';
+      asked();
+      say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+      expect(REBUILD_DETAIL.value).toBe('12,000 commits');
+    });
   });
 });

@@ -26,7 +26,7 @@ export {
 
 export { citySettings, settingsStore, layoutCfg, treeCfg } from './_helpers/citySettings';
 export { createTestCityResources } from './_helpers/cityResources';
-export { createEmitter, recordingEmitter, nextBuild } from './_helpers/cityEvents';
+export { createEmitter, recordingEmitter, nextBuild, statusFrom } from './_helpers/cityEvents';
 export type { RecordedEvent } from './_helpers/cityEvents';
 export {
   stubPlacementClient,

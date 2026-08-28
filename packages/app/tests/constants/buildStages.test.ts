@@ -1,43 +1,34 @@
-// The tail the "Building city" row renders. Its denominator is the build's own
-// plan, so the format has to survive plans of different lengths.
+// The tail the "Building city" row renders. The number is the city's — it
+// counts against the plan THIS build runs — and this is the word beside it.
 
 import { describe, it, expect } from 'vitest';
 import { BuildStage, buildStageTail } from '@/constants/progress';
+import { EMPTY_CITY_STATUS, CityPhase, type CityStatus } from '@codecity/city';
 
-const FULL = [BuildStage.Icons, BuildStage.Layout, BuildStage.Assemble];
-const REUSE = [BuildStage.Layout, BuildStage.Assemble];
+const building = (fraction: number | null, stage: BuildStage | null): CityStatus => ({
+  ...EMPTY_CITY_STATUS,
+  phase: CityPhase.Building,
+  stage,
+  fraction,
+});
 
 describe('buildStageTail', () => {
   it('says nothing between builds', () => {
-    expect(buildStageTail(null)).toBeNull();
+    expect(buildStageTail(EMPTY_CITY_STATUS)).toBeNull();
   });
 
-  it('spreads one percent over the whole plan, and names the part', () => {
-    expect(buildStageTail({ stages: FULL, index: 1, percent: null })).toBe('33% layout');
+  it('renders the city’s fraction as a percent, and names the part', () => {
+    expect(buildStageTail(building(0.33, BuildStage.Layout))).toBe('33% layout');
   });
 
-  it('measures against the stages THIS build runs, not a constant', () => {
-    // The same stage, one apply reusing the packed layout and skipping the
-    // atlas: it opens that build rather than sitting a third of the way in.
-    expect(buildStageTail({ stages: REUSE, index: 0, percent: null })).toBe('0% layout');
-  });
-
-  it('fills in a stage that measures itself, within its own share', () => {
-    // Second of three, 43% through: a third of the bar plus 43% of the next.
-    expect(buildStageTail({ stages: FULL, index: 1, percent: 43 })).toBe('48% layout');
-  });
-
-  it('only ever climbs as the plan advances', () => {
-    const seen = FULL.map((_, index) =>
-      Number(buildStageTail({ stages: FULL, index, percent: null })!.split('%')[0])
-    );
-    expect(seen).toEqual([...seen].sort((a, b) => a - b));
-    expect(new Set(seen).size).toBe(seen.length);
-  });
-
-  it('has a word for every stage', () => {
-    for (const [index] of FULL.entries()) {
-      expect(buildStageTail({ stages: FULL, index, percent: null })).toMatch(/^\d+% [a-z]+$/);
+  it('has a word for every stage a build can be in', () => {
+    for (const stage of Object.values(BuildStage)) {
+      expect(buildStageTail(building(0.5, stage))).toMatch(/^50% [a-z]+$/);
     }
+  });
+
+  // A build that has not said which part it is in still has a number.
+  it('falls back to the percent alone when no stage is named', () => {
+    expect(buildStageTail(building(0.5, null))).toBe('50%');
   });
 });

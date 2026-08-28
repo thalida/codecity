@@ -8,13 +8,8 @@ import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_REBUILD_ERROR,
-  LAST_UPDATED_AT,
-  REBUILD_DETAIL,
-} from '@/state/stores/progress';
+import { CityLifecycle, CityPhase } from '@codecity/city';
+import { CITY_STATUS, HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/state/stores/progress';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.
@@ -64,43 +59,46 @@ export function useFreshness(): Freshness {
   void tick.value;
 
   const liveEnabled = LIVE_UPDATES_ACTIVE.value;
-  const rebuildStatus = REBUILD_STATUS.value;
+  const status = CITY_STATUS.value;
   const lastUpdatedAt = LAST_UPDATED_AT.value;
-  const errorMessage = LAST_REBUILD_ERROR.value;
+  const failure = status.error ?? HOST_WORK.value.error;
+  const errorMessage = failure instanceof Error ? failure.message : null;
   const rebuildDetail = REBUILD_DETAIL.value;
+  const host = HOST_WORK.value;
+  // Working, by either account: the city is doing something, or this app is —
+  // a Save answered in place, or a bundle it is fetching itself.
+  const working = status.phase !== null || host.busy;
+  const failed = status.lifecycle === CityLifecycle.Error || host.error !== null;
 
   let buildClass: BuildClass;
   let detailText: string;
-  switch (rebuildStatus) {
-    case RebuildStatus.Rebuilding:
-      buildClass = BuildClass.Rebuilding;
-      // A rebuild with nothing else on screen to report it (Timeline refetching
-      // its bundle under an exclude edit) carries its stage here.
-      detailText = rebuildDetail
-        ? `${DETAIL_TEXT.rebuilding} ${rebuildDetail}`
-        : DETAIL_TEXT.rebuilding;
-      break;
-    case RebuildStatus.Decorating:
-      buildClass = BuildClass.Rebuilding;
-      detailText = DETAIL_TEXT.decorating;
-      break;
-    case RebuildStatus.Error:
-      buildClass = BuildClass.Error;
-      detailText = DETAIL_TEXT.error;
-      break;
-    default: // Idle
-      buildClass = BuildClass.Ready;
-      detailText =
-        lastUpdatedAt > 0 ? formatRelativeAgeShort(lastUpdatedAt, Date.now()) : DETAIL_TEXT.ready;
+  if (failed) {
+    buildClass = BuildClass.Error;
+    detailText = DETAIL_TEXT.error;
+  } else if (status.phase === CityPhase.Building && status.fetching) {
+    // The city is up and its deferred pass is still running.
+    buildClass = BuildClass.Rebuilding;
+    detailText = DETAIL_TEXT.decorating;
+  } else if (working) {
+    buildClass = BuildClass.Rebuilding;
+    // A rebuild with nothing else on screen to report it (Timeline refetching
+    // its bundle under an exclude edit) carries its stage here.
+    detailText = rebuildDetail
+      ? `${DETAIL_TEXT.rebuilding} ${rebuildDetail}`
+      : DETAIL_TEXT.rebuilding;
+  } else {
+    buildClass = BuildClass.Ready;
+    detailText =
+      lastUpdatedAt > 0 ? formatRelativeAgeShort(lastUpdatedAt, Date.now()) : DETAIL_TEXT.ready;
   }
 
   const liveLabel = `Auto-refresh: ${liveEnabled ? 'on' : 'off'}`;
   let titleText: string;
-  if (rebuildStatus === RebuildStatus.Error && errorMessage) {
+  if (failed && errorMessage) {
     titleText = `${liveLabel} · error: ${errorMessage}`;
-  } else if (rebuildStatus === RebuildStatus.Idle && lastUpdatedAt > 0) {
+  } else if (!working && !failed && lastUpdatedAt > 0) {
     titleText = `${liveLabel} · rebuilt ${detailText}`;
-  } else if (rebuildStatus === RebuildStatus.Rebuilding) {
+  } else if (working) {
     // No stage tail here: ScanMenu announces this string from a live region,
     // and a count ticking every few hundred ms would talk over everything else.
     titleText = `${liveLabel} · ${DETAIL_TEXT.rebuilding}`;

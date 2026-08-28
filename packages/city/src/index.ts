@@ -8,6 +8,12 @@ export { createCity } from './createCity';
 export type { City, FocusRef, SceneComponent, SceneContext, FrameContext } from './types';
 export { BuildStage } from './types/build';
 
+// ── What a city is doing ─────────────────────────────────────────────────
+// One value, folded from the eleven events below it. A readout binds to this;
+// the events are the detail behind it.
+export { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from './status';
+export type { CityStatus, CityStatusCounts, CityStatusTracker } from './status';
+
 // ── Timeline ─────────────────────────────────────────────────────────────
 // A city's history and where in it you are. The consumer needs the state's
 // type to read the one its city hands back, and createTimelineState to answer

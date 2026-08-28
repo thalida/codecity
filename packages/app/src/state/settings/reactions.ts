@@ -10,13 +10,7 @@
 
 import { computed, effect, untracked } from '@preact/signals';
 
-import {
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_UPDATED_AT,
-  markRebuilding,
-  markIdle,
-} from '@/state/stores/progress';
+import { HOST_WORK, beginHostWork, endHostWork } from '@/state/stores/progress';
 import { routeSignature, ChangeRoute } from '@/state/settings/schema';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
@@ -39,15 +33,14 @@ export function attachSettingsReactions(): () => void {
   function flagRefresh() {
     if (!armed) return;
     if (hotIdleTimer) clearTimeout(hotIdleTimer);
-    markRebuilding();
+    beginHostWork();
     // Min-dwell so the flash is visible, and only if no real rebuild is in
     // flight: the city's own build owns the final status then.
     hotIdleTimer = setTimeout(() => {
       hotIdleTimer = 0;
-      if (REBUILD_STATUS.peek() === RebuildStatus.Rebuilding) {
-        markIdle();
-        LAST_UPDATED_AT.value = Date.now();
-      }
+      // Only if nothing else claimed the readout since: a real build owns the
+      // status then, and this flash must not end it.
+      if (HOST_WORK.peek().busy) endHostWork();
     }, HOT_REBUILD_MIN_DWELL_MS);
   }
 

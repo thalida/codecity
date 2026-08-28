@@ -2,41 +2,45 @@
 // the overlay advances through, and the sub-stages that run inside its last row
 // once the stream has handed over to the build.
 
-import { ScanPhase, TimelineStage, BuildStage } from '@codecity/city';
+import { CityPhase, TimelineStage, BuildStage } from '@codecity/city';
+import type { CityStatus } from '@codecity/city';
 import { SourceKind } from '@/utils/sources';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 
-export enum LoadingStep {
-  Resolving = 'resolving',
-  Cloning = 'cloning',
-  Scanning = 'scanning',
-  Skeleton = 'skeleton',
-  Building = 'building',
-  // Timeline-mode entry, one row per stage of the history stream: the blob
-  // backfill, the commit walk, then blob resolution.
+// Timeline-mode entry, one row per stage of the history stream: the blob
+// backfill, the commit walk, then blob resolution. Ours until that stream is
+// the city's too — every other row IS a city phase, so there is no second
+// vocabulary and nothing to map between.
+export enum TimelineStep {
   TimelineFetch = 'timeline-fetch',
   TimelineHistory = 'timeline-history',
   TimelineBlobs = 'timeline-blobs',
 }
 
+/** A row of the overlay. The city's phases, plus the timeline stream's. */
+export type LoadingStep = CityPhase | TimelineStep;
+
+/** The rows, by the names the city uses for its own. */
+export const LoadingStep = { ...CityPhase, ...TimelineStep } as const;
+
 // Display order. 'skeleton' paints placeholders while the server resolves
 // per-file metadata; 'building' tweens in the real heights and ends every list.
 export const LOADING_STEPS: readonly LoadingStep[] = [
-  LoadingStep.Resolving,
-  LoadingStep.Cloning,
-  LoadingStep.Scanning,
-  LoadingStep.Skeleton,
-  LoadingStep.Building,
+  CityPhase.Resolving,
+  CityPhase.Cloning,
+  CityPhase.Scanning,
+  CityPhase.Sketching,
+  CityPhase.Building,
 ];
 
 // Timeline's own list. Reuses LoadingStep.Building rather than inventing
 // a second label for the same act.
 export const TIMELINE_LOADING_STEPS: readonly LoadingStep[] = [
-  LoadingStep.TimelineFetch,
-  LoadingStep.TimelineHistory,
-  LoadingStep.TimelineBlobs,
-  LoadingStep.Building,
+  TimelineStep.TimelineFetch,
+  TimelineStep.TimelineHistory,
+  TimelineStep.TimelineBlobs,
+  CityPhase.Building,
 ];
 
 // Where a row sits relative to the active step. The values are the
@@ -48,23 +52,25 @@ export enum LoadingStepState {
 }
 
 // Human-readable label for each step.
+// What each row is CALLED is this app's, which is the only part of a row that
+// ever was: the city says what it is doing, in one word, once.
 export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
-  [LoadingStep.Resolving]: 'Resolving source',
-  [LoadingStep.Cloning]: 'Cloning',
-  [LoadingStep.Scanning]: 'Scanning files',
-  [LoadingStep.Skeleton]: 'Sketching layout',
-  [LoadingStep.Building]: 'Building city',
-  [LoadingStep.TimelineFetch]: 'Fetching history',
-  [LoadingStep.TimelineHistory]: 'Walking commits',
-  [LoadingStep.TimelineBlobs]: 'Resolving files',
+  [CityPhase.Resolving]: 'Resolving source',
+  [CityPhase.Cloning]: 'Cloning',
+  [CityPhase.Scanning]: 'Scanning files',
+  [CityPhase.Sketching]: 'Sketching layout',
+  [CityPhase.Building]: 'Building city',
+  [TimelineStep.TimelineFetch]: 'Fetching history',
+  [TimelineStep.TimelineHistory]: 'Walking commits',
+  [TimelineStep.TimelineBlobs]: 'Resolving files',
 };
 
 // Steps that exist only for a remote source: a path already on disk has
 // nothing to resolve, clone, or fetch.
-const REMOTE_ONLY_STEPS: ReadonlySet<LoadingStep> = new Set([
-  LoadingStep.Resolving,
-  LoadingStep.Cloning,
-  LoadingStep.TimelineFetch,
+const REMOTE_ONLY_STEPS: ReadonlySet<LoadingStep> = new Set<LoadingStep>([
+  CityPhase.Resolving,
+  CityPhase.Cloning,
+  TimelineStep.TimelineFetch,
 ]);
 
 /** Git's transfer as the rows show it. It sits on one percent for minutes of a
@@ -96,33 +102,32 @@ export function firstStepFor(steps: readonly LoadingStep[], kind: SourceKind | n
   return steps.find((step) => stepRuns(step, kind)) ?? steps[0];
 }
 
-/** Scan phase to step, by source kind: local skips resolving and cloning. One
- *  definition, shared by the overlay reactions and the inline progress. */
-export function stepForPhase(phase: ScanPhase | null, kind: SourceKind): LoadingStep {
-  switch (phase) {
-    case ScanPhase.CloneProgress:
-      return LoadingStep.Cloning;
-    case ScanPhase.ScanProgress:
-      return LoadingStep.Scanning;
-    case ScanPhase.PartialManifest:
-      return LoadingStep.Skeleton;
-    case ScanPhase.CompleteManifest:
-      return LoadingStep.Building;
-    default:
-      // phase === null: just-started, no stream event yet.
-      return firstStepFor(LOADING_STEPS, kind);
+/** The counts behind the current phase, as this app says them. Facts are the
+ *  city's; the words and the locale are ours. */
+export function countsTail(status: CityStatus): string | null {
+  const c = status.counts;
+  if (c.filesScanned != null) return `${c.filesScanned.toLocaleString()} files`;
+  const parts: string[] = [];
+  if (status.fraction != null) parts.push(`${Math.round(status.fraction * 100)}%`);
+  if (c.objects != null && c.objectsTotal != null) {
+    parts.push(`${c.objects.toLocaleString()}/${c.objectsTotal.toLocaleString()}`);
   }
+  if (c.mib != null) parts.push(`${c.mib.toLocaleString()} MiB`);
+  // The silent promisor blob fetch reports no percent at all, and shows the
+  // working tree growing on disk instead.
+  if (!parts.length && c.mbOnDisk != null) parts.push(`${c.mbOnDisk} MB`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 // A Record, not a switch: a stage added to the wire contract fails to compile
 // here rather than silently falling through to the wrong row.
 const TIMELINE_STAGE_STEPS: Record<TimelineStage, LoadingStep> = {
-  [TimelineStage.Fetch]: LoadingStep.TimelineFetch,
-  [TimelineStage.History]: LoadingStep.TimelineHistory,
-  [TimelineStage.Blobs]: LoadingStep.TimelineBlobs,
+  [TimelineStage.Fetch]: TimelineStep.TimelineFetch,
+  [TimelineStage.History]: TimelineStep.TimelineHistory,
+  [TimelineStage.Blobs]: TimelineStep.TimelineBlobs,
   // Union assembly, the bundle's trip down the wire, and the pack that follows
   // are one wait with no way to tell them apart: they share the build row.
-  [TimelineStage.Assemble]: LoadingStep.Building,
+  [TimelineStage.Assemble]: CityPhase.Building,
 };
 
 /** Timeline stream stage to step. stepForPhase's counterpart for the other stream. */
@@ -135,17 +140,6 @@ export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
 // they are CALLED is ours (BUILD_STAGE_LABELS), and so is the whole reduction
 // into LoadingSteps below.
 export { BuildStage };
-
-/** How far one build has got. The stage list is per-build (see buildStageTail). */
-export interface BuildProgress {
-  /** The stages this build will run, in order. */
-  stages: readonly BuildStage[];
-  /** Index into `stages` of the one running now. */
-  index: number;
-  /** 0-100 within the CURRENT stage, for one that can measure itself; null for
-   *  one that only knows it started. buildStageTail spreads it over the plan. */
-  percent: number | null;
-}
 
 // One word each: the row already says "Building city", and this says which part
 // of it. Read beside the percent, never instead of it.
@@ -167,15 +161,10 @@ export const PACK_STAGES: readonly BuildStage[] = [
   BuildStage.Decorate,
 ];
 
-/** The Building row's tail: one percent over the whole build, and the word for
- *  the part it is in — the server's wait and this machine's read alike. */
-export function buildStageTail(progress: BuildProgress | null): string | null {
-  if (!progress) return null;
-  const stage = progress.stages[progress.index];
-  if (!stage) return null;
-  // A stage that measures itself fills in its own share of the bar; one that
-  // only knows it started sits at the foot of its share.
-  const within = (progress.percent ?? 0) / 100;
-  const percent = Math.round(((progress.index + within) / progress.stages.length) * 100);
-  return `${percent}% ${BUILD_STAGE_LABELS[stage]}`;
+/** The Building row's tail: the city's own fraction over the whole build, and
+ *  this app's word for the part it is in. */
+export function buildStageTail(status: CityStatus): string | null {
+  if (status.fraction == null) return null;
+  const percent = `${Math.round(status.fraction * 100)}%`;
+  return status.stage ? `${percent} ${BUILD_STAGE_LABELS[status.stage]}` : percent;
 }

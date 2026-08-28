@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import { API } from '@/apiClient';
-import { SCAN_PROGRESS } from '@/state/stores/progress';
+import { LOADING_SOURCE } from '@/state/stores/progress';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
 
@@ -41,7 +41,7 @@ describe('NewProjectForm', () => {
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    SCAN_PROGRESS.value = null;
+    LOADING_SOURCE.value = null;
     vi.restoreAllMocks();
   });
 

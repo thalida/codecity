@@ -2,6 +2,7 @@
 // actually about. Nothing here reaches a store: an event is a statement the
 // city makes, and what a consumer does with it is the consumer's test.
 
+import { createCityStatus } from '../../src/status';
 import { createEmitter, type CityEmitter, type CityEventName } from '../../src/events';
 
 export { createEmitter };
@@ -40,4 +41,18 @@ export function nextBuild(handle: { on: CityEmitter['on'] }): Promise<void> {
       resolve();
     });
   });
+}
+
+/** An emitter plus the status folded from it, in the shape a host subscribes
+ *  to — `{ status, onStatus }`. What a consumer testing its own readout needs:
+ *  drive the events, and the status answers as a real city's would. */
+export function statusFrom(events: ReturnType<typeof createEmitter>) {
+  const tracker = createCityStatus(events.on);
+  return {
+    get status() {
+      return tracker.value;
+    },
+    onStatus: tracker.on,
+    dispose: tracker.dispose,
+  };
 }

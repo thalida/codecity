@@ -24,7 +24,7 @@ import { goToPath, goToCommit, clearSelection } from '@/state/stores/city';
 import { loadTimelineScene, exitTimelineMode, viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { BUILT_MANIFEST, markDecorating, markIdle } from '@/state/stores/progress';
+import { BUILT_MANIFEST } from '@/state/stores/progress';
 import { PICKER_SELECTION_KEY } from '@/state/stores/city';
 import {
   SCRUB_DRAGGING,
@@ -53,7 +53,7 @@ const params = (): URLSearchParams => ROUTE_PARAMS.value;
  *  does it. */
 function commitWorld(src = SRC): void {
   commitSource(src, undefined, LOADED);
-  markIdle();
+  BUILT_MANIFEST.value = LOADED;
 }
 
 describe('view URL', () => {
@@ -230,13 +230,16 @@ describe('view URL', () => {
     // building to select: restoring there erases the params it was holding.
     it('waits for the apply, not for whatever left the city Idle', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=file:app/src/main.tsx');
-      markIdle(); // the empty boot city settles, before any source
+      // The empty boot city settles before any source: it finished a build, but
+      // it built nothing, so there is no manifest to have restored a selection
+      // into. Only the committed manifest's own city releases the follow.
+      BUILT_MANIFEST.value = null;
       commitSource(SRC, undefined, LOADED);
       await flush();
       expect(goToPath).not.toHaveBeenCalled();
       expect(params().get('sel')).toBe('file:app/src/main.tsx'); // and still held
 
-      markIdle(); // the committed manifest's city lands
+      BUILT_MANIFEST.value = LOADED; // the committed manifest's city lands
       await flush();
       expect(goToPath).toHaveBeenCalledWith('app/src/main.tsx', FocusMode.Recenter);
     });
@@ -246,11 +249,11 @@ describe('view URL', () => {
     it('waits for the whole build, not the paint the decoration starts from', async () => {
       attach('?src=%2Frepos%2Fcodecity&sel=commit:abc123');
       commitSource(SRC, undefined, LOADED);
-      markDecorating(); // city on screen, trees still in flight
+      // city on screen, trees still in flight
       await flush();
       expect(goToCommit).not.toHaveBeenCalled();
 
-      markIdle(); // trees placed, build over
+      BUILT_MANIFEST.value = LOADED; // trees placed, build over
       await flush();
       expect(goToCommit).toHaveBeenCalledWith('abc123', FocusMode.Recenter);
     });

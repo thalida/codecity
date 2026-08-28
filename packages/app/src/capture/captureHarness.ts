@@ -9,7 +9,8 @@ import { effect } from '@preact/signals';
 import { isDebugMode } from '@/utils/debugMode';
 import { SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { CITY_STATUS } from '@/state/stores/progress';
+import { CityLifecycle } from '@codecity/city';
 
 import { SHOTS, type ShotOverrides } from './shots';
 
@@ -48,7 +49,11 @@ export function initCaptureHarness(): void {
   const stop = effect(() => {
     const handle = SCENE_HANDLE.value;
     const manifest = MANIFEST.value as Manifest;
-    if (posed || !handle || !manifest || REBUILD_STATUS.value !== RebuildStatus.Idle) return;
+    const status = CITY_STATUS.value;
+    // On screen AND final: a shot of a city still growing trees is a shot of a
+    // different city from the one it will be a second later.
+    if (posed || !handle || !manifest) return;
+    if (status.lifecycle !== CityLifecycle.Ready || status.fetching) return;
     // A skeleton also reaches Idle, and framing on its root-street bbox locks
     // onto a close-up. Reading anchors subscribes to bbox, so this re-fires.
     if (handle.rig.captureAnchors().tallestHeight <= 0) return;

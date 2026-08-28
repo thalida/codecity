@@ -17,6 +17,7 @@ import { createCityResources } from './resources';
 import { createSettingsStore } from './settings/store';
 import { ChangeRoute } from './settings/schema';
 import { createEmitter } from './events';
+import { createCityStatus } from './status';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
 import { createTimelineState } from './timeline/state';
@@ -372,6 +373,11 @@ export async function createCity(
   // for one city — the other one on the page got the first one's manifest,
   // because the host only has one — and it re-derived, from string signatures
   // over globals, a fact this store already computed exactly.
+  // Folded from this city's own events, so a host reads one value instead of
+  // reassembling eleven. Constructed here rather than lazily: it has to hear
+  // the first scan:start, and a host that subscribes late still gets the truth.
+  const status = createCityStatus(events.on);
+
   const stopSettingsRebuild = settings.onRoute(ChangeRoute.Rebuild, () => {
     // The manifest is unchanged, so the layout would be reused and the setting
     // would do nothing visible.
@@ -438,6 +444,12 @@ export async function createCity(
     cancelLoad: sourceLoader.cancel,
     settings,
     updateSettings: settings.update,
+    /** What this city is doing, right now. A value, not a transcript: read it
+     *  whenever, and subscribe with `onStatus` for the next answer. */
+    get status() {
+      return status.value;
+    },
+    onStatus: status.on,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
@@ -457,6 +469,7 @@ export async function createCity(
     dispose(): void {
       // Listeners first: nothing below may call back into a view that is on its
       // way out, and a torn-down city has nothing left worth reporting.
+      status.dispose();
       events.clear();
       sourceLoader.dispose();
       timeline.dispose();

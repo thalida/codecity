@@ -20,15 +20,14 @@ import {
 import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
-  markError,
-  markRebuilding,
-  SCAN_PROGRESS,
+  failHostWork,
+  beginHostWork,
+  LOADING_SOURCE,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import {
   srcKind,
-  SourceKind,
   identityBranch,
   sourceKey,
   sameSourceIdentity,
@@ -51,30 +50,15 @@ import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
  *  and reaches none of this, which is what stopped the two of them fighting
  *  over one MANIFEST. */
 export function attachScanProgress(on: City['on']): () => void {
-  let meta: { kind: SourceKind; branch?: string } = { kind: srcKind('') };
-  // Only partials are applied here, so a complete event carries the last
-  // applied `pending` forward rather than claiming its own as applied.
-
   const offs = [
+    // The kind of source is what THIS app knows before the city reports
+    // anything: a local path skips the rows a remote one runs.
     on('scan:start', ({ src, branch }) => {
-      meta = { kind: srcKind(src), branch };
+      LOADING_SOURCE.value = { kind: srcKind(src), branch };
     }),
     // Server-side, so the document title and the overlay header name the
     // project the same way instead of each deriving it from the src.
     on('scan:label', ({ label }) => void (PENDING_SOURCE_LABEL.value = label)),
-    on('scan:progress', ({ event }) => {
-      SCAN_PROGRESS.value = {
-        ...meta,
-        phase: event.phase,
-        percent: event.phase === ScanPhase.CloneProgress ? event.percent : undefined,
-        stage: event.phase === ScanPhase.CloneProgress ? event.stage : undefined,
-        mbOnDisk: event.phase === ScanPhase.CloneProgress ? event.mb_on_disk : undefined,
-        objects: event.phase === ScanPhase.CloneProgress ? event.objects : undefined,
-        objectsTotal: event.phase === ScanPhase.CloneProgress ? event.objects_total : undefined,
-        mib: event.phase === ScanPhase.CloneProgress ? event.mib : undefined,
-        filesScanned: event.phase === ScanPhase.ScanProgress ? event.files_scanned : undefined,
-      };
-    }),
     on('scan:manifest', ({ manifest, phase }) => {
       // The city already applied it; this is the copy every pane reads. The
       // complete one is published by loadSource, with the source it belongs to.
@@ -83,9 +67,6 @@ export function attachScanProgress(on: City['on']): () => void {
       if (phase === ScanPhase.PartialManifest) {
         setManifest(manifest);
       }
-      // Emitted after the apply, so the overlay can never see "heights final"
-      // ahead of the paint that shows them.
-      SCAN_PROGRESS.value = { ...meta, phase };
     }),
   ];
   return () => {
@@ -147,7 +128,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     kind: srcKind(payload.src),
     branch,
   };
-  SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
+  LOADING_SOURCE.value = meta; // show the overlay before the city has spoken
   // What a cancel rolls back to, captured before the clear below: otherwise the
   // canceled repo's geometry lingers under the unchanged header.
   const prevManifest = MANIFEST.peek();
@@ -197,7 +178,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     // Only the authoritative load tears the overlay down, or a superseded one
     // clears it out from under the load still streaming.
     if (myGen === loadGeneration) {
-      SCAN_PROGRESS.value = null;
+      LOADING_SOURCE.value = null;
       if (loadController === controller) loadController = null;
     }
   }
@@ -261,7 +242,7 @@ export function setupLiveUpdates(): () => void {
       }
     } catch (err) {
       if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
-      markError(err);
+      failHostWork(err);
     }
   }
 
@@ -270,7 +251,7 @@ export function setupLiveUpdates(): () => void {
   async function tick(): Promise<void> {
     if (inFlight) return;
     if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
-    if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
+    if (LOADING_SOURCE.peek() !== null) return; // a foreground load is in flight — yield
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
     const current = MANIFEST.peek();
@@ -322,7 +303,7 @@ export function setupLiveUpdates(): () => void {
     const [prevRepo] = prev.split('|', 1);
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
-    if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
+    if (LOADING_SOURCE.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
@@ -332,7 +313,7 @@ export function setupLiveUpdates(): () => void {
     if (TIMELINE_MODE.peek() && timelineRefresh) {
       refresh = timelineRefresh();
     } else {
-      markRebuilding(); // say so now, not after the re-scan streams back
+      beginHostWork(); // say so now, not after the re-scan streams back
       refresh = fetchAndApply(cur.src, cur.branch);
     }
     void refresh.finally(() => {

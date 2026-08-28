@@ -14,7 +14,8 @@ import { attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
 import { BACKDROP_SETTINGS, CITY_SETTINGS } from '@/state/settings/values/city';
 import { BACKDROP_HANDLE, SCENE_HANDLE } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
-import { attachBuildProgress, markError } from '@/state/stores/progress';
+import { attachBuildProgress, attachCityStatus, CITY_STATUS } from '@/state/stores/progress';
+import { CityLifecycle } from '@codecity/city';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 
@@ -77,7 +78,11 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // The overlay is a reduction over what THIS city reports. A backdrop
         // building behind the landing never reaches it, because a backdrop
         // never subscribes.
-        unsubEvents.push(attachBuildProgress(handle.on));
+        // What this city is doing, as one value the chrome renders off. The
+        // scene's only: a wallpaper building behind the landing must not move
+        // the readout above the project being read.
+        unsubEvents.push(attachCityStatus(handle));
+        unsubEvents.push(attachBuildProgress(handle));
 
         // The flash for a Save the city answers by refreshing rather than
         // re-packing. Scene only: it writes the readout above this city.
@@ -104,9 +109,18 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         unsubEvents.push(attachScanProgress(handle.on));
       })
       .catch((err) => {
-        // No WebGL, or a context the driver refused. The landing has its
-        // wallpaper to fall back on; the city route has nothing to show.
-        if (variant === CityVariant.Scene) markError(err);
+        // No WebGL, or a context the driver refused. There is no city to report
+        // it — createCity never returned one — so this is the one failure the
+        // app states itself. The landing has its wallpaper to fall back on.
+        if (variant === CityVariant.Scene) {
+          console.error('[codecity] could not create a city', err);
+          CITY_STATUS.value = {
+            ...CITY_STATUS.peek(),
+            lifecycle: CityLifecycle.Error,
+            fetching: false,
+            error: err,
+          };
+        }
       });
 
     return () => {

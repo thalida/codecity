@@ -9,11 +9,12 @@ import { DateRanges, Manifest, NodeKind, CityLayout } from '@codecity/city';
 // which these tests assemble by hand. A test may reach in; nothing in src/ may.
 import type { LayoutConfig } from '../../../city/src/layout/config';
 import { createCityState } from '../../../city/src/state';
-import { stubPlacementClient } from '@codecity/city/testing';
+import { stubPlacementClient, statusFrom } from '@codecity/city/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
-import { BUILD_PROGRESS, attachBuildProgress } from '@/state/stores/progress';
+import { CITY_STATUS, attachCityStatus } from '@/state/stores/progress';
 import { buildStageTail } from '@/constants/progress';
+import { EMPTY_CITY_STATUS } from '@codecity/city';
 import { createTestCityResources } from '@codecity/city/testing';
 import { settingsStore } from '@codecity/city/testing';
 import { createEmitter } from '@codecity/city/testing';
@@ -70,14 +71,17 @@ function fakeLayoutClient(percents: number[] = []) {
   };
 }
 
-/** Every tail the readout showed, in order, for the apply run inside. The
- *  events are routed the way City.tsx routes them, so this covers the seam
- *  between what the city reports and what the overlay makes of it. */
+/** Every distinct percent the readout showed, in order, for the apply run
+ *  inside. The city folds its own stages into one fraction over the whole
+ *  build; the app only renders it, so this covers the seam between what the
+ *  city reports and what a readout makes of it. */
 async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
-  BUILD_PROGRESS.value = null; // markRebuilding opens every real build this way
+  // From a clean readout: the emitter is module-level and a previous case's
+  // un-awaited apply is still posting into it.
+  CITY_STATUS.value = EMPTY_CITY_STATUS;
   const seen: string[] = [];
   const stop = effect(() => {
-    const tail = buildStageTail(BUILD_PROGRESS.value);
+    const tail = buildStageTail(CITY_STATUS.value);
     if (tail && tail !== seen[seen.length - 1]) seen.push(tail);
   });
   await run();
@@ -88,12 +92,19 @@ async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
 describe('cityState.applyManifest — the build says where it is (#185)', () => {
   let detach: () => void;
 
+  let tracked: ReturnType<typeof statusFrom>;
+
   beforeEach(() => {
-    BUILD_PROGRESS.value = null;
-    detach = attachBuildProgress(events.on);
+    // A fresh fold per case, disposed after: the emitter is module-level, and a
+    // previous case's tracker still listening would keep folding into it.
+    tracked = statusFrom(events);
+    detach = attachCityStatus(tracked);
   });
 
-  afterEach(() => detach());
+  afterEach(() => {
+    detach();
+    tracked.dispose();
+  });
 
   it('walks the stages it is going to run', async () => {
     const state = createCityState(
@@ -171,8 +182,11 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
 
     void state.applyManifest(manifest('sig-1'));
     void state.applyManifest(manifest('sig-2')); // supersedes the first
+    const before = CITY_STATUS.value.fraction;
     loserProgress?.(80);
 
-    expect(BUILD_PROGRESS.value?.percent).toBeNull();
+    // The loser's percent must not walk over the live build's readout: what it
+    // reported is 80%, and the readout has not moved at all.
+    expect(CITY_STATUS.value.fraction).toBe(before);
   });
 });

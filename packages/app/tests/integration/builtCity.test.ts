@@ -136,7 +136,7 @@ describe('a built city is pickable', () => {
       // The URL follow waits on BUILT_MANIFEST, which the app sets when the
       // city reports it is up: this is the whole path, so it needs the app's
       // half of it wired the way City.tsx wires it.
-      detachProgress = attachBuildProgress(handle.on);
+      detachProgress = attachBuildProgress(handle);
       // The URL is written off the app's copy of the selection key, which this
       // keeps current — the same wiring City.tsx does.
       detachChrome = attachCityChrome(handle.on);
