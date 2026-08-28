@@ -15,6 +15,7 @@ import { createTreePlacementClient } from './components/trees/treePlacementClien
 import { createCityState } from './state';
 import { createCityResources } from './resources';
 import { createSettingsStore } from './settings/store';
+import { ChangeRoute } from './settings/schema';
 import { createEmitter } from './events';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
@@ -365,6 +366,39 @@ export async function createCity(
   // Every Timeline exit. The union city holds buildings that do not exist at
   // HEAD, so only a rebuild from this city's own live manifest is a valid live
   // city — the app's would be a different repo on the landing.
+  // A rebuild-routed setting moved, so this city re-packs ITSELF, from the
+  // manifest IT is showing. The host used to do this: it watched its own signals
+  // for a change of route, then handed a city a manifest to apply. That worked
+  // for one city — the other one on the page got the first one's manifest,
+  // because the host only has one — and it re-derived, from string signatures
+  // over globals, a fact this store already computed exactly.
+  const stopSettingsRebuild = settings.onRoute(ChangeRoute.Rebuild, () => {
+    // The manifest is unchanged, so the layout would be reused and the setting
+    // would do nothing visible.
+    invalidateLayoutCache();
+    // Best-effort, like the teardown below: a dispose or a newer apply can
+    // supersede this mid-flight, and neither is a failure worth reporting.
+    void repack().catch(() => {});
+  });
+
+  /** Re-pack whatever this city is showing. In Timeline that is the union city
+   *  its own bundle describes, which has to be re-dressed and re-gated after the
+   *  pack: applyManifest rebuilds the street and footprint meshes opaque, and
+   *  drops the scrub controller with the meshes it drove. */
+  async function repack(): Promise<void> {
+    if (timeline.mode) {
+      const bundle = timeline.bundle;
+      const replay = timeline.timelines;
+      if (!bundle || !replay) return;
+      await applyManifest(bundle.unionManifest as unknown as Manifest);
+      timelineApi.setStreetsTransparent(true);
+      timelineApi.setFootprintsTransparent(true);
+      timelineApi.installScrubController(replay, bundle.commitLineRanges);
+      return;
+    }
+    if (liveManifest) await applyManifest(liveManifest);
+  }
+
   const stopTimelineTeardown = timeline.on('mode', () => {
     if (timeline.mode || !_scrubController) return;
     timelineApi.uninstallScrubController();
@@ -429,6 +463,7 @@ export async function createCity(
       stopFrameLoop();
       stopReframe();
       stopOnScreen();
+      stopSettingsRebuild();
       stopTimelineTeardown();
       _scrubController?.dispose();
       handlers.dispose();

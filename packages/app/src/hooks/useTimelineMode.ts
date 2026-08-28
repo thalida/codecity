@@ -253,17 +253,6 @@ export async function viewCommitInTimeline(sha: string): Promise<void> {
 
 // Re-pack from the warm bundle, holding SCRUB_POS, so a settings Save in
 // Timeline stays in Timeline instead of dropping to live HEAD.
-export async function reapplyTimelineScene(): Promise<void> {
-  const handle = SCENE_HANDLE.peek();
-  const bundle = TIMELINE_BUNDLE.peek();
-  if (!handle || !bundle) return;
-  const timelines = buildPathTimelines(bundle);
-  await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
-  handle.timeline.setStreetsTransparent(true);
-  handle.timeline.setFootprintsTransparent(true);
-  handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
-}
-
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
   resetTimelineMode();

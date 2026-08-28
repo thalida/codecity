@@ -17,8 +17,6 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { attachBuildProgress, markError } from '@/state/stores/progress';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 
 export enum CityVariant {
   /** The app's main view: opaque, so a sub-frame gap during resize blends into
@@ -70,15 +68,6 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // Published to its own slot: the two variants are independent cities.
         if (variant === CityVariant.Scene) SCENE_HANDLE.value = handle;
         else BACKDROP_HANDLE.value = handle;
-        disposeReactions = attachSettingsReactions({
-          // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
-          rebuildScene: () =>
-            TIMELINE_MODE.peek()
-              ? reapplyTimelineScene()
-              : handle.applyManifest(MANIFEST.peek() as Manifest),
-          invalidateLayoutCache: handle.invalidateLayoutCache,
-        });
-
         // A backdrop shows what its view decided to show, which is not the
         // opened project: useHomeBackdrop drives that canvas itself. Nor does
         // it get any chrome — this is where "each instance has its own" stops
@@ -89,6 +78,10 @@ export function City({ variant = CityVariant.Scene }: CityProps = {}) {
         // building behind the landing never reaches it, because a backdrop
         // never subscribes.
         unsubEvents.push(attachBuildProgress(handle.on));
+
+        // The flash for a Save the city answers by refreshing rather than
+        // re-packing. Scene only: it writes the readout above this city.
+        disposeReactions = attachSettingsReactions();
 
         // What the reader does in the canvas, and what this app's chrome does
         // about it. A backdrop never gets this: it has no chrome.

@@ -18,7 +18,7 @@ import {
   type CitySettingsPatch,
   type CityStore,
 } from './index';
-import { coerceField } from './schema';
+import { coerceField, ChangeRoute } from './schema';
 
 /** Called when one of the stores it was registered against changes. */
 export type SettingsListener = () => void;
@@ -38,6 +38,11 @@ export type CitySettingsStore = {
    *  written, and only their listeners are called: a rebuild-routed store
    *  notifying on a no-op change repacks the whole city, which is seconds. */
   update(patch: CitySettingsPatch): void;
+  /** Hear that a field on this route moved. NOT applied immediately, unlike
+   *  `on`: that reports state a listener has to match, this reports a
+   *  transition, and firing it at construction would claim a change that never
+   *  happened. Returns the unsubscribe. */
+  onRoute(route: ChangeRoute, listener: SettingsListener): () => void;
   /** Everything, as one plain object — for the worker request and for framing
    *  code that wants a value rather than a subscription. */
   snapshot(): CitySettings;
@@ -75,16 +80,26 @@ function shallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): b
 export function createSettingsStore(initial?: CitySettingsPatch): CitySettingsStore {
   let values = defaultCitySettings();
   const listeners = new Map<CityStore, Set<SettingsListener>>();
+  const routeListeners = new Map<ChangeRoute, Set<SettingsListener>>();
 
   function update(patch: CitySettingsPatch): void {
     const clean = sanitize(patch);
     const changed: CityStore[] = [];
+    // Per FIELD, not per store: a store carries fields on different routes, and
+    // repacking the city because a colour moved is seconds of work for nothing.
+    const routes = new Set<ChangeRoute>();
     const next = { ...values } as Record<string, unknown>;
 
     for (const name in clean) {
       const store = name as CityStore;
-      const merged = { ...(values[store] as object), ...clean[store] };
-      if (shallowEqual(values[store] as Record<string, unknown>, merged)) continue;
+      const before = values[store] as Record<string, unknown>;
+      const merged = { ...(before as object), ...clean[store] } as Record<string, unknown>;
+      if (shallowEqual(before, merged)) continue;
+      for (const key in clean[store] as object) {
+        if (before[key] === merged[key]) continue;
+        const def = CITY_FIELDS[store][key];
+        if (def) routes.add(def.route);
+      }
       next[store] = merged;
       changed.push(store);
     }
@@ -106,6 +121,11 @@ export function createSettingsStore(initial?: CitySettingsPatch): CitySettingsSt
         listener();
       }
     }
+
+    // After the per-store listeners: a repack reads what they just applied.
+    for (const route of routes) {
+      for (const listener of [...(routeListeners.get(route) ?? [])]) listener();
+    }
   }
 
   const store = {
@@ -123,6 +143,15 @@ export function createSettingsStore(initial?: CitySettingsPatch): CitySettingsSt
       return () => {
         for (const name of names) listeners.get(name)?.delete(listener);
       };
+    },
+    onRoute(route: ChangeRoute, listener: SettingsListener): () => void {
+      let set = routeListeners.get(route);
+      if (!set) {
+        set = new Set();
+        routeListeners.set(route, set);
+      }
+      set.add(listener);
+      return () => void set.delete(listener);
     },
     update,
     snapshot: (): CitySettings => values,

@@ -1,65 +1,69 @@
-import { CITY_STORES } from '@/state/settings/values/city';
-import type { Manifest } from '@codecity/city';
+// What is left of the app's settings reactions: the brief "rebuilding" flash on
+// a Save the scene answers by refreshing its materials in place. The rebuild
+// half is the city's — it holds the values, knows which of its own fields moved
+// and what each route costs, and holds the manifest it is showing.
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settings/reactions';
-import { setManifest } from '@/state/stores/manifest';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/progress';
+import { REBUILD_STATUS, RebuildStatus, markIdle } from '@/state/stores/progress';
+import { CITY_STORES } from '@/state/settings/values/city';
 
-// The routing contract: rebuild keys call rebuildScene, refresh keys only flash
-// the status (the refresh itself is reactive), live keys do neither.
+const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
-describe('attachSettingsReactions routing', () => {
+describe('the refresh flash', () => {
   let detach: () => void;
-  let rebuildCalls: number;
+  let asphalt: string;
+  let gap: number;
 
   beforeEach(() => {
-    rebuildCalls = 0;
-    REBUILD_STATUS.value = RebuildStatus.Idle;
-    // scheduleRebuild gates on MANIFEST (peek) as the "project loaded?" proxy;
-    // seed a non-empty manifest so the rebuild path actually calls rebuildScene.
-    setManifest({ tree: {} } as unknown as Manifest);
-    detach = attachSettingsReactions({
-      rebuildScene: async () => {
-        rebuildCalls++;
-      },
-      invalidateLayoutCache: () => {},
-    });
+    markIdle();
+    asphalt = CITY_STORES.STREETS.value.ASPHALT_COLOR;
+    gap = CITY_STORES.STREET_LAYOUT.value.BUILDING_GAP;
+    detach = attachSettingsReactions();
   });
 
   afterEach(() => {
     detach();
-    setManifest(null);
+    // Restore, so a drifted value is not the next test's starting point.
+    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: asphalt };
+    CITY_STORES.STREET_LAYOUT.value = {
+      ...CITY_STORES.STREET_LAYOUT.value,
+      BUILDING_GAP: gap,
+    };
+    markIdle();
   });
 
-  const flush = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  };
+  it('flashes when a refresh-routed field changes', async () => {
+    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#123456' };
+    await flush();
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
+  });
 
-  it('rebuild-route key change triggers rebuildScene', async () => {
-    CITY_STORES.TREES.value = {
-      ...CITY_STORES.TREES.value,
-      MIN_HEIGHT: CITY_STORES.TREES.value.MIN_HEIGHT + 4,
+  // The city reports its own re-pack through build:start/done, which is what
+  // moves the status then. Flashing here too would fight it.
+  it('says nothing when a rebuild-routed field changes', async () => {
+    CITY_STORES.STREET_LAYOUT.value = {
+      ...CITY_STORES.STREET_LAYOUT.value,
+      BUILDING_GAP: gap + 1,
     };
     await flush();
-    expect(rebuildCalls).toBeGreaterThan(0);
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle);
   });
 
-  it('refresh-route key change flashes the rebuilding status but does NOT rebuild', async () => {
-    const m0 = rebuildCalls;
-    CITY_STORES.TREES.value = { ...CITY_STORES.TREES.value, COLOR_BUSY_DAY: '#123456' };
+  it('settles back to idle on its own', async () => {
+    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#654321' };
     await flush();
-    // The flash is synchronous; the min-dwell timer hasn't fired yet.
     expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
-    expect(rebuildCalls).toBe(m0);
+
+    await new Promise<void>((r) => setTimeout(r, 300));
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle);
   });
 
-  it('live-route key change triggers neither', async () => {
-    const m0 = rebuildCalls;
-    const s0 = REBUILD_STATUS.value;
-    CITY_STORES.GEM.value = { ...CITY_STORES.GEM.value, ROTATION_SPEED: 2.5 };
+  it('stops flashing once detached', async () => {
+    detach();
+    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#abcdef' };
     await flush();
-    expect(rebuildCalls).toBe(m0);
-    expect(REBUILD_STATUS.value).toBe(s0);
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Idle);
+    detach = () => {};
   });
 });
