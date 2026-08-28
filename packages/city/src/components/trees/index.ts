@@ -81,23 +81,21 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   });
 
   // The build places the trees and publishes them with the rest of the city, so
-  // this renders a signal like every other component: nothing pops in later.
-  const stopPlacements = effect(() => {
-    const placements = cityState.treePlacements.value;
-    untracked(() => {
-      if (!placements) {
-        clear();
-      } else {
-        const manifest = cityState.manifest.peek();
-        rebuild(
-          placements,
-          manifest?.commits ?? null,
-          manifest?.busyness ?? { avg: 1, busy: 1 },
-          manifest?.stats,
-          manifest?.scanned_at
-        );
-      }
-    });
+  // they land with it: nothing pops in later.
+  const stopPlacements = cityState.on('apply', () => {
+    const placements = cityState.treePlacements;
+    if (!placements) {
+      clear();
+      return;
+    }
+    const manifest = cityState.manifest;
+    rebuild(
+      placements,
+      manifest?.commits ?? null,
+      manifest?.busyness ?? { avg: 1, busy: 1 },
+      manifest?.stats,
+      manifest?.scanned_at
+    );
   });
 
   // Constructed at arming, which is what makes its effects live. The armed flag

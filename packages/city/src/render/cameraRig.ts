@@ -143,7 +143,7 @@ export function createCameraRig({
   // Refresh the framed pose without moving the user's camera. Re-run per
   // manifest swap, or R would still target the previous city's framing.
   function _captureFraming(): boolean {
-    const bbox = cityState.bbox.value;
+    const bbox = cityState.bbox;
     if (!bbox || bbox.isEmpty()) return false;
 
     // Drive maxDistance + camera.far, so zooming all the way out shows the
@@ -179,8 +179,8 @@ export function createCameraRig({
 
     // Sized to the root street, not the world bbox: R should land on a
     // readable neighbourhood, not a metropolis with the gem as a dot.
-    const gemPos = cityState.gemWorldPos.value;
-    const rootStreet = cityState.rootStreet.value;
+    const gemPos = cityState.gemWorldPos;
+    const rootStreet = cityState.rootStreet;
     let framingCenter: THREE.Vector3;
     let framingRadius: number;
     if (gemPos && rootStreet) {
@@ -207,7 +207,7 @@ export function createCameraRig({
     // Smallest D fitting the tallest roof's 4 corners in the vertical FOV:
     // D ≥ |p · cam_up| / tan(halfFov) + p · dir, maxed over the corners.
     let heightDist = 0;
-    const tallest = gemPos && rootStreet ? cityState.tallestBuilding.value : null;
+    const tallest = gemPos && rootStreet ? cityState.tallestBuilding : null;
     const labelBounds = gemPos && rootStreet ? deps.getRepoLabelBounds() : null;
     if (tallest || labelBounds) {
       const sinElev = dir.y;
@@ -265,14 +265,9 @@ export function createCameraRig({
   const _scratchUserPos = new THREE.Vector3();
   const _scratchUserTarget = new THREE.Vector3();
 
-  // bbox is reassigned only on a non-reuse apply, which is exactly when the
-  // framing should update. Whether to SNAP is the composer's call, not this.
-  const _disposeReframeEffect = effect(() => {
-    void cityState.bbox.value;
-    // Untracked: _captureFraming reads gem/rootStreet too, and the dependency
-    // set should be exactly what this effect claims.
-    untracked(_captureFraming);
-  });
+  // The bbox moves on a non-reuse apply, which is exactly when the framing
+  // should update. Whether to SNAP to it is the composer's call, not this.
+  const _disposeReframeEffect = cityState.on('structure', _captureFraming);
 
   // A saved angle re-frames the city it steers, running or not: reset() reads
   // it and snaps. On construction the bbox is empty, so this no-ops.
@@ -393,7 +388,7 @@ export function createCameraRig({
     // Sub-centimetre horizontal offset is nadir: the root-street axis stands
     // in, or the azimuth NaNs out.
     if (horizLenSq < 1e-4) {
-      const root = cityState.rootStreet.value;
+      const root = cityState.rootStreet;
       if (root && root.orientation === StreetAxis.X) {
         dirX = -1;
         dirZ = 0;
@@ -480,7 +475,7 @@ export function createCameraRig({
     const dir = computeFramingDir(
       opts.elevation,
       opts.azimuth,
-      cityState.rootStreet.value?.orientation ?? null
+      cityState.rootStreet?.orientation ?? null
     );
     camera.up.set(0, 1, 0);
     camera.position.copy(opts.target).addScaledVector(dir, distance);
@@ -499,9 +494,9 @@ export function createCameraRig({
     cityRadius: number;
     rootStreetWidth: number;
   } {
-    const gem = cityState.gemWorldPos.value;
-    const tb = cityState.tallestBuilding.value;
-    const bbox = cityState.bbox.value;
+    const gem = cityState.gemWorldPos;
+    const tb = cityState.tallestBuilding;
+    const bbox = cityState.bbox;
     let center: THREE.Vector3 | null = null;
     let cityRadius = 0;
     if (bbox && !bbox.isEmpty()) {
@@ -515,7 +510,7 @@ export function createCameraRig({
       center,
       tallestHeight: tb ? tb.h : 0,
       cityRadius,
-      rootStreetWidth: cityState.rootStreet.value?.width ?? 0,
+      rootStreetWidth: cityState.rootStreet?.width ?? 0,
     };
   }
 
@@ -532,7 +527,7 @@ export function createCameraRig({
   function streetAnchor(
     path: string
   ): { pos: THREE.Vector3; width: number; length: number } | null {
-    const s = cityState.streetsByDirMap.value[path];
+    const s = cityState.streetsByDirMap[path];
     if (!s) return null;
     return { pos: new THREE.Vector3(s.x, 0, s.y), width: s.width, length: s.length };
   }
@@ -551,7 +546,7 @@ export function createCameraRig({
   /** The distance the default camera rests at, which the backdrop counts in.
    *  Same inputs as _captureFraming's widthDist, so 1 lands where opening does. */
   function _gemFitDistance(): number | null {
-    const rootStreet = cityState.rootStreet.value;
+    const rootStreet = cityState.rootStreet;
     if (!rootStreet) return null;
     const halfFov = (camera.fov * Math.PI) / 180 / 2;
     const framingRadius = rootStreet.width * CAMERA_GEM_FRAMING_WIDTH_MULT;
@@ -560,24 +555,24 @@ export function createCameraRig({
 
   /** Where the gem orbit sits, in units of that framing distance. */
   function _orbitRadius(distance: number): number {
-    const rootStreet = cityState.rootStreet.value;
+    const rootStreet = cityState.rootStreet;
     return backdropRadius(distance, controls, {
       gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, settings.GEM_SIZING) : null,
       gemFitDistance: _gemFitDistance(),
-      worldBounds: cityState.latestWorldBounds.value,
+      worldBounds: cityState.latestWorldBounds,
     });
   }
 
   /** An orbit circling the root gem, sized from the city's own geometry so
    *  every project is framed in proportion. */
   function _gemPose(): CameraPlacement | null {
-    const gem = cityState.gemWorldPos.value;
+    const gem = cityState.gemWorldPos;
     if (!gem) return null;
     const cam = settings.CAMERA;
     const dir = computeFramingDir(
       cam.ELEVATION,
       cam.AZIMUTH,
-      cityState.rootStreet.value?.orientation ?? null
+      cityState.rootStreet?.orientation ?? null
     );
     const target = gem.clone();
     return {

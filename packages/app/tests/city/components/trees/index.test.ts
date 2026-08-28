@@ -135,7 +135,7 @@ describe('createTrees() component door', () => {
 
     await cityState.applyManifest(manifestWith(COMMITS));
 
-    expect(cityState.treePlacements.value).toEqual(PLACEMENTS);
+    expect(cityState.treePlacements).toEqual(PLACEMENTS);
     expect(trees.getRenderer()).not.toBeNull();
     expect(trees.group.children.length).toBeGreaterThan(0);
   });

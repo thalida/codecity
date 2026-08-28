@@ -13,7 +13,7 @@ import type { LayoutConfig } from './layout/config';
 
 // Unexpected overlaps warn with a line each; a clean run logs a summary.
 export function runCollisionCheck(cityState: CityState): void {
-  const layout = cityState.layout.value;
+  const layout = cityState.layout;
   if (!layout) {
     console.warn('[collision] no layout — apply a manifest first');
     return;
@@ -34,7 +34,7 @@ export function runCollisionCheck(cityState: CityState): void {
 // Re-run layout with tracing on the current manifest and print the stem-
 // placement trace. No-ops with a warning when no manifest has been applied yet.
 export function runStemPlacementDiagnostic(cityState: CityState, cfg: LayoutConfig): void {
-  const m = cityState.manifest.value;
+  const m = cityState.manifest;
   if (!m) {
     console.warn('[stem-diag] no manifest — apply one first');
     return;

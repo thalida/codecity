@@ -78,9 +78,10 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
       createEmitter()
     );
     await state.applyManifest(manifest('L1'));
-    const before = state.structureRevision.value;
+    let structures = 0;
+    state.on('structure', () => structures++);
     await state.applyManifest(manifest('L2')); // layout_signature changed
-    expect(state.structureRevision.value).toBe(before + 1);
+    expect(structures).toBe(1);
   });
 
   // The discriminating case: the file size changes but layout_signature does
@@ -94,8 +95,9 @@ describe('cityState.applyManifest — reuse gate keys on the layout signature (#
       createEmitter()
     );
     await state.applyManifest(manifest('L1', 10));
-    const before = state.structureRevision.value;
+    let structures = 0;
+    state.on('structure', () => structures++);
     await state.applyManifest(manifest('L1', 999)); // different tree size, SAME field
-    expect(state.structureRevision.value).toBe(before);
+    expect(structures).toBe(0);
   });
 });

@@ -17,6 +17,11 @@ import { createRepoLabel } from '@/city/components/repoLabel';
 import { Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
+import { settingsStore } from '../../_helpers/citySettings';
+import { createEmitter } from '@/city/events';
+import { createCityState } from '@/city/state';
+import { stubPlacementClient } from '../../_helpers/cityFixtures';
+import { createTestCityResources } from '../../_helpers/cityResources';
 
 function makeRootStreet(): Street {
   return {
@@ -53,11 +58,40 @@ function makeManifest(name: string): Manifest {
   } as unknown as Manifest;
 }
 
-// Structure-change apply: set layout + bump the structureRevision tick the
-// structure-reactive consumers track. (A reuse apply sets layout WITHOUT bumping.)
-function applyStructure(cityState: ReturnType<typeof makeCityState>, layout: CityLayout): void {
-  cityState.layout.value = layout;
-  cityState.structureRevision.value++;
+// A city driven through the real pipeline, because the distinction this whole
+// file is about — structure change vs reuse apply — IS a pipeline decision. A
+// fresh layout_signature takes the non-reuse path and publishes 'structure';
+// the same one reuses, publishes 'apply' only, and the scenic consumers skip.
+function makeScenicCity() {
+  const settings = settingsStore();
+  let next = makeLayout();
+  let sig = 0;
+  const state = createCityState(
+    { compute: async () => next, dispose() {} } as never,
+    stubPlacementClient() as never,
+    createTestCityResources(settings),
+    settings,
+    createEmitter()
+  );
+  return {
+    state,
+    settings,
+    /** New geometry. */
+    applyStructure(): Promise<void> {
+      next = makeLayout();
+      return state.applyManifest(makeManifest(`structure-${++sig}`));
+    },
+    /** Same geometry, fresh per-building dims: what a live-update poll does. */
+    applyReuse(): Promise<void> {
+      next = makeLayout();
+      return state.applyManifest(makeManifest(`structure-${sig}`));
+    },
+    /** A different repo under the same geometry, for the label. */
+    applyNamed(name: string): Promise<void> {
+      next = makeLayout();
+      return state.applyManifest(makeManifest(name));
+    },
+  };
 }
 
 describe('scenic reactivity — structureRevision gates rebuilds', () => {
@@ -68,45 +102,47 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   // ---- Parity #1 + #2: streets rebuild on non-reuse, skip on reuse -----------
 
-  it('streets: rebuilds on a structure change, skips on a reuse apply', () => {
-    const cityState = makeCityState();
+  it('streets: rebuilds on a structure change, skips on a reuse apply', async () => {
+    const city = makeScenicCity();
+    const cityState = city.state;
     const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
 
     // First structure apply (structureRevision bumps) → rebuild swaps in a fresh
     // pickables array (the per-rebuild side effect we observe).
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     const afterFirst = streets.getPickables();
     expect(afterFirst).toHaveLength(1);
 
     // Reuse apply: layout reassigned (fresh dims) but structureRevision NOT
     // bumped → the streets effect does NOT re-fire (same pickables array).
-    cityState.layout.value = makeLayout();
+    await city.applyReuse();
     expect(streets.getPickables()).toBe(afterFirst);
 
     // Another structure change → rebuild swaps in a NEW pickables array.
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     expect(streets.getPickables()).not.toBe(afterFirst);
   });
 
   // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off structureRevision)
 
-  it('gem: rebuilds on a structure change, skips on a reuse apply', () => {
-    const cityState = makeCityState();
+  it('gem: rebuilds on a structure change, skips on a reuse apply', async () => {
+    const city = makeScenicCity();
+    const cityState = city.state;
     const gem = createGem(makeSceneContext(cityState));
     disposers.push(() => gem.dispose());
 
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     const gemAfterFirst = gem.getRootGroup(); // fresh inner gem group from rebuild
     expect(gemAfterFirst).not.toBeNull();
 
     // Reuse: layout reassigned but structureRevision NOT bumped → rootStreet
     // stays cached → gem effect does NOT re-fire (no flash / GPU realloc).
-    cityState.layout.value = makeLayout();
+    await city.applyReuse();
     expect(gem.getRootGroup()).toBe(gemAfterFirst);
 
     // Structure change → rootStreet recomputes a new Street → gem rebuilds.
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     expect(gem.getRootGroup()).not.toBe(gemAfterFirst);
   });
 
@@ -120,8 +156,9 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   // ---- Parity #5: island resizes on new bounds, skips on stable bounds -------
 
-  it('island: resizes on a structure change, skips on a reuse apply', () => {
-    const cityState = makeCityState();
+  it('island: resizes on a structure change, skips on a reuse apply', async () => {
+    const city = makeScenicCity();
+    const cityState = city.state;
     const island = createIsland(makeSceneContext(cityState));
     disposers.push(() => island.dispose());
 
@@ -130,27 +167,28 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
     // latestWorldBounds is a computed off sceneBbox (→ structureRevision), so a
     // structure apply produces fresh bounds → the island resizes.
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     const geomAfterFirst = mesh.geometry;
 
     // Reuse: layout reassigned but structureRevision NOT bumped → sceneBbox +
     // latestWorldBounds stay cached → the island does NOT resize.
-    cityState.layout.value = makeLayout();
+    await city.applyReuse();
     expect(mesh.geometry).toBe(geomAfterFirst);
 
     // Another structure change → fresh bounds → resize.
-    applyStructure(cityState, makeLayout());
+    await city.applyStructure();
     expect(mesh.geometry).not.toBe(geomAfterFirst);
   });
 
   // ---- repoLabel: repositions every apply (manifest changes every apply) -----
 
-  it('repoLabel: repositions on every manifest change (name + anchor)', () => {
-    const cityState = makeCityState();
+  it('repoLabel: repositions on every manifest change (name + anchor)', async () => {
+    const city = makeScenicCity();
+    const cityState = city.state;
     const label = createRepoLabel(makeSceneContext(cityState), { getGem: () => null });
     disposers.push(() => label.dispose());
 
-    cityState.manifest.value = makeManifest('repo-a');
+    await city.applyNamed('repo-a');
     // setRepoName built the panel + beam meshes for repo-a.
     expect(label.group.children.length).toBeGreaterThan(0);
     const panelBoundsA = label.getPanelBounds();
@@ -158,7 +196,7 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
     // A new manifest with a longer name → the panel aspect (width) changes,
     // proving setRepoName re-ran on the manifest change.
-    cityState.manifest.value = makeManifest('a-much-longer-repo-name-than-repo-a');
+    await city.applyNamed('a-much-longer-repo-name-than-repo-a');
     const panelBoundsB = label.getPanelBounds();
     expect(panelBoundsB).not.toBeNull();
     expect(panelBoundsB!.halfWidth).not.toBeCloseTo(panelBoundsA!.halfWidth, 3);

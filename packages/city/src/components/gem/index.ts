@@ -91,11 +91,10 @@ export function createGem(ctx: SceneContext): Gem {
     if (inner) group.add(inner);
   }
 
-  // untracked() is load-bearing: createRootGem reads ctx.settings.GEM, and a GEM
-  // subscription would recreate the pickable body sans cityRevision bump.
-  const stopLayout = effect(() => {
-    const rootStreet = cityState.rootStreet.value;
-    if (rootStreet) untracked(() => rebuild(rootStreet));
+  // Structure only: the root street is what the gem sits on, and it moves
+  // exactly when the geometry does.
+  const stopLayout = cityState.on('structure', () => {
+    if (cityState.rootStreet) rebuild(cityState.rootStreet);
   });
 
   // GEM Save → repaint in place. Safe at construction: null guards no-op

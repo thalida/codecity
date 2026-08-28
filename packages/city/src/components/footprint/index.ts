@@ -235,9 +235,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
 
   // On layout, not structureRevision: per-building dims recompute on every
   // apply, so the slabs have to re-match even when nothing structural moved.
-  const stopLayout = effect(() => {
-    const layout = cityState.layout.value;
-    if (layout) rebuild(layout);
+  const stopLayout = cityState.on('apply', () => {
+    if (cityState.layout) rebuild(cityState.layout);
   });
 
   function dispose(): void {

@@ -268,12 +268,11 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
 
   // Manifest changes every apply (setRepoName re-runs); on a non-reuse apply
   // the gem rebuilt in the same batch, so getGem() is already fresh.
-  const stopAnchor = effect(() => {
-    const manifest = cityState.manifest.value;
-    const gemWorldPos = cityState.gemWorldPos.value;
+  const stopAnchor = cityState.on('apply', () => {
+    const manifest = cityState.manifest;
     if (!manifest) return;
     setRepoName(manifest.tree.name);
-    setAnchor(gemWorldPos ?? new THREE.Vector3());
+    setAnchor(cityState.gemWorldPos ?? new THREE.Vector3());
     setGem(deps.getGem());
   });
 

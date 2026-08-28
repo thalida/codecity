@@ -1,8 +1,16 @@
-// city/state/index.ts — the per-city manifest-bound store: signals plus the
-// async pipeline that advances them. Per-instance, not a module singleton.
-// manifest/layout are SOURCE signals reassigned every apply, the revisions are
-// change counters, the rest are computed. Components rebuild off them.
-import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
+// city/state/index.ts — what a city is currently showing, and the async
+// pipeline that advances it. Per instance, never a module singleton.
+//
+// Plain values with an explicit publication, not a dependency graph. An apply
+// swaps the manifest and layout, recomputes what is derived from them, and THEN
+// says so — once, in a known order. A component asks to hear about the kind of
+// change it redraws for, which is a shorter list than "everything it read":
+//
+//   structure  a non-reuse apply: new geometry, so the bbox, root street, gem
+//              anchor and world bounds are all fresh
+//   apply      any apply: manifest, layout and tree placements are fresh
+//   published  the components have rebuilt off the above; the city is the one
+//              on screen now
 import * as THREE from 'three';
 import { BuildStage } from '@/city/types/build';
 import type { CityEmitter } from '../events';
@@ -21,36 +29,38 @@ import { Manifest } from '@/city/types/manifest';
 import { CityBbox, CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
 
+/** The kinds of change a component can redraw for. See the header. */
+export type CityChange = 'structure' | 'apply' | 'published';
+
 export interface CityState {
-  manifest: Signal<Manifest | null>;
+  readonly manifest: Manifest | null;
   // Full layout (positions + per-building dims), reassigned EVERY apply — feeds
   // the dims-dependent rebuilds (buildings/footprint/trees) + the bbox computed.
-  layout: Signal<CityLayout | null>;
+  readonly layout: CityLayout | null;
   // World bbox (street rects + building footprints + footprint halo). Off
   // structureRevision → frozen on a reuse apply; the cameraRig framing tracks it.
-  readonly bbox: ReadonlySignal<THREE.Box3 | null>;
+  readonly bbox: THREE.Box3 | null;
   // Placement-space view of bbox (CityLayout's XY = world XZ); for tree placement.
-  readonly sceneBbox: ReadonlySignal<CityBbox | null>;
+  readonly sceneBbox: CityBbox | null;
   // City vertical extent (bbox.max.y - min.y); feeds worldBounds.
-  readonly cityHeight: ReadonlySignal<number>;
+  readonly cityHeight: number;
   // Island floor sizing. Computed off sceneBbox + cityHeight (frozen on reuse),
   // null until the first apply.
-  readonly latestWorldBounds: ReadonlySignal<WorldBounds | null>;
+  readonly latestWorldBounds: WorldBounds | null;
   // Where the trees stand, from the build's placement stage. The trees and
   // fireflies components render off it; null when trees are switched off.
-  treePlacements: Signal<TreePlacement[] | null>;
-  readonly rootStreet: ReadonlySignal<Street | null>;
-  readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
+  readonly treePlacements: TreePlacement[] | null;
+  readonly rootStreet: Street | null;
+  readonly gemWorldPos: THREE.Vector3 | null;
   // Tallest building (by height) for the camera start-framing height-fit. From
   // layout data, not the async building meshes (see the computed).
-  readonly tallestBuilding: ReadonlySignal<Building | null>;
+  readonly tallestBuilding: Building | null;
   // { street dir.path → Street }. The fader, pathLine, picker and debug API
   // resolve a street by directory here rather than through the component.
-  readonly streetsByDirMap: ReadonlySignal<Record<string, Street>>;
-  // Change counters, tracked while the data is peeked: structureRevision on a
-  // non-reuse apply only, cityRevision on every apply.
-  structureRevision: Signal<number>;
-  cityRevision: Signal<number>;
+  readonly streetsByDirMap: Record<string, Street>;
+  /** Hear about one kind of change. Returns the unsubscribe. Not called
+   *  immediately: a component builds itself from what is already here. */
+  on(kind: CityChange, listener: () => void): () => void;
   // Compute the layout off-thread, then set the source signals. leadingStages
   // are stages the CALLER already ran, so the readout counts them (Timeline).
   applyManifest(newManifest: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
@@ -137,82 +147,82 @@ export function createCityState(
   settings: CitySettingsStore,
   events: CityEmitter
 ): CityState {
-  const manifest = signal<Manifest | null>(null);
-  const layout = signal<CityLayout | null>(null);
-  const treePlacements = signal<TreePlacement[] | null>(null);
-  // Change-notification counters (see CityState for what each means + who tracks it).
-  const structureRevision = signal(0);
-  const cityRevision = signal(0);
+  let manifest: Manifest | null = null;
+  let layout: CityLayout | null = null;
+  let treePlacements: TreePlacement[] | null = null;
 
-  // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
-  // the halo changes, not on every FOOTPRINT change (which would refit).
-  const footprintHalo = computed<number>(() => {
+  // Derived, recomputed at the two points below rather than on read: the
+  // per-frame readers (framing, picking, the fader) ask for these constantly.
+  let bbox: THREE.Box3 | null = null;
+  let sceneBbox: CityBbox | null = null;
+  let cityHeight = 0;
+  let latestWorldBounds: WorldBounds | null = null;
+  let rootStreet: Street | null = null;
+  let gemWorldPos: THREE.Vector3 | null = null;
+  let tallestBuilding: Building | null = null;
+  let streetsByDirMap: Record<string, Street> = {};
+
+  const listeners = new Map<CityChange, Set<() => void>>();
+
+  function on(kind: CityChange, listener: () => void): () => void {
+    let set = listeners.get(kind);
+    if (!set) {
+      set = new Set();
+      listeners.set(kind, set);
+    }
+    set.add(listener);
+    return () => void set.delete(listener);
+  }
+
+  function _tell(kind: CityChange): void {
+    // Over a copy: a listener that unsubscribes itself (armOnFirstTick's
+    // teardown) would otherwise mutate the set mid-iteration.
+    for (const listener of [...(listeners.get(kind) ?? [])]) listener();
+  }
+
+  /** Halo width, or 0 when off. A footprint halo widens the world bbox, so a
+   *  FOOTPRINT save has to refit the geometry derived from it. */
+  function _halo(): number {
     const f = settings.FOOTPRINT;
     return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
-  });
+  }
 
-  // World bbox. Tracks structureRevision and peeks layout, so a reuse apply
-  // leaves it frozen and cameraRig/island skip on the memoized value.
-  const bbox = computed<THREE.Box3 | null>(() => {
-    void structureRevision.value;
-    const l = layout.peek();
-    return l ? cityBbox(l, footprintHalo.value) : null;
-  });
+  /** Everything the GEOMETRY implies. Recomputed on a non-reuse apply, and on a
+   *  halo change, which moves the bbox without moving a building. */
+  function _recomputeStructure(): void {
+    bbox = layout ? cityBbox(layout, _halo()) : null;
+    sceneBbox = bbox ? sceneBboxOf(bbox) : null;
+    cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
+    latestWorldBounds = sceneBbox ? getWorldBounds(sceneBbox, settings.WORLD, cityHeight) : null;
+    // The root-of-repo street, which gets the gem.
+    rootStreet = (layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
+    // The floor-level anchor at its open end. gemAnchorXZ is the one source of
+    // that geometry, shared with the gem mesh and tree placement.
+    gemWorldPos = rootStreet
+      ? new THREE.Vector3(gemAnchorXZ(rootStreet).x, 0, gemAnchorXZ(rootStreet).y)
+      : null;
+    streetsByDirMap = {};
+    for (const street of layout?.streets ?? []) {
+      if (street.dir?.path != null) streetsByDirMap[street.dir.path] = street;
+    }
+  }
 
-  // Placement-space view of the world bbox (CityLayout's XY axis == world XZ).
-  const sceneBbox = computed<CityBbox | null>(() => {
-    const b = bbox.value;
-    return b ? sceneBboxOf(b) : null;
-  });
-  const cityHeight = computed<number>(() => {
-    const b = bbox.value;
-    return b ? b.max.y - b.min.y : 0;
-  });
-
-  // Island floor sizing, off sceneBbox + cityHeight, so it re-fits only on a
-  // structure change. null until the first apply.
-  const latestWorldBounds = computed<WorldBounds | null>(() => {
-    const sb = sceneBbox.value;
-    return sb ? getWorldBounds(sb, settings.WORLD, cityHeight.value) : null;
-  });
-
-  // The root-of-repo street, which gets the gem. Ref-stable on a reuse apply,
-  // so the gem and cameraRig skip.
-  const rootStreet = computed<Street | null>(() => {
-    void structureRevision.value;
-    return (layout.peek()?.streets ?? []).filter((s) => s.isRoot)[0] || null;
-  });
-
-  // The floor-level anchor at the root street's open end. gemAnchorXZ is the
-  // one source of that geometry, shared with the gem mesh and tree placement.
-  const gemWorldPos = computed<THREE.Vector3 | null>(() => {
-    const root = rootStreet.value;
-    if (!root) return null;
-    const a = gemAnchorXZ(root);
-    return new THREE.Vector3(a.x, 0, a.y);
-  });
-
-  // Tracks `layout`, NOT structureRevision: a reuse apply turns placeholder
-  // heights real, and framing must not wait on the async building meshes.
-  const tallestBuilding = computed<Building | null>(() => {
-    const l = layout.value;
-    if (!l) return null;
+  /** What the LAYOUT implies, on every apply: a reuse turns placeholder heights
+   *  real, and framing must not wait on the async building meshes. */
+  function _recomputeLayout(): void {
     let tallest: Building | null = null;
-    for (const b of l.buildings) {
+    for (const b of layout?.buildings ?? []) {
       if (!tallest || b.h > tallest.h) tallest = b;
     }
-    return tallest;
-  });
+    tallestBuilding = tallest;
+  }
 
-  // { dir.path → Street }, straight off layout.streets. Ref-stable on a reuse
-  // apply, recomputed on a structure change.
-  const streetsByDirMap = computed<Record<string, Street>>(() => {
-    void structureRevision.value;
-    const map: Record<string, Street> = {};
-    for (const s of layout.peek()?.streets ?? []) {
-      if (s.dir?.path != null) map[s.dir.path] = s;
-    }
-    return map;
+  // A halo change moves the world bbox, so the island and the framing have to
+  // refit even though no building moved.
+  settings.on('FOOTPRINT', () => {
+    if (!layout) return;
+    _recomputeStructure();
+    _tell('structure');
   });
 
   // Closure privates: the sig the atlas last built for (lagging a throw, so it
@@ -248,7 +258,7 @@ export function createCityState(
 
     // Reuse only when the PACKER's inputs are unchanged (layout_signature adds
     // per-file size): a content edit re-packs, a dates-only change reuses.
-    const prev = manifest.peek();
+    const prev = manifest;
     const prevLayoutSig =
       prev && 'layout_signature' in prev ? (prev as Manifest).layout_signature : '';
     const shouldReuse =
@@ -279,7 +289,7 @@ export function createCityState(
     }
 
     events.emit('build:stage', { stage: BuildStage.Layout });
-    const reusedLayout = shouldReuse ? layout.peek() : null;
+    const reusedLayout = shouldReuse ? layout : null;
     let newLayout: CityLayout;
     // Full envelope, not `.tree`: the worker contract stays typed against
     // Manifest. 'superseded' means a newer apply owns the swap.
@@ -311,7 +321,7 @@ export function createCityState(
     let newPlacements: TreePlacement[] | null = null;
     if (settings.TREES.ENABLED) {
       events.emit('build:stage', { stage: BuildStage.Decorate });
-      const newBbox = cityBbox(newLayout, footprintHalo.peek());
+      const newBbox = cityBbox(newLayout, _halo());
       try {
         newPlacements = await treePlacementClient.compute(
           newLayout,
@@ -332,17 +342,22 @@ export function createCityState(
       if (myGeneration !== generation) return;
     }
 
-    // One batch so consumers settle once. layout is set before structureRevision
-    // so structure consumers peek it fresh; a reuse apply leaves them frozen.
-    batch(() => {
-      manifest.value = newManifest;
-      layout.value = newLayout;
-      treePlacements.value = newPlacements;
-      if (!shouldReuse) structureRevision.value++;
-    });
-    // AFTER the flush, so downstream reads the meshes the components just built.
-    // Idle is the composer's to set: the rebuilds are async and unheld here.
-    cityRevision.value++;
+    // Swap the values, derive what follows from them, and only then tell
+    // anyone — in that order, so a listener never reads half a city. Structure
+    // first: the geometry consumers (island, gem, framing) have to be right
+    // before the ones that draw on top of it.
+    manifest = newManifest;
+    layout = newLayout;
+    treePlacements = newPlacements;
+    _recomputeLayout();
+    if (!shouldReuse) {
+      _recomputeStructure();
+      _tell('structure');
+    }
+    _tell('apply');
+    // AFTER those, so this reads the meshes the components just built. Idle is
+    // the composer's to set: the rebuilds are async and unheld here.
+    _tell('published');
   }
 
   // A config-only Save calls this so the next apply of the same manifest takes
@@ -351,20 +366,43 @@ export function createCityState(
     invalidated = true;
   }
 
+  // Getters, not a snapshot: an apply replaces these, and a component holding
+  // `cityState` has to see the current one.
   return {
-    manifest,
-    layout,
-    bbox,
-    sceneBbox,
-    cityHeight,
-    latestWorldBounds,
-    treePlacements,
-    rootStreet,
-    gemWorldPos,
-    tallestBuilding,
-    streetsByDirMap,
-    structureRevision,
-    cityRevision,
+    get manifest() {
+      return manifest;
+    },
+    get layout() {
+      return layout;
+    },
+    get bbox() {
+      return bbox;
+    },
+    get sceneBbox() {
+      return sceneBbox;
+    },
+    get cityHeight() {
+      return cityHeight;
+    },
+    get latestWorldBounds() {
+      return latestWorldBounds;
+    },
+    get treePlacements() {
+      return treePlacements;
+    },
+    get rootStreet() {
+      return rootStreet;
+    },
+    get gemWorldPos() {
+      return gemWorldPos;
+    },
+    get tallestBuilding() {
+      return tallestBuilding;
+    },
+    get streetsByDirMap() {
+      return streetsByDirMap;
+    },
+    on,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,

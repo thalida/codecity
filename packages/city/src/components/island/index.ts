@@ -97,11 +97,10 @@ export function createIsland(ctx: SceneContext): Island {
     group.visible = ctx.settings.ISLAND.ENABLED;
   }
 
-  // The bounds reference is stable across a reuse apply, so this fires on real
-  // changes only, with no gate of its own.
-  const stopBounds = effect(() => {
-    const bounds = cityState.latestWorldBounds.value;
-    if (bounds) setBounds(bounds);
+  // Structure only: a reuse apply moves no geometry, so the island keeps the
+  // shape it has rather than rebuilding into the same one.
+  const stopBounds = cityState.on('structure', () => {
+    if (cityState.latestWorldBounds) setBounds(cityState.latestWorldBounds);
   });
 
   // Also runs once at construction, re-applying what the constructor baked.

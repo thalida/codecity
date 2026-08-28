@@ -46,7 +46,7 @@ export function createBuildingFader({
     const hov = picker.hover.value;
 
     const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
-    const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap.peek());
+    const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap);
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
     const fadeCfg = settings.BUILDINGS;
@@ -109,10 +109,7 @@ export function createBuildingFader({
 
   // A rebuild resets iFade to opaque while the selection still stands.
   // untracked: _sweepAll's own reads would double this up with the effects above.
-  const _unsubChange = effect(() => {
-    void cityState.cityRevision.value;
-    untracked(_sweepAll);
-  });
+  const _unsubChange = cityState.on('published', _sweepAll);
 
   // Every value _sweepAll reads comes from BUILDINGS, so dragging a slider in
   // the controls pane has to re-sweep to show up.

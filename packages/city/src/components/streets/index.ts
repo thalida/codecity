@@ -291,10 +291,8 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // untracked, or baking the colours subscribes this to STREETS and a Refresh
   // Save recreates every mesh, orphaning the picker's pickables.
-  const stopLayout = effect(() => {
-    void cityState.structureRevision.value;
-    const layout = cityState.layout.peek();
-    if (layout) untracked(() => rebuild(layout));
+  const stopLayout = cityState.on('structure', () => {
+    if (cityState.layout) rebuild(cityState.layout);
   });
 
   // Repaints in place on a STREETS Save. Reads only settings, so it is safe at

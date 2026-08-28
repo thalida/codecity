@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig, FocusMode, type CameraRig } from '@/city/render/cameraRig';
 import { BACKDROP_CAMERA, CameraTarget } from '@/city/settings/fields/camera';
-import { commitTarget, makeCityState } from '../../_helpers/cityFixtures';
+import { commitTarget, makeCityState, seedCityState } from '../../_helpers/cityFixtures';
 import type { CityState } from '@/city/state';
 import { Building, BuildingOrient } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
@@ -26,10 +26,10 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
-// The rig frames off cityState, so seed a real bbox and root street.
-function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CityState {
-  const cs = makeCityState();
-  cs.layout.value = {
+// The rig frames off cityState, so seed a real bbox and root street — through
+// the real publish, which is what tells the rig to capture its framing.
+async function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): Promise<CityState> {
+  return seedCityState({
     buildings: [{ x: 100, y: 0, w: 30, d: 30, h: 200 } as unknown as Building],
     streets: [
       {
@@ -51,9 +51,7 @@ function seedFramedCity({ xLength = 1000, zLength = 1000 } = {}): CityState {
         dir: null,
       },
     ] as unknown as Street[],
-  } as unknown as CityLayout;
-  cs.structureRevision.value++;
-  return cs;
+  } as unknown as CityLayout);
 }
 
 function _baseWorld() {
@@ -125,12 +123,12 @@ describe('cameraRig top-down focus', () => {
     // DOM canvas, no WebGL context.
   });
 
-  it('a file target lands the camera at ~80° elevation centered on the building', () => {
+  it('a file target lands the camera at ~80° elevation centered on the building', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16);
@@ -157,12 +155,12 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('a directory target lands the camera at ~80° elevation centered on the street', () => {
+  it('a directory target lands the camera at ~80° elevation centered on the street', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16);
@@ -188,7 +186,7 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('a commit target lands the camera at ~80° elevation centered on the tree', () => {
+  it('a commit target lands the camera at ~80° elevation centered on the tree', async () => {
     const canvas = makeCanvas();
     const deps = makeStubWorld({
       getTreeBoundsBySha: (sha: string) =>
@@ -197,7 +195,7 @@ describe('cameraRig top-down focus', () => {
     const rig = createCameraRig({
       canvas,
       deps,
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16);
@@ -222,12 +220,12 @@ describe('cameraRig top-down focus', () => {
     });
   });
 
-  it('a commit whose tree was never placed leaves the camera alone', () => {
+  it('a commit whose tree was never placed leaves the camera alone', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16);
@@ -245,12 +243,12 @@ describe('cameraRig top-down focus', () => {
 });
 
 describe('cameraRig recenter focus', () => {
-  it('centres the building with the camera angle and distance untouched', () => {
+  it('centres the building with the camera angle and distance untouched', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16); // the opening framing, i.e. the pose a load rests at
@@ -271,12 +269,12 @@ describe('cameraRig recenter focus', () => {
     expect(after.z).toBeCloseTo(before.z, 2);
   });
 
-  it('centres the street the same way', () => {
+  it('centres the street the same way', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
     rig.update(16);
@@ -297,12 +295,12 @@ describe('cameraRig recenter focus', () => {
 
   // A URL restore lands between the manifest apply and the first rendered
   // frame, so the one-shot opening framing is still pending when it runs.
-  it('survives the first-frame framing when it lands before it', () => {
+  it('survives the first-frame framing when it lands before it', async () => {
     const canvas = makeCanvas();
     const rig = createCameraRig({
       canvas,
       deps: makeStubWorld(),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
       settings: SETTINGS,
     });
 
@@ -342,10 +340,10 @@ describe('cameraRig gem orbit', () => {
     while (rigs.length) rigs.pop()?.dispose();
   });
 
-  it('circles the gem at the configured elevation, part way out', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('circles the gem at the configured elevation, part way out', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
     const at = (t: number): number => {
       SETTINGS.update({ CAMERA: { ELEVATION: 12, DISTANCE_SCALE: t } });
       return rig.camera.position.distanceTo(gem);
@@ -363,35 +361,35 @@ describe('cameraRig gem orbit', () => {
 
   // The property the slider has to have: one value means one framing, on any
   // project. Against the city's extent, 0.1 varied by an order of magnitude.
-  it('puts a value at the same distance whatever the city sprawls to', () => {
+  it('puts a value at the same distance whatever the city sprawls to', async () => {
     const at = (cs: CityState, t: number): number => {
       const rig = makeRig(cs);
       SETTINGS.update({ CAMERA: { DISTANCE_SCALE: t } });
-      return rig.camera.position.distanceTo(cs.gemWorldPos.value as THREE.Vector3);
+      return rig.camera.position.distanceTo(cs.gemWorldPos as THREE.Vector3);
     };
     // Same root street, wildly different sprawl: 20x the depth behind the gem.
-    const compact = seedFramedCity({ xLength: 400, zLength: 400 });
-    const sprawling = seedFramedCity({ xLength: 400, zLength: 8000 });
+    const compact = await seedFramedCity({ xLength: 400, zLength: 400 });
+    const sprawling = await seedFramedCity({ xLength: 400, zLength: 8000 });
 
     expect(at(sprawling, 0.5)).toBeCloseTo(at(compact, 0.5), 3);
     expect(at(sprawling, 0.1)).toBeCloseTo(at(compact, 0.1), 3);
   });
 
-  it('is as close as the camera may ever sit at 0', () => {
-    const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
+  it('is as close as the camera may ever sit at 0', async () => {
+    const cs = await seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
     SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 0 } });
 
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
     expect(rig.camera.position.distanceTo(gem)).toBeCloseTo(rig.controls.minDistance, 6);
   });
 
   // Past 1 pulls back beyond the city, but no further than a hand-driven camera
   // could: the world's own zoom-out limit still holds.
-  it('goes past the city, and no further than the world allows', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('goes past the city, and no further than the world allows', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
 
     SETTINGS.update({ CAMERA: { DISTANCE_SCALE: 1 } });
     const framed = rig.camera.position.distanceTo(gem);
@@ -405,11 +403,11 @@ describe('cameraRig gem orbit', () => {
 
   // The bug TARGET exists to kill: a pose snapped in before the first frame
   // used to be overwritten by the still-pending opening framing a tick later.
-  it('opens on the orbit, and every re-frame keeps it there', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('opens on the orbit, and every re-frame keeps it there', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     SETTINGS.update({ CAMERA: { ELEVATION: 8, AZIMUTH: 120, DISTANCE_SCALE: 1.6 } });
     const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
     // Held still, so anything that moves across a frame is a framing, not the orbit.
     rig.setAutoRotate(false);
     const placed = rig.camera.position.clone();
@@ -423,10 +421,10 @@ describe('cameraRig gem orbit', () => {
     expect(elevationDeg(rig.camera.position, gem)).toBeCloseTo(8, 3);
   });
 
-  it('re-frames live when a pose slider is dragged mid-orbit', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('re-frames live when a pose slider is dragged mid-orbit', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
 
     const before = rig.camera.position.distanceTo(gem);
     SETTINGS.update({ CAMERA: { ELEVATION: 45, DISTANCE_SCALE: 0.25 } });
@@ -437,8 +435,8 @@ describe('cameraRig gem orbit', () => {
 
   // Two cities on one page hold two cameras, so a wallpaper slider must not
   // reach the project the reader is looking at. Same fields, separate values.
-  it('leaves the other city alone when this one is re-framed', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('leaves the other city alone when this one is re-framed', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const scene = settingsStore();
     const sceneRig = createCameraRig({
       canvas: makeCanvas(),
@@ -457,10 +455,10 @@ describe('cameraRig gem orbit', () => {
     expect(sceneRig.controls.autoRotate).toBe(false);
   });
 
-  it('frames the whole city, not the gem, when TARGET says so', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('frames the whole city, not the gem, when TARGET says so', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
-    const gem = cs.gemWorldPos.value as THREE.Vector3;
+    const gem = cs.gemWorldPos as THREE.Vector3;
     const orbiting = rig.camera.position.distanceTo(gem);
 
     SETTINGS.update({ CAMERA: { TARGET: CameraTarget.City } });
@@ -472,8 +470,8 @@ describe('cameraRig gem orbit', () => {
     expect(rig.camera.position.distanceTo(framed)).toBeLessThan(1e-6);
   });
 
-  it('AUTO_ROTATE off holds the view still, and back on turns it again', () => {
-    const rig = makeRig(seedFramedCity({ xLength: 6000, zLength: 6000 }));
+  it('AUTO_ROTATE off holds the view still, and back on turns it again', async () => {
+    const rig = makeRig(await seedFramedCity({ xLength: 6000, zLength: 6000 }));
     expect(rig.controls.autoRotate).toBe(true);
 
     SETTINGS.update({ CAMERA: { AUTO_ROTATE: false } });
@@ -483,8 +481,8 @@ describe('cameraRig gem orbit', () => {
     expect(rig.controls.autoRotate).toBe(true);
   });
 
-  it('applies rotation speed without yanking the orbit back to its start', () => {
-    const cs = seedFramedCity({ xLength: 6000, zLength: 6000 });
+  it('applies rotation speed without yanking the orbit back to its start', async () => {
+    const cs = await seedFramedCity({ xLength: 6000, zLength: 6000 });
     const rig = makeRig(cs);
     expect(rig.controls.autoRotate).toBe(true);
     // Stand in for the orbit having spun on from where it opened.
@@ -514,12 +512,12 @@ describe('cameraRig start framing', () => {
     });
   }
 
-  it('ignores repo-label width (only its top-edge height matters)', () => {
+  it('ignores repo-label width (only its top-edge height matters)', async () => {
     const narrow = createCameraRig({
       settings: SETTINGS,
       canvas: makeCanvas(),
       deps: labelDeps(40),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
     });
     narrow.update(16);
     const narrowPos = narrow.camera.position.clone();
@@ -528,7 +526,7 @@ describe('cameraRig start framing', () => {
       settings: SETTINGS,
       canvas: makeCanvas(),
       deps: labelDeps(4000),
-      cityState: seedFramedCity(),
+      cityState: await seedFramedCity(),
     });
     wide.update(16);
     const widePos = wide.camera.position.clone();

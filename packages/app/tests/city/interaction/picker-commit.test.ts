@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
-import { makeCityState, treePlacement } from '../../_helpers/cityFixtures';
+import { drivableCityState, treePlacement } from '../../_helpers/cityFixtures';
 import { commitSeries } from '../../_helpers/commits';
 import { renderTrees, treeFaceIndex, treeSlot } from '../../_helpers/renderTrees';
 import type { Trees } from '@/city/components/trees/treeRenderer';
@@ -34,7 +34,7 @@ function makeWorld(initialTrees: Trees | null): PickerWorld & {
   setTrees(t: Trees | null): void;
 } {
   // A city rebuild bumps cityRevision, which is what the picker re-resolves on.
-  const cityState = makeCityState();
+  const cityState = drivableCityState();
   let currentTrees = initialTrees;
   const api: PickerWorld = {
     getStreetPickables: () => [],
@@ -49,7 +49,7 @@ function makeWorld(initialTrees: Trees | null): PickerWorld & {
   return Object.assign(api, {
     cityState,
     triggerRebuild() {
-      cityState.cityRevision.value++;
+      cityState.publish('published');
     },
     setTrees(t: Trees | null) {
       currentTrees = t;

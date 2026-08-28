@@ -125,16 +125,15 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // The most recent rebuild, for a caller that must wait for the meshes.
   let _rebuilding: Promise<void> = Promise.resolve();
 
-  const stopRebuild = effect(() => {
-    const layout = ctx.cityState.layout.value;
-    const manifest = ctx.cityState.manifest.value;
-    if (layout && manifest)
-      untracked(() => {
-        // Held, not just fired: nothing downstream can know the meshes exist
-        // without it (see whenSettled).
-        _rebuilding = rebuild(layout, manifest.dateRanges, manifest.scanned_at);
-        void _rebuilding;
-      });
+  const stopRebuild = ctx.cityState.on('apply', () => {
+    const layout = ctx.cityState.layout;
+    const manifest = ctx.cityState.manifest;
+    if (layout && manifest) {
+      // Held, not just fired: nothing downstream can know the meshes exist
+      // without it (see whenSettled).
+      _rebuilding = rebuild(layout, manifest.dateRanges, manifest.scanned_at);
+      void _rebuilding;
+    }
   });
 
   // All three subscribe to picker.selection/hover, so they arm on the first
@@ -389,7 +388,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       ctx.client,
       bounds,
       buildings,
-      sourceOf(ctx.cityState.manifest.peek()),
+      sourceOf(ctx.cityState.manifest),
       ctx.resources
     );
 

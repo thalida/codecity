@@ -107,18 +107,14 @@ export function createPathLineRenderer({
 
   function _updatePathLine(): void {
     const sel = picker.selection.value;
-    const gemPos = cityState.gemWorldPos.peek();
+    const gemPos = cityState.gemWorldPos;
     if (!gemPos || !sel) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
       pathSegmentCount = 0;
       return;
     }
-    const pts = computePathPoints(
-      sel,
-      { x: gemPos.x, z: gemPos.z },
-      cityState.streetsByDirMap.peek()
-    );
+    const pts = computePathPoints(sel, { x: gemPos.x, z: gemPos.z }, cityState.streetsByDirMap);
     if (pts.length < 2) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
@@ -149,7 +145,7 @@ export function createPathLineRenderer({
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
-    const gemPos = cityState.gemWorldPos.peek();
+    const gemPos = cityState.gemWorldPos;
     const cfg = settings.STREETS;
     function hide() {
       hoverPathLine.visible = false;
@@ -158,11 +154,7 @@ export function createPathLineRenderer({
     if (!gemPos || !hov) return hide();
     if (hov.kind === NodeKind.Gem) return hide();
     if (_isHoverSameAsSelection()) return hide();
-    const pts = computePathPoints(
-      hov,
-      { x: gemPos.x, z: gemPos.z },
-      cityState.streetsByDirMap.peek()
-    );
+    const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, cityState.streetsByDirMap);
     if (pts.length < 2) return hide();
     const elev = HOVER_PATH_LINE_ELEVATION;
     const flat: number[] = [];
@@ -192,13 +184,9 @@ export function createPathLineRenderer({
   });
   // Recompute both lines when the gem moves or the city rebuilds;
   // untracked() keeps the subscription to exactly those two signals.
-  const _disposeRebuildEffect = effect(() => {
-    void cityState.gemWorldPos.value;
-    void cityState.cityRevision.value;
-    untracked(() => {
-      _updatePathLine();
-      _updateHoverPathLine();
-    });
+  const _disposeRebuildEffect = cityState.on('published', () => {
+    _updatePathLine();
+    _updateHoverPathLine();
   });
 
   // ── Per-frame: rainbow chase on the selection line ─────────────────

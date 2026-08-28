@@ -172,17 +172,15 @@ export function createPicker({
     hover.value = null;
   }
 
-  // Rebuild reaction: untracked() keeps this subscribed ONLY to
-  // cityRevision — the body reads/writes signals that would re-fire it.
-  const _disposeCityRevEffect = effect(() => {
-    void cityState.cityRevision.value;
-    untracked(() => {
-      _clearHoverOnRebuild();
-      _resolveKeyToSelection();
-    });
+  // Published, so the meshes collected here are the ones the components just
+  // built: a manifest swap stales every live ref, and the selection key is what
+  // keeps the selected node alive across it.
+  const _disposeCityRevEffect = cityState.on('published', () => {
+    _clearHoverOnRebuild();
+    _resolveKeyToSelection();
   });
-  // cityRevision bumps after the apply's batch flushed, so the meshes collected
-  // here are the ones the components just built. Fires once at construction too.
+  // Once at construction too, for the pickables a boot city already has.
+  _resolveKeyToSelection();
 
   // The scrub rewrites building matrices per frame but the BVH caches bounds
   // at build time — invalidate on SCRUB_POS or hitboxes freeze mid-scrub.
@@ -247,7 +245,7 @@ export function createPicker({
   /** The commit itself, for one the city drew no tree for. Timeline's list is
    *  the one the scrubber names; Live's comes off the manifest. */
   function _commitBySha(sha: string): CommitEntry | null {
-    const commits = timeline.bundle.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
+    const commits = timeline.bundle.peek()?.commits ?? cityState.manifest?.commits ?? [];
     return commits.find((c) => c.sha === sha) ?? null;
   }
 

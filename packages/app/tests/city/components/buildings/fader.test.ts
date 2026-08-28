@@ -10,7 +10,7 @@ import { createBuildingFader } from '@/city/components/buildings/fader';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 
 const _res = createTestCityResources();
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, seedCityState, republishCity } from '../../../_helpers/cityFixtures';
 import { FadeDetail } from '@/city/types/animation';
 import { Building } from '@/city/types/building';
 import { DirNode, FileNode, NodeKind } from '@/city/types/manifest';
@@ -69,7 +69,7 @@ interface FadeReading {
   outlineOpacity: number;
 }
 
-function makeFader(opts: {
+async function makeFader(opts: {
   buildings: Building[];
   selection?: PickTarget | null;
   hover?: PickTarget | null;
@@ -98,14 +98,12 @@ function makeFader(opts: {
 
   // The fader resolves a selection's parent dir through streetsByDirMap, so the
   // streets have to be seeded for any dirTarget lookup to land.
-  const cityState = makeCityState();
-  if (opts.streetByDir) {
-    cityState.layout.value = {
-      streets: [...opts.streetByDir.values()],
-      buildings: [],
-    } as unknown as CityLayout;
-    cityState.structureRevision.value++;
-  }
+  const cityState = opts.streetByDir
+    ? await seedCityState({
+        streets: [...opts.streetByDir.values()],
+        buildings: [],
+      } as unknown as CityLayout)
+    : makeCityState();
 
   const fader = createBuildingFader({
     timeline: TIMELINE,
@@ -162,10 +160,10 @@ function setKnownFade() {
 describe('buildingFader 5-tier cascade', () => {
   beforeEach(setKnownFade);
 
-  it('no target → every building gets DEFAULT (1.0 opacity)', () => {
+  it('no target → every building gets DEFAULT (1.0 opacity)', async () => {
     const a = makeFile('src/a.ts');
     const b = makeFile('src/b.ts');
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [makeBuilding(a), makeBuilding(b)],
       selection: null,
       hover: null,
@@ -174,7 +172,7 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/b.ts')!.opacity).toBeCloseTo(1.0);
   });
 
-  it('selected file → symmetric LCA distance: same dir L1, 1 hop L2, 2 hops L3, 3+ hops L4', () => {
+  it('selected file → symmetric LCA distance: same dir L1, 1 hop L2, 2 hops L3, 3+ hops L4', async () => {
     // Distance is symmetric hops through the LCA, so src/lib/e.ts (1 up, 1 down)
     // lands on the same tier as a file two levels down.
     const a = makeFile('src/foo/a.ts');
@@ -187,7 +185,7 @@ describe('buildingFader 5-tier cascade', () => {
     const selBuilding = makeBuilding(a);
     const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [
         selBuilding,
         makeBuilding(b),
@@ -215,7 +213,7 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('selected dir → symmetric distance: direct files L1, 1 hop L2, 2 hops L3', () => {
+  it('selected dir → symmetric distance: direct files L1, 1 hop L2, 2 hops L3', async () => {
     // dirTarget = src/foo. Same distance math as the file-selection case.
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
@@ -226,7 +224,7 @@ describe('buildingFader 5-tier cascade', () => {
     const far = makeFile('other/deep/x.ts');
     const dir = makeDir('src/foo');
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [
         makeBuilding(a),
         makeBuilding(b),
@@ -253,7 +251,7 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('hovered file → hover-self DEFAULT, sibling L1, 1 hop L2, 2 hops L3, 3+ hops L4', () => {
+  it('hovered file → hover-self DEFAULT, sibling L1, 1 hop L2, 2 hops L3, 3+ hops L4', async () => {
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
     const c = makeFile('src/foo/bar/c.ts');
@@ -262,7 +260,7 @@ describe('buildingFader 5-tier cascade', () => {
     const hovBuilding = makeBuilding(a);
     const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [
         hovBuilding,
         makeBuilding(b),
@@ -286,7 +284,7 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('root selection → distance is depth from root', () => {
+  it('root selection → distance is depth from root', async () => {
     // dirTarget = root, so there is nothing to walk up and distance collapses to
     // the depth of each file's parent.
     const r = makeFile('README.md');
@@ -295,7 +293,7 @@ describe('buildingFader 5-tier cascade', () => {
     const z = makeFile('src/foo/bar/z.ts');
     const rootDir = makeDir('.');
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [makeBuilding(r), makeBuilding(x), makeBuilding(y), makeBuilding(z)],
       selection: {
         kind: NodeKind.Directory,
@@ -311,14 +309,14 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/foo/bar/z.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('prefix-precision: "src-utils" is NOT confused with a child of "src"', () => {
+  it('prefix-precision: "src-utils" is NOT confused with a child of "src"', async () => {
     // A naive prefix check would read 'src-utils' as a child of 'src' and put it
     // at L2; the segment-aware split routes it through root instead, so L3.
     const a = makeFile('src/a.ts');
     const lookAlike = makeFile('src-utils/x.ts');
     const dir = makeDir('src');
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [makeBuilding(a), makeBuilding(lookAlike)],
       selection: {
         kind: NodeKind.Directory,
@@ -332,14 +330,14 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src-utils/x.ts')!.opacity).toBeCloseTo(0.4); // L3, not L2
   });
 
-  it('selected file honors DEFAULT config (no hardcoded constants)', () => {
+  it('selected file honors DEFAULT config (no hardcoded constants)', async () => {
     SETTINGS.update({ BUILDINGS: { DEFAULT_BODY_OPACITY: 0.5 } });
 
     const a = makeFile('src/a.ts');
     const selBuilding = makeBuilding(a);
     const streetByDir = new Map([['src', { dir: makeDir('src') }]]);
 
-    const { readFor } = makeFader({
+    const { readFor } = await makeFader({
       buildings: [selBuilding],
       selection: {
         kind: NodeKind.File,
@@ -359,13 +357,13 @@ describe('buildingFader 5-tier cascade', () => {
 describe('buildingFader → material transparency', () => {
   beforeEach(setKnownFade);
 
-  it('turns blending on only while the cascade is dimming something', () => {
+  it('turns blending on only while the cascade is dimming something', async () => {
     const a = makeFile('src/foo/a.ts');
     const far = makeFile('other/deep/x.ts');
     const selBuilding = makeBuilding(a);
     const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
-    const { picker } = makeFader({
+    const { picker } = await makeFader({
       buildings: [selBuilding, makeBuilding(far)],
       selection: null,
       streetByDir,
@@ -389,7 +387,7 @@ describe('buildingFader → material transparency', () => {
     expect(_res.buildings.get().transparent).toBe(false);
   });
 
-  it('stays opaque for a cascade whose tiers are all fully opaque', () => {
+  it('stays opaque for a cascade whose tiers are all fully opaque', async () => {
     SETTINGS.update({
       BUILDINGS: {
         DEFAULT_DETAIL: FadeDetail.Full,

@@ -99,19 +99,19 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     expect(streets.getPickables().length).toBe(1);
     // #5: bbox was computed AFTER the streets group was populated (so it's not
     // the empty fallback — it covers the real street + building footprint).
-    const bbox = cityState.bbox.value;
+    const bbox = cityState.bbox;
     expect(bbox).not.toBeNull();
     expect(bbox!.isEmpty()).toBe(false);
     // latestWorldBounds was set on the non-reuse path.
-    expect(cityState.latestWorldBounds.value).not.toBeNull();
+    expect(cityState.latestWorldBounds).not.toBeNull();
   });
 
   it('#1 scenic-reuse: re-applying the SAME structure_signature does NOT rebuild streets', async () => {
     const { cityState, streets, layoutClient } = setup();
     await cityState.applyManifest(makeManifest('sig-1'));
     const pickablesAfterFirst = streets.getPickables();
-    const layoutAfterFirst = cityState.layout.value;
-    const bboxAfterFirst = cityState.bbox.value;
+    const layoutAfterFirst = cityState.layout;
+    const bboxAfterFirst = cityState.bbox;
 
     // Same structure_signature → cache hit → the same layout reference back →
     // layout.value not reassigned → the streets effect does NOT re-fire.
@@ -122,8 +122,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     expect(layoutClient.compute.mock.calls[1][2]).toBe(layoutAfterFirst);
     // No streets rebuild: same pickables array reference, same layout + bbox.
     expect(streets.getPickables()).toBe(pickablesAfterFirst);
-    expect(cityState.layout.value).toBe(layoutAfterFirst);
-    expect(cityState.bbox.value).toBe(bboxAfterFirst);
+    expect(cityState.layout).toBe(layoutAfterFirst);
+    expect(cityState.bbox).toBe(bboxAfterFirst);
   });
 
   it('#2 invalidate-then-reapply (structural Save): a new layout reference rebuilds streets', async () => {
@@ -148,10 +148,10 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     await Promise.all([p1, p2]);
 
     // The winning (last) apply owns the final state: structure_signature sig-2.
-    expect(cityState.manifest.value!.structure_signature).toBe('sig-2');
+    expect(cityState.manifest!.structure_signature).toBe('sig-2');
     // Streets were built (exactly once for the winner — the loser bailed
     // before reassigning layout.value).
     expect(streets.getPickables().length).toBe(1);
-    expect(cityState.bbox.value).not.toBeNull();
+    expect(cityState.bbox).not.toBeNull();
   });
 });

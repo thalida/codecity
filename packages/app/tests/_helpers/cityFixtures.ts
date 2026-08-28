@@ -8,7 +8,8 @@ import type { Picker } from '@/city/interaction/picker';
 import type { TreesConfig } from '@/city/settings/fields/trees';
 import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
 import type { CitySettingsStore } from '@/city/settings/store';
-import { createCityState, type CityState } from '@/city/state';
+import { createCityState, type CityChange, type CityState } from '@/city/state';
+import type { Manifest } from '@/city/types/manifest';
 import { settingsStore } from './citySettings';
 import { createEmitter } from '@/city/events';
 import { createTimelineState, type TimelineState } from '@/city/timeline/state';
@@ -222,4 +223,87 @@ export function commitTarget(sha: string, overrides: Partial<CommitEntry> = {}):
     instanceId: 0,
     commit: commits({ date: '2026-01-01', files: 1, authors: ['Alice'], ...overrides, sha })[0],
   };
+}
+
+/** A cityState already showing `layout`, published the way a build publishes
+ *  one: through applyManifest, so the listeners fire in the real order rather
+ *  than because a test poked a field. */
+export async function seedCityState(
+  layout: CityLayout,
+  over: { manifest?: Partial<Manifest>; settings?: CitySettingsStore } = {}
+): Promise<CityState> {
+  const settings = over.settings ?? settingsStore();
+  const state = createCityState(
+    { compute: async () => layout, dispose() {} } as never,
+    stubPlacementClient() as never,
+    createTestCityResources(settings),
+    settings,
+    createEmitter()
+  );
+  const manifest = {
+    tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [] },
+    structure_signature: 'seed',
+    layout_signature: 'seed',
+    commits: [],
+    ...over.manifest,
+  } as unknown as Manifest;
+  _seedManifests.set(state, manifest);
+  await state.applyManifest(manifest);
+  return state;
+}
+
+const _seedManifests = new WeakMap<CityState, Manifest>();
+
+/** Apply the same city again: the reuse path, which is what a live-update poll
+ *  or a settings Save does. Publishes, so every listener hears it. */
+export function republishCity(state: CityState): Promise<void> {
+  const manifest = _seedManifests.get(state);
+  if (!manifest) throw new Error('republishCity: not a seedCityState city');
+  return state.applyManifest(manifest);
+}
+
+/** A cityState a test can publish by hand. For a unit test of what a component
+ *  DOES when the city changes, where the pipeline that decided to change it is
+ *  somebody else's test (see applyManifestScenic / scenicReactivity). */
+export interface DrivableCityState extends CityState {
+  /** Set what the city is showing. Publishes nothing on its own. */
+  set(next: Partial<Pick<CityState, 'manifest' | 'layout' | 'treePlacements'>>): void;
+  /** Tell the listeners, the way an apply tells them. */
+  publish(kind: CityChange): void;
+}
+
+export function drivableCityState(): DrivableCityState {
+  const listeners = new Map<CityChange, Set<() => void>>();
+  const state: Record<string, unknown> = {
+    manifest: null,
+    layout: null,
+    treePlacements: null,
+    bbox: null,
+    sceneBbox: null,
+    cityHeight: 0,
+    latestWorldBounds: null,
+    rootStreet: null,
+    gemWorldPos: null,
+    tallestBuilding: null,
+    streetsByDirMap: {},
+    on(kind: CityChange, listener: () => void) {
+      let set = listeners.get(kind);
+      if (!set) {
+        set = new Set();
+        listeners.set(kind, set);
+      }
+      set.add(listener);
+      return () => void set.delete(listener);
+    },
+    applyManifest: async () => {},
+    buildStagesFor: () => [],
+    invalidateLayoutCache() {},
+    set(next: Record<string, unknown>) {
+      Object.assign(state, next);
+    },
+    publish(kind: CityChange) {
+      for (const listener of [...(listeners.get(kind) ?? [])]) listener();
+    },
+  };
+  return state as unknown as DrivableCityState;
 }

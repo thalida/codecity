@@ -178,8 +178,8 @@ export async function createCity(
       // the first tick, and framing that waits frames a different city (#62).
       getRepoLabelBounds: () =>
         repoLabelBounds(
-          cityState.manifest.peek()?.tree?.name,
-          cityState.gemWorldPos.peek(),
+          cityState.manifest?.tree?.name,
+          cityState.gemWorldPos,
           settings.REPO_LABEL,
           settings.BUILDING_DIMENSIONS
         ),
@@ -190,28 +190,24 @@ export async function createCity(
   // cityRevision bumps after the apply's batch flushed, so the camera is aimed
   // at a built city, not half of one.
   let lastReframedSourceKey: string | null = null;
-  const stopReframe = effect(() => {
-    void cityState.cityRevision.value;
+  const stopReframe = cityState.on('published', () => {
     const key = sourceLoader.key();
     if (key === null || key === lastReframedSourceKey) return;
     // No city yet: claiming the key here would make the first real one, which
     // is what there is to frame, skip its reframe.
-    if (cityState.manifest.peek() === null) return;
+    if (cityState.manifest === null) return;
     lastReframedSourceKey = key;
-    untracked(() => rig.reset());
+    rig.reset();
   });
 
   // The build is over when the city is ON SCREEN, not when applyStructure
   // returns: it starts the rebuilds without holding them (see render/LOADING.md).
-  const stopOnScreen = effect(() => {
-    void cityState.cityRevision.value;
-    if (cityState.manifest.peek() === null) return;
-    untracked(() => {
-      void buildings.whenSettled().then(() => {
-        // Two frames: render() only issues the GL commands, and the pixels land
-        // a compositor pass later.
-        requestAnimationFrame(() => requestAnimationFrame(() => events.emit('build:done', {})));
-      });
+  const stopOnScreen = cityState.on('published', () => {
+    if (cityState.manifest === null) return;
+    void buildings.whenSettled().then(() => {
+      // Two frames: render() only issues the GL commands, and the pixels land
+      // a compositor pass later.
+      requestAnimationFrame(() => requestAnimationFrame(() => events.emit('build:done', {})));
     });
   });
 
@@ -231,7 +227,7 @@ export async function createCity(
       getTrees: () => trees.getRenderer(),
       getBuildingByPath: (p) => buildings.getBuildingByPath(p),
       getSidewalkByDir: (p) => streets.getSidewalkByDir(p),
-      getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
+      getStreetByDir: (p) => cityState.streetsByDirMap[p] ?? null,
       getBuildingIndex: () => buildings.getBuildingIndex(),
     },
   });
@@ -326,9 +322,9 @@ export async function createCity(
         picker,
         timelines,
         commitLineRanges,
-        heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
-        scannedAt: cityState.manifest.peek()?.scanned_at,
-        streetsByDir: cityState.streetsByDirMap.peek(),
+        heightCtx: makeHeightContext(cityState.manifest?.stats),
+        scannedAt: cityState.manifest?.scanned_at,
+        streetsByDir: cityState.streetsByDirMap,
         settings,
         timeline,
         scrubGates: [

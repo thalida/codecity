@@ -76,14 +76,14 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   // Rebuild off treePlacements (lockstep with trees). untracked() stops a
   // FIREFLIES subscription reallocating orbs on every slider drag.
-  const stopPlacements = effect(() => {
-    const placements = cityState.treePlacements.value;
-    if (placements)
-      untracked(() => {
-        const manifest = cityState.manifest.peek();
-        rebuild(placements, manifest?.commits ?? null, manifest?.stats, manifest?.scanned_at);
-      });
-    else clear();
+  const stopPlacements = cityState.on('apply', () => {
+    const placements = cityState.treePlacements;
+    if (!placements) {
+      clear();
+      return;
+    }
+    const manifest = cityState.manifest;
+    rebuild(placements, manifest?.commits ?? null, manifest?.stats, manifest?.scanned_at);
   });
 
   // Armed on first tick() (no picker at construction). A fresh renderer
