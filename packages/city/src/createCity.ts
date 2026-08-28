@@ -62,8 +62,7 @@ export async function createCity(
 ): Promise<City> {
   // Before anything that reads a setting: the material, the state pipeline and
   // every component resolve their values off this one instance's store.
-  const settingsStore = createSettingsStore(initialSettings);
-  const settings = settingsStore.signals;
+  const settings = createSettingsStore(initialSettings);
   // This city's own subscribers. A second city on the page emits to its own,
   // so its build cannot move the overlay above the one being read.
   const events = createEmitter();
@@ -181,8 +180,8 @@ export async function createCity(
         repoLabelBounds(
           cityState.manifest.peek()?.tree?.name,
           cityState.gemWorldPos.peek(),
-          settings.REPO_LABEL.peek(),
-          settings.BUILDING_DIMENSIONS.peek()
+          settings.REPO_LABEL,
+          settings.BUILDING_DIMENSIONS
         ),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
@@ -394,8 +393,8 @@ export async function createCity(
     client,
     loadSource: sourceLoader.load,
     cancelLoad: sourceLoader.cancel,
-    settings: settingsStore,
-    updateSettings: settingsStore.update,
+    settings,
+    updateSettings: settings.update,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,

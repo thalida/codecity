@@ -50,7 +50,7 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
     const buildings = [building({ x: 10, y: 10 }), building({ x: 20, y: 20 })];
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -73,7 +73,7 @@ describe('buildCellsFromLayout', () => {
     const dense = Array.from({ length: 100 }, (_, i) => building({ x: i % 10, y: 1 }));
     const sparse = [20, 32, 44, 56].map((x) => building({ x, y: 1 }));
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -97,7 +97,7 @@ describe('buildCellsFromLayout', () => {
       building({ x: 10, y: 9 }),
     ];
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -122,7 +122,7 @@ describe('buildCellsFromLayout', () => {
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
     const buildings = Array.from({ length: N }, (_, i) => building({ x: i * CELL_SIZE + 1, y: 1 }));
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -144,7 +144,7 @@ describe('buildCellsFromLayout', () => {
       building({ x: CELL_SIZE + 1, y: 1 }), // cell at grid-col 1, row 0
     ];
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -162,7 +162,7 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -180,7 +180,7 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
     const out = buildCellsFromLayout(
-      SETTINGS.signals,
+      SETTINGS,
       TIMELINE,
       CLIENT,
       bounds,
@@ -212,30 +212,14 @@ describe('buildCellsFromLayout', () => {
         modified: '',
       },
     });
-    const out = buildCellsFromLayout(
-      SETTINGS.signals,
-      TIMELINE,
-      CLIENT,
-      bounds,
-      [b],
-      TEST_SOURCE,
-      _res
-    );
+    const out = buildCellsFromLayout(SETTINGS, TIMELINE, CLIENT, bounds, [b], TEST_SOURCE, _res);
 
     expect(out.index.byPath.get('src/foo.ts')).toBeDefined();
   });
 
   it('handles empty buildings array without throwing', () => {
     const bounds = { minX: 0, maxX: 200, minZ: 0, maxZ: 200 };
-    const out = buildCellsFromLayout(
-      SETTINGS.signals,
-      TIMELINE,
-      CLIENT,
-      bounds,
-      [],
-      TEST_SOURCE,
-      _res
-    );
+    const out = buildCellsFromLayout(SETTINGS, TIMELINE, CLIENT, bounds, [], TEST_SOURCE, _res);
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
@@ -268,7 +252,7 @@ describe('buildCellsFromLayout', () => {
 
     it('builds an ad-panel mesh for media buildings when MEDIA_ENABLED (default)', () => {
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,
@@ -282,7 +266,7 @@ describe('buildCellsFromLayout', () => {
     it('skips the ad-panel mesh entirely when MEDIA_ENABLED is off', () => {
       SETTINGS.update({ BUILDINGS: { MEDIA_ENABLED: false } });
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,
@@ -315,7 +299,7 @@ describe('buildCellsFromLayout', () => {
         },
       });
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,
@@ -356,7 +340,7 @@ describe('buildCellsFromLayout', () => {
     it('registers a facade panel for a binary building when DATA_ENABLED (default)', () => {
       expect(
         buildCellsFromLayout(
-          SETTINGS.signals,
+          SETTINGS,
           TIMELINE,
           CLIENT,
           bounds,
@@ -370,7 +354,7 @@ describe('buildCellsFromLayout', () => {
     it('skips the facade when DATA_ENABLED is off, but the block still renders', () => {
       SETTINGS.update({ BUILDINGS: { DATA_ENABLED: false } });
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,
@@ -402,7 +386,7 @@ describe('buildCellsFromLayout', () => {
         },
       });
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,
@@ -452,7 +436,7 @@ describe('buildCellsFromLayout', () => {
       });
 
       const out = buildCellsFromLayout(
-        SETTINGS.signals,
+        SETTINGS,
         TIMELINE,
         CLIENT,
         bounds,

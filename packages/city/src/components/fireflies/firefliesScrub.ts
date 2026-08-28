@@ -13,7 +13,7 @@ import {
 import { epochDayAt } from '@/city/utils/dates';
 import { scaleForCommits, type FireflyPlacement } from './firefliesPlacement';
 import type { CommitEntry, RepoStats } from '@/city/types/manifest';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 export interface FirefliesScrub {
   /** The commit in effect and the date. Either null restores the live sizes;
@@ -22,7 +22,7 @@ export interface FirefliesScrub {
 }
 
 export function createFirefliesScrub(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   orbs: FireflyPlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
@@ -79,7 +79,7 @@ export function createFirefliesScrub(
       _appliedDay = day;
 
       countTo(Math.min(maxCommitIndex, history.length - 1));
-      const cfgFireflies = settings.FIREFLIES.value;
+      const cfgFireflies = settings.FIREFLIES;
       const scales = new Map<string, number>();
       for (const [author, n] of counts) {
         scales.set(author, scaleForCommits(n, maxCommits, cfgFireflies));
@@ -90,7 +90,7 @@ export function createFirefliesScrub(
 
       // Tree sizes at this date, from the same formulas the forest grows by, so
       // an orb keeps its place just outside the canopy.
-      const cfg = settings.TREES.value;
+      const cfg = settings.TREES;
       const scrubbed: AgeRange = { ...ageRange, scanned: day };
       const heightAt = new Map<number, number>();
       const radiusAt = new Map<number, number>();

@@ -9,14 +9,14 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { VERTS_PER_TRIANGLE } from '@/city/utils/bufferLayout';
 import { commitStats } from './statsFixtures';
 import type { BusynessThresholds, CommitEntry } from '@/city/types/manifest';
-import { settingSignals } from './citySettings';
-import type { SettingSignals } from '@/city/settings/store';
+import { settingsStore } from './citySettings';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 export function renderTrees(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   busyness: BusynessThresholds,
-  settings: SettingSignals = settingSignals()
+  settings: CitySettingsStore = settingsStore()
 ): Trees {
   return createTreeRenderer(
     settings,

@@ -7,9 +7,9 @@ import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { TreesConfig } from '@/city/settings/fields/trees';
 import type { BuildingDimensionsConfig } from '@/city/settings/fields/buildings';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import { createCityState, type CityState } from '@/city/state';
-import { settingSignals } from './citySettings';
+import { settingsStore } from './citySettings';
 import { createEmitter } from '@/city/events';
 import { createTimelineState, type TimelineState } from '@/city/timeline/state';
 import { commits } from './commits';
@@ -32,7 +32,7 @@ export function stubPlacementClient(placements: unknown[] = []) {
 }
 
 /** cityState with no-op build workers, for tests that don't drive applyManifest. */
-export function makeCityState(settings: SettingSignals = settingSignals()): CityState {
+export function makeCityState(settings: CitySettingsStore = settingsStore()): CityState {
   return createCityState(
     STUB_LAYOUT_CLIENT as never,
     stubPlacementClient() as never,
@@ -60,7 +60,7 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
  *  one page do. */
 export function makeSceneContext(
   cityState?: CityState,
-  settings: SettingSignals = settingSignals(),
+  settings: CitySettingsStore = settingsStore(),
   timeline: TimelineState = createTimelineState()
 ): SceneContext {
   return {
@@ -80,7 +80,7 @@ export function makeSceneContext(
  *  test can drive hover/selection and assert what the component does. */
 export function makePickableSceneContext(
   cityState?: CityState,
-  settings: SettingSignals = settingSignals(),
+  settings: CitySettingsStore = settingsStore(),
   timeline: TimelineState = createTimelineState()
 ): {
   ctx: SceneContext;

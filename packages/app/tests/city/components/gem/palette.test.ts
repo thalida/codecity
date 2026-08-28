@@ -48,32 +48,32 @@ describe('createGemPalette (per-city memo)', () => {
   it('caches the parsed array between reads (no per-frame reparse)', () => {
     // tick() reads this every frame while the glow colour cycle is on; the
     // computed must hand back the SAME array until GEM actually changes.
-    const faces = createGemPalette(settingsStore().signals);
-    expect(faces.value).toBe(faces.value);
+    const faces = createGemPalette(settingsStore());
+    expect(faces()).toBe(faces());
   });
 
   it('recomputes (new identity, fresh values) after a GEM Save', () => {
     const store = settingsStore();
-    const faces = createGemPalette(store.signals);
-    const before = faces.value;
+    const faces = createGemPalette(store);
+    const before = faces();
 
     store.update({ GEM: { FACE_1: '#123456' } });
 
-    expect(faces.value).not.toBe(before);
+    expect(faces()).not.toBe(before);
     const reference = new THREE.Color('#123456');
-    expect(faces.value[0]).toEqual([reference.r, reference.g, reference.b]);
+    expect(faces()[0]).toEqual([reference.r, reference.g, reference.b]);
   });
 
   it('two cities memoize separately: a Save on one leaves the other alone', () => {
     const a = settingsStore();
     const b = settingsStore();
-    const facesA = createGemPalette(a.signals);
-    const facesB = createGemPalette(b.signals);
-    const beforeB = facesB.value;
+    const facesA = createGemPalette(a);
+    const facesB = createGemPalette(b);
+    const beforeB = facesB();
 
     a.update({ GEM: { FACE_1: '#123456' } });
 
-    expect(facesA.value).not.toEqual(beforeB);
-    expect(facesB.value).toBe(beforeB);
+    expect(facesA()).not.toEqual(beforeB);
+    expect(facesB()).toBe(beforeB);
   });
 });

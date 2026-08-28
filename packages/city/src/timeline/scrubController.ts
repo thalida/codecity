@@ -5,7 +5,7 @@ import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
 import type { StreetScrubState } from '@/city/components/streets/scrubState';
 import type { HeightContext } from '@/city/layout/dimensions';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import type { createPicker } from '@/city/interaction/picker';
 import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
@@ -43,7 +43,7 @@ export interface ScrubControllerDeps {
   // { street dir.path → Street } from the union layout.
   streetsByDir: Record<string, Street>;
   scrubGates: ScrubGate[];
-  settings: SettingSignals;
+  settings: CitySettingsStore;
   timeline: TimelineState;
 }
 

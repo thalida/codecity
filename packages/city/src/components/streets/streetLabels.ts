@@ -9,7 +9,7 @@ import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 // Hardcoded label constants — these have no visible effect at normal viewing
 // distances, so they are baked in here rather than exposed as UI controls.
@@ -28,12 +28,12 @@ const LABEL_ELLIPSIS = '…';
 
 function _buildLabelTexture(
   text: string,
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   maxAspect?: number
 ): { texture: THREE.CanvasTexture; aspect: number; text: string } {
   // High source resolution so close-zoom doesn't reveal bilinear blur; the
   // world-space plane size is unchanged.
-  const streets = settings.STREETS.value;
+  const streets = settings.STREETS;
   const fontSpec = `${LABEL_FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${LABEL_FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
@@ -91,11 +91,11 @@ function _truncateToFit(
   return text.slice(0, lo) + LABEL_ELLIPSIS;
 }
 
-export function createStreetLabels(street: Street, settings: SettingSignals): THREE.Group[] {
+export function createStreetLabels(street: Street, settings: CitySettingsStore): THREE.Group[] {
   const text = street.label || '';
   if (!text) return [];
 
-  const streets = settings.STREETS.value;
+  const streets = settings.STREETS;
   const orders = RENDER_ORDERS;
 
   // Subtract the cap diameter too: the label is rectangular and would poke its

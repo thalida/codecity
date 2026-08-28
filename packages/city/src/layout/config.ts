@@ -4,7 +4,7 @@
 // on either side.
 
 import { defaultCitySettings, type CitySettings } from '../settings';
-import type { SettingSignals } from '../settings/store';
+import type { CitySettingsStore } from '../settings/store';
 
 /** The four stores layoutCity and dimensions.ts read. Everything else the
  *  city is tunable about is main-thread only and never reaches the packer. */
@@ -25,12 +25,12 @@ export function layoutConfigOf(settings: CitySettings): LayoutConfig {
 
 /** The packer's slice of a live city's settings, read untracked: the packer is
  *  called from an apply, not from a subscription. */
-export function layoutConfigFrom(settings: SettingSignals): LayoutConfig {
+export function layoutConfigFrom(settings: CitySettingsStore): LayoutConfig {
   return {
-    STREET_LAYOUT: settings.STREET_LAYOUT.peek(),
-    BUILDING_DIMENSIONS: settings.BUILDING_DIMENSIONS.peek(),
-    GEM_SIZING: settings.GEM_SIZING.peek(),
-    STREET_TIERS: settings.STREET_TIERS.peek(),
+    STREET_LAYOUT: settings.STREET_LAYOUT,
+    BUILDING_DIMENSIONS: settings.BUILDING_DIMENSIONS,
+    GEM_SIZING: settings.GEM_SIZING,
+    STREET_TIERS: settings.STREET_TIERS,
   };
 }
 

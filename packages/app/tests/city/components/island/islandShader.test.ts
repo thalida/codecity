@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
 import { createIslandMaterial } from '@/city/components/island/islandShader';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 describe('createIslandMaterial', () => {
   it('returns a ShaderMaterial with all required uniforms', () => {

@@ -19,7 +19,7 @@ import { NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { StreetAxis } from '@/city/types/street';
 import { layoutCfg } from '../_helpers/citySettings';
-import { settingSignals } from '../_helpers/citySettings';
+import { settingsStore } from '../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
 import { createClient } from '@/city/client';
 
@@ -27,7 +27,7 @@ const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const CFG = layoutCfg();
 

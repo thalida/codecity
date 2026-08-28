@@ -9,7 +9,6 @@ import { effect, untracked } from '@preact/signals';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { createGemPalette, writeFaceColors, type Rgb } from './palette';
 import { NodeKind } from '@/city/types/manifest';
@@ -92,7 +91,7 @@ export function createGem(ctx: SceneContext): Gem {
     if (inner) group.add(inner);
   }
 
-  // untracked() is load-bearing: createRootGem reads ctx.settings.GEM.value, and a GEM
+  // untracked() is load-bearing: createRootGem reads ctx.settings.GEM, and a GEM
   // subscription would recreate the pickable body sans cityRevision bump.
   const stopLayout = effect(() => {
     const rootStreet = cityState.rootStreet.value;
@@ -101,8 +100,8 @@ export function createGem(ctx: SceneContext): Gem {
 
   // GEM Save → repaint in place. Safe at construction: null guards no-op
   // until the first rebuild.
-  const stopEffect = onSettings(ctx.settings.GEM, () => {
-    const gemAppearance = ctx.settings.GEM.value;
+  const stopEffect = ctx.settings.on('GEM', () => {
+    const gemAppearance = ctx.settings.GEM;
 
     if (edges?.material?.color) {
       edges.material.color.set(gemAppearance.EDGE_COLOR);
@@ -122,7 +121,7 @@ export function createGem(ctx: SceneContext): Gem {
     // tweaks skip a full rebuild.
     if (body?.geometry?.attributes.color) {
       const colorAttr = body.geometry.attributes.color as THREE.BufferAttribute;
-      writeFaceColors(colorAttr.array as Float32Array, gemFaceColors.value);
+      writeFaceColors(colorAttr.array as Float32Array, gemFaceColors());
       colorAttr.needsUpdate = true;
     }
     if (gem && gem.userData.streetWidth != null) {
@@ -150,7 +149,7 @@ export function createGem(ctx: SceneContext): Gem {
 
   function tick(_dt: number, frame: FrameContext): void {
     if (!gem) return;
-    const gemCfg = ctx.settings.GEM.value;
+    const gemCfg = ctx.settings.GEM;
     // Absolute time (seconds since render-loop start), NOT dt.
     const t = frame.time;
     gem.rotation.y = t * gemCfg.ROTATION_SPEED;
@@ -178,7 +177,7 @@ export function createGem(ctx: SceneContext): Gem {
       if (outer) outer.quaternion.copy(_glowQuat);
       if (gemCfg.GLOW_ANIMATE_COLORS) {
         // Memoized computed — cached array, zero per-frame parsing/allocation.
-        const colors = gemFaceColors.value;
+        const colors = gemFaceColors();
         const period = Math.max(0.001, gemCfg.GLOW_CYCLE_PERIOD_SECONDS);
         if (inner) _setPaletteColor(inner.material.color, colors, t, period, 0);
         if (outer) _setPaletteColor(outer.material.color, colors, t, period, 0.5);
@@ -189,7 +188,7 @@ export function createGem(ctx: SceneContext): Gem {
       }
       // HDR push: scaling the LDR halo color past 1.0 is what the bloom
       // threshold picks up; gated on BLOOM.ENABLED for the flat mode.
-      const gemEmission = ctx.settings.BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
+      const gemEmission = ctx.settings.BLOOM.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
       if (gemEmission !== 1) {
         if (inner) inner.material.color.multiplyScalar(gemEmission);
         if (outer) outer.material.color.multiplyScalar(gemEmission);

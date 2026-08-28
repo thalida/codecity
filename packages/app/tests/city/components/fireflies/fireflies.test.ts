@@ -7,9 +7,9 @@ import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { treePlacement } from '../../../_helpers/cityFixtures';
 import { childGroup, meshesInChildGroup } from '../../../_helpers/sceneGraph';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const COMMITS = buildCommits({ date: '2026-01-01', files: 1, authors: ['Alice'] });
 const PLACEMENTS = [treePlacement(0)];
@@ -64,7 +64,7 @@ describe('createFireflyAssembly', () => {
 
   it('returns an empty group when ENABLED is false', () => {
     const stats = commitStats(COMMITS);
-    const off = settingSignals({ FIREFLIES: { ENABLED: false } });
+    const off = settingsStore({ FIREFLIES: { ENABLED: false } });
     const f = createFireflyAssembly(off, PLACEMENTS, COMMITS, stats);
     expect(f.group.children.length).toBe(0);
     f.dispose();
@@ -72,7 +72,7 @@ describe('createFireflyAssembly', () => {
 
   it('orbit ring is absent when ORBIT_RING_ENABLED is false', () => {
     const stats = commitStats(COMMITS);
-    const noRings = settingSignals({ FIREFLIES: { ORBIT_RING_ENABLED: false } });
+    const noRings = settingsStore({ FIREFLIES: { ORBIT_RING_ENABLED: false } });
     const f = createFireflyAssembly(noRings, PLACEMENTS, COMMITS, stats);
     // The group is still built, it just holds no meshes.
     expect(childGroup(f.group, ORBIT_RINGS_GROUP)).not.toBeNull();

@@ -10,7 +10,6 @@ import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
-import { onSettings } from '../../utils/onSettings';
 import {
   createMergedSidewalkMesh,
   createMergedAsphaltMesh,
@@ -101,7 +100,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // Tint colors as THREE.Color (written into the merged sidewalk's per-vertex
   // color attribute). The theme effect refreshes them whenever STREETS mutates.
-  const _swc0 = ctx.settings.STREETS.value;
+  const _swc0 = ctx.settings.STREETS;
   const _defColor = new THREE.Color(_swc0.SIDEWALK_DEFAULT);
   const _hovColor = new THREE.Color(_swc0.SIDEWALK_HOVER);
   const _selColor = new THREE.Color(_swc0.SIDEWALK_SELECTED);
@@ -300,8 +299,8 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // Repaints in place on a STREETS Save. Reads only settings, so it is safe at
   // construction, and no-ops over the empty arrays before the first rebuild.
-  const stopTheme = onSettings(ctx.settings.STREETS, () => {
-    const streets = ctx.settings.STREETS.value;
+  const stopTheme = ctx.settings.on('STREETS', () => {
+    const streets = ctx.settings.STREETS;
 
     _defColor.set(streets.SIDEWALK_DEFAULT);
     _hovColor.set(streets.SIDEWALK_HOVER);
@@ -338,9 +337,9 @@ export function createStreets(ctx: SceneContext): Streets {
   });
 
   // rebuild() seeds a fresh mesh's ruin colour; this keeps it current after.
-  const stopRuinColor = effect(() => {
-    const road = ctx.settings.RUINS.value.ROAD_COLOR;
-    const border = ctx.settings.RUINS.value.SIDEWALK_COLOR;
+  const stopRuinColor = ctx.settings.on('RUINS', () => {
+    const road = ctx.settings.RUINS.ROAD_COLOR;
+    const border = ctx.settings.RUINS.SIDEWALK_COLOR;
     const a = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
     if (a) setColorFromHex(a.value, road);
     const s = sidewalkMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;

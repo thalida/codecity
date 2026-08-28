@@ -6,7 +6,7 @@ import {
   type RendererRegistry,
 } from './components/buildings/facadePanelTextureArray';
 import { createGemTextures, type GemTextures } from './components/gem/mesh';
-import type { SettingSignals } from './settings/store';
+import type { CitySettingsStore } from './settings/store';
 
 /** Everything one city owns that used to be a module-level `let`.
  *
@@ -37,7 +37,7 @@ export interface CityResources {
 
 export function createCityResources(
   renderer: THREE.WebGLRenderer | null,
-  settings: SettingSignals
+  settings: CitySettingsStore
 ): CityResources {
   const buildings = createBuildingMaterial(settings);
   const gem = createGemTextures();

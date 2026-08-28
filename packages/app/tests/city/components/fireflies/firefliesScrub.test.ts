@@ -8,11 +8,11 @@ import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { TEST_TREES, treePlacement } from '../../../_helpers/cityFixtures';
 import { parseDateMs } from '@/city/utils/dates';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
 // Canopy width follows height only with the age attenuation on, and the orb
 // scale range is what these assertions read.
-const SETTINGS = settingSignals({
+const SETTINGS = settingsStore({
   TREES: { ...TEST_TREES, WIDTH_AGE_FLOOR: 0.2 },
   FIREFLIES: { SCALE_MIN: 1, SCALE_MAX: 5 },
 });
@@ -59,9 +59,9 @@ describe('createFirefliesScrub', () => {
   it('holds an author who has not committed yet at the floor', () => {
     const { orbs, scrub } = field();
     scrub.resize(1, ms('2026-02-01'));
-    expect(scaleOf(orbs, 'Grace')).toBe(SETTINGS.FIREFLIES.value.SCALE_MIN);
+    expect(scaleOf(orbs, 'Grace')).toBe(SETTINGS.FIREFLIES.SCALE_MIN);
     scrub.resize(3, ms(SCANNED));
-    expect(scaleOf(orbs, 'Grace')).toBeGreaterThan(SETTINGS.FIREFLIES.value.SCALE_MIN);
+    expect(scaleOf(orbs, 'Grace')).toBeGreaterThan(SETTINGS.FIREFLIES.SCALE_MIN);
   });
 
   it('scrubs the orbit onto the tree as it is at that date, not as it ends up', () => {
@@ -127,9 +127,9 @@ describe('createFirefliesScrub', () => {
   });
 
   it('leaves TREES untouched: it reads the config, it does not write it', () => {
-    const before = SETTINGS.TREES.value;
+    const before = SETTINGS.TREES;
     const { scrub } = field();
     scrub.resize(1, ms('2026-02-01'));
-    expect(SETTINGS.TREES.value).toBe(before);
+    expect(SETTINGS.TREES).toBe(before);
   });
 });

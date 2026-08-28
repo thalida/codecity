@@ -13,10 +13,10 @@ import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRend
 import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../_helpers/statsFixtures';
-import { layoutCfg, settingSignals, treeCfg } from '../_helpers/citySettings';
+import { layoutCfg, settingsStore, treeCfg } from '../_helpers/citySettings';
 
 const CFG = layoutCfg();
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 // The polygon rejection pass off, its shape still setting the sampling
 // extent - what islandGeoOverride: null used to mean.
 const TREE_CFG = treeCfg({ ISLAND: { ENABLED: false } });

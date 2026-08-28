@@ -23,12 +23,12 @@ import {
 import type { RangeStat } from '@/city/types/manifest';
 import type { Street } from '@/city/types/street';
 import type { PickTarget } from '@/city/types/picker';
-import { settingSignals } from '../../_helpers/citySettings';
+import { settingsStore } from '../../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
 
 const TIMELINE = createTimelineState();
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 afterEach(() => {
   TIMELINE.setBundle(null);

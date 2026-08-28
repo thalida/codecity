@@ -5,7 +5,6 @@ import * as THREE from 'three';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
-import { onSettings } from '../../utils/onSettings';
 import { createPathLineRenderer } from './renderer';
 
 /** Public contract for the pathLine component. */
@@ -46,7 +45,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
 
   // untracked, because refreshMaterials reads picker.hover/selection and this
   // effect must subscribe to STREETS alone.
-  const stopTheme = onSettings(ctx.settings.STREETS, () => _inner?.refreshMaterials());
+  const stopTheme = ctx.settings.on('STREETS', () => _inner?.refreshMaterials());
 
   // tick() — arms the renderer on the first call, then advances the rainbow
   // chase on the selection line.

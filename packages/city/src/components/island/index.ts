@@ -11,7 +11,6 @@ import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { IslandConfig } from '@/city/settings/fields/island';
 import type { SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../../utils/onSettings';
 
 // Coplanar with the city, because it is the ground the city stands on. Dropping
 // it to dodge a z-fight suspended every building and tree above the grass.
@@ -59,7 +58,7 @@ export function islandSeedFromBounds(b: WorldBounds): number {
 // see the bounds effect below); no picker/camera/renderer needed at construction.
 export function createIsland(ctx: SceneContext): Island {
   const { cityState } = ctx;
-  let currentBounds = getWorldBounds(null, ctx.settings.WORLD.value);
+  let currentBounds = getWorldBounds(null, ctx.settings.WORLD);
   // No city yet, so no ground: the fallback rectangle exists to give the mesh a
   // shape, not to paint an island over whatever the view put behind the canvas.
   let sized = false;
@@ -68,12 +67,8 @@ export function createIsland(ctx: SceneContext): Island {
   group.visible = false;
 
   // Island mesh.
-  let params = buildParams(
-    currentBounds,
-    islandSeedFromBounds(currentBounds),
-    ctx.settings.ISLAND.value
-  );
-  const mats = ctx.settings.ISLAND.value;
+  let params = buildParams(currentBounds, islandSeedFromBounds(currentBounds), ctx.settings.ISLAND);
+  const mats = ctx.settings.ISLAND;
   let geometry = buildIslandGeometry(params, {
     GRASS: mats.GRASS_COLOR,
     GRASS_SIDE: mats.GRASS_SIDE_COLOR,
@@ -89,12 +84,8 @@ export function createIsland(ctx: SceneContext): Island {
   function setBounds(newBounds: WorldBounds): void {
     currentBounds = newBounds;
     geometry.dispose();
-    params = buildParams(
-      currentBounds,
-      islandSeedFromBounds(currentBounds),
-      ctx.settings.ISLAND.value
-    );
-    const m = ctx.settings.ISLAND.value;
+    params = buildParams(currentBounds, islandSeedFromBounds(currentBounds), ctx.settings.ISLAND);
+    const m = ctx.settings.ISLAND;
     geometry = buildIslandGeometry(params, {
       GRASS: m.GRASS_COLOR,
       GRASS_SIDE: m.GRASS_SIDE_COLOR,
@@ -103,7 +94,7 @@ export function createIsland(ctx: SceneContext): Island {
     islandMesh.geometry = geometry;
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
     sized = true;
-    group.visible = ctx.settings.ISLAND.peek().ENABLED;
+    group.visible = ctx.settings.ISLAND.ENABLED;
   }
 
   // The bounds reference is stable across a reuse apply, so this fires on real
@@ -114,12 +105,12 @@ export function createIsland(ctx: SceneContext): Island {
   });
 
   // Also runs once at construction, re-applying what the constructor baked.
-  const stopEffect = onSettings(ctx.settings.ISLAND, () => {
+  const stopEffect = ctx.settings.on('ISLAND', () => {
     // Vertex colours are baked into the geometry, so a colour change rebuilds.
     // Only once sized: the fallback rectangle is not ground worth painting.
     if (sized) setBounds(currentBounds);
-    group.visible = sized && ctx.settings.ISLAND.value.ENABLED;
-    const m = ctx.settings.ISLAND.value;
+    group.visible = sized && ctx.settings.ISLAND.ENABLED;
+    const m = ctx.settings.ISLAND;
     (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(m.HEMI_SKY_COLOR);
     (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(m.HEMI_GROUND_COLOR);
     material.uniforms.uGrassTexture!.value = m.GRASS_TEXTURE;

@@ -56,7 +56,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
     trackEndMs: SCANNED_AT,
-    settings: SETTINGS.signals,
+    settings: SETTINGS,
     timeline: TIMELINE,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
@@ -94,10 +94,7 @@ describe('the ruin settings', () => {
     SETTINGS.update({ RUINS: { ENABLED: true, STUB_HEIGHT: 0.5, BUILDING_OPACITY: 0.3 } });
     const frame = at(0);
     expect(frame.ruinsOn).toBe(true);
-    expect(frame.ruinHeight).toBeCloseTo(
-      0.5 * SETTINGS.snapshot().BUILDING_DIMENSIONS.FLOOR_HEIGHT,
-      5
-    );
+    expect(frame.ruinHeight).toBeCloseTo(0.5 * SETTINGS.BUILDING_DIMENSIONS.FLOOR_HEIGHT, 5);
     expect(frame.ruinBuildingOpacity).toBe(0.3);
   });
 });

@@ -18,9 +18,9 @@ import type { IconAtlas } from '@/city/components/buildings/atlas';
 import { building } from '../../../_helpers/buildingFixture';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import type { FileNode } from '@/city/types/manifest';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const _res = createTestCityResources();
 

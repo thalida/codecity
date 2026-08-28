@@ -15,7 +15,7 @@ import { Building } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickerWorld } from '@/city/types/picker';
-import { settingSignals } from '../../_helpers/citySettings';
+import { settingsStore } from '../../_helpers/citySettings';
 import { createEmitter } from '../../_helpers/cityEvents';
 import { createTimelineState } from '@/city/timeline/state';
 import { createClient } from '@/city/client';
@@ -24,7 +24,7 @@ const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const _res = createTestCityResources();
 

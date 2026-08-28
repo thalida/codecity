@@ -13,7 +13,7 @@ import { isDataBuilding, isEmptyFile, isUnmeasuredFile } from '@/city/utils/file
 import { BuildingKind } from './buildingKind';
 import { seedFromPath } from './seed';
 import { getBuildingColorForRecency } from './color';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 // The unit box every building scales from, built once.
 
@@ -114,13 +114,13 @@ export function writeBuildingToSlot(
   cell: CellTile,
   b: Building,
   material: BuildingMaterial,
-  settings: SettingSignals
+  settings: CitySettingsStore
 ): void {
   const slot = b.slotId!;
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (read once per write, not per attribute) ---
-  const facade = settings.BUILDINGS.value;
+  const facade = settings.BUILDINGS;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;

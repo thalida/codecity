@@ -6,9 +6,9 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createOrbitRings, ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
 import type { FireflyPlacement } from '@/city/components/fireflies/firefliesPlacement';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 function makePlacement(commitIndex: number): FireflyPlacement {
   return {

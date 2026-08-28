@@ -12,7 +12,7 @@ import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/city/types/building';
 import type { SourceRef } from '@/city/types/manifest';
 import type { CityResources } from '@/city/resources';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import type { TimelineState } from '@/city/timeline/state';
 import type { CodecityClient } from '@/city/client';
 
@@ -28,7 +28,7 @@ export interface CellAssemblyOutput {
 /** Assemble a cell-based scene from a layout's buildings. Sparse: only occupied
  *  cells are allocated, so the count tracks directory density, not grid extent. */
 export function buildCellsFromLayout(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   timeline: TimelineState,
   client: CodecityClient,
   bounds: WorldBounds,
@@ -108,12 +108,12 @@ export function buildCellsFromLayout(
 
   // One mesh serves both, so they share the LOD/streaming/fade machinery.
   // Textures load later: updateLOD streams in the ones actually on screen.
-  const mediaBuildings = settings.BUILDINGS.value.MEDIA_ENABLED
+  const mediaBuildings = settings.BUILDINGS.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file) && !isEmptyFile(b.file))
     : [];
   // DATA_ENABLED gates only the facade texture; the windowless block still
   // renders from the building mesh (cellMesh) regardless.
-  const binaryBuildings = settings.BUILDINGS.value.DATA_ENABLED
+  const binaryBuildings = settings.BUILDINGS.DATA_ENABLED
     ? buildings.filter((b) => isDataBuilding(b.file) && !isEmptyFile(b.file))
     : [];
   let facadePanels: InstancedFacadePanels | null = null;

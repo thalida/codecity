@@ -14,7 +14,7 @@ import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import type { createLayoutClient } from '../layout';
 import { layoutConfigFrom } from '../layout/config';
-import type { SettingSignals } from '../settings/store';
+import type { CitySettingsStore } from '../settings/store';
 import type { CityResources } from '../resources';
 import { Building } from '@/city/types/building';
 import { Manifest } from '@/city/types/manifest';
@@ -134,7 +134,7 @@ export function createCityState(
   layoutClient: ReturnType<typeof createLayoutClient>,
   treePlacementClient: TreePlacementClient,
   resources: CityResources,
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   events: CityEmitter
 ): CityState {
   const manifest = signal<Manifest | null>(null);
@@ -147,7 +147,7 @@ export function createCityState(
   // Halo width, or 0 when off. Dedupes to a number so bbox re-fires only when
   // the halo changes, not on every FOOTPRINT change (which would refit).
   const footprintHalo = computed<number>(() => {
-    const f = settings.FOOTPRINT.value;
+    const f = settings.FOOTPRINT;
     return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
   });
 
@@ -173,7 +173,7 @@ export function createCityState(
   // structure change. null until the first apply.
   const latestWorldBounds = computed<WorldBounds | null>(() => {
     const sb = sceneBbox.value;
-    return sb ? getWorldBounds(sb, settings.WORLD.value, cityHeight.value) : null;
+    return sb ? getWorldBounds(sb, settings.WORLD, cityHeight.value) : null;
   });
 
   // The root-of-repo street, which gets the gem. Ref-stable on a reuse apply,
@@ -231,7 +231,7 @@ export function createCityState(
       BuildStage.Assemble,
       // The trees component ends a build: enabled, it decorates; off, it settles
       // straight to idle and this stage never comes.
-      ...(settings.TREES.peek().ENABLED ? [BuildStage.Decorate] : []),
+      ...(settings.TREES.ENABLED ? [BuildStage.Decorate] : []),
     ];
   }
 
@@ -309,7 +309,7 @@ export function createCityState(
     // Placed against the finished layout, so the scan belongs to the build, not
     // to the component that draws them: the batch below publishes a whole city.
     let newPlacements: TreePlacement[] | null = null;
-    if (settings.TREES.peek().ENABLED) {
+    if (settings.TREES.ENABLED) {
       events.emit('build:stage', { stage: BuildStage.Decorate });
       const newBbox = cityBbox(newLayout, footprintHalo.peek());
       try {
@@ -319,10 +319,10 @@ export function createCityState(
           newManifest.commits?.length ?? 0,
           newBbox.max.y - newBbox.min.y,
           {
-            TREES: settings.TREES.peek(),
-            FOOTPRINT: settings.FOOTPRINT.peek(),
-            WORLD: settings.WORLD.peek(),
-            ISLAND: settings.ISLAND.peek(),
+            TREES: settings.TREES,
+            FOOTPRINT: settings.FOOTPRINT,
+            WORLD: settings.WORLD,
+            ISLAND: settings.ISLAND,
           }
         );
       } catch (err) {

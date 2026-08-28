@@ -131,7 +131,7 @@ describe('cameraRig top-down focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16);
 
@@ -163,7 +163,7 @@ describe('cameraRig top-down focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16);
     const s = makeStreet();
@@ -198,7 +198,7 @@ describe('cameraRig top-down focus', () => {
       canvas,
       deps,
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16);
     rig.focusSelection(commitTarget('abc'));
@@ -228,7 +228,7 @@ describe('cameraRig top-down focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
@@ -251,7 +251,7 @@ describe('cameraRig recenter focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16); // the opening framing, i.e. the pose a load rests at
 
@@ -277,7 +277,7 @@ describe('cameraRig recenter focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rig.update(16);
 
@@ -303,7 +303,7 @@ describe('cameraRig recenter focus', () => {
       canvas,
       deps: makeStubWorld(),
       cityState: seedFramedCity(),
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
 
     const b = makeBuilding();
@@ -328,7 +328,7 @@ describe('cameraRig gem orbit', () => {
       canvas: makeCanvas(),
       deps: makeStubWorld(),
       cityState,
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
     });
     rigs.push(rig);
     return rig;
@@ -444,7 +444,7 @@ describe('cameraRig gem orbit', () => {
       canvas: makeCanvas(),
       deps: makeStubWorld(),
       cityState: cs,
-      settings: scene.signals,
+      settings: scene,
     });
     rigs.push(sceneRig);
     sceneRig.update(16); // the opening framing, where the reader is sitting
@@ -516,7 +516,7 @@ describe('cameraRig start framing', () => {
 
   it('ignores repo-label width (only its top-edge height matters)', () => {
     const narrow = createCameraRig({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       canvas: makeCanvas(),
       deps: labelDeps(40),
       cityState: seedFramedCity(),
@@ -525,7 +525,7 @@ describe('cameraRig start framing', () => {
     const narrowPos = narrow.camera.position.clone();
 
     const wide = createCameraRig({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       canvas: makeCanvas(),
       deps: labelDeps(4000),
       cityState: seedFramedCity(),

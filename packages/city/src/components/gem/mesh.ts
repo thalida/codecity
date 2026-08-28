@@ -12,7 +12,7 @@ import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
 import { NodeKind } from '@/city/types/manifest';
 import { Street } from '@/city/types/street';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 // Hover-lift as a fraction of street width — fixed, not user-tunable;
 // index.ts recomputes baseY from it on Save.
@@ -103,10 +103,10 @@ export function gemRadiusFor(streetWidth: number, sizing: GemSizingConfig): numb
 export function createRootGem(
   street: Street,
   textures: GemTextures,
-  settings: SettingSignals
+  settings: CitySettingsStore
 ): THREE.Group {
-  const sizing = settings.GEM_SIZING.value;
-  const appearance = settings.GEM.value;
+  const sizing = settings.GEM_SIZING;
+  const appearance = settings.GEM;
   const edgeColor = appearance.EDGE_COLOR;
   const group = new THREE.Group();
 
@@ -121,9 +121,9 @@ export function createRootGem(
   const gemZ = anchor.y;
 
   // ---- Gem: per-face colored polyhedron -------------------------------------
-  const geo = buildGemGeometry(settings.GEM.value.SIDES, radius);
+  const geo = buildGemGeometry(settings.GEM.SIDES, radius);
 
-  const faceColors = paletteColors(settings.GEM.value);
+  const faceColors = paletteColors(settings.GEM);
 
   const vertexCount = geo.attributes.position.count;
   const colorAttr = new Float32Array(vertexCount * 3);
@@ -153,7 +153,7 @@ export function createRootGem(
   // Halo: two PlaneGeometry quads (hot core + atmosphere), NOT THREE.Sprite
   // — a specialized GPU path some mobile drivers corrupt into flashes.
   const gem = new THREE.Group();
-  const glowCfg = settings.GEM.value;
+  const glowCfg = settings.GEM;
   const glowTex = textures.glow();
   const glowQuadGeo = new THREE.PlaneGeometry(1, 1);
   const innerGlow = new THREE.Mesh(

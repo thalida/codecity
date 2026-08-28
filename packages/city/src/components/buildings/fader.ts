@@ -13,7 +13,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import type { CityState } from '@/city/state';
 import { FadeDetail } from '@/city/types/animation';
 import { NodeKind } from '@/city/types/manifest';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import type { TimelineState } from '@/city/timeline/state';
 
 // Narrow surface, so the fader doesn't take the buildings component's whole
@@ -35,7 +35,7 @@ export function createBuildingFader({
   cityState: CityState;
   picker: ReturnType<typeof createPicker>;
   material: BuildingMaterial;
-  settings: SettingSignals;
+  settings: CitySettingsStore;
   timeline: TimelineState;
 }) {
   function _sweepAll(): void {
@@ -49,7 +49,7 @@ export function createBuildingFader({
     const dirTarget = resolveDirTarget(sel, hov, cityState.streetsByDirMap.peek());
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = settings.BUILDINGS.value;
+    const fadeCfg = settings.BUILDINGS;
 
     // Built here rather than inside applyBuildingFades' per-slot callback,
     // which would re-walk the tree per slot.
@@ -116,10 +116,7 @@ export function createBuildingFader({
 
   // Every value _sweepAll reads comes from BUILDINGS, so dragging a slider in
   // the controls pane has to re-sweep to show up.
-  const _unsubCfg = effect(() => {
-    void settings.BUILDINGS.value;
-    _sweepAll();
-  });
+  const _unsubCfg = settings.on('BUILDINGS', _sweepAll);
 
   // No-op: the buildings tick() still calls this each frame, but the real work
   // is subscription-driven.

@@ -37,7 +37,7 @@ describe('createRepoLabel()', () => {
 
   beforeEach(() => {
     store = settingsStore(LABEL_SETTINGS);
-    label = createRepoLabel(makeSceneContext(undefined, store.signals), { getGem: () => null });
+    label = createRepoLabel(makeSceneContext(undefined, store), { getGem: () => null });
   });
 
   afterEach(() => {
@@ -252,7 +252,7 @@ describe('createRepoLabel()', () => {
 
     // HEIGHT_PCT writes group.position with no null guard, so a subscription
     // outliving dispose shows up here. OPACITY would not: it is guarded.
-    store.update({ REPO_LABEL: { HEIGHT_PCT: store.snapshot().REPO_LABEL.HEIGHT_PCT + 25 } });
+    store.update({ REPO_LABEL: { HEIGHT_PCT: store.REPO_LABEL.HEIGHT_PCT + 25 } });
 
     expect(group.position.y).toBe(y);
   });

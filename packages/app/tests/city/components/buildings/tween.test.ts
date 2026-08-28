@@ -68,7 +68,7 @@ describe('createBuildingTweens()', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: () => ({ mesh, slot: 0 }),
     });
 
@@ -109,7 +109,7 @@ describe('createBuildingTweens()', () => {
     const b = building({ cellId: 1, slotId: 1 });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: () => ({ mesh, slot: 1 }),
     });
 
@@ -146,7 +146,7 @@ describe('createBuildingTweens()', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: () => ({ mesh, slot: 0 }),
     });
 
@@ -176,7 +176,7 @@ describe('createBuildingTweens()', () => {
     const mesh = makeMesh();
     let live = true;
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: () => (live ? { mesh, slot: 0 } : null),
     });
 
@@ -197,7 +197,7 @@ describe('createBuildingTweens()', () => {
     const b1 = building({ cellId: 1, slotId: 1, file: { ...building().file, path: 'b.ts' } });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: (b) => ({ mesh, slot: b === b0 ? 0 : 1 }),
     });
 
@@ -214,7 +214,7 @@ describe('createBuildingTweens()', () => {
     const b = building({ cellId: 1, slotId: 0 });
     const mesh = makeMesh();
     const tweens = createBuildingTweens({
-      settings: SETTINGS.signals,
+      settings: SETTINGS,
       getMeshForBuilding: () => ({ mesh, slot: 0 }),
     });
 

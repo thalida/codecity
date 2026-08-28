@@ -29,8 +29,8 @@ describe('createIsland', () => {
   beforeEach(() => {
     store = settingsStore(ISLAND_SETTINGS);
     fakeCtx = {
-      cityState: makeCityState(store.signals),
-      settings: store.signals,
+      cityState: makeCityState(store),
+      settings: store,
     } as unknown as SceneContext;
   });
 

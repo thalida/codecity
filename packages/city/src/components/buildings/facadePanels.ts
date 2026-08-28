@@ -22,7 +22,7 @@ import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
 import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
 import type { RendererRegistry } from './facadePanelTextureArray';
 import { ContentPendingError } from '@/city/client/file';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import type { TimelineState } from '@/city/timeline/state';
 import type { CodecityClient } from '@/city/client';
 
@@ -156,7 +156,7 @@ export class InstancedFacadePanels {
     // meaningless without the repo they are relative to.
     readonly source: SourceRef | null,
     /** This city's settings. Held, not read once: refresh() re-reads them. */
-    private readonly settings: SettingSignals,
+    private readonly settings: CitySettingsStore,
     /** This city's history, for the blob a scrubbed facade should show. */
     readonly timeline: TimelineState,
     /** This city's client: a facade is fetched from the server that served the
@@ -187,13 +187,13 @@ export class InstancedFacadePanels {
     const geo = new THREE.PlaneGeometry(1, 1);
 
     // Material — GLSL3 required for sampler2DArray.
-    const adCfg = this.settings.BUILDINGS.value;
+    const adCfg = this.settings.BUILDINGS;
     const placeholderColor = new THREE.Color(adCfg.MEDIA_PLACEHOLDER_COLOR);
     // Cached for markBuildingErrored — recolors a slot's iColor on a permanent
     // media load failure. No emission bake; the shader applies it per kind.
     this._errorColor = new THREE.Color(MEDIA_ERROR_COLOR);
 
-    const bloomCfg = this.settings.BLOOM.value;
+    const bloomCfg = this.settings.BLOOM;
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       // Injected as a #define: it sizes the sampler array and gates the
@@ -280,8 +280,8 @@ export class InstancedFacadePanels {
     const mh = b.file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
     const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
-    const cfg = this.settings.BUILDINGS.value;
-    const dims = this.settings.BUILDING_DIMENSIONS.value;
+    const cfg = this.settings.BUILDINGS;
+    const dims = this.settings.BUILDING_DIMENSIONS;
     const panelWidth = Math.max(0.1, b.w * (1 - 2 * cfg.MEDIA_SIDE_MARGIN_FRAC));
     const panelHeight = panelWidth * aspect;
     const centerY = cfg.MEDIA_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT + panelHeight / 2;
@@ -551,8 +551,8 @@ export class InstancedFacadePanels {
 
   /** Hot-reload emission + data tint from config (no rebuild). */
   refresh(): void {
-    const enabled = this.settings.BLOOM.value.ENABLED;
-    const cfg = this.settings.BUILDINGS.value;
+    const enabled = this.settings.BLOOM.ENABLED;
+    const cfg = this.settings.BUILDINGS;
     const u = this._material.uniforms;
     u.uMediaEmission.value = enabled ? cfg.MEDIA_EMISSION : 1.0;
     u.uDataEmission.value = enabled ? cfg.DATA_EMISSION : 1.0;

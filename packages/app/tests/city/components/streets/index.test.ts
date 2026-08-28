@@ -101,7 +101,7 @@ describe('createStreets()', () => {
   // Construction
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     expect(streets.group).toBeInstanceOf(THREE.Group);
     expect(streets.group.name).toBe('city-streets');
@@ -115,8 +115,8 @@ describe('createStreets()', () => {
       picker: null as unknown as Picker,
       camera: null as unknown as THREE.PerspectiveCamera,
       renderer: null as unknown as THREE.WebGLRenderer,
-      cityState: makeCityState(store.signals),
-      settings: store.signals,
+      cityState: makeCityState(store),
+      settings: store,
     } as unknown as SceneContext;
     streets = createStreets(ctx);
     store.update({ STREETS: { PATH_OPACITY: 0.5 } });
@@ -124,7 +124,7 @@ describe('createStreets()', () => {
   });
 
   it('rebuild() populates group.children, pickables, asphalt, and labels', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
@@ -137,7 +137,7 @@ describe('createStreets()', () => {
   });
 
   it("rebuild() gives a street's label repeats one geometry, material and texture", () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
 
@@ -152,7 +152,7 @@ describe('createStreets()', () => {
   // The planes opt out of disposing what they share, so if the street stops
   // freeing it the texture leaks silently — nothing else owns it.
   it('rebuild() frees the shared label texture rather than leaking it', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout({ length: 4000 } as Partial<Street>));
 
@@ -168,7 +168,7 @@ describe('createStreets()', () => {
   });
 
   it('rebuild() builds the sidewalk lookup keyed by street dir.path', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(
       singleStreetLayout({
@@ -182,7 +182,7 @@ describe('createStreets()', () => {
   });
 
   it('rebuild() disposes the prior street set and rebuilds (no leak in group)', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const firstSidewalk = streets.getPickables()[0];
@@ -202,7 +202,7 @@ describe('createStreets()', () => {
   // Theme effect — recolors asphalt + sidewalk on STREETS Save
 
   it('theme effect recolors asphalt on STREETS.ASPHALT_COLOR mutation', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
@@ -212,7 +212,7 @@ describe('createStreets()', () => {
   });
 
   it('theme effect resets sidewalk origColor + tint on SIDEWALK_DEFAULT mutation', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
@@ -223,7 +223,7 @@ describe('createStreets()', () => {
   });
 
   it('theme effect rescales label height on LABEL_HEIGHT_FRAC mutation', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const label = labelsOf(streets)[0];
@@ -238,7 +238,7 @@ describe('createStreets()', () => {
   // Picker-tint effects — ARMED on first tick (the arming-bug guard)
 
   it('does NOT re-tint on selection before the first tick (effects not yet armed)', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, selection } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -255,7 +255,7 @@ describe('createStreets()', () => {
   });
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, selection } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -280,7 +280,7 @@ describe('createStreets()', () => {
   });
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, hover } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
@@ -296,7 +296,7 @@ describe('createStreets()', () => {
   });
 
   it('tick() hides labels that project too small (visibility LOD) and re-shows up close', () => {
-    const { ctx, size } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, size } = makePickableSceneContext(undefined, store);
     size.h = 800;
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
@@ -323,7 +323,7 @@ describe('createStreets()', () => {
   // tick() — label camera-orientation hysteresis
 
   it('tick() flips a label past the −0.15 hysteresis and un-flips past +0.15', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout()); // X-oriented → uses rightX
     const label = labelsOf(streets)[0];
@@ -355,7 +355,7 @@ describe('createStreets()', () => {
   // Labels set matrixAutoUpdate = false, so a flip that writes rotation.y and
   // stops there would render at the old angle however right userData looks.
   it('tick() bakes the flip into the label matrix, not just rotation.y', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const label = labelsOf(streets)[0];
@@ -379,7 +379,7 @@ describe('createStreets()', () => {
   // dispose()
 
   it('dispose() empties the group and stops effects (later STREETS mutations no-op)', () => {
-    const { ctx, selection } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, selection } = makePickableSceneContext(undefined, store);
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });

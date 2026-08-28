@@ -12,7 +12,6 @@ import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
 import type { Rect } from '@/city/layout/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../../utils/onSettings';
 import { BuildingLane } from '../buildings/scrubState';
 import type { ScrubStates } from '@/city/timeline/scrubPass';
 import FOOTPRINT_VERT from './footprint.vert.glsl?raw';
@@ -114,7 +113,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
   }
 
   function rebuild(layout: CityLayout): void {
-    const cfg = ctx.settings.FOOTPRINT.value;
+    const cfg = ctx.settings.FOOTPRINT;
     const halo = Math.max(0, cfg.HALO_WIDTH);
 
     // Dispose prior mesh first (swap pattern mirrors gem).
@@ -170,7 +169,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
     const colorUniform = new THREE.Color();
     setColorFromHex(colorUniform, cfg.COLOR);
     const ruinColorUniform = new THREE.Color();
-    setColorFromHex(ruinColorUniform, ctx.settings.RUINS.value.ROAD_COLOR);
+    setColorFromHex(ruinColorUniform, ctx.settings.RUINS.ROAD_COLOR);
 
     const mat = new THREE.ShaderMaterial({
       vertexShader: FOOTPRINT_VERT,
@@ -217,8 +216,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
 
   // Colour, radius and enabled: halo width is structural and takes the rebuild
   // path instead. Guarded, since it also runs once before any mesh exists.
-  const stopEffect = onSettings(ctx.settings.FOOTPRINT, () => {
-    const c = ctx.settings.FOOTPRINT.value;
+  const stopEffect = ctx.settings.on('FOOTPRINT', () => {
+    const c = ctx.settings.FOOTPRINT;
     if (material) {
       setColorFromHex(material.uniforms.uColor.value as THREE.Color, c.COLOR);
       material.uniforms.uCornerRadius.value =
@@ -229,8 +228,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
 
   // Ruin road color — reacts to the committed RUINS.ROAD_COLOR (updates on Save);
   // rebuild seeds a fresh material's value, this keeps it current afterward.
-  const stopRuinColor = effect(() => {
-    const hex = ctx.settings.RUINS.value.ROAD_COLOR;
+  const stopRuinColor = ctx.settings.on('RUINS', () => {
+    const hex = ctx.settings.RUINS.ROAD_COLOR;
     if (material) setColorFromHex(material.uniforms.uRuinColor.value as THREE.Color, hex);
   });
 

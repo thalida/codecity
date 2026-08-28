@@ -5,7 +5,7 @@ import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CameraRig, FocusMode } from '../render/cameraRig';
 import type { CityResources } from '../resources';
-import type { CitySettingsStore, SettingSignals } from '../settings/store';
+import type { CitySettingsStore } from '../settings/store';
 import type { CitySettingsPatch } from '../settings';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
@@ -28,7 +28,7 @@ export interface SceneContext {
   resources: CityResources;
   /** This city's own settings — see settings/store.ts. Never a module global:
    *  two cities on one page hold different values. */
-  settings: SettingSignals;
+  settings: CitySettingsStore;
   /** The history this city is showing, and where in it. Per city for the same
    *  reason: a bundle is one repo's history. */
   timeline: TimelineState;

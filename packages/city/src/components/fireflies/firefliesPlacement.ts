@@ -12,7 +12,7 @@ import {
 } from '@/city/components/trees/treeEncoding';
 import { colorForAuthor, lightColorForAuthor } from './authorColor';
 import type { CommitEntry, RepoStats } from '@/city/types/manifest';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 export interface FireflyPlacement {
   /** Orbit center, world X. */
@@ -84,7 +84,7 @@ export function scaleForCommits(
 }
 
 export function placeFireflies(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
@@ -92,7 +92,7 @@ export function placeFireflies(
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
-  const fireflyConfig = settings.FIREFLIES.value;
+  const fireflyConfig = settings.FIREFLIES;
 
   // Backend-precomputed, crediting each distinct author of a commit once. The
   // list is sorted by count, so [0] is the busiest.
@@ -105,7 +105,7 @@ export function placeFireflies(
   // dot can't drift apart.
   const hueByAuthor = new Map(authors.map((a) => [a.name, a.hue]));
 
-  const cfg = settings.TREES.value;
+  const cfg = settings.TREES;
 
   // Shared with the tree renderer, scan date included, or the orbs sit at a
   // height the trees they belong to never reach.

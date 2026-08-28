@@ -9,7 +9,6 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../../utils/onSettings';
 import skyVertSrc from './sky.vert.glsl?raw';
 import skyFragSrc from './sky.frag.glsl?raw';
 
@@ -46,7 +45,7 @@ export function createSky(ctx: SceneContext): Sky {
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
-  const cfg = ctx.settings.SCENE.value;
+  const cfg = ctx.settings.SCENE;
 
   const material = new THREE.ShaderMaterial({
     vertexShader: skyVertSrc,
@@ -82,8 +81,8 @@ export function createSky(ctx: SceneContext): Sky {
 
   // Pushes SCENE into the uniforms with no rebuild. Runs once at construction
   // too, re-applying what the constructor already baked.
-  const stopEffect = onSettings(ctx.settings.SCENE, () => {
-    const c = ctx.settings.SCENE.value;
+  const stopEffect = ctx.settings.on('SCENE', () => {
+    const c = ctx.settings.SCENE;
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
     material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = c.STARS_DENSITY;

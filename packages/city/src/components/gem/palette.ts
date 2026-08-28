@@ -3,8 +3,7 @@
 // the Save rewrite and the glow lerp cannot drift. The triples are memoized per
 // city over its own GEM settings, so the per-frame glow allocates nothing.
 import * as THREE from 'three';
-import { computed, type ReadonlySignal } from '@preact/signals';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 /** Structural slice of GEM settings — only the face-color keys, so tests
  *  (and any future palette source) can pass a minimal object. */
@@ -40,11 +39,22 @@ export function paletteColors(palette: GemFacePalette): Rgb[] {
   });
 }
 
-/** One city's face triples, recomputed only when its GEM palette changes. The
+/** One city's face triples, reparsed only when its GEM palette changes. The
  *  glow lerp reads this every frame: a fresh parse per frame would allocate
- *  eight Colors and eight arrays for a value that changes on a Save. */
-export function createGemPalette(settings: SettingSignals): ReadonlySignal<Rgb[]> {
-  return computed(() => paletteColors(settings.GEM.value));
+ *  eight Colors and eight arrays for a value that changes on a Save.
+ *
+ *  Keyed on the config object itself, which the settings store replaces
+ *  wholesale on every update — so identity IS "has the palette changed". */
+export function createGemPalette(settings: CitySettingsStore): () => Rgb[] {
+  let key: object | null = null;
+  let cached: Rgb[] = [];
+  return () => {
+    if (settings.GEM !== key) {
+      key = settings.GEM;
+      cached = paletteColors(settings.GEM);
+    }
+    return cached;
+  };
 }
 
 /** Palette into a vertex-colour buffer, 9 floats per triangle: the 3 vertices

@@ -113,7 +113,7 @@ function makeFader(opts: {
     cityState,
     picker,
     material: _res.buildings,
-    settings: SETTINGS.signals,
+    settings: SETTINGS,
   });
 
   function readFor(path: string): FadeReading | null {

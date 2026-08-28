@@ -10,7 +10,7 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind } from '@/city/types/manifest';
 import { CapStyle, JoinSide, Street, StreetAxis } from '@/city/types/street';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 // `joinSide` says which end of a child street merges into its parent, so that
 // end can be capped flat.
@@ -167,7 +167,7 @@ export interface AsphaltRange {
 export function createMergedSidewalkMesh(
   streets: StreetWithJoin[],
   yBase: number,
-  settings: SettingSignals
+  settings: CitySettingsStore
 ): { mesh: FlatMesh; ranges: SidewalkRange[] } | null {
   if (streets.length === 0) return null;
   const geos: THREE.BufferGeometry[] = [];
@@ -190,7 +190,7 @@ export function createMergedSidewalkMesh(
 
   // The material's base colour stays white: vertex colours multiply into it, so
   // anything else would tint the whole run.
-  const def = new THREE.Color(settings.STREETS.value.SIDEWALK_DEFAULT);
+  const def = new THREE.Color(settings.STREETS.SIDEWALK_DEFAULT);
   const colors = new Float32Array(vAcc * 3);
   for (let i = 0; i < vAcc; i++) {
     colors[i * 3] = def.r;
@@ -213,7 +213,7 @@ export function createMergedSidewalkMesh(
   });
   // Sidewalk border tint uses SIDEWALK_COLOR (distinct from the asphalt's road color).
   const ruinUniform = { value: new THREE.Color() };
-  setColorFromHex(ruinUniform.value, settings.RUINS.value.SIDEWALK_COLOR);
+  setColorFromHex(ruinUniform.value, settings.RUINS.SIDEWALK_COLOR);
   injectStreetOpacity(mat, { ruin: ruinUniform });
   mat.userData.uRuinColor = ruinUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
@@ -269,7 +269,7 @@ function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.Buff
 export function createMergedAsphaltMesh(
   streets: StreetWithJoin[],
   yBase: number,
-  settings: SettingSignals
+  settings: CitySettingsStore
 ): { mesh: FlatMesh; ranges: AsphaltRange[] } | null {
   if (streets.length === 0) return null;
   const geos: THREE.BufferGeometry[] = [];
@@ -287,11 +287,11 @@ export function createMergedAsphaltMesh(
   seedOpacityAttribute(merged);
   // Written per-street by the scrub controller; all 0 in live mode.
   merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
-  const mat = flatGroundMaterial(settings.STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
+  const mat = flatGroundMaterial(settings.STREETS.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
   // Shared with the shader (onBeforeCompile) AND the component's tint-color
   // effects, which keep .value current on a Save. Stored on userData for them.
   const ruinUniform = { value: new THREE.Color() };
-  setColorFromHex(ruinUniform.value, settings.RUINS.value.ROAD_COLOR);
+  setColorFromHex(ruinUniform.value, settings.RUINS.ROAD_COLOR);
   injectStreetOpacity(mat, { ruin: ruinUniform });
   mat.userData.uRuinColor = ruinUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;

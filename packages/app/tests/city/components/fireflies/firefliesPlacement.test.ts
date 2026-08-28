@@ -5,9 +5,9 @@ import { FIREFLIES } from '@/state/settings/fields/fireflies';
 import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
 import { treePlacement } from '../../../_helpers/cityFixtures';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const COMMITS = buildCommits(
   { date: '2026-01-01', files: 1, authors: ['Alice'] },

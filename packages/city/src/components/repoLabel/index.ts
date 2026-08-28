@@ -101,11 +101,11 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   // world Y — recomputed on settings changes AND per frame (gem bob).
   function _updateBeamGeometry(): void {
     if (!beamMesh) return;
-    const cfg = ctx.settings.REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL;
     const halfFont = cfg.FONT_SIZE / 2;
     const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
 
-    const dims = ctx.settings.BUILDING_DIMENSIONS.value;
+    const dims = ctx.settings.BUILDING_DIMENSIONS;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
 
@@ -122,9 +122,9 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   }
 
   function _applyTransform(): void {
-    const cfg = ctx.settings.REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL;
     const halfFont = cfg.FONT_SIZE / 2;
-    const dims = ctx.settings.BUILDING_DIMENSIONS.value;
+    const dims = ctx.settings.BUILDING_DIMENSIONS;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
     // Group origin = panel center. Panel bottom = heightWorld above the
@@ -143,13 +143,13 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   }
 
   function _applyOpacity(): void {
-    const opacity = ctx.settings.REPO_LABEL.value.OPACITY;
+    const opacity = ctx.settings.REPO_LABEL.OPACITY;
     if (panelMat) panelMat.uniforms.uOpacity.value = opacity;
     if (beamMat) beamMat.uniforms.uOpacity.value = opacity;
   }
 
   function _applyColors(): void {
-    const cfg = ctx.settings.REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL;
     if (beamMat) (beamMat.uniforms.uColor.value as THREE.Color).set(cfg.BEAM_COLOR);
     if (panelMat) (panelMat.uniforms.uTint.value as THREE.Color).set(cfg.TEXT_COLOR);
   }
@@ -197,7 +197,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       side: THREE.DoubleSide,
       ...NEUTRAL_POLYGON_OFFSET,
       uniforms: {
-        uColor: { value: new THREE.Color(ctx.settings.REPO_LABEL.value.BEAM_COLOR) },
+        uColor: { value: new THREE.Color(ctx.settings.REPO_LABEL.BEAM_COLOR) },
         uTime: { value: 0 },
         uOpacity: { value: 1.0 },
       },
@@ -218,7 +218,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       uniforms: {
         uMap: { value: textTex.texture },
         uTime: { value: 0 },
-        uTint: { value: new THREE.Color(ctx.settings.REPO_LABEL.value.TEXT_COLOR) },
+        uTint: { value: new THREE.Color(ctx.settings.REPO_LABEL.TEXT_COLOR) },
         uOpacity: { value: 1.0 },
       },
     });
@@ -279,7 +279,9 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
 
   // REPO_LABEL Save → push opacity/colors/transform into the live meshes.
   // Safe at construction: the null guards make it a visibility-only no-op.
-  const stopEffect = effect(() => {
+  // Two stores, named: the label's own values, and the building dimensions the
+  // beam's height is a percentage of.
+  const stopEffect = ctx.settings.on(['REPO_LABEL', 'BUILDING_DIMENSIONS'], () => {
     _applyOpacity();
     _applyColors();
     _applyTransform();
@@ -287,7 +289,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
 
   function tick(dt: number, frame: FrameContext): void {
     if (!panelMesh || !panelMat) return;
-    const cfg = ctx.settings.REPO_LABEL.value;
+    const cfg = ctx.settings.REPO_LABEL;
     if (!cfg.ENABLED) return;
     const dtScaled = dt * cfg.ANIMATION_SPEED;
     panelMat.uniforms.uTime.value += dtScaled;
@@ -312,8 +314,8 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     return repoLabelBounds(
       repoName,
       { x: anchorX, y: anchorY, z: anchorZ },
-      ctx.settings.REPO_LABEL.value,
-      ctx.settings.BUILDING_DIMENSIONS.value
+      ctx.settings.REPO_LABEL,
+      ctx.settings.BUILDING_DIMENSIONS
     );
   }
 

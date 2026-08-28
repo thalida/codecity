@@ -8,11 +8,7 @@ import {
   type CitySettings,
   type CitySettingsPatch,
 } from '@/city/settings';
-import {
-  createSettingsStore,
-  type CitySettingsStore,
-  type SettingSignals,
-} from '@/city/settings/store';
+import { createSettingsStore, type CitySettingsStore } from '@/city/settings/store';
 import { layoutConfigOf, type LayoutConfig } from '@/city/layout/config';
 import type { TreePlacementConfig } from '@/city/components/trees/treePlacement';
 
@@ -21,14 +17,9 @@ export function citySettings(over: CitySettingsPatch = {}): CitySettings {
   return mergeCitySettings(defaultCitySettings(), over);
 }
 
-/** A live store, for a test that changes a setting and asserts what happened. */
+/** A city's settings for a test: the values, and the way to change them. */
 export function settingsStore(over: CitySettingsPatch = {}): CitySettingsStore {
   return createSettingsStore(over);
-}
-
-/** The reactive form, for a component or factory that takes SettingSignals. */
-export function settingSignals(over: CitySettingsPatch = {}): SettingSignals {
-  return createSettingsStore(over).signals;
 }
 
 /** The packer's slice. */

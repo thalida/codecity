@@ -109,17 +109,15 @@ export function createBuildings(ctx: SceneContext): Buildings {
     }
   }
 
-  // Material theme. Reads each store's .value to subscribe to all of them; safe
-  // at construction, since none of it is the picker, and it no-ops pre-rebuild.
-  const stopMaterialEffect = effect(() => {
-    void ctx.settings.BUILDINGS.value;
-    void ctx.settings.SCENE.value;
-    void ctx.settings.BLOOM.value;
-    void ctx.settings.BUILDING_DIMENSIONS.value;
-    void ctx.settings.RUINS.value;
-    ctx.resources.buildings.refresh();
-    _facadePanels?.refresh();
-  });
+  // Material theme: the five stores whose values reach a uniform. Safe at
+  // construction, since none of it is the picker, and it no-ops pre-rebuild.
+  const stopMaterialEffect = ctx.settings.on(
+    ['BUILDINGS', 'SCENE', 'BLOOM', 'BUILDING_DIMENSIONS', 'RUINS'],
+    () => {
+      ctx.resources.buildings.refresh();
+      _facadePanels?.refresh();
+    }
+  );
 
   // untracked, or this also subscribes to the material stores: a Refresh Save
   // would recreate pickable meshes and leave the picker raycasting dead ones.
@@ -350,7 +348,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
         nowMs,
-        ctx.settings.BUILDINGS.peek()
+        ctx.settings.BUILDINGS
       );
       // Independent of colour: creation age, so grime can mark an old file
       // that was edited yesterday.
@@ -361,7 +359,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
         nowMs,
-        ctx.settings.BUILDINGS.peek()
+        ctx.settings.BUILDINGS
       );
     }
 

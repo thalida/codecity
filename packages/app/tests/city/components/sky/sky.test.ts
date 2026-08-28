@@ -28,7 +28,7 @@ describe('createSky()', () => {
 
   beforeEach(() => {
     store = settingsStore(SKY_SETTINGS);
-    sky = createSky(makeSceneContext(undefined, store.signals));
+    sky = createSky(makeSceneContext(undefined, store));
   });
 
   afterEach(() => {

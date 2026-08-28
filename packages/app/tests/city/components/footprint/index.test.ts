@@ -1,5 +1,5 @@
 // COLOR / CORNER_RADIUS / ENABLED reactivity belongs to the component's own
-// effect, so these tests drive it by mutating store.signals.FOOTPRINT.value.
+// effect, so these tests drive it by mutating store.FOOTPRINT.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
@@ -50,7 +50,7 @@ describe('createFootprint()', () => {
 
   beforeEach(() => {
     store = settingsStore(FOOTPRINT_SETTINGS);
-    fp = createFootprint(makeSceneContext(undefined, store.signals));
+    fp = createFootprint(makeSceneContext(undefined, store));
   });
 
   afterEach(() => {

@@ -9,7 +9,7 @@ import { VEC3_COMPONENTS } from '@/city/utils/bufferLayout';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 export interface FireflyRenderer {
   group: THREE.Group;
@@ -29,7 +29,7 @@ export interface FireflyRenderer {
 export const FIREFLY_ORBS_MESH = 'fireflies-orbs';
 
 export function createFireflyRenderer(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   orbs: FireflyPlacement[],
   canvas?: HTMLCanvasElement
 ): FireflyRenderer {
@@ -49,7 +49,7 @@ export function createFireflyRenderer(
     };
   }
 
-  const cfg = settings.FIREFLIES.value;
+  const cfg = settings.FIREFLIES;
 
   const uTime = { value: 0 };
   const uBobAmp = { value: cfg.BOB_AMPLITUDE };
@@ -181,7 +181,7 @@ export function createFireflyRenderer(
       inflateBoundingSphere(uBobAmp.value);
     },
     refresh() {
-      const next = settings.FIREFLIES.value;
+      const next = settings.FIREFLIES;
       uBobAmp.value = next.BOB_AMPLITUDE;
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;

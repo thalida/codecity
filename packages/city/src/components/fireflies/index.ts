@@ -72,10 +72,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   // FIREFLIES Save → refresh uniforms in place; structural keys remain
   // Rebuild-routed. Safe at construction (reads only FIREFLIES signals).
-  const stopTheme = effect(() => {
-    void ctx.settings.FIREFLIES.value;
-    _inner?.refresh();
-  });
+  const stopTheme = ctx.settings.on('FIREFLIES', () => _inner?.refresh());
 
   // Rebuild off treePlacements (lockstep with trees). untracked() stops a
   // FIREFLIES subscription reallocating orbs on every slider drag.

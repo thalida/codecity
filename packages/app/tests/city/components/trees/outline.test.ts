@@ -8,7 +8,7 @@ import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
 import type { PickTarget } from '@/city/types/picker';
-import { settingSignals, settingsStore } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 import { commitTarget } from '../../../_helpers/cityFixtures';
 import { NodeKind } from '@/city/types/manifest';
 
@@ -51,7 +51,7 @@ function fakePicker() {
 
 // Stated rather than defaulted: the outline widths and the rainbow speed are
 // what these assertions are about.
-const SETTINGS = settingSignals({
+const SETTINGS = settingsStore({
   TREES: {
     OUTLINE_WIDTH: 3,
     OUTLINE_HOVER_COLOR: '#ffffff',
@@ -179,7 +179,7 @@ describe('treeOutlineRenderer', () => {
       scene,
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
-      settings: store.signals,
+      settings: store,
     });
     store.update({
       TREES: {

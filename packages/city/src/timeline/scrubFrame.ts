@@ -2,7 +2,7 @@
 // and the picker. Everything downstream takes a ScrubFrame value.
 
 import type { BuildingsConfig } from '@/city/settings/fields/buildings';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import { layoutConfigFrom, type LayoutConfig } from '@/city/layout/config';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/interaction/picker';
@@ -56,7 +56,7 @@ export interface ScrubFrameDeps {
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
-  settings: SettingSignals;
+  settings: CitySettingsStore;
   timeline: TimelineState;
 }
 
@@ -75,8 +75,8 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
   // SCRUB_POS is clamped to the bundle; only the range arrays can fall short.
   const r = deps.commitLineRanges[Math.min(Math.floor(pos), deps.commitLineRanges.length - 1)];
 
-  const floorHeight = deps.settings.BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
-  const ruins = deps.settings.RUINS.peek();
+  const floorHeight = deps.settings.BUILDING_DIMENSIONS.FLOOR_HEIGHT;
+  const ruins = deps.settings.RUINS;
 
   const dateRange =
     deps.commitDateRanges[Math.min(Math.floor(pos), deps.commitDateRanges.length - 1)];
@@ -101,7 +101,7 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
     dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
     hoverFile: hov?.kind === NodeKind.File ? hov.file : null,
-    fadeCfg: deps.settings.BUILDINGS.peek(),
+    fadeCfg: deps.settings.BUILDINGS,
     layoutCfg: layoutConfigFrom(deps.settings),
   };
 }

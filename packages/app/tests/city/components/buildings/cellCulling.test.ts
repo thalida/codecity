@@ -13,7 +13,7 @@ import { building } from '../../../_helpers/buildingFixture';
 import { TEST_SOURCE } from '../../../_helpers/manifestFixtures';
 import { createTestCityResources } from '../../../_helpers/cityResources';
 import type { Building } from '@/city/types/building';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 import { createTimelineState } from '@/city/timeline/state';
 import { createClient } from '@/city/client';
 
@@ -21,7 +21,7 @@ const CLIENT = createClient({ baseUrl: '/api' });
 
 const TIMELINE = createTimelineState();
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const _res = createTestCityResources();
 

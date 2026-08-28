@@ -75,8 +75,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   }
 
   // Reads only TREES, so it is safe at construction, before the picker.
-  const stopTheme = effect(() => {
-    void ctx.settings.TREES.value;
+  const stopTheme = ctx.settings.on('TREES', () => {
     _inner?.refresh();
     _outline?.refreshMaterials();
   });

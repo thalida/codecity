@@ -6,12 +6,12 @@
 import * as THREE from 'three';
 import type { Building } from '@/city/types/building';
 import type { EnteringBuilding, StayingBuilding } from '@/city/types/scene';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 /** Narrow resolver surface the tween queue needs from the buildings
  *  component (re-resolved per frame so tweens survive rebuilds). */
 export interface TweenDeps {
-  settings: SettingSignals;
+  settings: CitySettingsStore;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
 }
 
@@ -88,7 +88,7 @@ export function createBuildingTweens(deps: TweenDeps) {
   }): void {
     // Once per diff, so a burst shares one duration and the next picks up a
     // Settings change.
-    const transitionMs = settings.BUILDINGS.value.BUILDING_TRANSITION_MS;
+    const transitionMs = settings.BUILDINGS.BUILDING_TRANSITION_MS;
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {

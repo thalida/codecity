@@ -3,7 +3,7 @@
 // handle (orbs + orbit rings). The persistent component door is ./index.ts.
 
 import * as THREE from 'three';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';
 import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer';
 import { createOrbitRings } from './orbitRings';
@@ -32,7 +32,7 @@ export interface Fireflies {
 }
 
 export function createFireflyAssembly(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
@@ -46,7 +46,7 @@ export function createFireflyAssembly(
 
   // Master config gate. When disabled, return an empty parent group so the
   // caller's group is still safe to add/dispose.
-  if (!settings.FIREFLIES.value.ENABLED) {
+  if (!settings.FIREFLIES.ENABLED) {
     const stub = createFireflyRenderer(settings, []);
     return {
       group: parent,

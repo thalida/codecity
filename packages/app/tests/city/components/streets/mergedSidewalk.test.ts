@@ -6,9 +6,9 @@ import { createMergedSidewalkMesh, sidewalkStreetForFace } from '@/city/componen
 import { STREETS } from '@/state/settings/fields/streets';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
-import { settingSignals } from '../../../_helpers/citySettings';
+import { settingsStore } from '../../../_helpers/citySettings';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',

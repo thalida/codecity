@@ -92,7 +92,7 @@ describe('createPathLine() component door', () => {
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
+    const { ctx, selection } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
@@ -109,7 +109,7 @@ describe('createPathLine() component door', () => {
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState, store.signals);
+    const { ctx } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
@@ -125,7 +125,7 @@ describe('createPathLine() component door', () => {
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
     const { cityState } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
+    const { ctx, selection } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
@@ -144,11 +144,11 @@ describe('createPathLine() component door', () => {
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
     const { cityState } = makeSeeded();
-    const { ctx } = makePickableSceneContext(cityState, store.signals);
+    const { ctx } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     store.update({ STREETS: { PATH_LINEWIDTH_PCT: 25 } });
-    const expected = computePathLinewidthPixels(25, store.snapshot().STREET_TIERS.TIERS);
+    const expected = computePathLinewidthPixels(25, store.STREET_TIERS.TIERS);
     for (const line of lines(comp)) {
       expect((line.material as unknown as { linewidth: number }).linewidth).toBeCloseTo(
         expected,
@@ -159,7 +159,7 @@ describe('createPathLine() component door', () => {
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, hover } = makePickableSceneContext(cityState, store.signals);
+    const { ctx, hover } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -172,7 +172,7 @@ describe('createPathLine() component door', () => {
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makePickableSceneContext(cityState, store.signals);
+    const { ctx, selection } = makePickableSceneContext(cityState, store);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 

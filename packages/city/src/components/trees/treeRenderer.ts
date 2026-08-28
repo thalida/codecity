@@ -4,7 +4,7 @@
 // tree owns a contiguous vertex range, so picking maps faceIndex → placement.
 
 import * as THREE from 'three';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import {
@@ -157,14 +157,14 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
 }
 
 export function createTreeRenderer(
-  settings: SettingSignals,
+  settings: CitySettingsStore,
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   busyness: BusynessThresholds,
   stats: RepoStats | null | undefined,
   scannedAt?: string | null
 ): Trees {
-  let cfg = settings.TREES.value;
+  let cfg = settings.TREES;
 
   // Heights/widths come from treeEncoding — shared with the firefly field.
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
@@ -420,7 +420,7 @@ export function createTreeRenderer(
   for (const m of mergedMeshes) group.add(m);
 
   function refresh(): void {
-    cfg = settings.TREES.value;
+    cfg = settings.TREES;
     group.visible = cfg.ENABLED;
     for (const m of mergedMeshes) m.visible = cfg.ENABLED;
 

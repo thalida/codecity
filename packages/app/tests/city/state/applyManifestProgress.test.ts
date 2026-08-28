@@ -11,11 +11,11 @@ import { buildStageTail } from '@/constants/progress';
 import { createTestCityResources } from '../../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
-import { settingSignals } from '../../_helpers/citySettings';
+import { settingsStore } from '../../_helpers/citySettings';
 import type { LayoutConfig } from '@/city/layout/config';
 import { createEmitter } from '../../_helpers/cityEvents';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 // One emitter per test file's cities, wired to the overlay's stores exactly as
 // City.tsx wires them; re-attached per case so nothing leaks between them.

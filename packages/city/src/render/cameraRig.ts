@@ -28,7 +28,7 @@ import { Building } from '@/city/types/building';
 import { NodeKind } from '@/city/types/manifest';
 import { Street, StreetAxis } from '@/city/types/street';
 import { PickTarget } from '@/city/types/picker';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 
 /** How a focus command frames the node it looks at. */
 export enum FocusMode {
@@ -94,15 +94,19 @@ export function createCameraRig({
   canvas: HTMLCanvasElement;
   deps: CameraRigDeps;
   cityState: CityState;
-  settings: SettingSignals;
+  settings: CitySettingsStore;
 }) {
   // The fields that PLACE the camera. Rotation speed and the toggle are out:
   // changing either mid-spin should do what it says, not yank the orbit back to
-  // its start azimuth. Per rig, so a second city's pose is its own.
-  const cameraPose = computed(() => {
-    const s = settings.CAMERA.value;
+  // its start azimuth — which is why this compares the pose fields by hand
+  // rather than re-framing on any CAMERA change at all.
+  function poseKey(): string {
+    const s = settings.CAMERA;
     return `${s.TARGET}|${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE_SCALE}`;
-  });
+  }
+  // Null, not the current key: `on` applies once at construction, and that
+  // first call is what places the opening pose.
+  let lastPoseKey: string | null = null;
 
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
@@ -195,8 +199,8 @@ export function createCameraRig({
     // Behind the gem along the root street's axis (the gem sits at its low
     // end), lifted and swung by the user's angle. A CAMERA effect re-frames.
     const dir = computeFramingDir(
-      settings.CAMERA.value.ELEVATION,
-      settings.CAMERA.value.AZIMUTH,
+      settings.CAMERA.ELEVATION,
+      settings.CAMERA.AZIMUTH,
       rootStreet ? rootStreet.orientation : null
     );
 
@@ -272,9 +276,11 @@ export function createCameraRig({
 
   // A saved angle re-frames the city it steers, running or not: reset() reads
   // it and snaps. On construction the bbox is empty, so this no-ops.
-  const _disposeCameraPoseEffect = effect(() => {
-    void cameraPose.value;
-    untracked(reset);
+  const _disposeCameraPoseEffect = settings.on('CAMERA', () => {
+    const next = poseKey();
+    if (next === lastPoseKey) return;
+    lastPoseKey = next;
+    reset();
   });
 
   function update(_dtMs: number): void {
@@ -312,7 +318,7 @@ export function createCameraRig({
     // Recapture every call: the final manifest is a reuse apply, so the bbox
     // effect never fires for it and a cached pose would be stale.
     if (!_captureFraming()) return false;
-    const pose = settings.CAMERA.peek().TARGET === CameraTarget.Gem ? _gemPose() : _cityPose();
+    const pose = settings.CAMERA.TARGET === CameraTarget.Gem ? _gemPose() : _cityPose();
     if (!pose) return false;
     _snapTo(pose.target, pose.camPos, WORLD_UP);
     opened = true;
@@ -556,7 +562,7 @@ export function createCameraRig({
   function _orbitRadius(distance: number): number {
     const rootStreet = cityState.rootStreet.value;
     return backdropRadius(distance, controls, {
-      gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, settings.GEM_SIZING.value) : null,
+      gemRadius: rootStreet ? gemRadiusFor(rootStreet.width, settings.GEM_SIZING) : null,
       gemFitDistance: _gemFitDistance(),
       worldBounds: cityState.latestWorldBounds.value,
     });
@@ -567,7 +573,7 @@ export function createCameraRig({
   function _gemPose(): CameraPlacement | null {
     const gem = cityState.gemWorldPos.value;
     if (!gem) return null;
-    const cam = settings.CAMERA.peek();
+    const cam = settings.CAMERA;
     const dir = computeFramingDir(
       cam.ELEVATION,
       cam.AZIMUTH,
@@ -589,8 +595,8 @@ export function createCameraRig({
   // Sole writer of controls.autoRotate and its speed: runs on construction and
   // on every change. A spin is exactly the motion reduced-motion asks us to
   // drop, so the setting means "spin unless the reader asked us not to".
-  const _disposeRotationEffect = effect(() => {
-    const cam = settings.CAMERA.value;
+  const _disposeRotationEffect = settings.on('CAMERA', () => {
+    const cam = settings.CAMERA;
     controls.autoRotate = cam.AUTO_ROTATE && !prefersReducedMotion();
     controls.autoRotateSpeed = cam.ROTATE_SPEED;
   });

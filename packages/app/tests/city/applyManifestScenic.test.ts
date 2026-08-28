@@ -10,11 +10,11 @@ import { createTestCityResources } from '../_helpers/cityResources';
 import { DateRanges, Manifest, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { Street, StreetAxis } from '@/city/types/street';
-import { settingSignals } from '../_helpers/citySettings';
+import { settingsStore } from '../_helpers/citySettings';
 import type { LayoutConfig } from '@/city/layout/config';
 import { createEmitter } from '../_helpers/cityEvents';
 
-const SETTINGS = settingSignals();
+const SETTINGS = settingsStore();
 
 function makeRootStreet(): Street {
   return {

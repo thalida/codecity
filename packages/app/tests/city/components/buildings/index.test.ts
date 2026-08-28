@@ -18,7 +18,7 @@ import { DateRanges, NodeKind } from '@/city/types/manifest';
 import { CityLayout } from '@/city/types/scene';
 import { FileTarget } from '@/city/types/picker';
 import { settingsStore } from '../../../_helpers/citySettings';
-import type { SettingSignals } from '@/city/settings/store';
+import type { CitySettingsStore } from '@/city/settings/store';
 import { createTimelineState } from '@/city/timeline/state';
 
 // A context whose picker exposes drivable selection and hover, and a canvas the
@@ -26,7 +26,7 @@ import { createTimelineState } from '@/city/timeline/state';
 
 // Pre-picker ctx: picker null (the construction-time window). Used to prove the
 // theme effect is safe to run at construction and the overlays do NOT arm.
-function makePrePickerCtx(settings: SettingSignals): SceneContext {
+function makePrePickerCtx(settings: CitySettingsStore): SceneContext {
   return {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
@@ -96,7 +96,7 @@ describe('createBuildings()', () => {
   // Construction
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     expect(buildings.group).toBeInstanceOf(THREE.Group);
     expect(buildings.group.name).toBe('city-buildings');
@@ -106,14 +106,14 @@ describe('createBuildings()', () => {
   });
 
   it('material theme effect is inert while the picker is still null', () => {
-    const ctx = makePrePickerCtx(store.signals);
+    const ctx = makePrePickerCtx(store);
     buildings = createBuildings(ctx);
     store.update({ BUILDINGS: { OUTLINE_WIDTH: 7 } });
     expect(buildings.group.children).toHaveLength(0);
   });
 
   it('rebuild() populates the group, cells, index, and lookups', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
 
     const b0 = building({ x: 10, y: 10, h: 4, file: fileOf('src/a.ts') as never });
@@ -148,7 +148,7 @@ describe('createBuildings()', () => {
     // manifest's Buildings, whose cellId/slotId resolve into the NEW cells.
     // The city's own timeline, which is what the component reads.
     const timeline = createTimelineState();
-    const { ctx } = makePickableSceneContext(undefined, store.signals, timeline);
+    const { ctx } = makePickableSceneContext(undefined, store, timeline);
     buildings = createBuildings(ctx);
     timeline.enter();
 
@@ -173,7 +173,7 @@ describe('createBuildings()', () => {
   });
 
   it('rebuild() colors the buildings (writes b.color from the date ranges)', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     const b0 = building({ x: 1, y: 1, color: '__unset__', file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
@@ -184,7 +184,7 @@ describe('createBuildings()', () => {
   });
 
   it('rebuild() disposes the prior cell root WITHOUT freeing the shared material', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
 
     await buildings.rebuild(
@@ -219,7 +219,7 @@ describe('createBuildings()', () => {
   // Shared-material theme effect
 
   it('material effect re-applies uOutlineWidth on BUILDINGS Save', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     // Force the shared material to exist (created lazily during rebuild).
     await buildings.rebuild(
@@ -236,7 +236,7 @@ describe('createBuildings()', () => {
   });
 
   it('fog falloff reaches the shader as the raw fraction, unscaled by any city height', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
@@ -252,7 +252,7 @@ describe('createBuildings()', () => {
   });
 
   it('ruin cross uniforms track the RUINS store', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
@@ -278,7 +278,7 @@ describe('createBuildings()', () => {
   // Picker overlays — ARMED on the first tick (the arming-bug guard)
 
   it('does NOT arm the overlays before the first tick (no ghost mesh in scene)', async () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, hover } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
@@ -296,7 +296,7 @@ describe('createBuildings()', () => {
   });
 
   it('arms overlays on first tick; a later hover drives the ghost overlay', async () => {
-    const { ctx, hover } = makePickableSceneContext(undefined, store.signals);
+    const { ctx, hover } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
@@ -324,7 +324,7 @@ describe('createBuildings()', () => {
   // tweens through tick(). The boot rebuild does NOT animate; the 2nd+ do.
 
   it('the FIRST rebuild (boot) does NOT fire enter tweens — the city snaps in', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
 
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
@@ -351,13 +351,13 @@ describe('createBuildings()', () => {
   });
 
   it('a SECOND rebuild introducing a new building fires its enter tween through tick() and lands the final transform', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
-    const transitionMs = store.signals.BUILDINGS.value.BUILDING_TRANSITION_MS;
+    const transitionMs = store.BUILDINGS.BUILDING_TRANSITION_MS;
     let now = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
     try {
@@ -394,7 +394,7 @@ describe('createBuildings()', () => {
   // dispose()
 
   it('dispose() empties the group, removes overlays, and stops the material effect', async () => {
-    const { ctx } = makePickableSceneContext(undefined, store.signals);
+    const { ctx } = makePickableSceneContext(undefined, store);
     buildings = createBuildings(ctx);
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
