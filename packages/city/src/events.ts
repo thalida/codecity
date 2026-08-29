@@ -10,6 +10,7 @@ import type { BuildStage } from './types/build';
 import type { PickTarget } from './types/picker';
 import type { ScanPhase, ScanProgressEvent } from './client/manifest';
 import type { Manifest } from './types/manifest';
+import type { TimelineProgress } from './types/timeline';
 
 export interface CityEvents {
   /** This city started loading a repo. Everything below until scan:done or
@@ -28,6 +29,11 @@ export interface CityEvents {
   /** The load finished, carrying the manifest the city settled on. */
   'scan:done': { manifest: Manifest };
   'scan:error': { error: unknown };
+  /** Assembling this repo's history: the server walking commits and resolving
+   *  blobs, then the client replaying them. Timeline is a way of showing a
+   *  city, not a feature of any one host, so its progress is reported like any
+   *  other work a city does. */
+  'timeline:progress': { event: TimelineProgress };
   /** A build began, with the stages it will run through, in order. A consumer
    *  that knows the whole list can show a denominator from the first frame. */
   'build:start': { stages: readonly BuildStage[] };

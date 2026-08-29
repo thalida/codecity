@@ -11,6 +11,8 @@ import type { CityStatus } from '../status';
 import type { CityChangeListener } from '../change';
 import type { CityViewState } from '../viewState';
 import type { WatchOptions } from '../watch';
+import type { TimelineRequest } from '../loadTimeline';
+import type { TimelineBundle } from './timeline';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
@@ -145,6 +147,11 @@ export interface City {
   /** Stop whatever is loading. A load already superseded by another needs no
    *  cancelling: the next one does it. */
   cancelLoad(): void;
+  /** Show this repo's HISTORY rather than its working tree: the union of every
+   *  file that ever existed, packed once, with a scrubber over it. */
+  loadTimeline(request: TimelineRequest): Promise<TimelineBundle>;
+  /** Stop a timeline load. Only meaningful before the pack begins. */
+  cancelTimelineLoad(): void;
   /** This city's own API client, on the base URL it was given. Exposed because
    *  a consumer's chrome (a file pane, a branch picker) talks to the same
    *  server about the same repo, and should not build a second one. */

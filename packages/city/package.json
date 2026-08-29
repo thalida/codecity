@@ -8,6 +8,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./preact": "./src/preact/index.ts",
     "./testing": "./tests/index.ts",
     "./testing/three": "./tests/_helpers/threeMock.ts"
   },
@@ -40,7 +41,8 @@
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "vite": "^8.0.8",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "preact": "^10.29.2"
   },
   "prettier": {
     "printWidth": 100,
@@ -56,5 +58,13 @@
     "rbush": "^4.0.1",
     "three": "^0.184.0",
     "three-mesh-bvh": "^0.9.11"
+  },
+  "peerDependencies": {
+    "preact": ">=10"
+  },
+  "peerDependenciesMeta": {
+    "preact": {
+      "optional": true
+    }
   }
 }

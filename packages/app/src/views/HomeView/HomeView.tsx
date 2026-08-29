@@ -6,7 +6,7 @@
 import './HomeView.css';
 import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
-import { City, CityVariant } from '@/components/City/City';
+import { BackdropCity } from '@/components/City/SceneCity';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 import { type SourcePayload } from '@/types/ui';
@@ -53,7 +53,7 @@ export function HomeView() {
       {/* Wallpaper first, the city over it once one paints: here the canvas is
           decoration, so it carries no chrome and no controls. */}
       <div class={`landing-stage${painted ? ' is-painted' : ''}`} aria-hidden="true">
-        <City variant={CityVariant.Backdrop} />
+        <BackdropCity />
       </div>
 
       <div class="landing-inner">

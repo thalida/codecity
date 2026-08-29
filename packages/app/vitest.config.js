@@ -13,9 +13,12 @@ export default defineConfig({
   // Mirrors vite.config.js — must stay in sync so tests resolve `@/`
   // imports the same way the dev server does.
   resolve: {
-    // One Signal identity across both packages, or an effect on one side never
-    // sees a write from the other.
-    dedupe: ['@preact/signals', '@preact/signals-core', 'three'],
+    // One identity each, or an effect on one side never sees a write from the
+    // other — and for preact itself, two copies means two hook dispatchers and
+    // every component in the package's adapter renders against a null one.
+    // The package declares preact as an OPTIONAL PEER and keeps a dev copy for
+    // its own typecheck; this is what makes the app's the one that runs.
+    dedupe: ['preact', 'preact/hooks', '@preact/signals', '@preact/signals-core', 'three'],
     // Array form: order matters, and the /testing subpath has to win over the
     // bare package name.
     alias: [
@@ -27,6 +30,10 @@ export default defineConfig({
       // /testing subpath into a path under index.ts.
       // The renderer stubs resolve on their own, ahead of the barrel: a
       // vi.mock('three') factory awaiting the barrel would wait on three.
+      {
+        find: /^@codecity\/city\/preact$/,
+        replacement: resolve(appDir, '../city/src/preact/index.ts'),
+      },
       {
         find: /^@codecity\/city\/testing\/three$/,
         replacement: resolve(appDir, '../city/tests/_helpers/threeMock.ts'),

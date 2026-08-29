@@ -7,6 +7,13 @@ plain-js/   a working city in a page with no framework and no build step
 vue/        the same city as a Vue single-file component
 ```
 
+The package ships one adapter itself, `@codecity/city/preact`, on its own
+subpath — the way zustand ships `zustand/vanilla` beside `zustand/react`.
+`preact` is an OPTIONAL peer dependency, so a host that never imports that
+subpath never installs it, and the core entry pulls none of it. `vue/City.vue`
+is what a second adapter looks like, and the reason it is short is that there is
+nothing framework-shaped left to do.
+
 They are not demos. They are the measure the package is designed against: a
 host renders a city, shows what it is doing, reacts to a selection, restores a
 link and stays on the newest version of the repo, **importing only

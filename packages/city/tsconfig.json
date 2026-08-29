@@ -24,7 +24,12 @@
     // node_modules/@types/ (the TS default) — @types/node in particular, which
     // belongs to tsconfig.node.json alone. three ships no bundled .d.ts; webxr
     // is @types/three's own dependency.
-    "types": ["three", "webxr"]
+    "types": ["three", "webxr"],
+
+    // For src/preact/ alone — the framework adapter. Nothing under src/ else
+    // has JSX in it, and the core entry pulls none of this.
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": [

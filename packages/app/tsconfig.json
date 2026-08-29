@@ -36,6 +36,7 @@
       // makes tsc reach the same files by a second realpath, and two identities
       // for one declaration stop a discriminated union narrowing.
       "@codecity/city": ["../city/src/index.ts"],
+      "@codecity/city/preact": ["../city/src/preact/index.ts"],
       // The package's test kit: fixtures for its wire types, and stand-ins for
       // what jsdom has no implementation of. Test-only, like its contents.
       "@codecity/city/testing": ["../city/tests/index.ts"],

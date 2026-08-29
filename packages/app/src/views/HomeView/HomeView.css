@@ -23,17 +23,17 @@
   background-position: center;
 }
 
-.landing-stage .city-canvas {
+.landing-stage .codecity-canvas {
   opacity: 0;
   transition: opacity 600ms ease-out;
 }
 
-.landing-stage.is-painted .city-canvas {
+.landing-stage.is-painted .codecity-canvas {
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-stage .city-canvas {
+  .landing-stage .codecity-canvas {
     transition: none;
   }
 }

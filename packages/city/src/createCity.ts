@@ -24,6 +24,8 @@ import type { CityViewState } from './viewState';
 import { createClient } from './client';
 import { createSourceLoader } from './loadSource';
 import { refreshOnce, startWatch, type WatchOptions } from './watch';
+import { createTimelineLoader, type TimelineRequest } from './loadTimeline';
+import { nextPaint } from './utils/nextPaint';
 import { createTimelineState } from './timeline/state';
 import type { CitySettingsPatch } from './settings';
 import { layoutConfigFrom } from './layout/config';
@@ -395,6 +397,22 @@ export async function createCity(
   // the first scan:start, and a host that subscribes late still gets the truth.
   const status = createCityStatus(events.on);
 
+  // Showing a repo's history is a way of showing a city, not a host feature.
+  // The order inside it is the whole difficulty (mode before the manifest,
+  // transparency after the pack, controller last), and it belongs where the
+  // pieces it orders live.
+  const timelineLoader = createTimelineLoader({
+    client,
+    events,
+    timeline,
+    applyManifest: (m, leading) => applyManifest(m, leading),
+    setStreetsTransparent: (on) => streets.setStreetsTransparent(on),
+    setFootprintsTransparent: (on) => footprint.setFootprintsTransparent(on),
+    installScrubController: (replay, ranges) => timelineApi.installScrubController(replay, ranges),
+    uninstallScrubController: () => timelineApi.uninstallScrubController(),
+    nextPaint,
+  });
+
   const watchDeps = {
     client,
     loader: sourceLoader,
@@ -491,6 +509,11 @@ export async function createCity(
     client,
     loadSource: sourceLoader.load,
     cancelLoad: sourceLoader.cancel,
+    /** Show this repo's HISTORY: the union of every file that ever existed,
+     *  packed once, with a scrubber over it. Reports through the same events a
+     *  live load does, plus `timeline:progress` for the assembly. */
+    loadTimeline: (request: TimelineRequest) => timelineLoader.load(request),
+    cancelTimelineLoad: () => timelineLoader.cancel(),
     settings,
     updateSettings: settings.update,
     /** What this city is doing, right now. A value, not a transcript: read it
@@ -574,6 +597,7 @@ export async function createCity(
       status.dispose();
       events.clear();
       sourceLoader.dispose();
+      timelineLoader.dispose();
       timeline.dispose();
       stopFrameLoop();
       stopReframe();

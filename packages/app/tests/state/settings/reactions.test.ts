@@ -1,57 +1,52 @@
-// What is left of the app's settings reactions: the brief "rebuilding" flash on
-// a Save the scene answers by refreshing its materials in place. The rebuild
-// half is the city's — it holds the values, knows which of its own fields moved
-// and what each route costs, and holds the manifest it is showing.
+// What is left of the app's settings reactions: the brief flash on a Save the
+// scene answers by refreshing its materials in place. There is no build behind
+// such a Save — nothing re-packs — so no city event reports it, and the readout
+// would otherwise show nothing at all for a change the reader just made.
+//
+// The city says WHICH route moved. Deriving that here, from the app's own
+// signals, was the same re-derivation the rebuild half used to do.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { ChangeRoute } from '@codecity/city';
+import { settingsStore } from '@codecity/city/testing';
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { HOST_WORK } from '@/state/stores/progress';
-import { CITY_STORES } from '@/state/settings/values/city';
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
 describe('the refresh flash', () => {
   let detach: () => void;
-  let asphalt: string;
-  let gap: number;
+  let settings: ReturnType<typeof settingsStore>;
 
   beforeEach(() => {
     HOST_WORK.value = { busy: false, error: null };
-    asphalt = CITY_STORES.STREETS.value.ASPHALT_COLOR;
-    gap = CITY_STORES.STREET_LAYOUT.value.BUILDING_GAP;
-    detach = attachSettingsReactions();
+    settings = settingsStore();
+    detach = attachSettingsReactions({ settings });
   });
 
   afterEach(() => {
     detach();
-    // Restore, so a drifted value is not the next test's starting point.
-    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: asphalt };
-    CITY_STORES.STREET_LAYOUT.value = {
-      ...CITY_STORES.STREET_LAYOUT.value,
-      BUILDING_GAP: gap,
-    };
     HOST_WORK.value = { busy: false, error: null };
   });
 
   it('flashes when a refresh-routed field changes', async () => {
-    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#123456' };
+    settings.update({ STREETS: { ASPHALT_COLOR: '#123456' } });
     await flush();
     expect(HOST_WORK.value.busy).toBe(true);
   });
 
-  // The city reports its own re-pack through build:start/done, which is what
-  // moves the status then. Flashing here too would fight it.
+  // The city reports its own re-pack through build:start/done, which moves the
+  // readout then. Flashing here too would fight it.
   it('says nothing when a rebuild-routed field changes', async () => {
-    CITY_STORES.STREET_LAYOUT.value = {
-      ...CITY_STORES.STREET_LAYOUT.value,
-      BUILDING_GAP: gap + 1,
-    };
+    settings.update({
+      STREET_LAYOUT: { BUILDING_GAP: settings.STREET_LAYOUT.BUILDING_GAP + 40 },
+    });
     await flush();
     expect(HOST_WORK.value.busy).toBe(false);
   });
 
   it('settles back to idle on its own', async () => {
-    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#654321' };
+    settings.update({ STREETS: { ASPHALT_COLOR: '#654321' } });
     await flush();
     expect(HOST_WORK.value.busy).toBe(true);
 
@@ -61,9 +56,29 @@ describe('the refresh flash', () => {
 
   it('stops flashing once detached', async () => {
     detach();
-    CITY_STORES.STREETS.value = { ...CITY_STORES.STREETS.value, ASPHALT_COLOR: '#abcdef' };
+    detach = () => {};
+    settings.update({ STREETS: { ASPHALT_COLOR: '#abcdef' } });
     await flush();
     expect(HOST_WORK.value.busy).toBe(false);
-    detach = () => {};
+  });
+
+  // Unlike a signals effect, which runs the moment it is created: the flag that
+  // used to suppress that first call is gone with it.
+  it('does not flash merely for being attached', async () => {
+    detach();
+    HOST_WORK.value = { busy: false, error: null };
+    detach = attachSettingsReactions({ settings: settingsStore() });
+    await flush();
+    expect(HOST_WORK.value.busy).toBe(false);
+  });
+
+  // Two cities, two settings stores: a Save on one is not a Save on the other.
+  it('flashes only for the city it was attached to', async () => {
+    const other = settingsStore();
+    other.update({ STREETS: { ASPHALT_COLOR: '#0f0f0f' } });
+    await flush();
+    expect(HOST_WORK.value.busy).toBe(false);
+
+    expect(ChangeRoute.Refresh).toBe('refresh');
   });
 });

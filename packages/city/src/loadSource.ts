@@ -23,6 +23,13 @@ export interface SourceRequest {
   exclude?: string[];
   /** Reconstruct the repo as of this commit instead of the working tree. */
   ref?: string;
+  /** Apply the skeleton as it arrives, so structure is on screen while the
+   *  server resolves per-file metadata. Default true.
+   *
+   *  False waits for the finished city and shows nothing before it — which is
+   *  what a city behind other content wants, since a wallpaper snapping from
+   *  placeholder heights to real ones is movement nobody asked to look at. */
+  skeleton?: boolean;
 }
 
 export interface SourceLoader {
@@ -95,6 +102,12 @@ export function createSourceLoader({
           continue;
         }
 
+        // A consumer that only wants the finished city: the skeleton still
+        // streams (the server sends it either way), it is simply not shown.
+        if (request.skeleton === false && event.phase !== ScanPhase.CompleteManifest) {
+          last = event.manifest;
+          continue;
+        }
         // Applied before it is announced, so nothing hears "the tree is
         // complete" ahead of the paint that shows it.
         await applyManifest(event.manifest);
