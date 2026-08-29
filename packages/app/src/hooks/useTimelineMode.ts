@@ -3,14 +3,7 @@
 // Every exit path only flips TIMELINE_MODE: the city layer (city/index.ts)
 // reacts to that and does the scene teardown itself.
 
-import {
-  buildPathTimelines,
-  nextPaint,
-  Manifest,
-  TimelineBundle,
-  TimelineProgress,
-  TimelineStage,
-} from '@codecity/city';
+import { Manifest, TimelineProgress, TimelineStage } from '@codecity/city';
 import {
   CURRENT_SOURCE,
   SOURCE_INFO,
@@ -31,7 +24,6 @@ import {
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 import {
-  BuildStage,
   LoadingStep,
   TIMELINE_LOADING_STEPS,
   stepForTimelineStage,
@@ -43,9 +35,7 @@ import {
   TIMELINE_BUNDLE,
   setTimelineBundle,
   SCRUB_POS,
-  SCRUB_MAX,
   resetTimelineMode,
-  beginTimelineMode,
   setScrubPos,
 } from '@/state/stores/timeline';
 import {
@@ -54,7 +44,6 @@ import {
   setTimelineRefreshHandler,
   setTimelineBootHandler,
 } from '@/hooks/useManifestSource';
-import { API } from '@/apiClient';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
@@ -86,7 +75,6 @@ export async function loadTimelineSource({
   noCache?: boolean;
   overlay?: boolean;
 }): Promise<void> {
-  const abort = new AbortController();
   let cancelled = false;
   let committed = false;
 
@@ -101,7 +89,10 @@ export async function loadTimelineSource({
     showLoadingOverlay({ kind: srcKind(src), branch, steps: TIMELINE_LOADING_STEPS }, () => {
       if (committed) return;
       cancelled = true;
-      abort.abort();
+      // The city owns the request, so it owns the abort. Read the published
+      // handle rather than the one below, which is not initialised yet when a
+      // cancel arrives during the wait for it.
+      SCENE_HANDLE.peek()?.cancelTimelineLoad();
       hideLoadingOverlay();
     });
   }
@@ -116,7 +107,9 @@ export async function loadTimelineSource({
   // and the rows below say what is still to come. The percent inside the
   // Building row is the CITY's now (city.status.fraction), so the app no longer
   // mirrors a plan of its own alongside it.
-  const onProgress = (p: TimelineProgress): void => {
+  // The city reports the assembly like any other work it does; this app turns
+  // that into rows. Subscribed for the life of the load and dropped after.
+  const stopProgress = handle.on('timeline:progress', ({ event: p }) => {
     if (p.stage === TimelineStage.Assemble) {
       // The server's wait, but the same wait as the build after it: one readout.
       if (overlay) setLoadingStep(LoadingStep.Building);
@@ -130,71 +123,42 @@ export async function loadTimelineSource({
     const step = stepForTimelineStage(p.stage);
     setLoadingStep(step);
     setLoadingStepTail(step, tail);
-  };
+  });
 
   try {
-    const bundle = await API.fetchTimelineBundle(src, branch, onProgress, {
-      signal: abort.signal,
+    // The load is the CITY's: it holds the bundle, the replay and the scrub
+    // controller, and the order those go in — mode before the manifest,
+    // transparency after the pack, controller last — is a property of the
+    // pieces, not of this app. What this app keeps is the readout above it.
+    const bundle = await handle.loadTimeline({
+      src,
+      branch,
+      commit,
+      keepPosition: inPlace,
       exclude: activeExcludePathsFor(src),
       noCache,
     });
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
     setTimelineBundle(bundle);
-    if (overlay) setLoadingStep(LoadingStep.Building);
-    beginHostWork();
-    // The bundle's union manifest is a Manifest like any other — repo info,
-    // commits, signals — so the panes, header and tree read Timeline's own.
-    const manifest = bundle.unionManifest as unknown as Manifest;
-    // The replay and the fan-out below run before the apply that would name
-    // them: open the same plan the assembly did, and paint before the freeze.
-    await nextPaint();
-    const timelines = buildPathTimelines(bundle);
-    // Before the manifest: the mode is what tells the scene layer whose city to
-    // pack, and the commit below would otherwise land as a live one.
-    beginTimelineMode();
-    commitSource(src, branch, manifest);
-    await handle.applyManifest(manifest, [BuildStage.Assembling, BuildStage.Replay]);
-    // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
-    handle.timeline.setStreetsTransparent(true);
-    handle.timeline.setFootprintsTransparent(true);
-    handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
-    // A refetch holds position (self-clamping if the bundle shrank), a named
-    // commit rests on it, and anything else opens at the present.
-    setScrubPos(scrubTarget(bundle, commit, inPlace));
+    commitSource(src, branch, bundle.unionManifest as unknown as Manifest);
     if (overlay) {
-      // Hold the overlay through the union city's first painted frame, then reveal.
+      // Hold the overlay through the union city's first painted frame.
       requestAnimationFrame(() => {
         hideLoadingOverlay();
       });
     }
   } catch (err) {
     if (cancelled) return; // user cancel already aborted the fetch + restored live
-    // A failure can predate the controller install, so the effect wouldn't
-    // fire: tear down here, best-effort so its own throw can't bury `err`.
-    if (!inPlace) {
-      try {
-        resetTimelineMode();
-        handle.timeline.uninstallScrubController();
-        handle.timeline.setStreetsTransparent(false);
-        handle.timeline.setFootprintsTransparent(false);
-      } catch {
-        /* teardown failed; surfacing err + hiding the overlay below is what matters */
-      }
-    }
+    // The city unwinds its own scene — the mode, the controller, the
+    // transparency — so what is left here is telling the reader.
     if (overlay) hideLoadingOverlay();
     failHostWork(err);
+  } finally {
+    // For the life of THIS load: the city outlives it, and a subscription left
+    // behind would draw the next load's rows over a readout that has moved on.
+    stopProgress();
   }
-}
-
-/** Where the scrubber lands. An unknown sha falls through to the present rather
- *  than erroring: the union cap can drop one, and a link can go stale. */
-function scrubTarget(bundle: TimelineBundle, commit: string | undefined, inPlace: boolean): number {
-  if (commit) {
-    const idx = bundle.commits.findIndex((c) => c.sha === commit);
-    if (idx >= 0) return idx;
-  }
-  return inPlace ? SCRUB_POS.peek() : SCRUB_MAX.peek();
 }
 
 /** Enter Timeline for the source already open. */

@@ -30,21 +30,15 @@ import {
 } from '@/state/stores/progress';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/values/updates';
-import { EMPTY_MANIFEST } from '@codecity/city/testing';
+import { createEmitter, EMPTY_MANIFEST } from '@codecity/city/testing';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import { StubEventSource, installEventSource } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
-import { API } from '@/apiClient';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
 const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
-
-vi.mock('@/apiClient', async (orig) => {
-  const mod = (await orig()) as typeof import('@/apiClient');
-  return { API: { ...mod.API, fetchTimelineBundle: vi.fn() } };
-});
 
 // repo, like the server's union manifest carries: Timeline commits this as the
 // manifest the header and panes read, so a bare tree is not a fixture of one.
@@ -68,8 +62,12 @@ function fakeHandle() {
   const uninstallScrubController = vi.fn();
   const setStreetsTransparent = vi.fn();
   const setFootprintsTransparent = vi.fn();
-  // Not exercised here — the watch's own rules are the package's — but a handle
-  // without them is not one this app can hold.
+  // The load is the city's now: this records what it was ASKED for, which is
+  // the whole of what this app is still responsible for. The emitter is real,
+  // so a test can drive the progress the city would report during one.
+  const events = createEmitter();
+  const loadTimeline = vi.fn(async () => BUNDLE);
+  const cancelTimelineLoad = vi.fn();
   const watchSource = vi.fn(() => () => {});
   const refreshSource = vi.fn(async () => {});
   const handle = {
@@ -77,6 +75,9 @@ function fakeHandle() {
     buildStagesFor,
     watchSource,
     refreshSource,
+    loadTimeline,
+    cancelTimelineLoad,
+    on: events.on,
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
@@ -92,6 +93,9 @@ function fakeHandle() {
   };
   return {
     handle,
+    events,
+    loadTimeline,
+    cancelTimelineLoad,
     applyManifest,
     buildStagesFor,
     watchSource,
@@ -130,36 +134,28 @@ describe('loadTimelineScene', () => {
     setTimelineBundle(null);
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     HOST_WORK.value = { busy: false, error: null };
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
+    // Reset, not clear: clear drops the CALLS and keeps the implementation, so
+    // a rejection staged by one case is still staged for the next.
+    f.loadTimeline.mockReset();
+    f.loadTimeline.mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
     resetTimelineMode();
     SCENE_HANDLE.value = null;
   });
 
-  it('fetches the bundle, applies the union once, installs the controller, and enters mode at the present', async () => {
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-
+  // The load itself — the order of mode, pack, transparency and controller — is
+  // the CITY's, and is covered in packages/city/tests/loadTimeline.test.ts.
+  // What this app is responsible for is asking for the right thing, and what it
+  // does with the answer.
+  it('asks the city for the open source’s history, and shows what came back', async () => {
     await loadTimelineScene();
 
-    expect(API.fetchTimelineBundle).toHaveBeenCalledWith(
-      's',
-      undefined,
-      expect.any(Function),
-      expect.objectContaining({ signal: expect.any(AbortSignal), exclude: expect.any(Array) })
+    expect(f.loadTimeline).toHaveBeenCalledWith(
+      expect.objectContaining({ src: 's', branch: undefined, exclude: expect.any(Array) })
     );
-    expect(f.applyManifest).toHaveBeenCalledTimes(1);
-    // The replay ran before the apply, and counts in the build's readout.
-    expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest, [
-      BuildStage.Assembling,
-      BuildStage.Replay,
-    ]);
-    expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
-    expect(f.setFootprintsTransparent).toHaveBeenCalledWith(true);
-    expect(f.installScrubController).toHaveBeenCalledTimes(1);
+    // The bundle every pane reads, and the source it belongs to.
     expect(TIMELINE_BUNDLE.value).toBe(BUNDLE);
-    expect(TIMELINE_MODE.value).toBe(true);
-    expect(SCRUB_POS.value).toBe(2); // commits.length - 1 → start at present
 
     // Overlay held through the first painted frame, then hidden.
     await nextFrame();
@@ -168,43 +164,47 @@ describe('loadTimelineScene', () => {
 
   it('shows the full loading overlay (not just the footer) and drives it through the stages then Building', async () => {
     let resolveFetch!: (b: TimelineBundle) => void;
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    f.loadTimeline.mockImplementation(
       () =>
         new Promise<TimelineBundle>((resolve) => {
           resolveFetch = resolve;
         })
     );
-    // The pack is several frames long now, so sample the overlay at the step
-    // right after it instead of racing jsdom's frame clock from out here.
-    let visibleAfterPack: boolean | null = null;
-    f.installScrubController.mockImplementation(() => {
-      visibleAfterPack = LOADING_OVERLAY.value.visible;
-    });
-
     const entering = loadTimelineScene();
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
     // 's' is a path, not a URL: there is nothing to fetch, so the list opens on
     // the walk (the fetch row is covered by loadingOverlay.test.tsx).
+    f.events.emit('timeline:progress', {
+      event: { stage: TimelineStage.History, commits: 12000 } as never,
+    });
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineHistory);
+
+    // Union assembly is the last thing the server reports, and the pack that
+    // follows is the same wait: one row from here to the painted city.
+    f.events.emit('timeline:progress', {
+      event: { stage: TimelineStage.Assemble, percent: 62 } as never,
+    });
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
 
     resolveFetch(BUNDLE);
     await entering;
-    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
-    expect(visibleAfterPack, 'reveal waits for the first painted frame').toBe(true);
+    // The overlay is held through the union city's first painted frame.
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
 
     await nextFrame();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
   it('walks the overlay one row per server stage, each carrying its own tail', async () => {
-    let onProgress!: (p: TimelineProgress) => void;
+    // The city reports the assembly on its own events; this app turns that
+    // into rows, which is the whole of what it still owns here.
+    const onProgress = (event: TimelineProgress) => f.events.emit('timeline:progress', { event });
     let resolveFetch!: (b: TimelineBundle) => void;
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (_src: string, _branch: string | undefined, progress: (p: TimelineProgress) => void) =>
+    f.loadTimeline.mockImplementation(
+      () =>
         new Promise<TimelineBundle>((resolve) => {
-          onProgress = progress;
           resolveFetch = resolve;
         })
     );
@@ -244,35 +244,16 @@ describe('loadTimelineScene', () => {
   it('no-ops without a current source', async () => {
     CURRENT_SOURCE.value = null;
     await loadTimelineScene();
-    expect(API.fetchTimelineBundle).not.toHaveBeenCalled();
+    expect(f.loadTimeline).not.toHaveBeenCalled();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
   it('surfaces a fetch error, leaves mode unset, and hides the overlay', async () => {
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('boom')
-    );
+    f.loadTimeline.mockRejectedValue(new Error('boom'));
     await loadTimelineScene();
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(f.installScrubController).not.toHaveBeenCalled();
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(HOST_WORK.value.error).not.toBeNull();
-  });
-
-  it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
-    // A throw inside the catch must not strand the overlay: the finally still
-    // has to mark the error and take it down.
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    const f = fakeHandle();
-    f.applyManifest.mockRejectedValue(new Error('pack failed'));
-    f.uninstallScrubController.mockImplementation(() => {
-      throw new Error('cleanup boom');
-    });
-    SCENE_HANDLE.value = f.handle as never;
-
-    await loadTimelineScene();
-
+    // Unwinding the SCENE is the city's — it never entered the mode, since the
+    // load threw before it got there. What this app owes is the readout.
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(HOST_WORK.value.error).not.toBeNull();
@@ -281,31 +262,19 @@ describe('loadTimelineScene', () => {
   // The bundle caches per HEAD, so a Fresh scan that did not say so would be
   // answered from the very cache it asked to ignore.
   it('asks the history read to ignore its cache for a fresh scan', async () => {
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    SCENE_HANDLE.value = fakeHandle().handle as never;
+    f.loadTimeline.mockResolvedValue(BUNDLE);
 
     await loadTimelineScene({ inPlace: true, noCache: true });
 
-    expect(API.fetchTimelineBundle).toHaveBeenCalledWith(
-      's',
-      undefined,
-      expect.any(Function),
-      expect.objectContaining({ noCache: true })
-    );
+    expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ noCache: true }));
   });
 
   it('leaves the cache alone on an ordinary refetch', async () => {
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
-    SCENE_HANDLE.value = fakeHandle().handle as never;
+    f.loadTimeline.mockResolvedValue(BUNDLE);
 
     await loadTimelineScene({ inPlace: true });
 
-    expect(API.fetchTimelineBundle).toHaveBeenCalledWith(
-      's',
-      undefined,
-      expect.any(Function),
-      expect.objectContaining({ noCache: false })
-    );
+    expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ noCache: false }));
   });
 });
 
@@ -405,7 +374,10 @@ describe('loadTimelineScene inPlace refetch', () => {
     HOST_WORK.value = { busy: false, error: null }; // inPlace reports through the footer
     REBUILD_DETAIL.value = null;
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
+    // Reset, not clear: clear drops the CALLS and keeps the implementation, so
+    // a rejection staged by one case is still staged for the next.
+    f.loadTimeline.mockReset();
+    f.loadTimeline.mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
     resetTimelineMode();
@@ -417,40 +389,34 @@ describe('loadTimelineScene inPlace refetch', () => {
       ...BUNDLE,
       unionManifest: { tree: { name: 'r2' }, stats: {}, repo: UNION_REPO },
     } as unknown as TimelineBundle;
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
+    f.loadTimeline.mockResolvedValue(NEXT);
 
     await loadTimelineScene({ inPlace: true });
 
-    expect(API.fetchTimelineBundle).toHaveBeenCalledWith(
-      's',
-      undefined,
-      expect.any(Function),
-      expect.objectContaining({ exclude: expect.any(Array) })
+    // The re-pack and the controller are inside the city's load; what this app
+    // asked for, and what it did with the answer, is its half.
+    expect(f.loadTimeline).toHaveBeenCalledWith(
+      expect.objectContaining({ exclude: expect.any(Array), keepPosition: true })
     );
     expect(TIMELINE_BUNDLE.value).toBe(NEXT);
-    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest, [
-      BuildStage.Assembling,
-      BuildStage.Replay,
-    ]);
-    expect(f.installScrubController).toHaveBeenCalledTimes(1);
-    expect(SCRUB_POS.value).toBe(2); // held at present, not reset
   });
 
   it('no-ops without a scene handle', async () => {
     SCENE_HANDLE.value = null;
     await loadTimelineScene({ inPlace: true });
-    expect(API.fetchTimelineBundle).not.toHaveBeenCalled();
+    expect(f.loadTimeline).not.toHaveBeenCalled();
   });
 
   // An exclude edit refetches under a city that is already on screen: no
   // overlay, so the freshness readout is the only place the stages can show.
   it('reports its stages through the freshness readout when no overlay is asked for', async () => {
-    let onProgress!: (p: TimelineProgress) => void;
+    // The city reports the assembly on its own events; this app turns that
+    // into rows, which is the whole of what it still owns here.
+    const onProgress = (event: TimelineProgress) => f.events.emit('timeline:progress', { event });
     let resolveFetch!: (b: TimelineBundle) => void;
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (_src: string, _branch: string | undefined, progress: (p: TimelineProgress) => void) =>
+    f.loadTimeline.mockImplementation(
+      () =>
         new Promise<TimelineBundle>((resolve) => {
-          onProgress = progress;
           resolveFetch = resolve;
         })
     );
@@ -473,12 +439,13 @@ describe('loadTimelineScene inPlace refetch', () => {
   // A Fresh scan in Timeline is a deliberate cacheless walk: minutes of work
   // that used to sit behind the freshness dot alone.
   it('shows the stepped overlay for a refetch the user asked for, holding the scrub', async () => {
-    let onProgress!: (p: TimelineProgress) => void;
+    // The city reports the assembly on its own events; this app turns that
+    // into rows, which is the whole of what it still owns here.
+    const onProgress = (event: TimelineProgress) => f.events.emit('timeline:progress', { event });
     let resolveFetch!: (b: TimelineBundle) => void;
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (_src: string, _branch: string | undefined, progress: (p: TimelineProgress) => void) =>
+    f.loadTimeline.mockImplementation(
+      () =>
         new Promise<TimelineBundle>((resolve) => {
-          onProgress = progress;
           resolveFetch = resolve;
         })
     );
@@ -501,21 +468,17 @@ describe('loadTimelineScene inPlace refetch', () => {
   });
 
   it('a cancel on that overlay leaves the timeline it is already showing alone', async () => {
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      (
-        _src: string,
-        _branch: string | undefined,
-        _progress: unknown,
-        opts: { signal: AbortSignal }
-      ) =>
-        new Promise<TimelineBundle>((_resolve, reject) => {
-          opts.signal.addEventListener('abort', () => {
-            const e = new Error('Timeline load aborted');
-            e.name = 'AbortError';
-            reject(e);
-          });
-        })
+    // The city owns the request and its abort: cancelling asks IT to stop, and
+    // the load it was running rejects.
+    let rejectLoad!: (e: Error) => void;
+    f.loadTimeline.mockImplementation(
+      () => new Promise<TimelineBundle>((_resolve, reject) => void (rejectLoad = reject))
     );
+    f.cancelTimelineLoad.mockImplementation(() => {
+      const aborted = new Error('Timeline load aborted');
+      aborted.name = 'AbortError';
+      rejectLoad(aborted);
+    });
 
     const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
     await flush();
@@ -546,8 +509,11 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
     setScrubPos(2);
     setTimelineBundle(BUNDLE);
     EXCLUDES.value = {};
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
-    (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+    // Reset, not clear: clear drops the CALLS and keeps the implementation, so
+    // a rejection staged by one case is still staged for the next.
+    f.loadTimeline.mockReset();
+    f.loadTimeline.mockResolvedValue(BUNDLE);
+    f.loadTimeline.mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
     restoreEventSource();
@@ -562,9 +528,8 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
     addExclude('vendor');
     await flush();
 
-    expect(API.fetchTimelineBundle).toHaveBeenCalledTimes(1);
-    const opts = (API.fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mock.calls[0][3];
-    expect(opts).toEqual(expect.objectContaining({ exclude: ['vendor'] }));
+    expect(f.loadTimeline).toHaveBeenCalledTimes(1);
+    expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ exclude: ['vendor'] }));
     expect(StubEventSource.instances.length).toBe(0); // Timeline must not fall back to a live re-scan
     dispose();
   });
