@@ -15,6 +15,11 @@ vi.mock('../../src/render/postFx', async () =>
 );
 
 import { City as CityCanvas } from '../../src/preact/index';
+import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
+import { mkDir, mkFile } from '../_helpers/cityFixtures';
+import { encodeSelection, decodeSelection } from '../../src/state/viewState';
+import type { CityViewState } from '../../src/state/viewState';
+import type { Manifest } from '../../src/types/manifest';
 import type { City as CityInstance } from '@codecity/city';
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -156,5 +161,108 @@ describe('<CityCanvas>', () => {
     await settle();
 
     expect(m.city()).toBe(first);
+  });
+});
+
+// A host should be able to wire its chrome to a city through PROPS. Reaching
+// for the instance is the escape hatch, not the way a selection reaches a pane.
+describe('what a host gets without touching the instance', () => {
+  let host: HTMLDivElement;
+  let rafSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    let calls = 0;
+    rafSpy = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        if (calls++ < 40) setTimeout(() => cb(performance.now()), 0);
+        return 0 as unknown as number;
+      });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', {
+      value: 1280,
+      configurable: true,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', {
+      value: 720,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    render(null, host);
+    host.remove();
+    rafSpy.mockRestore();
+  });
+
+  /** A mounted city with something in it to select. */
+  async function showing(extra: Record<string, unknown> = {}) {
+    const got: { city: CityInstance | null } = { city: null };
+    render(<CityCanvas onReady={(c) => void (got.city = c)} {...extra} />, host);
+    await until('the city', () => got.city !== null);
+    await got.city!.applyManifest({
+      ...EMPTY_MANIFEST,
+      tree: mkDir('root', [mkFile('a.ts'), mkFile('b.ts')]),
+    } as unknown as Manifest);
+    return got.city!;
+  }
+
+  it('reports the selection as a prop, with no instance in the host’s hands', async () => {
+    const seen: Array<string | null> = [];
+    const city = await showing({
+      onSelect: (t: { file?: { path: string } } | null) => seen.push(t?.file?.path ?? null),
+    });
+
+    city.picker.selectByPath('root/a.ts');
+    await until('a selection report', () => seen.length > 0);
+
+    expect(seen).toContain('root/a.ts');
+  });
+
+  it('reports where the reader is, so a host can put it in a link', async () => {
+    const views: CityViewState[] = [];
+    const city = await showing({ onViewStateChange: (v: CityViewState) => views.push(v) });
+
+    city.picker.selectByPath('root/a.ts');
+    await until('a view report', () => views.length > 0);
+
+    expect(encodeSelection(views[views.length - 1].selection ?? null)).toBe('file:root/a.ts');
+  });
+
+  it('goes where a viewState prop says, and ignores its own report coming back', async () => {
+    const views: CityViewState[] = [];
+    const got: { city: CityInstance | null } = { city: null };
+    const view: CityViewState = { selection: decodeSelection('file:root/b.ts'), timeline: null };
+    render(
+      <CityCanvas
+        onReady={(c) => void (got.city = c)}
+        viewState={view}
+        onViewStateChange={(v) => views.push(v)}
+      />,
+      host
+    );
+    await until('the city', () => got.city !== null);
+    await got.city!.applyManifest({
+      ...EMPTY_MANIFEST,
+      tree: mkDir('root', [mkFile('a.ts'), mkFile('b.ts')]),
+    } as unknown as Manifest);
+
+    await until('the restore', () => got.city!.picker.selectionKey !== null);
+    expect(encodeSelection(got.city!.picker.selectionKey)).toBe('file:root/b.ts');
+
+    // The report the restore produced, fed back in, must not re-run the
+    // restore: a controlled host reflects every change straight back.
+    const before = views.length;
+    render(
+      <CityCanvas
+        onReady={(c) => void (got.city = c)}
+        viewState={views[views.length - 1] ?? view}
+        onViewStateChange={(v) => views.push(v)}
+      />,
+      host
+    );
+    await settle();
+    expect(views.length).toBe(before);
   });
 });

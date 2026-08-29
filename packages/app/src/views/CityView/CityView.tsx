@@ -4,7 +4,9 @@
 // and the syntax theme the file preview reads.
 
 import './CityView.css';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
+import { CityProvider } from '@codecity/city/preact';
+import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
 
 import { CityHeader } from './chrome/CityHeader/CityHeader';
@@ -17,7 +19,7 @@ import { HljsThemeLink } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
-import { attachViewUrlReactions } from '@/router/viewBinding';
+import { useUrlViewState } from '@/router/useUrlViewState';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { LOADING_CANCEL } from '@/state/stores/progress';
@@ -30,11 +32,13 @@ import {
 } from '@/state/stores/city';
 
 export function CityView() {
+  const [city, setCity] = useState<City | null>(null);
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();
-  // Mode, scrub commit and selection are this view's: the landing has nothing
-  // to describe, and reflecting there would write them onto `/`.
-  useEffect(() => attachViewUrlReactions(), []);
+  // Mode, scrub commit and selection are THIS city's, and this view's: the
+  // landing has nothing to describe, and reflecting there would write them
+  // onto `/`. A prop in, a callback out, and no binding to mount.
+  const [viewState, onViewStateChange] = useUrlViewState();
 
   // A newly loaded source has nothing selected in it yet.
   useSignalEffect(() => {
@@ -53,7 +57,9 @@ export function CityView() {
   };
 
   return (
-    <>
+    // Everything below reads THIS city. Held here rather than in a module slot,
+    // which is what lets a second one exist with chrome of its own.
+    <CityProvider city={city}>
       <a class="skip-link" href="#city-body">
         Skip to content
       </a>
@@ -62,7 +68,12 @@ export function CityView() {
       <CityHeader onSwitchSource={() => navigate(ROUTES.HOME)} onRefresh={refreshCurrentSource} />
       <main id="city-body" tabIndex={-1}>
         <CitySidebarLeft />
-        <CityStage />
+        <CityStage
+          city={city}
+          onReady={setCity}
+          viewState={viewState}
+          onViewStateChange={onViewStateChange}
+        />
         <CitySidebarRight />
       </main>
       <CityFooter
@@ -75,6 +86,6 @@ export function CityView() {
       <LoadingOverlay onCancel={onCancelLoad} />
       <HljsThemeLink />
       <SelectionAnnouncer />
-    </>
+    </CityProvider>
   );
 }

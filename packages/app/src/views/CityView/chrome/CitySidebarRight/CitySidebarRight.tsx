@@ -11,17 +11,14 @@ import {
   FileNode,
   Manifest,
   NodeKind,
+  PickTarget,
 } from '@codecity/city';
 import './CitySidebarRight.css';
-import { useComputed } from '@preact/signals';
-import {
-  CITY_SELECTION,
-  SCENE_HANDLE,
-  type SceneHandle,
-  clearSelection,
-  focusPath,
-  focusCommit,
-} from '@/state/stores/city';
+import { useComputed, useSignal } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
+import { useCity } from '@codecity/city/preact';
+import type { City } from '@codecity/city';
+import { clearSelection, focusPath, focusCommit } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import {
   PANE_MANIFEST,
@@ -50,7 +47,7 @@ enum SidebarPaneKind {
 // The commit and street panes need things no manifest field holds, so these
 // derive them from the scene handle.
 
-function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneState {
+function commitStateFor(handle: City, commit: CommitEntry): CommitPaneState {
   // peek: the calling computed already re-derives on MANIFEST, so a tracked
   // read here would only double it.
   const m = MANIFEST.peek() as Manifest;
@@ -67,10 +64,24 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
 // ── Main component ───────────────────────────────────────────────────
 
 export function CitySidebarRight() {
+  // The city this sidebar is about, and its selection as a signal: the panes
+  // take signals so a scrub repaints a pane without re-rendering the sidebar.
+  const city = useCity();
+  const selection = useSignal<PickTarget | null>(null);
+  useEffect(() => {
+    if (!city) {
+      selection.value = null;
+      return;
+    }
+    const sync = () => (selection.value = city.picker.selection);
+    sync();
+    return city.on('select', sync);
+  }, [city]);
+
   // Computeds read during render: no effect writing signals, no bridge, and a
   // live-update poll re-derives every pane on its own.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
-    const sel = CITY_SELECTION.value ?? null;
+    const sel = selection.value;
     // Every selection opens the panel: the sidebar is the only place one is
     // shown. The panes handle the union-city caveat themselves.
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
@@ -82,7 +93,7 @@ export function CitySidebarRight() {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
     const m = PANE_MANIFEST.value as Manifest | DirNode | null;
-    const sel = CITY_SELECTION.value ?? null;
+    const sel = selection.value;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
     // Excludes never reach here: they're filtered out of the timeline union too,
@@ -102,11 +113,10 @@ export function CitySidebarRight() {
   const commitState = useComputed<CommitPaneState>(() => {
     void MANIFEST.value; // re-derive on live-update rebuilds
     const inTimeline = TIMELINE_MODE.value; // re-derive so the button label tracks the mode
-    const handle = SCENE_HANDLE.value;
-    const sel = CITY_SELECTION.value ?? null;
-    return handle && sel?.kind === NodeKind.Commit
+    const sel = selection.value;
+    return city && sel?.kind === NodeKind.Commit
       ? {
-          ...commitStateFor(handle, sel.commit),
+          ...commitStateFor(city, sel.commit),
           source: sourceOf(MANIFEST.value as Manifest | null),
           inTimeline,
         }
@@ -114,7 +124,7 @@ export function CitySidebarRight() {
   });
   const streetState = useComputed<StreetPaneState>(() => {
     const m = MANIFEST.value as Manifest | DirNode | null;
-    const sel = CITY_SELECTION.value ?? null;
+    const sel = selection.value;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     // In Timeline the rollups are re-added at the settled commit from the same
     // per-blob numbers the buildings use, so the pane cannot disagree with them.

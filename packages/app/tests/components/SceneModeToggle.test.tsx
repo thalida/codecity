@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
-import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
+import { renderWithCity, type FakeCity } from '../_helpers/cityChrome';
 import { flush } from '../_helpers/preact';
 
 vi.mock('@/hooks/useTimelineMode', () => ({
@@ -34,12 +34,11 @@ describe('TimelineToggle', () => {
     document.body.removeChild(container);
     CURRENT_SOURCE.value = null;
     setManifest(null);
-    resetTimelineMode();
     vi.clearAllMocks();
   });
 
   it('does not render before a source is loaded', async () => {
-    render(<TimelineToggle />, container);
+    city = renderWithCity(<TimelineToggle />, container, city);
     await flush();
     expect(container.querySelector('.timeline-toggle')).toBeNull();
   });
@@ -47,7 +46,7 @@ describe('TimelineToggle', () => {
   it('renders once a source is loaded, Live active by default', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    render(<TimelineToggle />, container);
+    city = renderWithCity(<TimelineToggle />, container, city);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -59,8 +58,8 @@ describe('TimelineToggle', () => {
   it('Timeline is active when TIMELINE_MODE is on', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    beginTimelineMode();
-    render(<TimelineToggle />, container);
+    city.timeline.enter();
+    city = renderWithCity(<TimelineToggle />, container, city);
     await flush();
 
     const [live, timeline] = btns(container);
@@ -71,7 +70,7 @@ describe('TimelineToggle', () => {
   it('clicking Timeline while live calls loadTimelineScene, not exit', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    render(<TimelineToggle />, container);
+    city = renderWithCity(<TimelineToggle />, container, city);
     await flush();
 
     btns(container)[1].click(); // Timeline
@@ -82,8 +81,8 @@ describe('TimelineToggle', () => {
   it('clicking Live while in timeline calls exitTimelineMode, not enter', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    beginTimelineMode();
-    render(<TimelineToggle />, container);
+    city.timeline.enter();
+    city = renderWithCity(<TimelineToggle />, container, city);
     await flush();
 
     btns(container)[0].click(); // Live

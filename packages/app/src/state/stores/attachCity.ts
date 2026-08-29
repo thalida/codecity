@@ -13,7 +13,6 @@ import type { City } from '@codecity/city';
 
 import { attachSettingsReactions } from '@/state/settings/reactions';
 import { attachScanToStores } from '@/hooks/useManifestSource';
-import { attachCityChrome } from '@/state/stores/city';
 import { attachBuildProgress, attachCityStatus } from '@/state/stores/progress';
 
 /** Mirror one city onto this app's state, and return the one unsubscribe.
@@ -32,9 +31,6 @@ export function attachCity(city: City): () => void {
     // The flash for a Save this city answers by refreshing in place, which is
     // a change with no build behind it to report.
     attachSettingsReactions(city),
-    // What the reader does in the canvas, and what this app's chrome does
-    // about it.
-    attachCityChrome(city.on),
     // The manifest every pane reads, the source kind, and the repo's name.
     attachScanToStores(city.on),
   ];

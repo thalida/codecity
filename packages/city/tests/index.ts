@@ -41,6 +41,7 @@ export {
   republishCity,
   drivableCityState,
   fakePicker,
+  fakeCity,
 } from './_helpers/cityFixtures';
 export type { DrivableCityState, FakePicker } from './_helpers/cityFixtures';
 

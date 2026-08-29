@@ -6,12 +6,13 @@
 import './HomeView.css';
 import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
-import { BackdropCity } from '@/components/City/SceneCity';
+import { City } from '@codecity/city/preact';
+import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
+import { BACKDROP_SETTINGS } from '@/state/settings/values/city';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';
 import { type SourcePayload } from '@/types/ui';
 import { BACKDROP_CITY, RECENTS, SOURCE_ERROR } from '@/state/stores/source';
-import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
 import { cityHref, navigate } from '@/router/location';
 import { SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
 import { RUN_DOCS_URL } from '@/constants/ui';
@@ -24,7 +25,9 @@ const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
-  useHomeBackdrop();
+  // What the wallpaper shows: chosen here, drawn by the city below. Nothing on
+  // this route holds a city, because nothing on it has anything to ask one.
+  const backdrop = useHomeBackdrop();
   // Navigate, don't load: the URL carrying a src IS the load trigger, the same
   // one a deep link uses. Loading here waited for the scan before routing.
   const open = (payload: SourcePayload): void => navigate(cityHref(payload.src, payload.branch));
@@ -53,7 +56,7 @@ export function HomeView() {
       {/* Wallpaper first, the city over it once one paints: here the canvas is
           decoration, so it carries no chrome and no controls. */}
       <div class={`landing-stage${painted ? ' is-painted' : ''}`} aria-hidden="true">
-        <BackdropCity />
+        <City transparent keyboard={false} settings={BACKDROP_SETTINGS.value} manifest={backdrop} />
       </div>
 
       <div class="landing-inner">

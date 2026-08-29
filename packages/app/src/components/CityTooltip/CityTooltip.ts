@@ -22,10 +22,15 @@ export interface CityTooltip {
   dispose(): void;
 }
 
-/** One card for one canvas. It follows the cursor itself: where the pointer is
- *  is a DOM fact the view already has, and the city should not have to report
- *  a position sixty times a second for it. */
-export function createCityTooltip(canvas: HTMLElement): CityTooltip {
+/** One card. It follows the cursor itself: where the pointer is is a DOM fact
+ *  the view already has, and the city should not have to report a position
+ *  sixty times a second for it.
+ *
+ *  Tracks the pointer on the window rather than on a canvas, so drawing a card
+ *  about a city costs nothing but the city's own hover report. Nothing is shown
+ *  unless something is hovered, and while something is hovered the pointer is
+ *  over that city by definition. */
+export function createCityTooltip(): CityTooltip {
   const el = document.createElement('div');
   el.id = 'hover-tooltip';
   el.className = 'card-tooltip surface-glass';
@@ -83,7 +88,7 @@ export function createCityTooltip(canvas: HTMLElement): CityTooltip {
     y = e.clientY;
     if (el.style.display !== 'none') _place();
   }
-  canvas.addEventListener('pointermove', _track);
+  window.addEventListener('pointermove', _track);
 
   return {
     show(content) {
@@ -91,7 +96,7 @@ export function createCityTooltip(canvas: HTMLElement): CityTooltip {
       else el.style.display = 'none';
     },
     dispose() {
-      canvas.removeEventListener('pointermove', _track);
+      window.removeEventListener('pointermove', _track);
       el.remove();
     },
   };

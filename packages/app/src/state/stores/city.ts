@@ -22,10 +22,6 @@ export type SceneHandle = City;
 /** The city on the /city route. Only the Scene variant publishes here. */
 export const SCENE_HANDLE = signal<City | null>(null);
 
-/** The landing's wallpaper city: a different city on a different canvas, so
- *  sharing a slot made whichever mounted last the other's applyManifest target. */
-export const BACKDROP_HANDLE = signal<City | null>(null);
-
 /** Resolves once the city exists. A boot load can outrun createCity, and a load
  *  that finds no handle has nowhere to put its city. */
 export function whenSceneHandle(): Promise<City> {
@@ -134,46 +130,6 @@ export function showCommit(sha: string): void {
   if (!handle) return;
   handle.picker.selectByCommit(sha);
   openSelectionPane();
-}
-
-/** What the scene city has selected, as the identity that outlives its meshes.
- *  The city holds this too (it re-resolves the selection across rebuilds); this
- *  is the app's copy, kept current from the same event the chrome reacts to,
- *  because the URL is rendered off signals. */
-export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
-
-/** What the scene city has hovered and selected. The city holds these as plain
- *  values and says when they change; the chrome renders off signals, so this is
- *  where the two meet. Kept current by attachCityChrome. */
-export const CITY_HOVER = signal<PickTarget | null>(null);
-export const CITY_SELECTION = signal<PickTarget | null>(null);
-
-/** Wire one city's own inputs to this app's chrome. The city reports what the
- *  reader did in the canvas; deciding what the screen does about it is ours,
- *  and only the city with chrome around it gets this pointed at it.
- *
- *  Returns the unsubscribe; call it when that city goes away. */
-export function attachCityChrome(on: City['on']): () => void {
-  const offs = [
-    // Picking a node is asking what it is, so a pane put away for the last one
-    // comes back for this one — and re-picking the same node is the way back
-    // to a pane you closed.
-    on('pick', () => openSelectionPane()),
-    // The focus key is the same request the panes' Focus buttons make, so it
-    // gets the same chrome.
-    on('focus', () => revealCityChrome()),
-    // The key travels with the target: a target holds meshes a rebuild will
-    // stale, and the key is what survives it (the URL is written off the key).
-    on('select', () => {
-      const picker = SCENE_HANDLE.peek()?.picker;
-      CITY_SELECTION.value = picker?.selection ?? null;
-      PICKER_SELECTION_KEY.value = picker?.selectionKey ?? null;
-    }),
-    on('hover', () => void (CITY_HOVER.value = SCENE_HANDLE.peek()?.picker.hover ?? null)),
-  ];
-  return () => {
-    for (const off of offs) off();
-  };
 }
 
 /** Whether the city's own shortcuts should fire. A modal owns the keyboard

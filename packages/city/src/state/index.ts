@@ -30,7 +30,7 @@ import { CityBbox, CityLayout } from '../types/scene';
 import { Street, StreetAxis } from '../types/street';
 
 /** The kinds of change a component can redraw for. See the header. */
-export type CityChange = 'structure' | 'apply' | 'published';
+export type CityPublish = 'structure' | 'apply' | 'published';
 
 export interface CityState {
   readonly manifest: Manifest | null;
@@ -63,7 +63,7 @@ export interface CityState {
    *  NOT called immediately, unlike the settings and picker subscriptions:
    *  those report state, and this reports a transition. Firing at construction
    *  would claim a publish that has not happened. */
-  on(kind: CityChange, listener: () => void): () => void;
+  on(kind: CityPublish, listener: () => void): () => void;
   // Compute the layout off-thread, then set the source signals. leadingStages
   // are stages the CALLER already ran, so the readout counts them (Timeline).
   applyManifest(newManifest: Manifest, leadingStages?: readonly BuildStage[]): Promise<void>;
@@ -165,9 +165,9 @@ export function createCityState(
   let tallestBuilding: Building | null = null;
   let streetsByDirMap: Record<string, Street> = {};
 
-  const listeners = new Map<CityChange, Set<() => void>>();
+  const listeners = new Map<CityPublish, Set<() => void>>();
 
-  function on(kind: CityChange, listener: () => void): () => void {
+  function on(kind: CityPublish, listener: () => void): () => void {
     let set = listeners.get(kind);
     if (!set) {
       set = new Set();
@@ -177,7 +177,7 @@ export function createCityState(
     return () => void set.delete(listener);
   }
 
-  function _tell(kind: CityChange): void {
+  function _tell(kind: CityPublish): void {
     // Over a copy: a listener that unsubscribes itself (armOnFirstTick's
     // teardown) would otherwise mutate the set mid-iteration.
     for (const listener of [...(listeners.get(kind) ?? [])]) listener();

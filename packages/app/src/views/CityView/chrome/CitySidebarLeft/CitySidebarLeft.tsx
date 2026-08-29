@@ -5,18 +5,13 @@
 import { NodeKind, TreeNode, PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
+import { useCity } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import {
-  CITY_SELECTION,
-  CITY_HOVER,
-  SCENE_HANDLE,
-  goToPath,
-  hoverPath,
-  clearHover,
-} from '@/state/stores/city';
+import { goToPath, hoverPath, clearHover } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PANE_MANIFEST } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -88,36 +83,39 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function CitySidebarLeft() {
+  // The city this view is about. Nothing here reads a module slot: a second
+  // city on the page gets a second sidebar, pointed at its own.
+  const city = useCity();
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
   const activeTab = SIDEBAR_TAB;
   const collapsed = SIDEBAR_COLLAPSED;
 
-  // Tree selection + hover paths, derived from picker signals.
+  // Tree selection + hover paths, derived from the city's picker.
   const selectedPath = useSignal<string | null>(null);
   const hoveredPath = useSignal<string | null>(null);
   // TreePane drives this itself; it just needs somewhere long-lived to live.
   const treeExpanded = useSignal<Set<string>>(new Set());
 
-  // Mirror picker.selection.value → selectedPath. Re-runs on every
-  // SCENE_HANDLE swap and every picker change.
-  useSignalEffect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (!handle) {
+  // Signals rather than plain values because TreeTab subscribes per row: a
+  // hover repaints the row under the cursor, not the whole tree. That is the
+  // one reason to carry the city's own reports into signals here.
+  useEffect(() => {
+    if (!city) {
       selectedPath.value = null;
-      return;
-    }
-    selectedPath.value = _pathOf(CITY_SELECTION.value);
-  });
-
-  useSignalEffect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (!handle) {
       hoveredPath.value = null;
       return;
     }
-    hoveredPath.value = _pathOf(CITY_HOVER.value);
-  });
+    const sync = () => {
+      selectedPath.value = _pathOf(city.picker.selection);
+      hoveredPath.value = _pathOf(city.picker.hover);
+    };
+    sync();
+    const offs = [city.on('select', sync), city.on('hover', sync)];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, [city]);
 
   // Closed on every world commit, so a new city opens unobscured. Live reloads
   // don't write CURRENT_SOURCE, so this can't fight a manual change.

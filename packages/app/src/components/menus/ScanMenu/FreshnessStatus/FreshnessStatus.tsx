@@ -9,7 +9,8 @@ import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import { CityLifecycle } from '@codecity/city';
-import { CITY_STATUS, HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/state/stores/progress';
+import { useCityStatus } from '@codecity/city/preact';
+import { HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/state/stores/progress';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.
@@ -58,7 +59,7 @@ export function useFreshness(): Freshness {
   void tick.value;
 
   const liveEnabled = LIVE_UPDATES_ACTIVE.value;
-  const status = CITY_STATUS.value;
+  const status = useCityStatus();
   const lastUpdatedAt = LAST_UPDATED_AT.value;
   const failure = status.error ?? HOST_WORK.value.error;
   const errorMessage = failure instanceof Error ? failure.message : null;

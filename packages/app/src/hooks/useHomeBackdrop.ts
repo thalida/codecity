@@ -3,16 +3,15 @@
 // had cached for it, then the featured repo. Neither scans, and every failure
 // is silent, since the hero image underneath is already a complete answer.
 
-// It applies to its own city, which is now the only thing it could do: a city
-// holds the manifest it was given, so a wallpaper cannot reach the project you
-// opened. That used to be a rule to remember; it is a fact about the shape now.
+// It chooses; it does not paint. The manifest it settles on is what <City>
+// gets as a prop, so there is no city here to reach into and no way for a
+// wallpaper to end up applied to the project you opened.
 
 import { ScanPhase } from '@codecity/city';
 import type { Manifest } from '@codecity/city';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { BACKDROP_HANDLE, type SceneHandle } from '@/state/stores/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@codecity/city';
@@ -85,7 +84,11 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
   return out;
 }
 
-export function useHomeBackdrop(): void {
+/** The manifest the landing should show behind it, or null while it is still
+ *  looking. Hand it to a <City> as its `manifest`. */
+export function useHomeBackdrop(): Manifest | null {
+  const [manifest, setManifest] = useState<Manifest | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     // One go each, so a re-run cannot re-fetch a failure: this is what lets
@@ -93,7 +96,7 @@ export function useHomeBackdrop(): void {
     const tried = new Set<string>();
     let inFlight = false;
 
-    async function tryNext(handle: SceneHandle, featuredRepo?: string): Promise<void> {
+    async function tryNext(featuredRepo?: string): Promise<void> {
       const signal = controller.signal;
       const next = candidates(featuredRepo).find((c) => !tried.has(`${c.kind}:${c.src}`));
       if (!next) return;
@@ -105,11 +108,10 @@ export function useHomeBackdrop(): void {
         // Too big to build without freezing the page, or nothing there at all:
         // either way this candidate is out and the next one gets its turn.
         if (!manifest || !fitsBehindTheLanding(manifest)) {
-          void tryNext(handle, featuredRepo);
+          void tryNext(featuredRepo);
           return;
         }
-        await handle.applyManifest(manifest);
-        if (signal.aborted) return;
+        setManifest(manifest);
         BACKDROP_CITY.value = {
           src: next.src,
           label: manifest.tree?.name ?? next.src,
@@ -123,13 +125,10 @@ export function useHomeBackdrop(): void {
       }
     }
 
+    // Re-runs when the server config lands, which gives featured its turn.
     const stop = effect(() => {
-      // The landing's own canvas, which mounts with the view: leaving the route
-      // takes it (and the scene) with it, so there is nothing to hand back.
-      const handle = BACKDROP_HANDLE.value;
-      // Re-runs when the server config lands, which gives featured its turn.
       const featured = SERVER_CONFIG.value.featuredRepo;
-      if (handle && !inFlight && !BACKDROP_CITY.peek()) void tryNext(handle, featured);
+      if (!inFlight && !BACKDROP_CITY.peek()) void tryNext(featured);
     });
 
     return () => {
@@ -138,4 +137,6 @@ export function useHomeBackdrop(): void {
       BACKDROP_CITY.value = null;
     };
   }, []);
+
+  return manifest;
 }

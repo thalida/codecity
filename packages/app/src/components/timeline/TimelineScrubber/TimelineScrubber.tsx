@@ -5,15 +5,8 @@
 import { CITY_STORES } from '@/state/settings/values/city';
 import './TimelineScrubber.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import {
-  TIMELINE_MODE,
-  SCRUB_POS,
-  SCRUB_MAX,
-  SCRUB_TODAY_MS,
-  TIMELINE_BUNDLE,
-  SCRUB_DRAGGING,
-  setScrubPos,
-} from '@/state/stores/timeline';
+import { useCityTimeline } from '@codecity/city/preact';
+import { setScrubPos, SCRUB_DRAGGING } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/settings/values/theme';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/city';
@@ -27,12 +20,13 @@ import {
 } from './scrubberScale';
 
 export function TimelineScrubber() {
-  const inTimeline = TIMELINE_MODE.value;
-  const bundle = TIMELINE_BUNDLE.value;
+  const timeline = useCityTimeline();
+  const inTimeline = timeline.mode;
+  const bundle = timeline.bundle;
   const commits = bundle?.commits ?? [];
 
   const indexWeight = CITY_STORES.SCRUBBER.value.INDEX_WEIGHT;
-  const todayMs = SCRUB_TODAY_MS.value;
+  const todayMs = timeline.todayMs;
   const scale = useMemo(
     () =>
       buildScrubberScale(
@@ -47,8 +41,8 @@ export function TimelineScrubber() {
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const maxIndex = SCRUB_MAX.value;
-  const pos = SCRUB_POS.value;
+  const maxIndex = timeline.max;
+  const pos = timeline.pos;
   // A single-commit repo has no history to scrub: the handle pins to the present
   // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
   const inert = maxIndex === 0;

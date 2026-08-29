@@ -77,7 +77,7 @@ describe('a city’s view state', () => {
     city.picker.clearSelection();
     expect(city.getViewState().selection).toBeNull();
 
-    city.setViewState(snap);
+    await city.setViewState(snap);
     expect(city.getViewState().selection).toEqual(snap.selection);
     city.dispose();
   });
@@ -95,7 +95,7 @@ describe('a city’s view state', () => {
       tree: mkDir('root', [mkFile('a.ts'), mkFile('b.ts'), mkFile('c.ts')]),
     } as unknown as Manifest);
 
-    city.setViewState(snap);
+    await city.setViewState(snap);
     expect(city.getViewState().selection).toEqual(snap.selection);
     city.dispose();
   });
@@ -106,16 +106,18 @@ describe('a city’s view state', () => {
     city.timeline.setBundle(makeCommitBundle(6));
     city.timeline.setPosition(3);
 
-    expect(city.getViewState().timeline).toEqual({ mode: true, pos: 3 });
+    // `commit` is the durable half: a link that names an index means a
+    // different commit the moment the branch moves.
+    expect(city.getViewState().timeline).toMatchObject({ mode: true, pos: 3 });
     city.dispose();
   });
 
   it('enters and leaves the timeline on the way back in', async () => {
     const city = await cityShowing();
-    city.setViewState({ timeline: { mode: true, pos: 0 } });
+    await city.setViewState({ timeline: { mode: true, pos: 0 } });
     expect(city.timeline.mode).toBe(true);
 
-    city.setViewState({ timeline: null });
+    await city.setViewState({ timeline: null });
     expect(city.timeline.mode).toBe(false);
     city.dispose();
   });
@@ -127,7 +129,7 @@ describe('a city’s view state', () => {
     city.timeline.enter();
     city.timeline.setBundle(makeCommitBundle(4));
 
-    city.setViewState({ selection: { kind: NodeKind.File, path: 'root/a.ts' } });
+    await city.setViewState({ selection: { kind: NodeKind.File, path: 'root/a.ts' } });
 
     expect(city.timeline.mode).toBe(true);
     city.dispose();

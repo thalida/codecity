@@ -20,12 +20,20 @@ export interface CityViewState {
   /** What is selected, by identity rather than by mesh, so it survives the
    *  rebuild between writing it down and reading it back. */
   selection?: PickerSelectionKey | null;
-  /** Timeline: whether it is on, and where the scrubber sits. Absent when the
-   *  city is showing HEAD. */
+  /** Timeline: whether it is on, and where the scrubber rests. Absent when the
+   *  city is showing HEAD.
+   *
+   *  `commit` is the durable half and `pos` the precise one. A link should
+   *  carry the sha: an index means a different commit the moment the branch
+   *  moves, and a union cap can drop one entirely. */
   timeline?: {
     mode: boolean;
-    /** A float commit index — the scrub interpolates between commits. */
-    pos: number;
+    /** The commit the scrubber rests on. Unknown shas fall through to the
+     *  present rather than erroring. */
+    commit?: string;
+    /** A float commit index — the scrub interpolates between commits. Used when
+     *  no `commit` is given. */
+    pos?: number;
   } | null;
 }
 
@@ -71,4 +79,17 @@ export function decodeSelection(raw: string | null): PickerSelectionKey | null {
   return kind === NodeKind.Commit
     ? { kind, sha: value }
     : ({ kind, path: value } as PickerSelectionKey);
+}
+
+/** Whether two view states put the reader in the same place. A controlled host
+ *  hands back what the city just reported, so without this every report would
+ *  come round as a fresh instruction and the city would act on its own news. */
+export function sameViewState(a: CityViewState, b: CityViewState): boolean {
+  if (encodeSelection(a.selection ?? null) !== encodeSelection(b.selection ?? null)) return false;
+  const at = a.timeline ?? null;
+  const bt = b.timeline ?? null;
+  if (!at || !bt) return at === bt;
+  // Position is deliberately not compared: it moves continuously through a
+  // drag, and a host reflecting every frame of one would fight the drag.
+  return at.mode === bt.mode && (at.commit ?? null) === (bt.commit ?? null);
 }

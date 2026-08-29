@@ -7,7 +7,7 @@ import type { Manifest } from '@codecity/city';
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
-import { MANIFEST } from '@/state/stores/manifest';
+import { useCityManifest } from '@codecity/city/preact';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { IS_PHONE } from '@/state/stores/viewport';
@@ -26,7 +26,7 @@ export interface AppHeaderProps {
 
 export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
   const si = SOURCE_INFO.value;
-  const remoteUrl = (MANIFEST.value as Manifest)?.repo?.remote_url ?? null;
+  const remoteUrl = useCityManifest()?.repo?.remote_url ?? null;
   // Nothing loaded: the freshness cluster would be reporting on a project that
   // doesn't exist, and refresh would have nothing to re-open.
   const hasProject = Boolean(si.src);

@@ -7,7 +7,7 @@ import type { Picker } from '../../src/interaction/picker';
 import type { TreesConfig } from '../../src/settings/fields/trees';
 import type { BuildingDimensionsConfig } from '../../src/settings/fields/buildings';
 import type { CitySettingsStore } from '../../src/settings/store';
-import { createCityState, type CityChange, type CityState } from '../../src/state';
+import { createCityState, type CityPublish, type CityState } from '../../src/state';
 import type { Manifest } from '../../src/types/manifest';
 import { settingsStore } from './citySettings';
 import { createEmitter } from '../../src/state/events';
@@ -17,6 +17,9 @@ import { createTestCityResources } from './cityResources';
 import { CommitEntry, NodeKind } from '../../src/types/manifest';
 import { CityBbox, CityLayout } from '../../src/types/scene';
 import { PickTarget } from '../../src/types/picker';
+import { createCityStatus } from '../../src/state/status';
+import { createSettingsStore } from '../../src/settings/store';
+import type { CityChange } from '../../src/state/change';
 
 // A no-op layout client, for tests that never call applyManifest and so never
 // spawn the worker. Keeps the real contract.
@@ -266,11 +269,11 @@ export interface DrivableCityState extends CityState {
   /** Set what the city is showing. Publishes nothing on its own. */
   set(next: Partial<Pick<CityState, 'manifest' | 'layout' | 'treePlacements'>>): void;
   /** Tell the listeners, the way an apply tells them. */
-  publish(kind: CityChange): void;
+  publish(kind: CityPublish): void;
 }
 
 export function drivableCityState(): DrivableCityState {
-  const listeners = new Map<CityChange, Set<() => void>>();
+  const listeners = new Map<CityPublish, Set<() => void>>();
   const state: Record<string, unknown> = {
     manifest: null,
     layout: null,
@@ -283,7 +286,7 @@ export function drivableCityState(): DrivableCityState {
     gemWorldPos: null,
     tallestBuilding: null,
     streetsByDirMap: {},
-    on(kind: CityChange, listener: () => void) {
+    on(kind: CityPublish, listener: () => void) {
       let set = listeners.get(kind);
       if (!set) {
         set = new Set();
@@ -298,7 +301,7 @@ export function drivableCityState(): DrivableCityState {
     set(next: Record<string, unknown>) {
       Object.assign(state, next);
     },
-    publish(kind: CityChange) {
+    publish(kind: CityPublish) {
       for (const listener of [...(listeners.get(kind) ?? [])]) listener();
     },
   };
@@ -343,4 +346,97 @@ export function fakePicker(): FakePicker {
       tell('selection');
     },
   };
+}
+
+/** A city for a host's own tests: real settings, a real timeline, a real
+ *  picker's worth of state, and nothing that needs a GPU.
+ *
+ *  What a host testing its chrome needs. Its panels read a city through hooks
+ *  now, so a test has to give them one — and building a real city for a panel
+ *  that shows a filename is a WebGL context nobody asked for. */
+export function fakeCity(over: Partial<Record<string, unknown>> = {}) {
+  const events = createEmitter();
+  const status = createCityStatus(events.on);
+  const timeline = createTimelineState();
+  const settings = createSettingsStore();
+  let manifest: Manifest | null = null;
+  let selection: PickTarget | null = null;
+  let hover: PickTarget | null = null;
+  const changeListeners = new Set<(c: CityChange, ctx: unknown) => void>();
+
+  function tell(part: keyof CityChange): void {
+    const change: CityChange = {
+      statusChanged: false,
+      manifestChanged: false,
+      selectionChanged: false,
+      hoverChanged: false,
+      timelineChanged: false,
+    };
+    change[part] = true;
+    const ctx = { status: status.value, manifest, selection, hover };
+    for (const l of [...changeListeners]) l(change, ctx);
+  }
+
+  for (const kind of ['mode', 'bundle', 'position'] as const) {
+    timeline.on(kind, () => tell('timelineChanged'));
+  }
+
+  const city = {
+    on: events.on,
+    onStatus: status.on,
+    onChange(listener: (c: CityChange, ctx: unknown) => void) {
+      changeListeners.add(listener);
+      return () => void changeListeners.delete(listener);
+    },
+    get status() {
+      return status.value;
+    },
+    get manifest() {
+      return manifest;
+    },
+    settings,
+    updateSettings: settings.update,
+    timeline,
+    picker: {
+      get selection() {
+        return selection;
+      },
+      get hover() {
+        return hover;
+      },
+      get selectionKey() {
+        return selection && 'file' in selection
+          ? { kind: NodeKind.File, path: (selection as { file: { path: string } }).file.path }
+          : null;
+      },
+      setSelection(next: PickTarget | null) {
+        selection = next;
+        tell('selectionChanged');
+      },
+      setHover(next: PickTarget | null) {
+        hover = next;
+        tell('hoverChanged');
+      },
+      clearSelection() {
+        selection = null;
+        tell('selectionChanged');
+      },
+      hoverByPath() {},
+      selectByPath() {},
+      setSelectionKey() {},
+    },
+    focus: () => true,
+    dispose() {},
+    ...over,
+  };
+
+  return Object.assign(city, {
+    /** Show this manifest, as an apply would. */
+    setManifest(next: Manifest | null) {
+      manifest = next;
+      tell('manifestChanged');
+    },
+    /** Drive its events, for the status it folds from them. */
+    events,
+  });
 }

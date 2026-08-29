@@ -3,12 +3,12 @@
 
 import './TimelineToggle.css';
 import { SOURCE_INFO } from '@/state/stores/source';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { useCityTimeline } from '@codecity/city/preact';
 import { loadTimelineScene, exitTimelineMode } from '@/hooks/useTimelineMode';
 
 export function TimelineToggle() {
   if (!SOURCE_INFO.value.src) return null;
-  const timeline = TIMELINE_MODE.value;
+  const timeline = useCityTimeline().mode;
   return (
     <div class="timeline-toggle surface-glass" role="group" aria-label="Scene mode">
       <button

@@ -34,7 +34,7 @@ export { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from './state/status';
 // Where you are in a city, as one value: what a link, a restored session or an
 // undo stack is made of.
 export type { CityViewState } from './state/viewState';
-export { encodeSelection, decodeSelection } from './state/viewState';
+export { encodeSelection, sameViewState, decodeSelection } from './state/viewState';
 
 // Browse links into the git host's own web UI.
 export { commitUrl, nodeUrl } from './data/remoteUrls';

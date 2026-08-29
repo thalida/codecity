@@ -6,7 +6,8 @@ import { NodeKind } from '@codecity/city';
 import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
-import { CITY_SELECTION, clearSelection } from '@/state/stores/city';
+import { useCitySelection } from '@codecity/city/preact';
+import { clearSelection } from '@/state/stores/city';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 
@@ -18,27 +19,27 @@ interface ChipSelection {
   extension?: string | null;
 }
 
-/** The selected node as the chip shows it, or null when nothing is selected. */
-function useChipSelection() {
-  return useComputed<ChipSelection | null>(() => {
-    const sel = CITY_SELECTION.value ?? null;
-    if (sel?.kind === NodeKind.File)
-      return { label: sel.file.name, kind: NodeKind.File, extension: sel.file.extension };
-    if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, kind: NodeKind.Directory };
-    if (sel?.kind === NodeKind.Commit)
-      return { label: sel.commit.sha.slice(0, 7), kind: NodeKind.Commit };
-    return null;
-  });
+/** The selected node as the chip shows it, or null when nothing is selected.
+ *  Straight off the city this view is about: nothing needs to copy the
+ *  selection anywhere for the chip to name it. */
+function useChipSelection(): ChipSelection | null {
+  const sel = useCitySelection();
+  if (sel?.kind === NodeKind.File)
+    return { label: sel.file.name, kind: NodeKind.File, extension: sel.file.extension };
+  if (sel?.kind === NodeKind.Directory) return { label: sel.dir.name, kind: NodeKind.Directory };
+  if (sel?.kind === NodeKind.Commit)
+    return { label: sel.commit.sha.slice(0, 7), kind: NodeKind.Commit };
+  return null;
 }
 
 export function SelectionChip() {
   const selection = useChipSelection();
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
-  const dismissed = useComputed(() => selection.value !== null && SELECTION_PANE_DISMISSED.value);
-  if (!dismissed.value) return null;
+  const dismissed = useComputed(() => SELECTION_PANE_DISMISSED.value);
+  if (selection === null || !dismissed.value) return null;
 
-  const { label, kind, extension } = selection.value as ChipSelection;
+  const { label, kind, extension } = selection;
 
   return (
     <div class="selection-chip surface-glass">

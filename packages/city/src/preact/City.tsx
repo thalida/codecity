@@ -18,8 +18,10 @@ import type { CityExtension } from '../types';
 import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../state/status';
 import type { CityChange, CityChangeContext } from '../state/change';
-import type { CityViewState } from '../state/viewState';
+import { sameViewState, type CityViewState } from '../state/viewState';
+import type { Manifest } from '../types/manifest';
 import type { SourceRequest } from '../data/loadSource';
+import type { PickTarget } from '../types/picker';
 
 export interface CityProps {
   /** Where this city's api lives. A same-origin PATH, never an origin. */
@@ -42,14 +44,45 @@ export interface CityProps {
   keyboard?: boolean | (() => boolean);
   /** Layers of your own, drawn over the city's. */
   extensions?: readonly CityExtension[];
-  /** Where to put the reader: selection and scrub position. Applied when it
-   *  changes, so a host can drive it from a URL. */
+  /** Where to put the reader: selection, timeline mode, scrub position.
+   *  Applied whenever it changes, so a host drives it from a URL, a stored
+   *  session, or a list of bookmarks — the controlled half of the pair below. */
   viewState?: CityViewState;
+  /** The city's view moved. The uncontrolled half: a host writes this back to
+   *  wherever it keeps one, and hands the result back as `viewState`.
+   *
+   *  Together these are `value`/`onChange` for where the reader is, which is
+   *  why a host needs no imperative binding of its own. */
+  onViewStateChange?: (view: CityViewState) => void;
   /** Keep up with the repo, polling every this many seconds. */
   watchSeconds?: number;
 
-  /** The instance, once it exists — and null once it is gone. Everything not
-   *  expressible as a prop goes through this. */
+  // ── What the reader did ────────────────────────────────────────────────
+  // Intent, not state. A host wiring its own chrome to a city should not have
+  // to reach for the instance to hear that someone clicked something.
+
+  /** What is selected changed — however it got selected: a click, a restored
+   *  link, a host calling focus(). Null is nothing selected. */
+  /** Show this manifest, instead of loading one from a `src`. For a host that
+   *  already has the manifest — it built it, cached it, or fetched it to decide
+   *  whether to show it at all. Changing it shows the new one. */
+  manifest?: Manifest | null;
+  onSelect?: (target: PickTarget | null) => void;
+  /** What the POINTER is over, the moment it resolves. The event a cursor-
+   *  following tooltip wants; null is nothing under it. */
+  onHover?: (target: PickTarget | null) => void;
+  /** The reader picked something IN THE CANVAS. Fires on every completed pick,
+   *  including re-picking what is already picked — which `onSelect` does not,
+   *  because nothing changed. That re-pick is how a reader gets back to a pane
+   *  they closed, so it has to be about the input, not the state. */
+  onPick?: (target: PickTarget | null) => void;
+  /** The reader asked the CITY to look at something — its focus key, not a
+   *  host calling focus(), which already knows it asked. */
+  onFocusRequest?: (target: PickTarget | null) => void;
+
+  /** The instance, once it exists — and null once it is gone. The escape hatch:
+   *  everything not expressible as a prop goes through this. A host should not
+   *  need it for anything above. */
   onReady?: (city: CityInstance | null) => void;
   /** What it is doing, whenever that changes. */
   onStatus?: (status: CityStatus) => void;
@@ -143,10 +176,28 @@ export function City(props: CityProps) {
     });
   }, [city, src, branch, skeleton, exclude]);
 
+  const { manifest } = props;
+  useEffect(() => {
+    if (city && manifest) void city.applyManifest(manifest);
+  }, [city, manifest]);
+
+  // Controlled view state. A host that reflects `onViewStateChange` straight
+  // back in is the normal case, not a mistake, so an echo of what the city
+  // already reports is dropped rather than re-applied.
   const { viewState } = props;
   useEffect(() => {
-    if (city && viewState) city.setViewState(viewState);
+    if (!city || !viewState) return;
+    if (sameViewState(viewState, city.getViewState())) return;
+    void city.setViewState(viewState);
   }, [city, viewState]);
+
+  useEffect(() => {
+    if (!city) return;
+    return city.onChange((change) => {
+      if (!change.selectionChanged && !change.timelineChanged) return;
+      handlers.current.onViewStateChange?.(city.getViewState());
+    });
+  }, [city]);
 
   const { watchSeconds } = props;
   useEffect(() => {
@@ -169,6 +220,21 @@ export function City(props: CityProps) {
   useEffect(() => {
     if (!city) return;
     return city.onChange((change, context) => handlers.current.onChange?.(change, context));
+  }, [city]);
+
+  // The reader's own doings, as props. A host wiring a details pane should
+  // never have to hold the instance to hear about a click.
+  useEffect(() => {
+    if (!city) return;
+    const stop = [
+      city.on('select', ({ target }) => handlers.current.onSelect?.(target)),
+      city.on('hover', ({ target }) => handlers.current.onHover?.(target)),
+      city.on('pick', ({ target }) => handlers.current.onPick?.(target)),
+      city.on('focus', ({ target }) => handlers.current.onFocusRequest?.(target)),
+    ];
+    return () => {
+      for (const off of stop) off();
+    };
   }, [city]);
 
   return (
