@@ -12,6 +12,8 @@
 
 import { useCallback, useSyncExternalStore } from 'preact/compat';
 
+import { useCity } from './context';
+
 import type { City } from '../city';
 import type { CityStatus } from '../state/status';
 import type { CityChange } from '../state/change';
@@ -27,11 +29,15 @@ import { EMPTY_CITY_STATUS } from '../state/status';
  *  is corrected a frame later — which is the flicker a hand-rolled bridge has
  *  and cannot easily lose. */
 function useCityValue<T>(
-  city: City | null,
+  given: City | null | undefined,
   subscribe: (city: City, onChange: () => void) => () => void,
   read: (city: City) => T,
   fallback: T
 ): T {
+  // Explicit wins; otherwise the city this subtree is about. Passing one is for
+  // the host that holds several and is rendering a panel for a specific one.
+  const fromContext = useCity();
+  const city = given === undefined ? fromContext : given;
   const sub = useCallback(
     (onChange: () => void) => (city ? subscribe(city, onChange) : () => {}),
     [city, subscribe]
@@ -48,21 +54,21 @@ const onChangeOf = (part: keyof CityChange) => (city: City, notify: () => void) 
 
 /** What the city is doing: phase, fraction, whether what is on screen is final.
  *  What a readout binds to. */
-export function useCityStatus(city: City | null): CityStatus {
+export function useCityStatus(city?: City | null): CityStatus {
   const subscribe = useCallback((c: City, notify: () => void) => c.onStatus(notify), []);
   const read = useCallback((c: City) => c.status, []);
   return useCityValue(city, subscribe, read, EMPTY_CITY_STATUS);
 }
 
 /** The manifest this city is showing. Null before the first apply. */
-export function useCityManifest(city: City | null): Manifest | null {
+export function useCityManifest(city?: City | null): Manifest | null {
   const subscribe = useCallback(onChangeOf('manifestChanged'), []);
   const read = useCallback((c: City) => c.manifest, []);
   return useCityValue(city, subscribe, read, null);
 }
 
 /** What is selected, as the target itself. Null is nothing selected. */
-export function useCitySelection(city: City | null): PickTarget | null {
+export function useCitySelection(city?: City | null): PickTarget | null {
   const subscribe = useCallback(onChangeOf('selectionChanged'), []);
   const read = useCallback((c: City) => c.picker.selection, []);
   return useCityValue(city, subscribe, read, null);
@@ -70,7 +76,7 @@ export function useCitySelection(city: City | null): PickTarget | null {
 
 /** The selection by IDENTITY, which is what survives a rebuild — so this is
  *  what a URL or a stored session should carry, not the target. */
-export function useCitySelectionKey(city: City | null): PickerSelectionKey | null {
+export function useCitySelectionKey(city?: City | null): PickerSelectionKey | null {
   const subscribe = useCallback(onChangeOf('selectionChanged'), []);
   const read = useCallback((c: City) => c.picker.selectionKey, []);
   return useCityValue(city, subscribe, read, null);
@@ -78,7 +84,7 @@ export function useCitySelectionKey(city: City | null): PickerSelectionKey | nul
 
 /** What the pointer is over. Separate from the selection because a cursor
  *  tooltip repaints on it and a details pane does not. */
-export function useCityHover(city: City | null): PickTarget | null {
+export function useCityHover(city?: City | null): PickTarget | null {
   const subscribe = useCallback(onChangeOf('hoverChanged'), []);
   const read = useCallback((c: City) => c.picker.hover, []);
   return useCityValue(city, subscribe, read, null);
@@ -136,7 +142,7 @@ function sameView(a: CityTimelineView, b: CityTimelineView): boolean {
   );
 }
 
-export function useCityTimeline(city: City | null): CityTimelineView {
+export function useCityTimeline(city?: City | null): CityTimelineView {
   const subscribe = useCallback(onChangeOf('timelineChanged'), []);
   const read = useCallback((c: City): CityTimelineView => {
     const t = c.timeline;

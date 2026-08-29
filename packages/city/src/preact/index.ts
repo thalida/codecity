@@ -6,3 +6,8 @@
 
 export { City } from './City';
 export type { CityProps } from './City';
+
+// Which city a subtree is about. The reason two can exist on one page with
+// chrome on both: a city is a value passed down, not a slot read up.
+export { CityProvider, useCity } from './context';
+export type { CityProviderProps } from './context';
