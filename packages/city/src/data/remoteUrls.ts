@@ -1,4 +1,4 @@
-// utils/remoteUrls.ts — browse links into the git host's own web UI, built from
+// data/remoteUrls.ts — browse links into the git host's own web UI, built from
 // the scanner's normalized remote. Best-effort: GitHub, GitLab, Bitbucket,
 // Gitea, Codeberg and Forgejo share these paths, other hosts 404, and every
 // caller shows the sha or path in plain text as the fallback.

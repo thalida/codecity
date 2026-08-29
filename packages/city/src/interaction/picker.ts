@@ -9,7 +9,7 @@ import { BuildingKind } from '../components/buildings/buildingKind';
 import { RUINED_STREET_DIRS } from '../components/streets/scrubState';
 
 import type { CityState } from '../state';
-import type { CityEmitter } from '../events';
+import type { CityEmitter } from '../state/events';
 import { CommitEntry, NodeKind } from '../types/manifest';
 import { PickTarget, PickerSelectionKey, PickerWorld } from '../types/picker';
 import type { TimelineState } from '../timeline/state';

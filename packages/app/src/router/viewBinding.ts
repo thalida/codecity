@@ -8,7 +8,7 @@ import { signal, effect, untracked, type Signal } from '@preact/signals';
 
 import { VIEW_PARAMS, TIMELINE_MODE_PARAM } from '@/router/params';
 import { setRouteParams, ROUTE_PARAMS, ROUTE_PATH, type NavigateOptions } from './location';
-import { parseSelection, selectionParam } from './viewParams';
+import { decodeSelection, encodeSelection } from './viewParams';
 import { ROUTES } from './paths';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { BUILT_MANIFEST } from '@/state/stores/progress';
@@ -43,7 +43,7 @@ function setOrDelete(params: URLSearchParams, key: string, value: string | null)
 
 function reflectViewToUrl(): void {
   const timeline = TIMELINE_MODE.value;
-  const selection = selectionParam(PICKER_SELECTION_KEY.value);
+  const selection = encodeSelection(PICKER_SELECTION_KEY.value);
   const commit = timeline ? settledCommitSha() : null;
   // Replace, always: none of these is a place the user asked to go, and a drag
   // would otherwise bury their own history under a hundred entries.
@@ -89,7 +89,7 @@ function installViewFollow(followed: Signal<boolean>): () => void {
     const [modeOff, commitOff, selectionOff] = untracked(() => [
       wantTimeline !== TIMELINE_MODE.peek(),
       wantTimeline && !!wantCommit && wantCommit !== settledCommitSha(),
-      wantSelection !== selectionParam(PICKER_SELECTION_KEY.peek()),
+      wantSelection !== encodeSelection(PICKER_SELECTION_KEY.peek()),
     ]);
 
     // A dimension is acted on when the view is off it AND the URL is asking for
@@ -115,7 +115,7 @@ function installViewFollow(followed: Signal<boolean>): () => void {
       } else if (commitDiffers && wantCommit) {
         void viewCommitInTimeline(wantCommit);
       }
-      if (selectionDiffers) applySelection(parseSelection(wantSelection));
+      if (selectionDiffers) applySelection(decodeSelection(wantSelection));
       followed.value = true;
     });
   });

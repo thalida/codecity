@@ -43,7 +43,7 @@ import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
-import { nodeUrl } from '@/utils/remoteUrls';
+import { nodeUrl } from '@codecity/city';
 import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';

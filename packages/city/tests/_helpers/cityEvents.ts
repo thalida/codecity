@@ -2,8 +2,8 @@
 // actually about. Nothing here reaches a store: an event is a statement the
 // city makes, and what a consumer does with it is the consumer's test.
 
-import { createCityStatus } from '../../src/status';
-import { createEmitter, type CityEmitter, type CityEventName } from '../../src/events';
+import { createCityStatus } from '../../src/state/status';
+import { createEmitter, type CityEmitter, type CityEventName } from '../../src/state/events';
 
 export { createEmitter };
 

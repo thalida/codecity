@@ -10,7 +10,7 @@ import type { CitySettingsStore } from '../../src/settings/store';
 import { createCityState, type CityChange, type CityState } from '../../src/state';
 import type { Manifest } from '../../src/types/manifest';
 import { settingsStore } from './citySettings';
-import { createEmitter } from '../../src/events';
+import { createEmitter } from '../../src/state/events';
 import { createTimelineState, type TimelineState } from '../../src/timeline/state';
 import { commits } from './commits';
 import { createTestCityResources } from './cityResources';

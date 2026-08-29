@@ -1,4 +1,4 @@
-import { createCityResources, type CityResources } from '../../src/resources';
+import { createCityResources, type CityResources } from '../../src/render/resources';
 import type { CitySettingsStore } from '../../src/settings/store';
 import { settingsStore } from './citySettings';
 

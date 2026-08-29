@@ -11,7 +11,7 @@ import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { commitUrl } from '@/utils/remoteUrls';
+import { commitUrl } from '@codecity/city';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { API } from '@/apiClient';
 

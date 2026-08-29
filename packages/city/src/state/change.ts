@@ -10,8 +10,8 @@
 // it, for a consumer that wants a specific moment rather than a repaint.
 
 import type { CityStatus } from './status';
-import type { Manifest } from './types/manifest';
-import type { PickTarget } from './types/picker';
+import type { Manifest } from '../types/manifest';
+import type { PickTarget } from '../types/picker';
 import type { CityEvents } from './events';
 
 /** What moved since the last notification. Flags rather than a payload: a host

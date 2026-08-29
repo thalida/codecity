@@ -4,8 +4,8 @@
 // history still streaming, which is the one a host reveals too early.
 
 import { describe, it, expect } from 'vitest';
-import { createEmitter } from '../src/events';
-import { createCityStatus, CityLifecycle, CityPhase } from '../src/status';
+import { createEmitter } from '../src/state/events';
+import { createCityStatus, CityLifecycle, CityPhase } from '../src/state/status';
 import { ScanPhase } from '../src/client/manifest';
 import { BuildStage } from '../src/types/build';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';

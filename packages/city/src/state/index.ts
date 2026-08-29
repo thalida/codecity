@@ -13,7 +13,7 @@
 //              on screen now
 import * as THREE from 'three';
 import { BuildStage } from '../types/build';
-import type { CityEmitter } from '../events';
+import type { CityEmitter } from './events';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
 import { nextPaint } from '../utils/nextPaint';
 import type { TreePlacement } from '../components/trees/treePlacement';
@@ -23,7 +23,7 @@ import { buildIconAtlas } from '../components/buildings/atlas';
 import type { createLayoutClient } from '../layout';
 import { layoutConfigFrom } from '../layout/config';
 import type { CitySettingsStore } from '../settings/store';
-import type { CityResources } from '../resources';
+import type { CityResources } from '../render/resources';
 import { Building } from '../types/building';
 import { Manifest } from '../types/manifest';
 import { CityBbox, CityLayout } from '../types/scene';

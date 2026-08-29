@@ -2,7 +2,7 @@
 // as a promise with progress by callback: the caller wants one bundle, and the
 // history walk is slow enough to need heartbeats before it.
 
-import { URL_PARAMS } from './urlParams';
+import { API_PARAMS } from './urlParams';
 import type { TimelineBundle, TimelineProgress } from '../types/timeline';
 
 import type { ApiUrl } from './url';
@@ -17,10 +17,10 @@ export function createTimelineEndpoints(apiUrl: ApiUrl) {
     noCache?: boolean
   ): string {
     return apiUrl('timeline', {
-      [URL_PARAMS.SRC]: src,
-      [URL_PARAMS.BRANCH]: branch,
-      [URL_PARAMS.EXCLUDE]: exclude,
-      [URL_PARAMS.NO_CACHE]: noCache ? 'true' : undefined,
+      [API_PARAMS.SRC]: src,
+      [API_PARAMS.BRANCH]: branch,
+      [API_PARAMS.EXCLUDE]: exclude,
+      [API_PARAMS.NO_CACHE]: noCache ? 'true' : undefined,
     });
   }
 

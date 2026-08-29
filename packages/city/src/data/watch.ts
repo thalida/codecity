@@ -11,12 +11,12 @@
 // applying one would animate every building down to placeholder heights and
 // back on every save.
 
-import { ScanError, ScanPhase } from './client/manifest';
-import type { CodecityClient } from './client/index';
-import type { CityEmitter } from './events';
+import { ScanError, ScanPhase } from '../client/manifest';
+import type { CodecityClient } from '../client/index';
+import type { CityEmitter } from '../state/events';
 import type { SourceLoader } from './loadSource';
-import type { TimelineState } from './timeline/state';
-import type { Manifest } from './types/manifest';
+import type { TimelineState } from '../timeline/state';
+import type { Manifest } from '../types/manifest';
 
 /** Floor: the server walks the filesystem per poll, so tighter burns CPU.
  *  Ceiling: past a minute, "live" stops feeling live. */

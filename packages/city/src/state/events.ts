@@ -6,11 +6,11 @@
 // the consumer should DO about it — no overlay, no chrome, no store. That
 // decision belongs to whoever mounted the canvas.
 
-import type { BuildStage } from './types/build';
-import type { PickTarget } from './types/picker';
-import type { ScanPhase, ScanProgressEvent } from './client/manifest';
-import type { Manifest } from './types/manifest';
-import type { TimelineProgress } from './types/timeline';
+import type { BuildStage } from '../types/build';
+import type { PickTarget } from '../types/picker';
+import type { ScanPhase, ScanProgressEvent } from '../client/manifest';
+import type { Manifest } from '../types/manifest';
+import type { TimelineProgress } from '../types/timeline';
 
 export interface CityEvents {
   /** This city started loading a repo. Everything below until scan:done or

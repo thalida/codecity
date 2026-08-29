@@ -3,7 +3,7 @@
 // hooks at the bottom; effects and pre-paint code read the signals directly,
 // which is why the URL lives here rather than in router context.
 
-import { URL_PARAMS } from '@codecity/city';
+import { URL_PARAMS } from '@/router/params';
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
 import { ROUTES } from './paths';

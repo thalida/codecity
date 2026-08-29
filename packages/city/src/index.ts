@@ -30,25 +30,29 @@ export {
   looksResolvable,
   looksLikePath,
   validateGitUrl,
-} from './source';
+} from './data/source';
 
 // ── What a city is doing ─────────────────────────────────────────────────
 // One value, folded from the eleven events below it. A readout binds to this;
 // the events are the detail behind it.
-export { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from './status';
+export { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from './state/status';
 
 // Where you are in a city, as one value: what a link, a restored session or an
 // undo stack is made of.
-export type { CityViewState } from './viewState';
+export type { CityViewState } from './state/viewState';
+export { encodeSelection, decodeSelection } from './state/viewState';
+
+// Browse links into the git host's own web UI.
+export { commitUrl, nodeUrl } from './data/remoteUrls';
 
 // One notification saying what moved, for a host that re-renders.
-export type { CityChange, CityChangeContext, CityChangeListener } from './change';
+export type { CityChange, CityChangeContext, CityChangeListener } from './state/change';
 
 // Keeping a city on the newest version of its repo.
-export type { WatchOptions } from './watch';
-export type { TimelineRequest, TimelineLoader } from './loadTimeline';
-export { POLL_SECONDS_MIN, POLL_SECONDS_MAX, clampPollSeconds } from './watch';
-export type { CityStatus, CityStatusCounts, CityStatusTracker } from './status';
+export type { WatchOptions } from './data/watch';
+export type { TimelineRequest, TimelineLoader } from './data/loadTimeline';
+export { POLL_SECONDS_MIN, POLL_SECONDS_MAX, clampPollSeconds } from './data/watch';
+export type { CityStatus, CityStatusCounts, CityStatusTracker } from './state/status';
 
 // ── Timeline ─────────────────────────────────────────────────────────────
 // A city's history and where in it you are. The consumer needs the state's
@@ -82,7 +86,6 @@ export { nextPaint } from './utils/nextPaint';
 
 export { createClient, type ClientOptions, type CodecityClient } from './client/index';
 export type { ApiUrl } from './client/url';
-export { URL_PARAMS } from './client/urlParams';
 
 export { ScanError, ScanPhase, CloneStage } from './client/manifest';
 export type {

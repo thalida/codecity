@@ -2,7 +2,7 @@
 // list for a git URL so the picker can offer a valid-for-this-repo dropdown
 // instead of a free-text field. Remote URLs only (local sources have no branch).
 
-import { URL_PARAMS } from './urlParams';
+import { API_PARAMS } from './urlParams';
 import { ScanError, type ScanErrorCode } from './manifest';
 import type { ApiUrl } from './url';
 
@@ -13,7 +13,7 @@ export interface BranchList {
 
 export function createBranchesEndpoints(apiUrl: ApiUrl) {
   async function fetchBranches(src: string): Promise<BranchList> {
-    const resp = await fetch(apiUrl('branches', { [URL_PARAMS.SRC]: src }));
+    const resp = await fetch(apiUrl('branches', { [API_PARAMS.SRC]: src }));
     if (!resp.ok) {
       let message = `branch lookup failed (${resp.status})`;
       let code: ScanErrorCode | undefined;

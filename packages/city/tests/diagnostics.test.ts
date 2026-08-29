@@ -5,7 +5,7 @@ import {
   _formatStemDiagnostic,
   _formatTreeGroundingReport,
   auditTreeGrounding,
-} from '../src/diagnostics';
+} from '../src/utils/diagnostics';
 import { WorldRectKind } from '../src/layout/occupancyIndex';
 import { LayoutOverlapCategory } from '../src/layout/overlaps';
 import type { LayoutOverlap } from '../src/layout/overlaps';

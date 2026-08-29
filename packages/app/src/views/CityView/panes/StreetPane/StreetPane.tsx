@@ -14,7 +14,7 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
-import { nodeUrl } from '@/utils/remoteUrls';
+import { nodeUrl } from '@codecity/city';
 import { pluralize } from '@/utils/format';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 

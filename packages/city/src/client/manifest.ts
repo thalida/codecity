@@ -5,7 +5,7 @@
 
 import type { Manifest } from '../types/manifest';
 import type { components } from '../types/manifest.generated';
-import { URL_PARAMS } from './urlParams';
+import { API_PARAMS } from './urlParams';
 
 import type { ApiUrl } from './url';
 
@@ -97,10 +97,10 @@ export function createManifestEndpoints(apiUrl: ApiUrl) {
     ref?: string;
   }): string {
     return apiUrl('manifest', {
-      [URL_PARAMS.SRC]: opts.src,
-      [URL_PARAMS.BRANCH]: opts.branch,
-      [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
-      [URL_PARAMS.EXCLUDE]: opts.exclude,
+      [API_PARAMS.SRC]: opts.src,
+      [API_PARAMS.BRANCH]: opts.branch,
+      [API_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
+      [API_PARAMS.EXCLUDE]: opts.exclude,
       ref: opts.ref,
     });
   }
@@ -113,8 +113,8 @@ export function createManifestEndpoints(apiUrl: ApiUrl) {
     signal?: AbortSignal
   ): Promise<Manifest | null> {
     const url = apiUrl('manifest/cached', {
-      [URL_PARAMS.SRC]: src,
-      [URL_PARAMS.BRANCH]: branch,
+      [API_PARAMS.SRC]: src,
+      [API_PARAMS.BRANCH]: branch,
     });
     try {
       const res = await fetch(url, { signal });
@@ -128,9 +128,9 @@ export function createManifestEndpoints(apiUrl: ApiUrl) {
   /** URL for the lightweight signature poll of an explicit source. */
   function signatureUrlFor(src: string, branch?: string, exclude?: string[]): string {
     return apiUrl('manifest/signature', {
-      [URL_PARAMS.SRC]: src,
-      [URL_PARAMS.BRANCH]: branch,
-      [URL_PARAMS.EXCLUDE]: exclude,
+      [API_PARAMS.SRC]: src,
+      [API_PARAMS.BRANCH]: branch,
+      [API_PARAMS.EXCLUDE]: exclude,
     });
   }
 

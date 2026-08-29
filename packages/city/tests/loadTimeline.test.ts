@@ -9,9 +9,9 @@
 // not a host's to own.
 
 import { describe, it, expect, vi } from 'vitest';
-import { createTimelineLoader } from '../src/loadTimeline';
+import { createTimelineLoader } from '../src/data/loadTimeline';
 import { createTimelineState } from '../src/timeline/state';
-import { createEmitter } from '../src/events';
+import { createEmitter } from '../src/state/events';
 import { BuildStage } from '../src/types/build';
 import { makeCommitBundle } from './_helpers/scrub';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';

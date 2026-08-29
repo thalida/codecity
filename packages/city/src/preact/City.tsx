@@ -17,10 +17,10 @@ import { createCity } from '../createCity';
 import type { City as CityInstance } from '../types';
 import type { CityExtension } from '../types';
 import type { CitySettingsPatch } from '../settings';
-import type { CityStatus } from '../status';
-import type { CityChange, CityChangeContext } from '../change';
-import type { CityViewState } from '../viewState';
-import type { SourceRequest } from '../loadSource';
+import type { CityStatus } from '../state/status';
+import type { CityChange, CityChangeContext } from '../state/change';
+import type { CityViewState } from '../state/viewState';
+import type { SourceRequest } from '../data/loadSource';
 
 export interface CityProps {
   /** Where this city's api lives. A same-origin PATH, never an origin. */

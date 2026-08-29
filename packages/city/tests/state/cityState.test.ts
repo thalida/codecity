@@ -10,7 +10,7 @@ import { CityLayout } from '../../src/types/scene';
 import { Street, StreetAxis } from '../../src/types/street';
 import type { CityState } from '../../src/state';
 import { settingsStore } from '../_helpers/citySettings';
-import { createEmitter } from '../../src/events';
+import { createEmitter } from '../../src/state/events';
 import { createCityState } from '../../src/state';
 import { createTestCityResources } from '../_helpers/cityResources';
 

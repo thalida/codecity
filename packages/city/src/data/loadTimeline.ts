@@ -12,13 +12,13 @@
 // footprint meshes opaque. And the scrub controller installs last, because it
 // drives the meshes that apply just made.
 
-import { buildPathTimelines } from './timeline/replay';
-import type { CodecityClient } from './client/index';
-import type { CityEmitter } from './events';
-import type { TimelineState } from './timeline/state';
-import type { TimelineBundle } from './types/timeline';
-import type { Manifest } from './types/manifest';
-import { BuildStage } from './types/build';
+import { buildPathTimelines } from '../timeline/replay';
+import type { CodecityClient } from '../client/index';
+import type { CityEmitter } from '../state/events';
+import type { TimelineState } from '../timeline/state';
+import type { TimelineBundle } from '../types/timeline';
+import type { Manifest } from '../types/manifest';
+import { BuildStage } from '../types/build';
 
 export interface TimelineRequest {
   src: string;

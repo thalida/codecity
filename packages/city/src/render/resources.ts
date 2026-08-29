@@ -1,12 +1,12 @@
 import type * as THREE from 'three';
 
-import { createBuildingMaterial, type BuildingMaterial } from './components/buildings/material';
+import { createBuildingMaterial, type BuildingMaterial } from '../components/buildings/material';
 import {
   createRendererRegistry,
   type RendererRegistry,
-} from './components/buildings/facadePanelTextureArray';
-import { createGemTextures, type GemTextures } from './components/gem/mesh';
-import type { CitySettingsStore } from './settings/store';
+} from '../components/buildings/facadePanelTextureArray';
+import { createGemTextures, type GemTextures } from '../components/gem/mesh';
+import type { CitySettingsStore } from '../settings/store';
 
 /** Everything one city owns that used to be a module-level `let`.
  *

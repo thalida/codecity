@@ -14,7 +14,7 @@ import { CITY_KEY_BINDINGS as KEY_BINDINGS, TEXT_INPUT_TAGS } from '../constants
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
-import type { CityEmitter } from '../events';
+import type { CityEmitter } from '../state/events';
 import { NodeKind } from '../types/manifest';
 import { PickTarget } from '../types/picker';
 

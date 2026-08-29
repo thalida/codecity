@@ -13,18 +13,18 @@ import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import { createCityState } from './state';
-import { createCityResources } from './resources';
+import { createCityResources } from './render/resources';
 import { createSettingsStore } from './settings/store';
 import { ChangeRoute } from './settings/schema';
-import { createEmitter } from './events';
-import { createCityStatus } from './status';
-import { createChangeHub, CHANGE_FOR_EVENT } from './change';
-import type { CityChange, CityChangeListener } from './change';
-import type { CityViewState } from './viewState';
+import { createEmitter } from './state/events';
+import { createCityStatus } from './state/status';
+import { createChangeHub, CHANGE_FOR_EVENT } from './state/change';
+import type { CityChange, CityChangeListener } from './state/change';
+import type { CityViewState } from './state/viewState';
 import { createClient } from './client';
-import { createSourceLoader } from './loadSource';
-import { refreshOnce, startWatch, type WatchOptions } from './watch';
-import { createTimelineLoader, type TimelineRequest } from './loadTimeline';
+import { createSourceLoader } from './data/loadSource';
+import { refreshOnce, startWatch, type WatchOptions } from './data/watch';
+import { createTimelineLoader, type TimelineRequest } from './data/loadTimeline';
 import { nextPaint } from './utils/nextPaint';
 import { createTimelineState } from './timeline/state';
 import type { CitySettingsPatch } from './settings';
@@ -33,7 +33,7 @@ import {
   runCollisionCheck,
   runStemPlacementDiagnostic,
   runTreeGroundingDiagnostic,
-} from './diagnostics';
+} from './utils/diagnostics';
 import { createGem } from './components/gem';
 import { createSky } from './components/sky';
 import { createIsland, ISLAND_TOP_Y } from './components/island';
@@ -520,6 +520,11 @@ export async function createCity(
      *  whenever, and subscribe with `onStatus` for the next answer. */
     get status() {
       return status.value;
+    },
+    /** The manifest this city is SHOWING — the union manifest in Timeline,
+     *  since that is the city on screen. Null before the first apply. */
+    get manifest() {
+      return cityState.manifest;
     },
     onStatus: status.on,
 

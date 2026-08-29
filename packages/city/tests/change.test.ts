@@ -15,7 +15,7 @@ import { createCity } from '../src/index';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';
 import { mkDir, mkFile } from './_helpers/cityFixtures';
 import { makeCommitBundle } from './_helpers/scrub';
-import type { CityChange, CityChangeContext } from '../src/change';
+import type { CityChange, CityChangeContext } from '../src/state/change';
 import type { Manifest } from '../src/types/manifest';
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));

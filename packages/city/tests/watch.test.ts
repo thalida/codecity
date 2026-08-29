@@ -10,8 +10,8 @@ import {
   clampPollSeconds,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
-} from '../src/watch';
-import { createEmitter } from '../src/events';
+} from '../src/data/watch';
+import { createEmitter } from '../src/state/events';
 import { createTimelineState } from '../src/timeline/state';
 import { ScanPhase } from '../src/client/manifest';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';

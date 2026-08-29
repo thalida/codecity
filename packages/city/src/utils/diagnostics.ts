@@ -3,13 +3,13 @@
 // their arguments, so they test in isolation.
 
 import * as THREE from 'three';
-import { layoutCityWithTrace } from './layout/algorithm';
-import { findLayoutOverlaps, LayoutOverlapCategory } from './layout/overlaps';
-import type { LayoutOverlap } from './layout/overlaps';
-import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
-import type { WorldRect } from './layout/occupancyIndex';
-import type { CityState } from './state';
-import type { LayoutConfig } from './layout/config';
+import { layoutCityWithTrace } from '../layout/algorithm';
+import { findLayoutOverlaps, LayoutOverlapCategory } from '../layout/overlaps';
+import type { LayoutOverlap } from '../layout/overlaps';
+import type { ChildPlacementTrace, StemPlacementTrace } from '../layout/stemSolver';
+import type { WorldRect } from '../layout/occupancyIndex';
+import type { CityState } from '../state';
+import type { LayoutConfig } from '../layout/config';
 
 // Unexpected overlaps warn with a line each; a clean run logs a summary.
 export function runCollisionCheck(cityState: CityState): void {

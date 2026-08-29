@@ -11,7 +11,7 @@ import { isDataBuilding, isEmptyFile, isMediaFile } from '../../utils/fileKind';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '../../types/building';
 import type { SourceRef } from '../../types/manifest';
-import type { CityResources } from '../../resources';
+import type { CityResources } from '../../render/resources';
 import type { CitySettingsStore } from '../../settings/store';
 import type { TimelineState } from '../../timeline/state';
 import type { CodecityClient } from '../../client';

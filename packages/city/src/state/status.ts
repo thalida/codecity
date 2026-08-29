@@ -11,8 +11,8 @@
 // nothing has to have been listening. That is the difference between an
 // integration point and a transcript.
 
-import { ScanPhase, type ScanProgressEvent } from './client/manifest';
-import { BuildStage } from './types/build';
+import { ScanPhase, type ScanProgressEvent } from '../client/manifest';
+import { BuildStage } from '../types/build';
 import type { CityEvents } from './events';
 
 /** Is there a city to look at. Independent of whether more is coming: the two

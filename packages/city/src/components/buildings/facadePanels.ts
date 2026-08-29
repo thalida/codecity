@@ -18,7 +18,7 @@ import type { Building } from '../../types/building';
 
 import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
 import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
-import { SHARED_MEDIA_LOAD_LIMITER } from '../../mediaLoadLimiter';
+import { SHARED_MEDIA_LOAD_LIMITER } from '../../render/mediaLoadLimiter';
 import type { RendererRegistry } from './facadePanelTextureArray';
 import { ContentPendingError } from '../../client/file';
 import type { CitySettingsStore } from '../../settings/store';

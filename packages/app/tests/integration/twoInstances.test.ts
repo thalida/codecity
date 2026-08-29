@@ -4,12 +4,12 @@ import type { TimelineBundle } from '@codecity/city';
 // The imports below reach past the package's public surface on purpose, and
 // say so by path: they are its internal wiring, which no consumer needs and
 // which these tests assemble by hand. A test may reach in; nothing in src/ may.
-import { createEmitter } from '../../../city/src/events';
+import { createEmitter } from '../../../city/src/state/events';
 import {
   SHARED_MEDIA_LOAD_LIMITER,
   createMediaLoadLimiter,
-} from '../../../city/src/mediaLoadLimiter';
-import { createCityResources } from '../../../city/src/resources';
+} from '../../../city/src/render/mediaLoadLimiter';
+import { createCityResources } from '../../../city/src/render/resources';
 import { createSettingsStore } from '../../../city/src/settings/store';
 import { describe, it, expect, afterEach } from 'vitest';
 

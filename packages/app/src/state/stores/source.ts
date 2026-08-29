@@ -3,7 +3,7 @@
 // The excludes are here rather than in settings/ because useManifestSource
 // sends them in the manifest URL beside src and branch.
 
-import { URL_PARAMS } from '@codecity/city';
+import { URL_PARAMS } from '@/router/params';
 import type { Manifest } from '@codecity/city';
 import { signal, computed, effect, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';

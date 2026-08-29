@@ -18,7 +18,7 @@ import { Manifest, NodeKind } from '../../src/types/manifest';
 import { CityLayout } from '../../src/types/scene';
 import { Street, StreetAxis } from '../../src/types/street';
 import { settingsStore } from '../_helpers/citySettings';
-import { createEmitter } from '../../src/events';
+import { createEmitter } from '../../src/state/events';
 import { createCityState } from '../../src/state';
 import { stubPlacementClient } from '../_helpers/cityFixtures';
 import { createTestCityResources } from '../_helpers/cityResources';

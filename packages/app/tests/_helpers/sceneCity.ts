@@ -9,9 +9,9 @@ import type { TimelineState, Manifest } from '@codecity/city';
 // The imports below reach past the package's public surface on purpose, and
 // say so by path: they are its internal wiring, which no consumer needs and
 // which these tests assemble by hand. A test may reach in; nothing in src/ may.
-import { createEmitter } from '../../../city/src/events';
-import { createSourceLoader } from '../../../city/src/loadSource';
-import { refreshOnce, startWatch } from '../../../city/src/watch';
+import { createEmitter } from '../../../city/src/state/events';
+import { createSourceLoader } from '../../../city/src/data/loadSource';
+import { refreshOnce, startWatch } from '../../../city/src/data/watch';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/city';
 import { attachScanToStores } from '@/hooks/useManifestSource';
 

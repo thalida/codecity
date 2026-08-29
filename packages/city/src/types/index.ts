@@ -4,22 +4,22 @@
 import type * as THREE from 'three';
 import type { Picker } from '../interaction/picker';
 import type { CameraRig, FocusMode } from '../render/cameraRig';
-import type { CityResources } from '../resources';
+import type { CityResources } from '../render/resources';
 import type { CitySettingsStore } from '../settings/store';
 import type { CitySettingsPatch } from '../settings';
-import type { CityStatus } from '../status';
-import type { CityChangeListener } from '../change';
-import type { CityViewState } from '../viewState';
-import type { WatchOptions } from '../watch';
-import type { TimelineRequest } from '../loadTimeline';
+import type { CityStatus } from '../state/status';
+import type { CityChangeListener } from '../state/change';
+import type { CityViewState } from '../state/viewState';
+import type { WatchOptions } from '../data/watch';
+import type { TimelineRequest } from '../data/loadTimeline';
 import type { TimelineBundle } from './timeline';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
 import type { TimelineState } from '../timeline/state';
 import type { BuildStage } from './build';
-import type { CityEmitter } from '../events';
-import type { SourceLoader } from '../loadSource';
+import type { CityEmitter } from '../state/events';
+import type { SourceLoader } from '../data/loadSource';
 import type { CodecityClient } from '../client';
 import type { Manifest, RangeStat } from './manifest';
 
@@ -123,6 +123,8 @@ export interface City {
    *  been listening. This is what a readout binds to; `on` is for the detail
    *  behind it. */
   readonly status: CityStatus;
+  /** The manifest this city is SHOWING. Null before the first apply. */
+  readonly manifest: Manifest | null;
   /** Hear that `status` changed. Returns the unsubscribe. */
   onStatus(listener: (status: CityStatus) => void): () => void;
   /** Hear ONCE that something moved, with what moved and the values to read.
