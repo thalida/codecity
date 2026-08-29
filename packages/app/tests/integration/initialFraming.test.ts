@@ -3,8 +3,8 @@
 // rides BUILT_MANIFEST, gated on a CURRENT_SOURCE_KEY change.
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
-import { createCity } from '@codecity/city';
-import type { City, Manifest } from '@codecity/city';
+import { City } from '@codecity/city';
+import type { Manifest } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -96,7 +96,7 @@ describe('initial-load framing (issue #62)', () => {
   }
 
   it('frames the city on initial load, not the empty boot', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
     try {
       // firstFrame framed the empty boot (no source committed yet → no snap).
       const bootPos = handle.rig.camera.position.clone();
@@ -123,7 +123,7 @@ describe('initial-load framing (issue #62)', () => {
     // The route split made this the normal order: the landing commits the
     // source, THEN the city view mounts a scene onto it.
     CURRENT_SOURCE.value = { src: 'test://repo' };
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
     try {
       const bootPos = handle.rig.camera.position.clone();
       await build(handle, makeManifest());
@@ -140,7 +140,7 @@ describe('initial-load framing (issue #62)', () => {
   });
 
   it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
-    const handle = await createCity(makeCanvas(), { settings: rootWidth(100) });
+    const handle = await City.create(makeCanvas(), { settings: rootWidth(100) });
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();

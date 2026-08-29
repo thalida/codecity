@@ -16,7 +16,7 @@ vi.mock('three', async () => {
 });
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';
 import { mkDir, mkFile } from './_helpers/cityFixtures';
 import type { Manifest } from '../src/types/manifest';
@@ -35,11 +35,11 @@ describe('a rebuild-routed Save', () => {
   });
   afterEach(() => rafSpy.mockRestore());
 
-  async function cityShowing(): Promise<Awaited<ReturnType<typeof createCity>>> {
+  async function cityShowing(): Promise<Awaited<ReturnType<typeof City.create>>> {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'clientWidth', { value: 1280, configurable: true });
     Object.defineProperty(canvas, 'clientHeight', { value: 720, configurable: true });
-    const city = await createCity(canvas);
+    const city = await City.create(canvas);
     // build:done lands two frames after applyManifest resolves, so wait for the
     // first city to be ON SCREEN — otherwise its own done arrives during the
     // observation below and reads as a re-pack.
@@ -63,7 +63,7 @@ describe('a rebuild-routed Save', () => {
 
   /** What this city reported building, after `change` and a few frames. */
   async function buildsAfter(
-    city: Awaited<ReturnType<typeof createCity>>,
+    city: Awaited<ReturnType<typeof City.create>>,
     change: () => void
   ): Promise<string[]> {
     const seen: string[] = [];

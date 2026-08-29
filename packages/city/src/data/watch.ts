@@ -39,7 +39,7 @@ export interface WatchOptions {
   onError?: (error: unknown) => void;
 }
 
-interface WatchDeps {
+export interface WatchDeps {
   client: CodecityClient;
   loader: SourceLoader;
   timeline: TimelineState;

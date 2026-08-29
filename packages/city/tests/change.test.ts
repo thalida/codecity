@@ -11,7 +11,7 @@ vi.mock('three', async () => {
 });
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';
 import { mkDir, mkFile } from './_helpers/cityFixtures';
 import { makeCommitBundle } from './_helpers/scrub';
@@ -38,7 +38,7 @@ describe('onChange', () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'clientWidth', { value: 1280, configurable: true });
     Object.defineProperty(canvas, 'clientHeight', { value: 720, configurable: true });
-    const city = await createCity(canvas);
+    const city = await City.create(canvas);
     // build:done lands two frames after applyManifest resolves, so wait for the
     // city to be ON SCREEN — otherwise its own status change arrives during the
     // recording below and reads as something the test did.
@@ -58,7 +58,7 @@ describe('onChange', () => {
   }
 
   /** Every notification a run produced. */
-  function record(city: Awaited<ReturnType<typeof createCity>>) {
+  function record(city: Awaited<ReturnType<typeof City.create>>) {
     const seen: Array<{ change: CityChange; context: CityChangeContext }> = [];
     const off = city.onChange((change, context) => seen.push({ change, context }));
     return { seen, off };

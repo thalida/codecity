@@ -1,8 +1,8 @@
 // inputHandlers.test.ts — the scene's keybindings must not fire while a modal
-// owns the keyboard. Driven through the real createCity path, so it covers the
+// owns the keyboard. Driven through the real City.create path, so it covers the
 // actual listener wiring rather than a stand-in for it.
 
-import { createCity, NodeKind } from '@codecity/city';
+import { City, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
 import { SCENE_HANDLE, attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
@@ -28,7 +28,7 @@ describe('scene keydown handler — modal suppression', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
   // Every city binds its own document keydown listener, so one left standing
   // answers the next test's keystroke too.
-  let cities: Array<Awaited<ReturnType<typeof createCity>>> = [];
+  let cities: Array<Awaited<ReturnType<typeof City.create>>> = [];
 
   beforeEach(() => {
     // Over a city: home IS the switcher, which owns the keyboard.
@@ -56,7 +56,7 @@ describe('scene keydown handler — modal suppression', () => {
   // Mounted the way City.tsx mounts one, so the keyboard gate and the chrome
   // reactions under test are the same wiring the app ships.
   async function mountCity() {
-    const handle = await createCity(makeCanvas(), { keyboard: cityKeyboardEnabled });
+    const handle = await City.create(makeCanvas(), { keyboard: cityKeyboardEnabled });
     chromeOff = attachCityChrome(handle.on);
     cities.push(handle);
     return handle;

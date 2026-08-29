@@ -14,8 +14,8 @@ vi.mock('../../src/render/postFx', async () =>
   (await import('../_helpers/threeMock')).postFxMock()
 );
 
-import { City } from '../../src/preact/index';
-import type { City as CityInstance } from '../../src/types';
+import { City as CityCanvas } from '../../src/preact/index';
+import type { City as CityInstance } from '@codecity/city';
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
 /** Wait for a condition rather than for a number of ticks. createCity is async,
@@ -36,7 +36,7 @@ function until(what: string, done: () => boolean): Promise<void> {
 const whenReady = (fn: { mock: { calls: unknown[][] } }) =>
   until('the city', () => fn.mock.calls.some(([c]) => c !== null));
 
-describe('<City>', () => {
+describe('<CityCanvas>', () => {
   let host: HTMLDivElement;
   let rafSpy: ReturnType<typeof vi.spyOn>;
 
@@ -71,7 +71,7 @@ describe('<City>', () => {
   async function mount(props: Record<string, unknown> = {}) {
     let city: CityInstance | null = null;
     const onReady = vi.fn((c: CityInstance | null) => void (city = c));
-    render(<City {...props} onReady={onReady} />, host);
+    render(<CityCanvas {...props} onReady={onReady} />, host);
     await whenReady(onReady);
     return { onReady, city: () => city };
   }
@@ -91,7 +91,7 @@ describe('<City>', () => {
     expect(canvas.getAttribute('aria-label')).toMatch(/3D city/);
 
     render(null, host);
-    render(<City aria-label="A map of my repo" />, host);
+    render(<CityCanvas aria-label="A map of my repo" />, host);
     await settle();
     expect(host.querySelector('canvas')!.getAttribute('aria-label')).toBe('A map of my repo');
   });
@@ -101,7 +101,7 @@ describe('<City>', () => {
     expect(host.querySelector('canvas')!.className).toContain('codecity-canvas--opaque');
 
     render(null, host);
-    render(<City transparent />, host);
+    render(<CityCanvas transparent />, host);
     await settle();
     expect(host.querySelector('canvas')!.className).toContain('codecity-canvas--transparent');
   });
@@ -111,7 +111,7 @@ describe('<City>', () => {
     const m = await mount({ settings: { TREES: { ENABLED: true } } });
     expect(m.city()!.settings.TREES.ENABLED).toBe(true);
 
-    render(<City settings={{ TREES: { ENABLED: false } }} onReady={m.onReady} />, host);
+    render(<CityCanvas settings={{ TREES: { ENABLED: false } }} onReady={m.onReady} />, host);
     await until('the new value', () => m.city()?.settings.TREES.ENABLED === false);
 
     expect(m.city()!.settings.TREES.ENABLED).toBe(false);
@@ -119,7 +119,7 @@ describe('<City>', () => {
 
   it('reports what it is doing, starting with the current answer', async () => {
     const onStatus = vi.fn();
-    render(<City onStatus={onStatus} />, host);
+    render(<CityCanvas onStatus={onStatus} />, host);
     await until('a status report', () => onStatus.mock.calls.length > 0);
     // Called immediately as well as on change: a host rendering off status
     // wants the current one, not only the next.
@@ -140,7 +140,7 @@ describe('<City>', () => {
   // and frame loop for the life of the page.
   it('disposes a city whose host unmounted before it finished building', async () => {
     const onReady = vi.fn();
-    render(<City onReady={onReady} />, host);
+    render(<CityCanvas onReady={onReady} />, host);
     render(null, host); // unmounted while createCity is still resolving
     await settle();
 
@@ -152,7 +152,7 @@ describe('<City>', () => {
     const m = await mount();
     const first = m.city();
 
-    render(<City onReady={m.onReady} onStatus={() => {}} />, host);
+    render(<CityCanvas onReady={m.onReady} onStatus={() => {}} />, host);
     await settle();
 
     expect(m.city()).toBe(first);

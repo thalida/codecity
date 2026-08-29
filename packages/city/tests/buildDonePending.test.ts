@@ -14,7 +14,7 @@ vi.mock('three', async () => {
 });
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 import { EMPTY_MANIFEST } from './_helpers/manifestFixtures';
 import type { Manifest } from '../src/types/manifest';
 
@@ -43,7 +43,7 @@ describe('build:done reports what is still to come', () => {
     ({ ...EMPTY_MANIFEST, pending }) as Manifest;
 
   /** The pending list of the next build to reach the screen. */
-  function nextDone(city: { on: Awaited<ReturnType<typeof createCity>>['on'] }) {
+  function nextDone(city: { on: Awaited<ReturnType<typeof City.create>>['on'] }) {
     return new Promise<Manifest['pending']>((resolve) => {
       const off = city.on('build:done', ({ pending }) => {
         off();
@@ -53,7 +53,7 @@ describe('build:done reports what is still to come', () => {
   }
 
   it('names the stages the drawn manifest was still waiting on', async () => {
-    const city = await createCity(makeCanvas());
+    const city = await City.create(makeCanvas());
     const done = nextDone(city);
 
     await city.applyManifest(manifestPending(['history']));
@@ -63,7 +63,7 @@ describe('build:done reports what is still to come', () => {
   });
 
   it('reports an empty list once the manifest is final', async () => {
-    const city = await createCity(makeCanvas());
+    const city = await City.create(makeCanvas());
     const done = nextDone(city);
 
     await city.applyManifest(manifestPending([]));

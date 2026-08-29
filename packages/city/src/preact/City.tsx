@@ -13,8 +13,7 @@
 import './City.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
-import { createCity } from '../createCity';
-import type { City as CityInstance } from '../types';
+import { City as CityInstance } from '../city';
 import type { CityExtension } from '../types';
 import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../state/status';
@@ -86,7 +85,7 @@ export function City(props: CityProps) {
     let disposed = false;
     let instance: CityInstance | null = null;
 
-    void createCity(canvas, {
+    void CityInstance.create(canvas, {
       baseUrl: handlers.current.baseUrl,
       settings: handlers.current.settings,
       keyboard: handlers.current.keyboard,

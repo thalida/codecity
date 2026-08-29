@@ -44,7 +44,8 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, CityExtension, FocusRef, SceneComponent, SceneContext } from './types';
+import type { CityExtension, FocusRef, SceneComponent, SceneContext } from './types';
+import type { CityParts } from './cityParts';
 import { createCameraRig, type FocusMode } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -52,7 +53,7 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import type { Manifest, RangeStat } from './types/manifest';
 
-export async function createCity(
+export async function assembleCity(
   canvas: HTMLCanvasElement,
   {
     settings: initialSettings,
@@ -71,7 +72,7 @@ export async function createCity(
      *  open keeps the keyboard while it is. */
     keyboard?: boolean | (() => boolean);
   } = {}
-): Promise<City> {
+): Promise<CityParts> {
   // Before anything that reads a setting: the material, the state pipeline and
   // every component resolve their values off this one instance's store.
   const settings = createSettingsStore(initialSettings);
@@ -496,93 +497,29 @@ export async function createCity(
     return true;
   }
 
+  // What the class holds. The composer above is the messy half — forty locals
+  // wired to each other — and this is the tidy handover: everything City needs,
+  // named once, so the API surface next door reads as an API rather than as the
+  // tail of a build script.
   return {
     scene,
+    renderer,
     picker,
     rig,
-    focus,
-    /** The escape hatch, documented rather than discovered: a consumer doing
-     *  something this API has no opinion about gets the raw renderer. Nothing
-     *  in here promises to keep working if you write to it. */
-    three: { scene, renderer, camera: rig.camera },
-    on: events.on,
     client,
-    loadSource: sourceLoader.load,
-    cancelLoad: sourceLoader.cancel,
-    /** Show this repo's HISTORY: the union of every file that ever existed,
-     *  packed once, with a scrubber over it. Reports through the same events a
-     *  live load does, plus `timeline:progress` for the assembly. */
-    loadTimeline: (request: TimelineRequest) => timelineLoader.load(request),
-    cancelTimelineLoad: () => timelineLoader.cancel(),
     settings,
-    updateSettings: settings.update,
-    /** What this city is doing, right now. A value, not a transcript: read it
-     *  whenever, and subscribe with `onStatus` for the next answer. */
-    get status() {
-      return status.value;
-    },
-    /** The manifest this city is SHOWING — the union manifest in Timeline,
-     *  since that is the city on screen. Null before the first apply. */
-    get manifest() {
-      return cityState.manifest;
-    },
-    onStatus: status.on,
-
-    /** Told once, with what moved. The door a UI binds to: read the city for
-     *  the values, read the change to decide whether to bother. Batched to a
-     *  microtask, so one apply is one notification. */
-    onChange(listener: CityChangeListener): () => void {
-      return changes.on(listener);
-    },
-
-    /** Keep this city on the newest version of the repo it is showing: poll a
-     *  cheap signature, re-apply only when it moves. A refresh, not a load —
-     *  no skeleton, so buildings do not drop to placeholder heights and back
-     *  on every save. Returns stop(). */
-    watchSource(options?: WatchOptions): () => void {
-      return startWatch(watchDeps, options);
-    },
-
-    /** Ask once, now, whether the repo has moved — and re-apply it if it has.
-     *  What a host calls when something IT knows about changed, rather than
-     *  waiting out an interval chosen for a quiet repo. */
-    refreshSource(options?: WatchOptions): Promise<void> {
-      return refreshOnce(watchDeps, options);
-    },
-
-    /** Where you are in this city, as one value: what is selected, and where
-     *  the scrubber sits. Write it down, hand it back later. */
-    getViewState(): CityViewState {
-      return {
-        selection: picker.selectionKey,
-        timeline: timeline.mode ? { mode: true, pos: timeline.pos } : null,
-      };
-    },
-
-    /** Put a city back where a snapshot says. An absent field is left alone, so
-     *  a caller restoring only a selection says only that.
-     *
-     *  The selection goes in by KEY, not by target: the meshes it named are
-     *  gone by now, and the picker re-resolves a key against whatever city is
-     *  on screen — which is the same path a rebuild takes. */
-    setViewState(next: CityViewState): void {
-      if (next.timeline !== undefined) {
-        if (next.timeline) {
-          if (!timeline.mode) timeline.enter();
-          timeline.setPosition(next.timeline.pos);
-        } else if (timeline.mode) {
-          timeline.exit();
-        }
-      }
-      if (next.selection !== undefined) {
-        picker.setSelectionKey(next.selection);
-      }
-    },
+    events,
+    status,
+    changes,
+    cityState,
+    timeline: timelineApi,
+    sourceLoader,
+    timelineLoader,
+    watchDeps,
+    focus,
     applyManifest,
     buildStagesFor,
     invalidateLayoutCache,
-    /** Scene-internal read/debug API — what the view layer can't get from the
-     *  canonical MANIFEST signal (the live tree renderer + the two diagnostics). */
     world: {
       getTrees: () => trees.getRenderer(),
       runCollisionCheck: () => runCollisionCheck(cityState),
@@ -591,10 +528,9 @@ export async function createCity(
       runTreeGroundingDiagnostic: () =>
         runTreeGroundingDiagnostic(trees.getRenderer()?.group ?? null, ISLAND_TOP_Y),
     },
-    timeline: timelineApi,
-    /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a
-     *  ghost city whose picker still answers raycasts. */
-    dispose(): void {
+    /** Full teardown, loop FIRST, renderer LAST — else a remount stacks a ghost
+     *  city whose picker still answers raycasts. */
+    teardown(): void {
       // Listeners first: nothing below may call back into a view that is on its
       // way out, and a torn-down city has nothing left worth reporting.
       for (const off of stopChangeRelay) off();

@@ -15,7 +15,6 @@ vi.mock('../../src/render/postFx', async () =>
   (await import('../_helpers/threeMock')).postFxMock()
 );
 
-import { createCity } from '../../src/index';
 import {
   useCityStatus,
   useCityManifest,
@@ -23,7 +22,7 @@ import {
   useCityHover,
   useCityTimeline,
 } from '../../src/preact/hooks';
-import type { City } from '../../src/types';
+import { City } from '../../src/city';
 import type { Manifest } from '../../src/types/manifest';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
@@ -60,7 +59,7 @@ describe('the city hooks', () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'clientWidth', { value: 1280, configurable: true });
     Object.defineProperty(canvas, 'clientHeight', { value: 720, configurable: true });
-    city = await createCity(canvas);
+    city = await City.create(canvas);
   });
 
   afterEach(() => {

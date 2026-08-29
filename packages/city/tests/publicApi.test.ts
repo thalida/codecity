@@ -16,7 +16,7 @@ vi.mock('three', async () => {
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
 import {
-  createCity,
+  City,
   CityLifecycle,
   CityPhase,
   EMPTY_CITY_STATUS,
@@ -26,7 +26,6 @@ import {
   sourceKey,
   defaultCitySettings,
   BuildStage,
-  type City,
   type CityStatus,
   type CityViewState,
   type CityExtension,
@@ -70,10 +69,10 @@ describe('a host with only @codecity/city', () => {
 
   /** The example's own sequence: make one, draw its status, show a repo. */
   async function mount(
-    options: Parameters<typeof createCity>[1] = {},
+    options: Parameters<typeof City.create>[1] = {},
     manifest: Manifest = REPO
   ): Promise<City> {
-    const city = await createCity(makeCanvas(), { baseUrl: '/api', ...options });
+    const city = await City.create(makeCanvas(), { baseUrl: '/api', ...options });
     const onScreen = new Promise<void>((resolve) => {
       const off = city.on('build:done', () => {
         off();
@@ -87,7 +86,7 @@ describe('a host with only @codecity/city', () => {
   }
 
   it('can make one and read what it is doing, without subscribing first', async () => {
-    const city = await createCity(makeCanvas(), { baseUrl: '/api' });
+    const city = await City.create(makeCanvas(), { baseUrl: '/api' });
     const status: CityStatus = city.status;
     expect(status).toEqual(EMPTY_CITY_STATUS);
     expect(status.lifecycle).toBe(CityLifecycle.Empty);

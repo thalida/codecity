@@ -4,15 +4,9 @@
 // client every backend call goes through, the types it produces, and the
 // settings schema that says what is tunable.
 
-export { createCity } from './createCity';
-export type {
-  City,
-  CityExtension,
-  FocusRef,
-  SceneComponent,
-  SceneContext,
-  FrameContext,
-} from './types';
+export { City } from './city';
+export type { CityOptions } from './city';
+export type { CityExtension, FocusRef, SceneComponent, SceneContext, FrameContext } from './types';
 export { BuildStage } from './types/build';
 
 // ── Sources ──────────────────────────────────────────────────────────────

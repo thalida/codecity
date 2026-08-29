@@ -12,7 +12,7 @@ vi.mock('three', async () => {
 });
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 import type { CityExtension, SceneContext } from '../src/types';
 
 describe('a host’s own layer', () => {
@@ -55,7 +55,7 @@ describe('a host’s own layer', () => {
 
   it('is added to the scene the city draws', async () => {
     const layer = recorder();
-    const city = await createCity(makeCanvas(), { extensions: [layer.extension] });
+    const city = await City.create(makeCanvas(), { extensions: [layer.extension] });
 
     expect(layer.seen.built).toBe(1);
     expect(city.scene.children).toContain(layer.group);
@@ -64,7 +64,7 @@ describe('a host’s own layer', () => {
 
   it('is ticked by the city’s own frame loop', async () => {
     const layer = recorder();
-    const city = await createCity(makeCanvas(), { extensions: [layer.extension] });
+    const city = await City.create(makeCanvas(), { extensions: [layer.extension] });
     await new Promise<void>((r) => setTimeout(r, 30));
 
     expect(layer.seen.ticks).toBeGreaterThan(0);
@@ -73,7 +73,7 @@ describe('a host’s own layer', () => {
 
   it('is disposed with the city', async () => {
     const layer = recorder();
-    const city = await createCity(makeCanvas(), { extensions: [layer.extension] });
+    const city = await City.create(makeCanvas(), { extensions: [layer.extension] });
     city.dispose();
 
     expect(layer.seen.disposed).toBe(1);
@@ -83,7 +83,7 @@ describe('a host’s own layer', () => {
   // draw, but it cannot react to the city it is drawing in.
   it('is handed the same context the city’s own layers get', async () => {
     const layer = recorder();
-    const city = await createCity(makeCanvas(), { extensions: [layer.extension] });
+    const city = await City.create(makeCanvas(), { extensions: [layer.extension] });
 
     const ctx = layer.seen.ctx!;
     expect(ctx.scene).toBe(city.scene);
@@ -96,8 +96,8 @@ describe('a host’s own layer', () => {
 
   // How an extension turns itself off without the host branching at the call.
   it('adds nothing when it returns null', async () => {
-    const before = (await createCity(makeCanvas())).scene.children.length;
-    const city = await createCity(makeCanvas(), { extensions: [() => null] });
+    const before = (await City.create(makeCanvas())).scene.children.length;
+    const city = await City.create(makeCanvas(), { extensions: [() => null] });
 
     expect(city.scene.children).toHaveLength(before);
     city.dispose();
@@ -106,7 +106,7 @@ describe('a host’s own layer', () => {
   it('takes several, in the order given', async () => {
     const first = recorder();
     const second = recorder();
-    const city = await createCity(makeCanvas(), {
+    const city = await City.create(makeCanvas(), {
       extensions: [first.extension, second.extension],
     });
 

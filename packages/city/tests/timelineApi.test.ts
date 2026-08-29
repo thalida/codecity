@@ -16,7 +16,7 @@ vi.mock('three', async () => {
 
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 import { makeCommitBundle } from './_helpers/scrub';
 
 describe('the timeline a city hands out', () => {
@@ -41,7 +41,7 @@ describe('the timeline a city hands out', () => {
   }
 
   it('reports the mode the city is actually in', async () => {
-    const city = await createCity(makeCanvas());
+    const city = await City.create(makeCanvas());
     expect(city.timeline.mode).toBe(false);
 
     city.timeline.enter();
@@ -54,7 +54,7 @@ describe('the timeline a city hands out', () => {
   });
 
   it('reports the bundle and position it was given', async () => {
-    const city = await createCity(makeCanvas());
+    const city = await City.create(makeCanvas());
     const bundle = makeCommitBundle(5);
 
     city.timeline.enter();
@@ -71,7 +71,7 @@ describe('the timeline a city hands out', () => {
   // The scene methods and the state have to be one object, or a caller that
   // holds `handle.timeline` gets only half of it.
   it('carries the scene controls on the same object as the state', async () => {
-    const city = await createCity(makeCanvas());
+    const city = await City.create(makeCanvas());
 
     expect(typeof city.timeline.installScrubController).toBe('function');
     expect(typeof city.timeline.setStreetsTransparent).toBe('function');

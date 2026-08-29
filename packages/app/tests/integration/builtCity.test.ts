@@ -3,7 +3,7 @@
 // of any one part — stubbing a world whose meshes already exist is how a city you
 // could only drag got shipped. jsdom has no WebGL, so only that is mocked.
 
-import { createCity, Manifest, NodeKind } from '@codecity/city';
+import { City, Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
@@ -95,7 +95,7 @@ describe('a built city is pickable', () => {
   }
 
   it('picks the building under the cursor once the build has finished', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const built = nextBuild(handle);
@@ -128,7 +128,7 @@ describe('a built city is pickable', () => {
   // The load path end to end: URL → follow → selection → camera. The restore must
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
     let detachProgress: (() => void) | null = null;
     let detachChrome: (() => void) | null = null;
     try {

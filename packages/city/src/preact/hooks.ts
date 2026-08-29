@@ -12,7 +12,7 @@
 
 import { useCallback, useSyncExternalStore } from 'preact/compat';
 
-import type { City } from '../types';
+import type { City } from '../city';
 import type { CityStatus } from '../state/status';
 import type { CityChange } from '../state/change';
 import type { Manifest } from '../types/manifest';

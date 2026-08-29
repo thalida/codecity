@@ -13,7 +13,7 @@ vi.mock('three', async () => {
 
 vi.mock('../src/render/postFx', async () => (await import('./_helpers/threeMock')).postFxMock());
 
-import { createCity } from '../src/index';
+import { City } from '../src/index';
 
 describe('createCity', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -45,7 +45,7 @@ describe('createCity', () => {
   }
 
   it('builds with no manifest and returns the expected handle shape', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
 
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
@@ -53,7 +53,7 @@ describe('createCity', () => {
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
-    const handle = await createCity(makeCanvas());
+    const handle = await City.create(makeCanvas());
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe('createCity', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.
     it('uninstalls the scrub controller on leaving timeline mode', async () => {
-      const handle = await createCity(makeCanvas());
+      const handle = await City.create(makeCanvas());
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
@@ -79,7 +79,7 @@ describe('createCity', () => {
     });
 
     it('no-ops when no controller was ever installed', async () => {
-      const handle = await createCity(makeCanvas());
+      const handle = await City.create(makeCanvas());
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
 
       handle.timeline.enter();
