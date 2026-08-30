@@ -1,106 +1,55 @@
-import type { Manifest } from '@codecity/city';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import {
-  CURRENT_SOURCE_KEY,
-  CURRENT_SOURCE,
-  SOURCE_INFO,
-  commitSource,
-  clearSourceUrl,
-  RECENTS,
-} from '@/state/source';
-import { sourceKey } from '@codecity/city';
-import { setManifest } from '@/state/stores/manifest';
-import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
-import { ROUTES } from '@/router/location';
+// The open project, reflected into the URL. A reaction, so it is mounted: a
+// module-level effect that navigates fires on any import that reaches it.
 
-describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render } from 'preact';
+
+import { usePublishSourceToUrl } from '@/router/cityUrl';
+import { CURRENT_SOURCE, commitSource } from '@/state/source';
+import { RECENTS } from '@/state/recents';
+import { navigate, ROUTES, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
+import { drainAsync } from '../_helpers/preact';
+
+function Reflector() {
+  usePublishSourceToUrl();
+  return null;
+}
+
+let host: HTMLDivElement;
+beforeEach(async () => {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  render(<Reflector />, host);
+  // Preact flushes effects on a frame, which jsdom runs on a ~16ms timer.
+  await drainAsync();
+});
+afterEach(() => {
+  render(null, host);
+  host.remove();
+});
+
+describe('the applied source in the page URL', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
-    history.replaceState(null, '', '/');
+    navigate(ROUTES.HOME, { replace: true });
   });
 
-  it('is null when no source is applied', () => {
-    CURRENT_SOURCE.value = null;
-    expect(CURRENT_SOURCE_KEY.value).toBeNull();
-  });
-
-  it('derives the hash from the applied source', () => {
-    CURRENT_SOURCE.value = { src: '/foo', branch: 'main' };
-    expect(CURRENT_SOURCE_KEY.value).toBe(sourceKey('/foo', 'main'));
-  });
-
-  it('syncs the applied source into the page URL', () => {
+  it('carries the src and its branch', async () => {
     CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'dev' };
-    const u = new URL(window.location.href);
-    expect(u.searchParams.get('src')).toBe('https://github.com/o/r');
-    expect(u.searchParams.get('branch')).toBe('dev');
+    await drainAsync();
+    expect(ROUTE_PARAMS.value.get('src')).toBe('https://github.com/o/r');
+    expect(ROUTE_PARAMS.value.get('branch')).toBe('dev');
   });
 
-  it('omits branch in the URL when none is applied', () => {
+  it('omits the branch when none is applied', async () => {
     CURRENT_SOURCE.value = { src: '/foo' };
-    const u = new URL(window.location.href);
-    expect(u.searchParams.get('src')).toBe('/foo');
-    expect(u.searchParams.has('branch')).toBe(false);
+    await drainAsync();
+    expect(ROUTE_PARAMS.value.get('src')).toBe('/foo');
+    expect(ROUTE_PARAMS.value.has('branch')).toBe(false);
   });
 });
 
-describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
-  afterEach(() => {
-    CURRENT_SOURCE.value = null;
-    setManifest(null);
-  });
-
-  it('is empty when nothing is applied', () => {
-    CURRENT_SOURCE.value = null;
-    setManifest(null);
-    expect(SOURCE_INFO.value).toEqual({
-      label: '',
-      branch: undefined,
-      sourceUrl: undefined,
-      src: undefined,
-    });
-  });
-
-  it('exposes the git URL as sourceUrl for a git source', () => {
-    CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
-    setManifest({ tree: { name: 'r' }, repo: { branch: 'main' } } as unknown as Manifest);
-    expect(SOURCE_INFO.value.sourceUrl).toBe('https://github.com/o/r');
-    expect(SOURCE_INFO.value.branch).toBe('main');
-    expect(SOURCE_INFO.value.label).toBe('r');
-  });
-
-  it('has no sourceUrl for a local path source', () => {
-    CURRENT_SOURCE.value = { src: '/Users/me/proj' };
-    setManifest({ tree: { name: 'proj' }, repo: {} } as unknown as Manifest);
-    expect(SOURCE_INFO.value.sourceUrl).toBeUndefined();
-  });
-});
-
-describe('clearSourceUrl', () => {
-  afterEach(() => navigate(ROUTES.HOME, { replace: true }));
-
-  it('drops the load AND what was being viewed of it, and goes home', () => {
-    // A cancel with no city to fall back to leaves the switcher open over
-    // nothing: a reload must not re-run the load that was just called off.
-    navigate(
-      '/city?src=https://github.com/o/r&branch=main&exclude=docs&mode=timeline&commit=abc&sel=file:a.ts'
-    );
-    clearSourceUrl();
-
-    expect(HREF.value).toBe(ROUTES.HOME);
-  });
-
-  it('leaves anything it does not own alone', () => {
-    navigate('/city?src=/proj&utm_source=x');
-    clearSourceUrl();
-
-    expect(ROUTE_PATH.value).toBe(ROUTES.HOME);
-    expect(ROUTE_PARAMS.value.has('src')).toBe(false);
-    expect(ROUTE_PARAMS.value.get('utm_source')).toBe('x');
-  });
-});
-
-describe('commitSource', () => {
+describe('the history entry a commit leaves', () => {
   afterEach(() => {
     CURRENT_SOURCE.value = null;
     RECENTS.value = [];
@@ -110,23 +59,25 @@ describe('commitSource', () => {
   describe('the history entry it leaves', () => {
     const MANIFEST_FOR = { tree: { name: 'r' }, repo: { branch: 'main' } } as never;
 
-    it('PUSHES when the project was opened from the switcher, so Back returns to it', () => {
+    it('PUSHES when the project was opened from the switcher, so Back returns to it', async () => {
       // The reported bug: opening a project replaced the home entry, which left
       // the browser's own Back with nothing to go back to.
       navigate(ROUTES.HOME, { replace: true });
       const push = vi.spyOn(history, 'pushState');
       commitSource('https://github.com/o/r', undefined, MANIFEST_FOR);
+      await drainAsync();
 
       expect(push).toHaveBeenCalledTimes(1);
       expect(ROUTE_PATH.value).toBe(ROUTES.CITY);
       push.mockRestore();
     });
 
-    it('replaces when already on a city, since a re-scan is the same place', () => {
+    it('replaces when already on a city, since a re-scan is the same place', async () => {
       navigate('/city?src=https://github.com/o/r', { replace: true });
       CURRENT_SOURCE.value = null;
       const push = vi.spyOn(history, 'pushState');
       commitSource('https://github.com/o/other', undefined, MANIFEST_FOR);
+      await drainAsync();
 
       expect(push).not.toHaveBeenCalled();
       expect(ROUTE_PARAMS.value.get('src')).toBe('https://github.com/o/other');

@@ -25,7 +25,8 @@ import {
   getEffective,
   _resetForTests as resetDrafts,
 } from '@/features/settings/state/drafts';
-import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/source';
+import { ACTIVE_EXCLUDES, EXCLUDES, setExcludesFor } from '@/state/excludes';
+import { CURRENT_SOURCE } from '@/state/source';
 import { sourceKey } from '@codecity/city';
 
 const FIELDS = {

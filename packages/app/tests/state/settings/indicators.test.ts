@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { CHANGED_SETTINGS_COUNT } from '@/features/settings/state/indicators';
 import { LIVE_UPDATES } from '@/features/settings/state/values/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/features/settings/state/values/theme';
-import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/source';
+import { CURRENT_SOURCE } from '@/state/source';
+import { EXCLUDES, addExclude, clearExcludes } from '@/state/excludes';
 import { getDefault } from '@/lib/persist';
 import { getFieldKeys } from '@/features/settings/state/schema';
 

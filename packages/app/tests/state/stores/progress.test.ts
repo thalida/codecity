@@ -7,25 +7,32 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BuildStage, CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
 import type { CityStatus } from '@codecity/city';
 import {
-  attachOverlayDriver,
-  CITY_STATUS,
-  LOADING_SOURCE,
+  createOverlayDriver,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
+  type LoadingSource,
 } from '@/features/city/state/overlay';
 import { REBUILD_DETAIL } from '@/features/city/state/readout';
 
 import { SourceKind } from '@codecity/city';
 import { LoadingStep } from '@/features/city/state/loading';
 
+// The driver is a plain reduction now: it is handed the status the city reports
+// and what THIS app asked for, rather than reading either from a signal.
+let drive: (status: CityStatus, asked: LoadingSource | null) => void;
+let status: CityStatus;
+let askedFor: LoadingSource | null;
+
 /** Put the city in a state, the way its own status would report it. */
-function say(status: Partial<CityStatus>): void {
-  CITY_STATUS.value = { ...EMPTY_CITY_STATUS, ...status };
+function say(next: Partial<CityStatus>): void {
+  status = { ...EMPTY_CITY_STATUS, ...next };
+  drive(status, askedFor);
 }
 
 /** A load this app asked for, before the city has reported anything. */
 const asked = (kind = SourceKind.Remote, branch?: string) => {
-  LOADING_SOURCE.value = { kind, branch };
+  askedFor = { kind, branch };
+  drive(status, askedFor);
 };
 
 const visible = () => LOADING_OVERLAY.value.visible;
@@ -33,20 +40,15 @@ const step = () => LOADING_OVERLAY.value.activeStep;
 const tail = (row: LoadingStep) => LOADING_OVERLAY.value.stepTails[row];
 
 describe('the loading overlay', () => {
-  let dispose: () => void;
-
   beforeEach(() => {
-    CITY_STATUS.value = EMPTY_CITY_STATUS;
-    LOADING_SOURCE.value = null;
+    status = EMPTY_CITY_STATUS;
+    askedFor = null;
     PENDING_SOURCE_LABEL.value = null;
-    dispose = attachOverlayDriver();
+    // A driver per test: it remembers how far down the rows this load got.
+    drive = createOverlayDriver();
   });
 
   afterEach(() => {
-    dispose();
-    CITY_STATUS.value = EMPTY_CITY_STATUS;
-    LOADING_SOURCE.value = null;
-    // Visibility is per attach, so one left up is invisible to the next test.
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
   });
 
@@ -75,14 +77,16 @@ describe('the loading overlay', () => {
     it('stays up for a city on screen that is not the final one', () => {
       asked();
       say({ lifecycle: CityLifecycle.Ready, fetching: true });
-      LOADING_SOURCE.value = null; // the stream has ended
+      askedFor = null;
+      drive(status, askedFor); // the stream has ended
       expect(visible()).toBe(true);
     });
 
     it('stays up through the last build after the stream has ended', () => {
       asked();
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
-      LOADING_SOURCE.value = null;
+      askedFor = null;
+      drive(status, askedFor);
       expect(visible()).toBe(true);
     });
   });
@@ -94,14 +98,16 @@ describe('the loading overlay', () => {
       expect(visible()).toBe(true);
 
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
-      LOADING_SOURCE.value = null;
+      askedFor = null;
+      drive(status, askedFor);
       expect(visible()).toBe(false);
     });
 
     it('goes when the build errored, since no frame is coming', () => {
       asked();
       say({ lifecycle: CityLifecycle.Error, error: new Error('no such repo') });
-      LOADING_SOURCE.value = null;
+      askedFor = null;
+      drive(status, askedFor);
       expect(visible()).toBe(false);
     });
 
@@ -127,10 +133,11 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
-      LOADING_SOURCE.value = null;
+      askedFor = null;
+      drive(status, askedFor);
       expect(visible()).toBe(false);
 
-      CITY_STATUS.value = EMPTY_CITY_STATUS;
+      say({});
       asked();
       expect(visible()).toBe(true);
       expect(step()).toBe(CityPhase.Resolving);

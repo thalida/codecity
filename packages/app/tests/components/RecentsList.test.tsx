@@ -4,7 +4,8 @@
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { RECENTS, CURRENT_SOURCE } from '@/state/source';
+import { RECENTS } from '@/state/recents';
+import { CURRENT_SOURCE } from '@/state/source';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
 import { setManifest } from '@/state/stores/manifest';
 import { RecentsList } from '@/features/home/components/sources/RecentsList/RecentsList';

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { ScanMenu } from '@/features/city/components/ScanMenu/ScanMenu';
-import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/source';
+import { CURRENT_SOURCE } from '@/state/source';
+import { EXCLUDES, addExclude, clearExcludes } from '@/state/excludes';
 import { LIVE_UPDATES } from '@/features/settings/state/values/updates';
 import { drainAsync, flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';

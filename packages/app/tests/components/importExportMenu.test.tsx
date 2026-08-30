@@ -10,7 +10,8 @@ import {
   type FieldMap,
 } from '@/features/settings/state/schema';
 import { TransferFamily, type TransferGroup } from '@/features/settings/state/transfer';
-import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/source';
+import { CURRENT_SOURCE } from '@/state/source';
+import { EXCLUDES, setExcludesFor } from '@/state/excludes';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 

@@ -41,7 +41,9 @@ import {
   PENDING_SOURCE_LABEL,
   LOADING_SOURCE,
 } from '@/features/city/state/overlay';
-import { BACKDROP_CITY, BackdropKind, RECENTS, CURRENT_SOURCE, SOURCE_ERROR } from '@/state/source';
+import { BACKDROP_CITY, BackdropKind } from '@/features/home/backdrop';
+import { RECENTS } from '@/state/recents';
+import { CURRENT_SOURCE, SOURCE_ERROR } from '@/state/source';
 import { loadSource } from '@/features/city/state/commands';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/location';
