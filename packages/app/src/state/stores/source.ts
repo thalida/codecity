@@ -12,7 +12,6 @@ import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { VIEW_PARAMS } from '@/router/params';
 import { ROUTES } from '@/router/paths';
 import { navigate, hrefFor, ROUTE_SEARCH, ROUTE_PATH } from '@/router/location';
-import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import {
   srcKind,
   SourceKind,
@@ -101,20 +100,21 @@ export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
   return cur ? srcKind(cur.src) === SourceKind.Local : false;
 });
 
-export const SOURCE_INFO = computed<SourceInfo>(() => {
+/** What is on screen, named: the label the server gave it, the branch it
+ *  resolved to, and where it came from. Derived from the city's own manifest
+ *  rather than a copy of one, so it is a hook and not a module signal. */
+export function sourceInfoFrom(manifest: Manifest | null): SourceInfo {
   const cur = CURRENT_SOURCE.value;
-  const m = MANIFEST.value;
-  if (!cur || !m) {
+  if (!cur || !manifest) {
     return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
   }
-  const manifest = m as Manifest;
   return {
     label: manifest.tree?.name ?? '',
     branch: resolveBranch(manifest, cur.branch),
     sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
     src: cur.src,
   };
-});
+}
 
 // ── Recently-opened sources (persisted) ──────────────────────────────
 
@@ -152,7 +152,6 @@ export function commitSource(src: string, branch: string | undefined, manifest: 
   // Source before manifest: the camera-reframe reaction reads CURRENT_SOURCE at
   // apply-start, and the apply is kicked off by the manifest write.
   CURRENT_SOURCE.value = { src, branch: idBranch };
-  setManifest(manifest);
   pushRecent({
     src,
     // tree.name is the canonical owner/repo; a worktree's basename is its folder.

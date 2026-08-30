@@ -5,8 +5,7 @@
 import { CITY_STORES } from '@/state/settings/values/city';
 import './TimelineScrubber.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { useCityTimeline } from '@codecity/city/preact';
-import { setScrubPos, SCRUB_DRAGGING } from '@/state/stores/timeline';
+import { useCity, useCityTimeline } from '@codecity/city/preact';
 import { ACCENT_THEME } from '@/state/settings/values/theme';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/city';
@@ -20,6 +19,8 @@ import {
 } from './scrubberScale';
 
 export function TimelineScrubber() {
+  // The reports drive the render; the engine takes the drag.
+  const city = useCity();
   const timeline = useCityTimeline();
   const inTimeline = timeline.mode;
   const bundle = timeline.bundle;
@@ -120,21 +121,21 @@ export function TimelineScrubber() {
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
     const raw = fractionToIndex(scale, (clientX - r.left) / r.width);
-    setScrubPos(snapToStop(scale, indexToMs(scale, raw)));
+    city?.timeline.setPosition(snapToStop(scale, indexToMs(scale, raw)));
   };
 
   const onPointerDown = (e: PointerEvent) => {
     if (inert) return;
-    SCRUB_DRAGGING.value = true;
+    city?.timeline.setDragging(true);
     // Optional-chained: jsdom (and old browsers) lack pointer capture.
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     setFromClientX(e.clientX);
   };
   const onPointerMove = (e: PointerEvent) => {
-    if (SCRUB_DRAGGING.peek()) setFromClientX(e.clientX);
+    if (timeline.dragging) setFromClientX(e.clientX);
   };
   const onPointerUp = (e: PointerEvent) => {
-    SCRUB_DRAGGING.value = false;
+    city?.timeline.setDragging(false);
     const el = e.currentTarget as HTMLElement;
     el.releasePointerCapture?.(e.pointerId);
     // Focus back to the scene, so the next R or F reaches the camera. Keyboard
@@ -156,7 +157,7 @@ export function TimelineScrubber() {
     else return;
     e.preventDefault();
     e.stopPropagation();
-    setScrubPos(next);
+    city?.timeline.setPosition(next);
   };
 
   return (
@@ -191,7 +192,7 @@ export function TimelineScrubber() {
           type="button"
           class="timeline-scrubber-edge"
           title={`Jump to the first commit: ${formatFullDate(commits[0].date)}`}
-          onClick={() => setScrubPos(0)}
+          onClick={() => city?.timeline.setPosition(0)}
         >
           {formatShortDate(commits[0].date)}
         </button>
@@ -210,7 +211,7 @@ export function TimelineScrubber() {
               ? `Jump to the latest commit: ${formatFullDate(commits[lastCommit].date)}`
               : `Jump to today: ${formatFullDate(endDay)}`
           }
-          onClick={() => setScrubPos(maxIndex)}
+          onClick={() => city?.timeline.setPosition(maxIndex)}
         >
           {formatShortDate(endDay)}
         </button>

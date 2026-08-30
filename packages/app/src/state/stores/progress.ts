@@ -16,7 +16,6 @@ import {
   countsTail,
   buildStageTail,
 } from '@/constants/progress';
-import { MANIFEST, type ManifestValue } from './manifest';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 
 // ── What the scene city is doing ─────────────────────────────────────
@@ -94,10 +93,6 @@ export const REBUILD_DETAIL = signal<string | null>(null);
 export function setRebuildDetail(detail: string | null): void {
   REBUILD_DETAIL.value = detail;
 }
-
-/** The manifest the FINISHED city was built from. A consumer that aims the
- *  camera at a node needs that node to exist. */
-export const BUILT_MANIFEST = signal<ManifestValue>(null);
 
 // ── What the overlay shows ───────────────────────────────────────────
 
@@ -239,7 +234,6 @@ export function attachBuildProgress(city: Pick<City, 'status' | 'onStatus'>): ()
   return city.onStatus((status) => {
     const ready = status.lifecycle === CityLifecycle.Ready;
     if (ready && !wasReady) {
-      BUILT_MANIFEST.value = MANIFEST.peek();
       LAST_UPDATED_AT.value = Date.now();
       REBUILD_DETAIL.value = null;
     }

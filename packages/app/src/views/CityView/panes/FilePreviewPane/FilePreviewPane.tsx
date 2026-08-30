@@ -29,7 +29,7 @@ export enum PreviewKind {
 }
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
+import { useScrub, type Scrub } from '@/hooks/useScrub';
 import {
   FileWarning,
   FileX,
@@ -119,12 +119,13 @@ interface FileTextPreviewProps {
 /** Fetches the bytes, then renders the editor or an error. Built this way so
  *  the gutter and <pre> never linger empty beside an error message. */
 function FileTextPreview({ file, source }: FileTextPreviewProps) {
+  const scrub = useScrub();
   const [textState, setTextState] = useState<TextState>({ kind: TextStateKind.Loading });
 
   useEffect(() => {
     setTextState({ kind: TextStateKind.Loading });
     let cancelled = false;
-    API.fetchFileText(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
+    API.fetchFileText(source, file.path, file.modified, scrub.blobShaFor(file.path)).then(
       (text) => {
         if (cancelled) return;
         setTextState({ kind: TextStateKind.Text, text });
@@ -142,7 +143,7 @@ function FileTextPreview({ file, source }: FileTextPreviewProps) {
     };
     // Keyed on mtime too, so an edit picked up by the poll re-fetches instead
     // of waiting for the user to re-select the file.
-  }, [source.src, file.path, file.modified, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, scrub.blobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -306,6 +307,7 @@ interface FontPreviewProps {
 /** Renders a live specimen through the FontFace API. The face is removed on
  *  unmount and on a file change, so switching never orphans one. */
 function FontPreview({ file, source }: FontPreviewProps) {
+  const scrub = useScrub();
   const [family] = useState(() => `cc-font-specimen-${(fontFamilySeq += 1)}`);
   const [fontState, setFontState] = useState<FontState>({ kind: FontStateKind.Loading });
 
@@ -322,7 +324,7 @@ function FontPreview({ file, source }: FontPreviewProps) {
     // tries to delete a face that was never added.
     let added: FontFace | null = null;
 
-    API.fetchFileBytes(source, file.path, file.modified, scrubbedBlobShaFor(file.path)).then(
+    API.fetchFileBytes(source, file.path, file.modified, scrub.blobShaFor(file.path)).then(
       async (buf) => {
         if (cancelled) return;
         const reason = fontRejectReason(buf);
@@ -362,7 +364,7 @@ function FontPreview({ file, source }: FontPreviewProps) {
     };
     // Also key on modified (mtime) so a live-update poll (same path, edited
     // bytes) re-loads the face without waiting for a re-select.
-  }, [source.src, file.path, file.modified, family, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, family, scrub.blobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -419,6 +421,7 @@ type FpState =
 /** A data card instead of garbled bytes: type, size, dates, and the same
  *  fingerprint the building wears. Raw bytes never reach the client. */
 function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef }) {
+  const scrub = useScrub();
   const [fp, setFp] = useState<FpState>({ kind: FpStateKind.Loading });
 
   useEffect(() => {
@@ -445,7 +448,7 @@ function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef })
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
-  }, [source.src, file.path, file.modified, scrubbedBlobShaFor(file.path)]);
+  }, [source.src, file.path, file.modified, scrub.blobShaFor(file.path)]);
 
   // Not '—': the blob was never downloaded, so its size is unknown rather
   // than absent, and a dash reads as "nothing here".
@@ -478,7 +481,7 @@ function BinaryDataCard({ file, source }: { file: FileNode; source: SourceRef })
 
 // ── Body content ─────────────────────────────────────────────────────────────
 
-function _previewBody(file: FileNode | null, source: SourceRef | null) {
+function _previewBody(file: FileNode | null, source: SourceRef | null, scrub: Scrub) {
   if (!file) {
     return (
       <PaneEmpty
@@ -493,7 +496,7 @@ function _previewBody(file: FileNode | null, source: SourceRef | null) {
 
   // Scrubbed commits pin a version; Live keys on mtime, so an edited
   // image/video/pdf re-fetches instead of being served from the browser cache.
-  const url = API.fileUrl(source, file.path, file.modified, scrubbedBlobShaFor(file.path));
+  const url = API.fileUrl(source, file.path, file.modified, scrub.blobShaFor(file.path));
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {
@@ -545,6 +548,7 @@ function _previewBody(file: FileNode | null, source: SourceRef | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
+  const scrub = useScrub();
   const {
     file,
     source = null,
@@ -557,7 +561,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
   const path = file?.path ?? '';
   // Absent from the scrub tree, or in it with no blob here: either way a read
   // by path would answer with HEAD's bytes, or 404 for a file HEAD dropped.
-  const absent = Boolean(file && (isAbsent || hasNoContentAtScrub(path)));
+  const absent = Boolean(file && (isAbsent || scrub.noContentAt(path)));
 
   return (
     <Pane
@@ -584,12 +588,16 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
-      footerSlot={file && !absent ? <PaneStats items={fileStatItems(file)} /> : null}
+      footerSlot={
+        file && !absent ? (
+          <PaneStats items={fileStatItems(file, { scrubbed: scrub.statsFor(file.path) })} />
+        ) : null
+      }
     >
       {absent ? (
         <PaneEmpty icon={FileX} title="File not available" modifier="empty-state--absent" />
       ) : (
-        _previewBody(file, source)
+        _previewBody(file, source, scrub)
       )}
     </Pane>
   );

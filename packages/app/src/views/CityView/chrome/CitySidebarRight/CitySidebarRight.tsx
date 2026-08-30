@@ -13,20 +13,16 @@ import {
   NodeKind,
   PickTarget,
 } from '@codecity/city';
+import { useSourceInfo } from '@/hooks/useSourceInfo';
 import './CitySidebarRight.css';
 import { useComputed, useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import type { City } from '@codecity/city';
 import { clearSelection, focusPath, focusCommit } from '@/state/stores/city';
-import { MANIFEST } from '@/state/stores/manifest';
-import {
-  PANE_MANIFEST,
-  PRESENT_PATHS,
-  TIMELINE_MODE,
-  scrubbedDirFor,
-} from '@/state/stores/timeline';
-import { SOURCE_INFO, addExclude } from '@/state/stores/source';
+import { useCityManifest, useCityTimeline } from '@codecity/city/preact';
+import { useScrub } from '@/hooks/useScrub';
+import { addExclude } from '@/state/stores/source';
 import { setUrlTimelineMode } from '@/router/useUrlViewState';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
@@ -44,13 +40,10 @@ enum SidebarPaneKind {
   Street = 'street',
 }
 
-// The commit and street panes need things no manifest field holds, so these
-// derive them from the scene handle.
+// The commit pane needs things no manifest field holds — the tree's own colour
+// for the sha — so it is given the city as well as what that city published.
 
-function commitStateFor(handle: City, commit: CommitEntry): CommitPaneState {
-  // peek: the calling computed already re-derives on MANIFEST, so a tracked
-  // read here would only double it.
-  const m = MANIFEST.peek() as Manifest;
+function commitStateFor(handle: City, m: Manifest | null, commit: CommitEntry): CommitPaneState {
   return {
     commit,
     remoteUrl: m?.repo?.remote_url ?? null,
@@ -67,6 +60,10 @@ export function CitySidebarRight() {
   // The city this sidebar is about, and its selection as a signal: the panes
   // take signals so a scrub repaints a pane without re-rendering the sidebar.
   const city = useCity();
+  const manifest = useCityManifest();
+  const inTimeline = useCityTimeline().mode;
+  const scrub = useScrub();
+  const sourceInfo = useSourceInfo();
   const selection = useSignal<PickTarget | null>(null);
   useEffect(() => {
     if (!city) {
@@ -92,7 +89,7 @@ export function CitySidebarRight() {
   const fileState = useComputed<FilePreviewPaneState>(() => {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
-    const m = PANE_MANIFEST.value as Manifest | DirNode | null;
+    const m = scrub.manifest as Manifest | DirNode | null;
     const sel = selection.value;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
@@ -103,43 +100,40 @@ export function CitySidebarRight() {
       file: present ? fresh : sel.file,
       // The scrub manifest's own source: its paths are what the pane reads by.
       source: sourceOf(m as Manifest | null),
-      rootLabel: SOURCE_INFO.value.label,
+      rootLabel: sourceInfo.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
-      branch: SOURCE_INFO.value.branch,
-      isAbsent: TIMELINE_MODE.value && !present,
+      branch: sourceInfo.branch,
+      isAbsent: inTimeline && !present,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {
-    void MANIFEST.value; // re-derive on live-update rebuilds
-    const inTimeline = TIMELINE_MODE.value; // re-derive so the button label tracks the mode
+    void manifest; // re-derive on live-update rebuilds
     const sel = selection.value;
     return city && sel?.kind === NodeKind.Commit
       ? {
-          ...commitStateFor(city, sel.commit),
-          source: sourceOf(MANIFEST.value as Manifest | null),
+          ...commitStateFor(city, manifest, sel.commit),
+          source: sourceOf(manifest),
           inTimeline,
         }
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
-    const m = MANIFEST.value as Manifest | DirNode | null;
+    const m = manifest as Manifest | DirNode | null;
     const sel = selection.value;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     // In Timeline the rollups are re-added at the settled commit from the same
     // per-blob numbers the buildings use, so the pane cannot disagree with them.
-    const fresh = TIMELINE_MODE.value
-      ? scrubbedDirFor(sel.dir.path)
-      : findNodeByPath(m, sel.dir.path);
+    const fresh = inTimeline ? scrub.dirAt(sel.dir.path) : findNodeByPath(m, sel.dir.path);
     return {
       directory: fresh?.type === NodeKind.Directory ? fresh : sel.dir,
-      rootLabel: SOURCE_INFO.value.label,
+      rootLabel: sourceInfo.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
-      branch: SOURCE_INFO.value.branch,
+      branch: sourceInfo.branch,
       // The same set the sidebar tree filters on, so a road the tree has dropped
       // can't still read as live here.
-      isAbsent: TIMELINE_MODE.value && !PRESENT_PATHS.value.has(sel.dir.path),
+      isAbsent: inTimeline && !scrub.present.has(sel.dir.path),
     };
   });
 

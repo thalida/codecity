@@ -18,6 +18,7 @@ import { LoadingOverlay } from '@/components/loading/LoadingOverlay/LoadingOverl
 import { HljsThemeLink } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { refreshCurrentSource } from '@/hooks/useManifestSource';
 import { useUrlViewState } from '@/router/useUrlViewState';
 import { navigate } from '@/router/location';
@@ -31,13 +32,18 @@ import {
   runTreeGroundingCheck,
 } from '@/state/stores/city';
 
+/** The tab's name, from inside the provider: it is the city's, not the app's. */
+function DocumentTitle() {
+  useDocumentTitle();
+  return null;
+}
+
 export function CityView() {
   const [city, setCity] = useState<City | null>(null);
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();
-  // Mode, scrub commit and selection are THIS city's, and this view's: the
-  // landing has nothing to describe, and reflecting there would write them
-  // onto `/`. A prop in, a callback out, and no binding to mount.
+  // THIS city's view, and this view's: reflecting on the landing would write
+  // a selection onto `/`. A prop in, a callback out, no binding to mount.
   const [viewState, onViewStateChange] = useUrlViewState();
 
   // A newly loaded source has nothing selected in it yet.
@@ -60,6 +66,7 @@ export function CityView() {
     // Everything below reads THIS city. Held here rather than in a module slot,
     // which is what lets a second one exist with chrome of its own.
     <CityProvider city={city}>
+      <DocumentTitle />
       <a class="skip-link" href="#city-body">
         Skip to content
       </a>

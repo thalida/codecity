@@ -7,7 +7,6 @@ import type { DirNode, Manifest } from '@codecity/city';
 import './InfoPane.css';
 import { useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
-import type { Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { Globe, Map } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
@@ -18,7 +17,7 @@ import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewTab } from './tabs/OverviewTab/OverviewTab';
 import { LegendTab } from './tabs/LegendTab/LegendTab';
 
-type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+type PaneManifest = Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
 
 export enum InfoTab {
   Overview = 'overview',
@@ -29,7 +28,7 @@ interface InfoTabDef {
   id: InfoTab;
   label: string;
   icon: LucideIcon;
-  Component: ComponentType<{ manifest: ManifestSignal }>;
+  Component: ComponentType<{ manifest: PaneManifest }>;
 }
 
 // Legend is static (no manifest) but keeps the shared signature so INFO_TABS
@@ -40,7 +39,7 @@ const INFO_TABS: InfoTabDef[] = [
 ];
 
 export interface InfoPaneProps {
-  manifest: ManifestSignal;
+  manifest: PaneManifest;
   onClose?: () => void;
 }
 

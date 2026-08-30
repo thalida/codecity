@@ -5,7 +5,6 @@
 
 import { BACKDROP_CAMERA, DirNode, Manifest, NodeKind } from '@codecity/city';
 import type { SceneHandle } from '@/state/stores/city';
-import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees) on the city being shot; the rig
@@ -111,16 +110,16 @@ export const SHOTS: Record<string, ShotPose> = {
   // The city part-built, at the defaults. The load is async, so this returns
   // false until the mode and bundle are live and the harness retries.
   timeline: (handle, _m, o) => {
-    if (!TIMELINE_MODE.peek()) {
+    if (!handle.timeline.mode) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
         void loadTimelineScene();
       }
       return false;
     }
-    const bundle = TIMELINE_BUNDLE.peek();
+    const bundle = handle.timeline.bundle;
     if (!bundle || bundle.commits.length === 0) return false;
-    setScrubPos(Math.floor(SCRUB_MAX.peek() * 0.5));
+    handle.timeline.setPosition(Math.floor(handle.timeline.max * 0.5));
     angle(handle, o.elev ?? 44, o.az ?? 32);
     handle.rig.reset();
   },

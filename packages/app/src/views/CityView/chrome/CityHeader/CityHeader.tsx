@@ -3,10 +3,10 @@
 // repo you have open: which one it is, what you can do with its address, and
 // how fresh it is. Two clusters, each outlined: see .chrome-cluster.
 
-import type { Manifest } from '@codecity/city';
+import { useSourceInfo } from '@/hooks/useSourceInfo';
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
-import { SOURCE_INFO } from '@/state/stores/source';
+import {} from '@/state/stores/source';
 import { useCityManifest } from '@codecity/city/preact';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -25,7 +25,7 @@ export interface AppHeaderProps {
 }
 
 export function CityHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
-  const si = SOURCE_INFO.value;
+  const si = useSourceInfo();
   const remoteUrl = useCityManifest()?.repo?.remote_url ?? null;
   // Nothing loaded: the freshness cluster would be reporting on a project that
   // doesn't exist, and refresh would have nothing to re-open.

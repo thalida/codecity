@@ -10,7 +10,6 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
 import { SOURCE_ERROR } from '@/state/stores/source';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useServerData } from '@/hooks/useServerData';
 import { attachOverlayDriver } from '@/state/stores/progress';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
@@ -19,7 +18,6 @@ import { ROUTES } from '@/router/paths';
 export function App() {
   // The title spans both routes; everything a single view needs is mounted by
   // that view.
-  useDocumentTitle();
   useServerData();
 
   // Before anything that reads the URL, so back/forward is never missed.

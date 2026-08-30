@@ -15,13 +15,10 @@ import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
-import { PANE_MANIFEST } from '@/state/stores/timeline';
 
 // The tree reads whatever it's given (the union while scrubbing); read-only —
 // the panes never write it.
-type ManifestSignal = ReadonlySignal<
-  Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
->;
+type PaneManifest = Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
 
 export enum ExploreTab {
   Tree = 'tree',
@@ -34,7 +31,7 @@ const EXPLORE_TABS = [
 ];
 
 export interface ExplorePaneProps {
-  manifest: ManifestSignal;
+  manifest: PaneManifest;
   selectedPath: ReadonlySignal<string | null>;
   hoveredPath: ReadonlySignal<string | null>;
   expanded: Signal<Set<string>>;
@@ -87,7 +84,7 @@ export function ExplorePane({
         />
       ) : (
         // README reads HEAD (fetches the current checkout), never the scrubbed union.
-        <ReadmeTab manifest={PANE_MANIFEST} />
+        <ReadmeTab manifest={manifest} />
       )}
     </Pane>
   );

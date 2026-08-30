@@ -1,9 +1,6 @@
 // chrome/CityStage — the stage the city is performed on: the canvas, the
-// selection chip, and the scene controls that sit over it.
-//
-// The <City> here is the package's, used with props. What makes it this app's
-// city is what those props say: which settings values it gets, what its
-// reports open, and that this is the one the chrome around it is about.
+// selection chip, and the scene controls over it. The <City> is the package's,
+// used with props; what makes it this app's city is what those props say.
 
 import './CityStage.css';
 import { useEffect, useMemo } from 'preact/hooks';
@@ -25,7 +22,6 @@ import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updat
 import { useUrlSource } from '@/router/useUrlSource';
 import { activeExcludePathsFor, commitSource, SOURCE_ERROR } from '@/state/stores/source';
 import { ScanError } from '@codecity/city';
-import { MANIFEST } from '@/state/stores/manifest';
 import { CITY_STATUS } from '@/state/stores/progress';
 
 export function CityStage({
@@ -39,9 +35,8 @@ export function CityStage({
   viewState?: CityViewState;
   onViewStateChange?: (next: CityViewState) => void;
 }) {
-  // What to show, and what of it to hide: straight off the URL, as values. A
-  // ?sel= write leaves both alone, so the city is never re-asked for the
-  // project it is already showing.
+  // Straight off the URL, as values: a ?sel= write leaves src and branch alone,
+  // so the city is never re-asked for the project it is already showing.
   const source = useUrlSource();
   const exclude = useComputed(() => (source ? activeExcludePathsFor(source.src) : undefined)).value;
   // Live updates are a reader setting, and zero seconds is off.
@@ -51,9 +46,8 @@ export function CityStage({
   // Everything this app keeps about the city it is showing, in one call.
   useEffect(() => (city ? attachCity(city) : undefined), [city]);
 
-  // The last slot standing: the data hooks and the capture harness still reach
-  // for it. Cleared by the effect that set it, so a remount cannot null a live
-  // one out from under its replacement.
+  // The last slot standing: the timeline loader and capture harness still reach
+  // for it. Cleared by the effect that set it, not by whoever tears the city down.
   useEffect(() => {
     SCENE_HANDLE.value = city;
     return () => void (SCENE_HANDLE.value = null);
@@ -78,9 +72,7 @@ export function CityStage({
         viewState={viewState}
         onViewStateChange={onViewStateChange}
         onHover={(target) =>
-          tooltip.show(
-            hoverTooltipContent(target, (MANIFEST.peek() as Manifest | null)?.tree?.name ?? null)
-          )
+          tooltip.show(hoverTooltipContent(target, city?.manifest?.tree?.name ?? null))
         }
         // Picking a node is asking what it is, so a pane put away for the last
         // one comes back for this one.

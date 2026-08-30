@@ -1,16 +1,17 @@
-// The single owner of document.title. Called once from <App />.
+// The single owner of document.title, named after the city on screen.
 //
-// No in-progress state: PENDING_SOURCE_LABEL is set by entering Timeline too,
-// so a stale one stranded the tab at "(pending)". The overlay still shows it.
+// No in-progress state: a load in flight is the overlay's business, and a
+// pending label stranded the tab at "(pending)" when entering Timeline set one.
 
-import { useSignalEffect } from '@preact/signals';
-import { MANIFEST } from '@/state/stores/manifest';
+import { useEffect } from 'preact/hooks';
+import { useCityManifest } from '@codecity/city/preact';
 
 export function useDocumentTitle(): void {
-  useSignalEffect(() => {
-    const m = MANIFEST.value;
-    // tree.name is the server-normalized display name (owner/repo or basename).
-    const label = (m as { tree?: { name?: string } } | null)?.tree?.name ?? '';
+  // tree.name is the server-normalized display name (owner/repo or basename).
+  const label = useCityManifest()?.tree?.name ?? '';
+  useEffect(() => {
     document.title = label ? `${label} — codecity` : 'codecity';
-  });
+    // Leaving the route leaves no city to be named after.
+    return () => void (document.title = 'codecity');
+  }, [label]);
 }

@@ -12,7 +12,6 @@ import type { Manifest } from '@codecity/city';
 import { useEffect, useState } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { MANIFEST } from '@/state/stores/manifest';
 import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@codecity/city';
 import { API } from '@/apiClient';
@@ -52,16 +51,16 @@ function fitsBehindTheLanding(manifest: Manifest): boolean {
 /** Who gets to be the backdrop, best first. */
 function candidates(featuredRepo: string | undefined): Candidate[] {
   const out: Candidate[] = [];
-  // The project you just left, still in memory: no round trip, and it is the
-  // city you were looking at a moment ago.
-  const loaded = MANIFEST.peek();
+  // The project you just left, from the server's cache. It used to be handed
+  // over in memory, which meant the landing reading a manifest belonging to a
+  // city that had already been torn down.
   const current = CURRENT_SOURCE.peek();
-  if (current && loaded) {
+  if (current) {
     out.push({
       src: current.src,
       branch: current.branch,
       kind: BackdropKind.Recent,
-      fetch: () => Promise.resolve(loaded as Manifest),
+      fetch: (signal) => API.fetchCachedManifest(current.src, current.branch, signal),
     });
   }
   const recent = RECENTS.peek()[0];

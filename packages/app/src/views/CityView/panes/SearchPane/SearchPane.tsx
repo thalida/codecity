@@ -7,7 +7,6 @@ import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@codecity/city'
 import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
-import type { ReadonlySignal } from '@preact/signals';
 import { Search, SearchX } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
@@ -27,7 +26,7 @@ interface PathMatch {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export interface SearchPaneProps {
-  manifest: ReadonlySignal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
   onClose?: () => void;
   onSelect?: (path: string) => void;
 }
@@ -36,7 +35,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
   const [query, setQuery] = useState('');
   // Flatten once per manifest, not per keystroke — _flattenFiles is an O(N)
   // tree walk and setQuery re-renders on every character typed.
-  const files = useMemo(() => _flattenFiles(manifest.value), [manifest.value]);
+  const files = useMemo(() => _flattenFiles(manifest), [manifest]);
   const trimmed = query.trim();
   const results = trimmed ? _searchFiles(trimmed, files) : null;
 

@@ -19,9 +19,8 @@ interface ChipSelection {
   extension?: string | null;
 }
 
-/** The selected node as the chip shows it, or null when nothing is selected.
- *  Straight off the city this view is about: nothing needs to copy the
- *  selection anywhere for the chip to name it. */
+/** The selected node as the chip shows it. Straight off the city this view is
+ *  about: nothing copies the selection anywhere for the chip to name it. */
 function useChipSelection(): ChipSelection | null {
   const sel = useCitySelection();
   if (sel?.kind === NodeKind.File)

@@ -8,7 +8,6 @@ import { effect } from '@preact/signals';
 
 import { isDebugMode } from '@/utils/debugMode';
 import { SCENE_HANDLE } from '@/state/stores/city';
-import { MANIFEST } from '@/state/stores/manifest';
 import { CITY_STATUS } from '@/state/stores/progress';
 import { CityLifecycle } from '@codecity/city';
 
@@ -48,7 +47,7 @@ export function initCaptureHarness(): void {
   let posed = false;
   const stop = effect(() => {
     const handle = SCENE_HANDLE.value;
-    const manifest = MANIFEST.value as Manifest;
+    const manifest = SCENE_HANDLE.value?.manifest as Manifest;
     const status = CITY_STATUS.value;
     // On screen AND final: a shot of a city still growing trees is a shot of a
     // different city from the one it will be a second later.
@@ -68,7 +67,7 @@ export function initCaptureHarness(): void {
       const tryPose = () => {
         let ready = true;
         try {
-          ready = pose(h, MANIFEST.peek() as Manifest, overrides) !== false;
+          ready = pose(h, h.manifest as Manifest, overrides) !== false;
         } catch (err) {
           console.error(`[capture] shot "${shot}" pose failed`, err);
         }

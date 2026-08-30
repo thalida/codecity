@@ -7,12 +7,11 @@ import type { DirNode, Manifest, SourceRef } from '@codecity/city';
 import './ReadmeTab.css';
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
-import type { Signal } from '@preact/signals';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/timeline';
+import { useScrub } from '@/hooks/useScrub';
 import {
   resolveReadmeAssetUrl,
   rewriteHtmlImageUrls,
@@ -59,12 +58,13 @@ type InfoBodyState =
   | { kind: InfoBodyKind.Error; message: string };
 
 export interface ReadmeTabProps {
-  manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
 }
 
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function ReadmeTab({ manifest }: ReadmeTabProps) {
+  const scrub = useScrub();
   const [body, setBody] = useState<InfoBodyState>({ kind: InfoBodyKind.NoProject });
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
         return;
       }
       // No README yet at this commit: say so rather than fetching HEAD's.
-      if (hasNoContentAtScrub(readmePath)) {
+      if (scrub.noContentAt(readmePath)) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
@@ -92,7 +92,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
         source,
         readmePath,
         (m as Manifest).readmeModified ?? undefined,
-        scrubbedBlobShaFor(readmePath)
+        scrub.blobShaFor(readmePath)
       )
         .then((text) => {
           if (!cancelled)
@@ -109,7 +109,7 @@ export function ReadmeTab({ manifest }: ReadmeTabProps) {
 
     // effect() fires once immediately + on every manifest change.
     const unsub = effect(() => {
-      doFetch(manifest.value);
+      doFetch(manifest);
     });
 
     return () => {

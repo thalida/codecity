@@ -5,7 +5,6 @@ import { CITY_STORES } from '@/state/settings/values/city';
 import { DirNode, Manifest, NodeKind } from '@codecity/city';
 import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
-import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { focusPath, focusCommit } from '@/state/stores/city';
@@ -102,11 +101,11 @@ function SectionBody({ facts }: { facts: AlmanacFact[] }) {
 }
 
 export interface OverviewTabProps {
-  manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
 }
 
 export function OverviewTab({ manifest }: OverviewTabProps) {
-  const current = manifest.value;
+  const current = manifest;
   // The Forest section's contents depend on whether the Trees layer is on, so
   // it's a compute input — the section's notice comes back as an empty state.
   const treesEnabled = CITY_STORES.TREES.value.ENABLED;

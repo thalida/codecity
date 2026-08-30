@@ -7,7 +7,7 @@ import type { DirNode, FileNode } from '@codecity/city';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
-import { scrubbedStatsFor } from '@/state/stores/timeline';
+import type { ScrubbedFileStats } from '@codecity/city';
 import type { PaneStatItem } from './PaneStats';
 
 /** Direct and recursive counts as one item, collapsing to a single number when
@@ -42,6 +42,10 @@ export interface FileStatOpts {
   dates?: boolean;
   /** Reference point for the relative ages. Defaults to now. */
   now?: number;
+  /** This file's numbers replayed at the scrub, when a scrub is what is being
+   *  shown. Passed in rather than looked up: which city is being described is
+   *  the caller's to know. */
+  scrubbed?: ScrubbedFileStats | null;
 }
 
 export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStatItem[] {
@@ -49,7 +53,7 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   const items: PaneStatItem[] = [];
   // In Timeline the static node carries max-over-history values, so the replayed
   // ones win where they exist (at deletion for a file already gone).
-  const scrubbed = file.path != null ? scrubbedStatsFor(file.path) : null;
+  const { scrubbed = null } = opts;
   const lines = scrubbed ? scrubbed.lines : file.lines;
   const size = scrubbed ? scrubbed.bytes : file.size;
 

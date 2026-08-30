@@ -217,7 +217,7 @@ function TreeItem({
 // ── Pane component ──────────────────────────────────────────────────
 
 export interface TreeTabProps {
-  manifest: ReadonlySignal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
   selectedPath: ReadonlySignal<string | null>;
   hoveredPath: ReadonlySignal<string | null>;
   /** Expanded directory paths, read and written by the tab. The
@@ -239,7 +239,7 @@ export function TreeTab({
   onHover,
   onHoverEnd,
 }: TreeTabProps) {
-  const treeSig = useComputed(() => _treeRoot(manifest.value));
+  const treeSig = useComputed(() => _treeRoot(manifest));
   const tree = treeSig.value;
 
   // Selection → expansion bridge, in an effect so the ancestor chain opens

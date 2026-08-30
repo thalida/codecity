@@ -6,12 +6,11 @@
 import { Manifest, TimelineProgress, TimelineStage } from '@codecity/city';
 import {
   CURRENT_SOURCE,
-  SOURCE_INFO,
   RECENTS,
   commitSource,
   activeExcludePathsFor,
 } from '@/state/stores/source';
-import { SCENE_HANDLE, whenSceneHandle } from '@/state/stores/city';
+import { SCENE_HANDLE } from '@/state/stores/city';
 import {
   failHostWork,
   beginHostWork,
@@ -29,7 +28,6 @@ import {
   transferTail,
 } from '@/constants/progress';
 import { srcKind } from '@codecity/city';
-import { setTimelineBundle, resetTimelineMode } from '@/state/stores/timeline';
 import { setTimelineRefreshHandler } from '@/hooks/useManifestSource';
 
 /** How far the current stage has got. Written beside its own step row, and
@@ -65,6 +63,10 @@ export async function loadTimelineSource({
   let cancelled = false;
   let committed = false;
 
+  // Nothing to load into: this is a command about a city, and there is none.
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+
   // Unoverlaid, the readout is the only progress surface: say so now, and the
   // stage tails land beside it. Overlaid, a cancel has nothing to unwind.
   if (inPlace && !overlay) beginHostWork();
@@ -72,22 +74,16 @@ export async function loadTimelineSource({
     // Cancelling keeps whatever is on screen: nothing is touched until the pack
     // below sets `committed`.
     PENDING_SOURCE_LABEL.value =
-      SOURCE_INFO.peek().label || RECENTS.peek().find((r) => r.src === src)?.label || null;
+      handle.manifest?.tree?.name || RECENTS.peek().find((r) => r.src === src)?.label || null;
     showLoadingOverlay({ kind: srcKind(src), branch, steps: TIMELINE_LOADING_STEPS }, () => {
       if (committed) return;
       cancelled = true;
-      // The city owns the request, so it owns the abort. Read the published
-      // handle rather than the one below, which is not initialised yet when a
-      // cancel arrives during the wait for it.
-      SCENE_HANDLE.peek()?.cancelTimelineLoad();
+      // The city owns the request, so it owns the abort.
+      handle.cancelTimelineLoad();
       hideLoadingOverlay();
     });
   }
 
-  // A cold boot can outrun the city it packs into; a refetch can't, so no handle
-  // there means nothing to refetch and waiting would hang the overlay.
-  if (inPlace && !SCENE_HANDLE.peek()) return;
-  const handle = await whenSceneHandle();
   if (cancelled) return;
 
   // One row per server stage, so a stall is attributable to the stage it is in
@@ -127,7 +123,7 @@ export async function loadTimelineSource({
     });
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
-    setTimelineBundle(bundle);
+    handle.timeline.setBundle(bundle);
     commitSource(src, branch, bundle.unionManifest as unknown as Manifest);
     if (overlay) {
       // Hold the overlay through the union city's first painted frame.
@@ -170,5 +166,5 @@ setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }
 // Timeline stays in Timeline instead of dropping to live HEAD.
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
-  resetTimelineMode();
+  SCENE_HANDLE.peek()?.timeline.exit();
 }

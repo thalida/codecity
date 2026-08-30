@@ -4,13 +4,10 @@
 // that are still this app's: putting one city's scan onto the app's own
 // stores, and the refresh a reader asks for by hand.
 
-import { ScanPhase } from '@codecity/city';
 import type { City } from '@codecity/city';
 
 import { CURRENT_SOURCE, activeExcludePathsFor } from '@/state/stores/source';
-import { setManifest } from '@/state/stores/manifest';
 import { failHostWork, LOADING_SOURCE, PENDING_SOURCE_LABEL } from '@/state/stores/progress';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { srcKind } from '@codecity/city';
 
 // ── Shared helpers ───────────────────────────────────────────────────
@@ -29,15 +26,6 @@ export function attachScanToStores(on: City['on']): () => void {
     // Server-side, so the document title and the overlay header name the
     // project the same way instead of each deriving it from the src.
     on('scan:label', ({ label }) => void (PENDING_SOURCE_LABEL.value = label)),
-    on('scan:manifest', ({ manifest, phase }) => {
-      // The city already applied it; this is the copy every pane reads. The
-      // complete one is published by loadSource, with the source it belongs to.
-      // No generation guard: a superseded load's stream is aborted by the city
-      // that owns it, so nothing arrives here from a load that lost.
-      if (phase === ScanPhase.PartialManifest) {
-        setManifest(manifest);
-      }
-    }),
   ];
   return () => {
     for (const off of offs) off();
@@ -45,7 +33,7 @@ export function attachScanToStores(on: City['on']): () => void {
 }
 
 // Injected, not imported (importing useTimelineMode back was a cycle); it
-// registers before TIMELINE_MODE can turn on.
+// registers before Timeline can turn on.
 type TimelineRefresh = (opts?: { noCache?: boolean; overlay?: boolean }) => Promise<void>;
 
 let timelineRefresh: TimelineRefresh | null = null;
@@ -62,7 +50,7 @@ export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
  *  Timeline refetches its bundle in place rather than dropping to live HEAD. */
 export function refreshCurrentSource(city: City | null, skipCache = false): void {
   if (!city) return;
-  if (TIMELINE_MODE.peek() && timelineRefresh) {
+  if (city.timeline.mode && timelineRefresh) {
     // Asked for by hand, so it gets the same stepped overlay a Live refresh
     // does: the history walk behind it runs for minutes on a big repo.
     void timelineRefresh({ noCache: skipCache, overlay: true });

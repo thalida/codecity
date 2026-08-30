@@ -4,7 +4,7 @@
 
 import { NodeKind, TreeNode, PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
-import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
@@ -12,8 +12,8 @@ import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constant
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { goToPath, hoverPath, clearHover } from '@/state/stores/city';
-import { MANIFEST } from '@/state/stores/manifest';
-import { PANE_MANIFEST } from '@/state/stores/timeline';
+import { useScrub } from '@/hooks/useScrub';
+import { useCityManifest } from '@codecity/city/preact';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
@@ -86,6 +86,9 @@ export function CitySidebarLeft() {
   // The city this view is about. Nothing here reads a module slot: a second
   // city on the page gets a second sidebar, pointed at its own.
   const city = useCity();
+  // What the panes render: the live tree, or the union filtered to the scrub.
+  const scrub = useScrub();
+  const manifest = useCityManifest();
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
   const activeTab = SIDEBAR_TAB;
@@ -97,9 +100,8 @@ export function CitySidebarLeft() {
   // TreePane drives this itself; it just needs somewhere long-lived to live.
   const treeExpanded = useSignal<Set<string>>(new Set());
 
-  // Signals rather than plain values because TreeTab subscribes per row: a
-  // hover repaints the row under the cursor, not the whole tree. That is the
-  // one reason to carry the city's own reports into signals here.
+  // Signals because TreeTab subscribes per row: a hover repaints the row under
+  // the cursor, not the whole tree. The one reason to carry reports into one.
   useEffect(() => {
     if (!city) {
       selectedPath.value = null;
@@ -128,7 +130,7 @@ export function CitySidebarLeft() {
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
-  const manifestIsEmpty = useComputed(() => !MANIFEST.value);
+  const manifestIsEmpty = !manifest;
 
   const onIconClick = (tab: SidebarTab) => {
     if (!collapsed.value && tab === activeTab.value) {
@@ -153,7 +155,7 @@ export function CitySidebarLeft() {
   };
 
   // Effective collapsed: forced when manifest is empty.
-  const effectiveCollapsed = collapsed.value || manifestIsEmpty.value;
+  const effectiveCollapsed = collapsed.value || manifestIsEmpty;
   const tab = activeTab.value;
 
   return (
@@ -168,11 +170,11 @@ export function CitySidebarLeft() {
       <div class="pane">
         {tab === SidebarTab.Explore && (
           <ExplorePane
-            manifest={PANE_MANIFEST}
+            manifest={scrub.manifest}
             selectedPath={selectedPath}
             hoveredPath={hoveredPath}
             expanded={treeExpanded}
-            rootPath={(PANE_MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
+            rootPath={(scrub.manifest as { tree?: TreeNode } | null)?.tree?.path ?? ''}
             onClose={onPaneClose}
             onSelect={onTreeSelect}
             onHover={onTreeHover}
@@ -180,9 +182,9 @@ export function CitySidebarLeft() {
           />
         )}
         {tab === SidebarTab.Search && (
-          <SearchPane manifest={PANE_MANIFEST} onClose={onPaneClose} onSelect={goToPath} />
+          <SearchPane manifest={scrub.manifest} onClose={onPaneClose} onSelect={goToPath} />
         )}
-        {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
+        {tab === SidebarTab.Info && <InfoPane manifest={manifest} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (
           <ControlsPane onClose={onPaneClose} collapsed={effectiveCollapsed} />
         )}

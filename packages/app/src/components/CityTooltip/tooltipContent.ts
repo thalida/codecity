@@ -5,6 +5,7 @@
 import { ROOT_PATH, NodeKind, PickTarget } from '@codecity/city';
 import { formatRelativeAge } from '@/utils/dates';
 import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import type { ScrubbedFileStats } from '@codecity/city';
 
 /** Longest path rendered before the middle segments collapse to an ellipsis. */
 const PATH_BUDGET_CHARS = 44;
@@ -54,7 +55,10 @@ export function middleTruncatePath(path: string, budget = PATH_BUDGET_CHARS): st
 
 export function hoverTooltipContent(
   target: PickTarget | null,
-  rootName: string | null
+  rootName: string | null,
+  /** This city's replayed file numbers, when it is showing a scrub. Passed in:
+   *  which city the card is about is the caller's to know. */
+  scrubbedFor?: (path: string | null | undefined) => ScrubbedFileStats | null
 ): TooltipContent | null {
   if (!target) return null;
   const deleted = isDeletedTarget(target);
@@ -84,7 +88,9 @@ export function hoverTooltipContent(
       // In Timeline, fileStatItems resolves the replayed line count off the
       // path itself, so what is hovered and what is selected agree.
       path: middleTruncatePath(withRoot(parent, rootName)),
-      stats: fileStatItems(f, { dates: false }).map((i) => i.text),
+      stats: fileStatItems(f, { dates: false, scrubbed: scrubbedFor?.(f.path) ?? null }).map(
+        (i) => i.text
+      ),
       deleted,
     };
   }
