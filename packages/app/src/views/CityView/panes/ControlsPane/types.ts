@@ -1,4 +1,4 @@
-// types/controls.ts — the shape of a controls-pane section config: what a
+// panes/ControlsPane/types.ts — the shape of a controls-pane section config: what a
 // section declares, and what a field reference in it is. The configs are data
 // (panes/ControlsPane/sectionConfigs); this is only their shape.
 

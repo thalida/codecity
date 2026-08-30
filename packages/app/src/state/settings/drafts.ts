@@ -4,7 +4,7 @@
 import { signal } from '@preact/signals';
 import { getDefault } from '@/state/persist';
 import { forEachSettingStore, isAutosave, type SettingStore } from './schema';
-import { deepEqual, deepClone } from '@/utils/deep';
+import { deepEqual, deepClone } from '@/state/deep';
 
 type DraftKey = string | null;
 

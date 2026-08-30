@@ -13,7 +13,7 @@ import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineTog
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
-import { useCityReport } from '@/hooks/useCityReport';
+import { useCityReport } from '@/views/CityView/hooks/useCityReport';
 import { cityKeyboardEnabled } from '@/views/CityView/commands';
 import { useCityChrome } from '@/views/CityView/chrome';
 import { CITY_SETTINGS } from '@/state/settings/values/city';

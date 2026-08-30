@@ -25,7 +25,7 @@ import {
 } from '@/constants/progress';
 import { srcKind } from '@codecity/city';
 import type { City } from '@codecity/city';
-import { setTimelineRefreshHandler } from '@/hooks/useManifestSource';
+import { setTimelineRefreshHandler } from '@/views/CityView/hooks/useManifestSource';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */

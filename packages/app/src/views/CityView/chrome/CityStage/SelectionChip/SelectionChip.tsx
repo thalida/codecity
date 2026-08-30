@@ -7,7 +7,7 @@ import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { useCitySelection } from '@codecity/city/preact';
-import { useCityCommands } from '@/hooks/useCityCommands';
+import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
 import { useCityChrome } from '@/views/CityView/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 

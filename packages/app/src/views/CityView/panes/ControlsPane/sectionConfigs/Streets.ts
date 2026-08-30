@@ -2,8 +2,8 @@
 // visuals. Hover/selected states live under Interaction, matching Buildings
 // and Trees.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const STREETS_SECTION: SectionNode = {
   key: 'streets',

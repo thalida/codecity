@@ -4,7 +4,7 @@
 import { computed } from '@preact/signals';
 import { forEachSettingStore, getFieldKeys } from '@/state/settings/schema';
 import { getDefault } from '@/state/persist';
-import { deepEqual } from '@/utils/deep';
+import { deepEqual } from '@/state/deep';
 import { LIVE_UPDATES } from '@/state/settings/values/updates';
 import { ACCENT_THEME, SURFACE_THEME } from '@/state/settings/values/theme';
 import { SYNTAX_THEME } from '@/state/settings/values/syntaxTheme';

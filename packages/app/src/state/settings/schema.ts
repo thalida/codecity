@@ -7,13 +7,10 @@ import type { ConfigOf, FieldDef, FieldMap } from '@codecity/city';
 import { computed, type Signal } from '@preact/signals';
 
 import { persistedSignal, getDefault } from '@/state/persist';
-import { deepEqual } from '@/utils/deep';
+import { deepEqual } from '@/state/deep';
 
-// Re-exported so the panel and the app's own fields (theme, syntaxTheme,
-// updates) declare themselves the same way the city's do. Straight through
-// from the city rather than re-exporting the local bindings: prefresh reads
-// exports before it resolves imports, and fails the dev server on a name it
-// cannot see yet.
+// Straight through from the city, not via the local bindings: prefresh reads
+// exports before resolving imports and fails on a name it cannot see yet.
 export {
   ChangeRoute,
   FieldKind,

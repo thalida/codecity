@@ -11,7 +11,7 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { useScrub } from '@/hooks/useScrub';
+import { useScrub } from '@/views/CityView/hooks/useScrub';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@codecity/city';
 import { API } from '@/apiClient';
 

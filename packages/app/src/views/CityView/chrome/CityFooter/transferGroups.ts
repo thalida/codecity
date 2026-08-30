@@ -2,7 +2,7 @@
 // the picker: one family per menu these settings live in. Render is read off
 // the controls pane's own sections, so the two cannot drift apart.
 
-import type { SectionChild, SectionNode } from '@/types/controls';
+import type { SectionChild, SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 import type { SettingStore } from '@/state/settings/schema';
 import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
 import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';

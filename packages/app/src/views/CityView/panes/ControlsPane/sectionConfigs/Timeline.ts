@@ -1,8 +1,8 @@
 // views/ControlsPane/sections/Timeline.ts — how the scene shows a file deleted
 // before the scrubbed commit. Draft-backed like the rest of the World tab.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const TIMELINE_SECTION: SectionNode = {
   key: 'timeline',

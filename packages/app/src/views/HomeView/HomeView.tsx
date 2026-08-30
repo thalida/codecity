@@ -7,7 +7,7 @@ import './HomeView.css';
 import { useState } from 'preact/hooks';
 import { Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
 import { City } from '@codecity/city/preact';
-import { useHomeBackdrop } from '@/hooks/useHomeBackdrop';
+import { useHomeBackdrop } from '@/views/HomeView/hooks/useHomeBackdrop';
 import { BACKDROP_SETTINGS } from '@/state/settings/values/city';
 import { GemIcon } from '@/components/app/GemIcon/GemIcon';
 import { MetaLine } from '@/components/app/MetaLine/MetaLine';

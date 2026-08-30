@@ -3,8 +3,8 @@
 // inflated outward from every layout rect. Its own top-level section (sits
 // after Streets) — the slab frames the whole city, it isn't a street surface.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const FOOTPRINT_SECTION: SectionNode = {
   key: 'footprint',

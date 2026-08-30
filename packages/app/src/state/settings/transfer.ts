@@ -7,7 +7,7 @@ import { batch } from '@preact/signals';
 import { getStoreName, getDefault } from '@/state/persist';
 import { CURRENT_SOURCE } from '@/state/source';
 import { activeExcludePathsFor, setExcludesFor } from '@/state/excludes';
-import { deepEqual } from '@/utils/deep';
+import { deepEqual } from '@/state/deep';
 import { coerceFieldValue, type SettingStore } from './schema';
 import { dropDrafts } from './drafts';
 

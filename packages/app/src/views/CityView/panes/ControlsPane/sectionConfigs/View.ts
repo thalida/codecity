@@ -2,8 +2,8 @@
 // has: the one a project opens at, and the one the landing's wallpaper orbits.
 // Two cities, so two cameras, declared from the same fields.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 import { HOME_BACKDROP } from '@/state/settings/values/city';
 
 export const VIEW_SECTION: SectionNode = {

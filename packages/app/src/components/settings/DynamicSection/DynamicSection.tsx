@@ -5,7 +5,12 @@ import { Section } from '@/components/settings/Section/Section';
 import { Subgroup } from '@/components/settings/Subgroup/Subgroup';
 import { Field } from '@/components/fields/Field/Field';
 import type { ComponentChildren } from 'preact';
-import type { FieldRef, GroupNode, SectionChild, SectionNode } from '@/types/controls';
+import type {
+  FieldRef,
+  GroupNode,
+  SectionChild,
+  SectionNode,
+} from '@/views/CityView/panes/ControlsPane/types';
 
 /** A group nests; a field reference is a leaf. */
 function isGroup(child: SectionChild): child is GroupNode {

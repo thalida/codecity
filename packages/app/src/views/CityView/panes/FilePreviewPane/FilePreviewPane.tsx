@@ -29,7 +29,7 @@ export enum PreviewKind {
 }
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/panes/PaneStats/statItems';
-import { useScrub, type Scrub } from '@/hooks/useScrub';
+import { useScrub, type Scrub } from '@/views/CityView/hooks/useScrub';
 import {
   FileWarning,
   FileX,

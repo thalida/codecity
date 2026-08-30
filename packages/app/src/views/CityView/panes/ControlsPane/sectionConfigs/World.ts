@@ -1,8 +1,8 @@
 // panes/ControlsPane/sectionConfigs/World.ts — everything the city sits on and in:
 // the island it stands on, and the sky and haze around it.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const WORLD_SECTION: SectionNode = {
   key: 'world',

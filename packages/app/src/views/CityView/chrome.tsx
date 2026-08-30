@@ -4,11 +4,10 @@
 // Two scopes. Modals are app-wide (one keyboard); the rest is per city.
 
 import { createContext, type ComponentChildren } from 'preact';
+import { Compass, Info, Search, Settings2, type LucideIcon } from 'lucide-preact';
 import { useContext, useMemo } from 'preact/hooks';
 import { signal, computed, type Signal } from '@preact/signals';
 
-import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
-import { SidebarTab } from '@/types/ui';
 import { IS_PHONE } from '@/state/viewport';
 import { ON_HOME } from '@/router/paths';
 import type { CityStatus } from '@codecity/city';
@@ -20,7 +19,60 @@ import {
   countsTail,
   buildStageTail,
 } from '@/constants/progress';
-import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
+
+// ── What the chrome is made of ───────────────────────────────────────
+
+/** Left-sidebar tab IDs. Discriminator on the activity bar's mounted pane. */
+export enum SidebarTab {
+  Explore = 'explore',
+  Search = 'search',
+  Info = 'info',
+  Controls = 'controls',
+}
+
+/** The activity bar's tabs: id, glyph, tooltip, and which end of the strip
+ *  each pins to. Structural, not designer-tunable. */
+/** Which group of the activity bar a tab pins to. Default (unset) is Top. */
+export enum TabPlacement {
+  Top = 'top',
+  Bottom = 'bottom',
+}
+
+export interface ActivityBarTab {
+  id: SidebarTab;
+  /** Lucide glyph component (lucide-preact). */
+  icon: LucideIcon;
+  title: string;
+  placement?: TabPlacement;
+}
+
+export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
+  // Info leads: the almanac is the first thing a freshly-loaded world greets you
+  // with (see DEFAULT_SIDEBAR_TAB + CitySidebarLeft's on-load switch).
+  { id: SidebarTab.Info, icon: Info, title: 'Info' },
+  { id: SidebarTab.Explore, icon: Compass, title: 'Explore' },
+  { id: SidebarTab.Search, icon: Search, title: 'Search' },
+  { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: TabPlacement.Bottom },
+] as const;
+
+/** The left sidebar's default active tab — the one shown on first paint and
+ *  re-opened whenever a world loads. Info (the almanac) leads the rail. */
+export const DEFAULT_SIDEBAR_TAB: SidebarTab = SidebarTab.Info;
+
+/** Options for showing the loading overlay. */
+export interface LoadingOverlayShowOpts {
+  kind: SourceKind;
+  branch?: string;
+  /** Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS. */
+  steps?: readonly LoadingStep[];
+}
+
+export interface LoadingOverlayState {
+  visible: boolean;
+  showOpts: LoadingOverlayShowOpts | null;
+  activeStep: LoadingStep | null;
+  stepTails: Partial<Record<LoadingStep, string | null>>;
+}
 
 // ── App-wide: the modals ─────────────────────────────────────────────
 

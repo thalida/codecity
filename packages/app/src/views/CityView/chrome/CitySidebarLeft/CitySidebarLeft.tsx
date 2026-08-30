@@ -8,11 +8,11 @@ import { useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
-import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
+import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/views/CityView/chrome';
 import { useCityChrome } from '@/views/CityView/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { useCityCommands } from '@/hooks/useCityCommands';
-import { useScrub } from '@/hooks/useScrub';
+import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
+import { useScrub } from '@/views/CityView/hooks/useScrub';
 import { useCityManifest } from '@codecity/city/preact';
 import { CURRENT_SOURCE } from '@/state/source';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
@@ -20,7 +20,7 @@ import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { SidebarTab } from '@/types/ui';
+import { SidebarTab } from '@/views/CityView/chrome';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

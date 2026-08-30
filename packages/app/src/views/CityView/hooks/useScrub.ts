@@ -1,9 +1,6 @@
-// hooks/useScrub.ts — one city's scrub, as the panes need it.
-//
-// Reads the city through the package's own hooks, so it re-renders exactly
-// when the city says the mode, the bundle or the position moved. Nothing here
-// holds a copy of any of that: state/scrub.ts is pure arithmetic, and this is
-// where it meets the city it is about.
+// views/CityView/hooks/useScrub.ts — one city's scrub, as the panes need it.
+// Re-renders exactly when the city says the mode, the bundle or the position
+// moved. The arithmetic is the package's; this is where it meets a city.
 
 import { useMemo } from 'preact/hooks';
 import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';

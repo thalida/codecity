@@ -2,7 +2,7 @@
 // naming one that does not exist fails to build.
 
 import type { Signal } from '@preact/signals';
-import type { FieldRef } from '@/types/controls';
+import type { FieldRef } from '@/views/CityView/panes/ControlsPane/types';
 
 /** Reference a field by store + key — `key` must be a key of the store's
  *  config, so typos and dangling refs fail at compile time. */

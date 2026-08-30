@@ -5,7 +5,7 @@
 
 import { BACKDROP_CAMERA, DirNode, Manifest, NodeKind } from '@codecity/city';
 import type { City } from '@codecity/city';
-import { loadTimelineScene } from '@/hooks/useTimelineMode';
+import { loadTimelineScene } from '@/views/CityView/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the city to it.
  *  Elevation is height above the horizon, azimuth the swing around the gem. */

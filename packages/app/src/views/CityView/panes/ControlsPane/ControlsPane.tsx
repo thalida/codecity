@@ -6,7 +6,7 @@
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
 import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
-import type { SectionNode } from '@/types/controls';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 import { VIEW_SECTION } from './sectionConfigs/View';
 import { WORLD_SECTION } from './sectionConfigs/World';
 import { BUILDINGS_SECTION } from './sectionConfigs/Buildings';

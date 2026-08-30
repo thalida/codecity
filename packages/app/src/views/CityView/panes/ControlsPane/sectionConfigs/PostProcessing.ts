@@ -1,8 +1,8 @@
 // views/ControlsPane/sections/PostProcessing.ts — full-frame passes, plus the
 // shared highlight color the selected outline and path line both chase.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const POST_PROCESSING_SECTION: SectionNode = {
   key: 'post-processing',

@@ -1,7 +1,7 @@
 // views/ControlsPane/sections/Trees.ts — one tree per commit.
 import { CITY_STORES } from '@/state/settings/values/city';
-import { field } from '@/utils/field';
-import type { SectionNode } from '@/types/controls';
+import { field } from '@/views/CityView/field';
+import type { SectionNode } from '@/views/CityView/panes/ControlsPane/types';
 
 export const TREES_SECTION: SectionNode = {
   key: 'trees',

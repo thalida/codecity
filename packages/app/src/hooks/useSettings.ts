@@ -5,7 +5,7 @@
 
 import { getEffective, setDraft, DRAFTS_REV } from '@/state/settings/drafts';
 import { getDefault } from '@/state/persist';
-import { deepEqual } from '@/utils/deep';
+import { deepEqual } from '@/state/deep';
 
 interface SignalLike {
   get value(): any;
