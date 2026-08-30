@@ -3,9 +3,9 @@
 // committed) and re-renders on either, via store.value and DRAFTS_REV.
 // See state/settings/README.md.
 
-import { getEffective, setDraft, DRAFTS_REV } from '@/state/settings/drafts';
-import { getDefault } from '@/state/persist';
-import { deepEqual } from '@/state/deep';
+import { getEffective, setDraft, DRAFTS_REV } from '@/features/settings/state/drafts';
+import { getDefault } from '@/lib/persist';
+import { deepEqual } from '@/lib/deep';
 
 interface SignalLike {
   get value(): any;

@@ -4,7 +4,7 @@
 
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { sourceKey } from '@codecity/city';
-import { persistedSignal } from '@/state/persist';
+import { persistedSignal } from '@/lib/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { CURRENT_SOURCE } from '@/state/source';
 

@@ -1,4 +1,4 @@
-// state/stores/viewport.ts — what shape of device is looking at the app.
+// state/viewport.ts — what shape of device is looking at the app.
 // Signals, not a listener per component: several places key off these and
 // independent listeners answer differently mid-resize.
 

@@ -2,7 +2,7 @@
 // and cross-feature: the landing lists them, the city view adds to them.
 
 import { sameSourceIdentity } from '@codecity/city';
-import { persistedSignal } from '@/state/persist';
+import { persistedSignal } from '@/lib/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 
