@@ -7,8 +7,9 @@
 
 import './CityStage.css';
 import { useEffect, useMemo } from 'preact/hooks';
+import { useComputed } from '@preact/signals';
 import type { City as CityInstance, CityViewState, Manifest } from '@codecity/city';
-import { City, CityLifecycle } from '@codecity/city';
+import { CityLifecycle } from '@codecity/city';
 import { City as CityCanvas } from '@codecity/city/preact';
 
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
@@ -20,6 +21,10 @@ import { attachCity } from '@/state/stores/attachCity';
 import { cityKeyboardEnabled, revealCityChrome, SCENE_HANDLE } from '@/state/stores/city';
 import { openSelectionPane } from '@/state/stores/chrome';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
+import { useUrlSource } from '@/router/useUrlSource';
+import { activeExcludePathsFor, commitSource, SOURCE_ERROR } from '@/state/stores/source';
+import { ScanError } from '@codecity/city';
 import { MANIFEST } from '@/state/stores/manifest';
 import { CITY_STATUS } from '@/state/stores/progress';
 
@@ -34,6 +39,15 @@ export function CityStage({
   viewState?: CityViewState;
   onViewStateChange?: (next: CityViewState) => void;
 }) {
+  // What to show, and what of it to hide: straight off the URL, as values. A
+  // ?sel= write leaves both alone, so the city is never re-asked for the
+  // project it is already showing.
+  const source = useUrlSource();
+  const exclude = useComputed(() => (source ? activeExcludePathsFor(source.src) : undefined)).value;
+  // Live updates are a reader setting, and zero seconds is off.
+  const watchSeconds = useComputed(() =>
+    LIVE_UPDATES_ACTIVE.value ? LIVE_UPDATES.value.POLL_SECONDS : undefined
+  ).value;
   // Everything this app keeps about the city it is showing, in one call.
   useEffect(() => (city ? attachCity(city) : undefined), [city]);
 
@@ -53,6 +67,11 @@ export function CityStage({
   return (
     <div id="city-stage">
       <CityCanvas
+        src={source?.src}
+        branch={source?.branch}
+        noCache={source?.noCache}
+        exclude={exclude}
+        watchSeconds={watchSeconds}
         settings={CITY_SETTINGS.value}
         keyboard={cityKeyboardEnabled}
         onReady={onReady}
@@ -69,8 +88,23 @@ export function CityStage({
         // The focus key makes the same request the panes' Focus buttons do, so
         // it gets the same chrome.
         onFocusRequest={() => revealCityChrome()}
-        onError={(error) => {
-          console.error('[codecity] could not create a city', error);
+        // What the city just published is what this app calls the open
+        // project: one commit point, whichever view asked for it.
+        onChange={(change) => {
+          if (!change.manifestChanged || !city || !source) return;
+          const manifest = city.manifest;
+          if (manifest) commitSource(source.src, source.branch, manifest);
+        }}
+        onError={(err) => {
+          const error = err instanceof Error ? err : new Error(String(err));
+          if (source) {
+            SOURCE_ERROR.value = {
+              error: error.message,
+              code: err instanceof ScanError ? err.code : undefined,
+              prefill: { src: source.src, branch: source.branch },
+            };
+          }
+          console.error('[codecity] could not load a city', error);
           CITY_STATUS.value = {
             ...CITY_STATUS.peek(),
             lifecycle: CityLifecycle.Error,

@@ -37,6 +37,9 @@ export interface WatchOptions {
   /** Told when a poll fails. Without this a watch is silent, and a repo that
    *  has gone away looks like one that simply is not changing. */
   onError?: (error: unknown) => void;
+  /** Make the server re-scan rather than answer from its cache. For a refresh
+   *  the reader asked for by hand; a poll leaves it off. */
+  noCache?: boolean;
 }
 
 export interface WatchDeps {
@@ -61,7 +64,7 @@ function createChecker(deps: WatchDeps, options: WatchOptions) {
   async function fetchAndApply(request: { src: string; branch?: string }): Promise<void> {
     const myGeneration = loader.generation();
     for await (const event of client.streamManifest(
-      client.manifestUrlFor({ ...request, exclude: options.excludes?.() })
+      client.manifestUrlFor({ ...request, exclude: options.excludes?.(), noCache: options.noCache })
     )) {
       if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
       // Only the complete one: a refresh that applied the skeleton would drop

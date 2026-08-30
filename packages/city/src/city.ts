@@ -315,6 +315,11 @@ export class City {
         }
       } else if (timeline.mode) {
         timeline.exit();
+        // The union city was packed from history; HEAD is a different city.
+        // Leaving Timeline therefore means re-loading the source, which is this
+        // city's business and not something a host should have to know.
+        const showing = sourceLoader.request();
+        if (showing) await this.loadSource(showing);
       }
     }
 

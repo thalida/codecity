@@ -7,7 +7,7 @@
 // landing's wallpaper possible: it is a city with no chrome, so it simply has
 // none of this pointed at it.
 
-import type { City, FocusRef, PickerSelectionKey, PickTarget, FocusMode } from '@codecity/city';
+import type { City, FocusRef, FocusMode } from '@codecity/city';
 import { signal, effect } from '@preact/signals';
 import {
   OVERLAY_OPEN,

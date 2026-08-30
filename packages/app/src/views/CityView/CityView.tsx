@@ -4,7 +4,7 @@
 // and the syntax theme the file preview reads.
 
 import './CityView.css';
-import { useEffect, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
@@ -18,7 +18,7 @@ import { LoadingOverlay } from '@/components/loading/LoadingOverlay/LoadingOverl
 import { HljsThemeLink } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
-import { cancelLoad, refreshCurrentSource } from '@/hooks/useManifestSource';
+import { refreshCurrentSource } from '@/hooks/useManifestSource';
 import { useUrlViewState } from '@/router/useUrlViewState';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
@@ -51,7 +51,7 @@ export function CityView() {
     const registered = LOADING_CANCEL.peek();
     if (registered) registered();
     else {
-      cancelLoad();
+      city?.cancelLoad();
       clearSourceUrl();
     }
   };
@@ -65,7 +65,10 @@ export function CityView() {
       </a>
       {/* The header owns the control; which read a refresh means in the mode
           you are in is the fetch layer's call. */}
-      <CityHeader onSwitchSource={() => navigate(ROUTES.HOME)} onRefresh={refreshCurrentSource} />
+      <CityHeader
+        onSwitchSource={() => navigate(ROUTES.HOME)}
+        onRefresh={(skipCache) => refreshCurrentSource(city, skipCache)}
+      />
       <main id="city-body" tabIndex={-1}>
         <CitySidebarLeft />
         <CityStage

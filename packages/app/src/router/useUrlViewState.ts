@@ -45,6 +45,18 @@ function setOrDelete(params: URLSearchParams, key: string, value: string | null)
   else params.set(key, value);
 }
 
+/** Change one part of the view the URL names, leaving the rest of it alone.
+ *  Every chrome control that moves the reader goes through here: the URL is
+ *  where the view lives, and the city follows it down as a prop. */
+export function updateViewState(patch: Partial<CityViewState>): void {
+  writeViewState({ ...readViewState(ROUTE_PARAMS.peek()), ...patch });
+}
+
+/** Enter or leave Timeline. Entering at a commit rests the scrubber there. */
+export function setUrlTimelineMode(on: boolean, commit?: string): void {
+  updateViewState({ timeline: on ? { mode: true, ...(commit ? { commit } : {}) } : null });
+}
+
 /** `[viewState, onViewStateChange]` for a <City>. */
 export function useUrlViewState(): [CityViewState, (next: CityViewState) => void] {
   const view = useComputed(() => readViewState(ROUTE_PARAMS.value));

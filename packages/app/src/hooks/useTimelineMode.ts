@@ -20,7 +20,6 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
-  setLoadingCancel,
   PENDING_SOURCE_LABEL,
 } from '@/state/stores/progress';
 import {
@@ -30,20 +29,8 @@ import {
   transferTail,
 } from '@/constants/progress';
 import { srcKind } from '@codecity/city';
-import {
-  TIMELINE_MODE,
-  TIMELINE_BUNDLE,
-  setTimelineBundle,
-  SCRUB_POS,
-  resetTimelineMode,
-  setScrubPos,
-} from '@/state/stores/timeline';
-import {
-  loadSource,
-  cancelLoad,
-  setTimelineRefreshHandler,
-  setTimelineBootHandler,
-} from '@/hooks/useManifestSource';
+import { setTimelineBundle, resetTimelineMode } from '@/state/stores/timeline';
+import { setTimelineRefreshHandler } from '@/hooks/useManifestSource';
 
 /** How far the current stage has got. Written beside its own step row, and
  *  standalone beside the freshness dot, so it names its own units. */
@@ -179,42 +166,9 @@ export function loadTimelineScene(
 // because a direct import was a cycle; registered before the mode can turn on.
 setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }));
 
-// The boot path, for the same reason. `?mode=timeline` loads the bundle and
-// nothing else: Live's scan is a different view's load, and it can wait for one.
-setTimelineBootHandler((payload) => loadTimelineSource(payload));
-
-// Enter Timeline if it isn't on, then scrub to the commit. No-op if the sha
-// isn't in the bundle (the union cap can drop one) or the mode failed to engage.
-export async function viewCommitInTimeline(sha: string): Promise<void> {
-  if (!TIMELINE_MODE.peek()) {
-    await loadTimelineScene({ commit: sha });
-    return; // the load rests on the commit itself; a failure is surfaced already
-  }
-  const bundle = TIMELINE_BUNDLE.peek();
-  if (!bundle) return;
-  const idx = bundle.commits.findIndex((c) => c.sha === sha);
-  if (idx >= 0) setScrubPos(idx);
-}
-
 // Re-pack from the warm bundle, holding SCRUB_POS, so a settings Save in
 // Timeline stays in Timeline instead of dropping to live HEAD.
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
   resetTimelineMode();
-}
-
-export function exitTimelineMode(): void {
-  const cur = CURRENT_SOURCE.peek();
-  const scrubPos = SCRUB_POS.peek(); // remember where the scrubber was
-  teardownTimelineMode();
-  if (!cur) return;
-  // Cancelling the reload re-enters Timeline where you were rather than dumping
-  // you on the switcher. Registered first, so loadSource's overlay keeps it.
-  setLoadingCancel(() => {
-    cancelLoad();
-    void loadTimelineScene().then(() => {
-      if (TIMELINE_MODE.peek()) setScrubPos(scrubPos);
-    });
-  });
-  void loadSource({ src: cur.src, branch: cur.branch });
 }

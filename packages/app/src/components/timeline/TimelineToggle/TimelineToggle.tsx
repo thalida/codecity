@@ -4,7 +4,7 @@
 import './TimelineToggle.css';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { useCityTimeline } from '@codecity/city/preact';
-import { loadTimelineScene, exitTimelineMode } from '@/hooks/useTimelineMode';
+import { setUrlTimelineMode } from '@/router/useUrlViewState';
 
 export function TimelineToggle() {
   if (!SOURCE_INFO.value.src) return null;
@@ -15,7 +15,7 @@ export function TimelineToggle() {
         type="button"
         class={`timeline-toggle-btn${timeline ? '' : ' is-active'}`}
         aria-pressed={!timeline}
-        onClick={() => timeline && exitTimelineMode()}
+        onClick={() => timeline && setUrlTimelineMode(false)}
       >
         Live
       </button>
@@ -23,7 +23,7 @@ export function TimelineToggle() {
         type="button"
         class={`timeline-toggle-btn${timeline ? ' is-active' : ''}`}
         aria-pressed={timeline}
-        onClick={() => !timeline && void loadTimelineScene()}
+        onClick={() => !timeline && setUrlTimelineMode(true)}
       >
         Timeline
       </button>

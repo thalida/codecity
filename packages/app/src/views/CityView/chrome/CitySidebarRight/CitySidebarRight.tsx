@@ -27,7 +27,7 @@ import {
   scrubbedDirFor,
 } from '@/state/stores/timeline';
 import { SOURCE_INFO, addExclude } from '@/state/stores/source';
-import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
+import { setUrlTimelineMode } from '@/router/useUrlViewState';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
@@ -184,7 +184,7 @@ export function CitySidebarRight() {
           state={commitState}
           onClose={dismiss}
           onFocus={onCommitFocus}
-          onViewInTimeline={(commit) => void viewCommitInTimeline(commit.sha)}
+          onViewInTimeline={(commit) => setUrlTimelineMode(true, commit.sha)}
         />
       )}
       {kind === SidebarPaneKind.Street && (

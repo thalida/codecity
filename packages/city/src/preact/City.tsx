@@ -63,6 +63,8 @@ export interface CityProps {
 
   /** What is selected changed — however it got selected: a click, a restored
    *  link, a host calling focus(). Null is nothing selected. */
+  /** Ask the server to re-scan rather than answer from its cache. */
+  noCache?: boolean;
   /** Show this manifest, instead of loading one from a `src`. For a host that
    *  already has the manifest — it built it, cached it, or fetched it to decide
    *  whether to show it at all. Changing it shows the new one. */
@@ -160,21 +162,35 @@ export function City(props: CityProps) {
     if (city && settings) city.updateSettings(settings);
   }, [city, settings]);
 
-  const { src, branch, skeleton } = props;
+  // Which repo is on screen. Editing `exclude` changes the QUESTION, not the
+  // repo: it re-scans in place, keeping the city you are looking at, where a
+  // new src drops it and loads the next one behind the loading report.
+  const { src, branch, skeleton, noCache } = props;
   const exclude = props.exclude?.join('\n');
+  const loaded = useRef<string | null>(null);
   useEffect(() => {
     if (!city || !src) return;
+    const fail = (error: Error) => {
+      // A superseded load is not a failure: the next one aborted it on purpose.
+      if (city.status.error === error) handlers.current.onError?.(error);
+    };
+    const excludes = () => handlers.current.exclude;
+
+    const key = `${src}\u0000${branch ?? ''}\u0000${noCache ? '1' : ''}`;
+    if (loaded.current === key) {
+      void city.refreshSource({ excludes, onError: fail });
+      return;
+    }
+    loaded.current = key;
     const request: SourceRequest = {
       src,
       branch,
       skeleton,
+      noCache,
       exclude: exclude ? exclude.split('\n') : undefined,
     };
-    // A superseded load is not a failure: the next one aborted it on purpose.
-    void city.loadSource(request).catch((error) => {
-      if (city.status.error === error) handlers.current.onError?.(error);
-    });
-  }, [city, src, branch, skeleton, exclude]);
+    void city.loadSource(request).catch(fail);
+  }, [city, src, branch, skeleton, noCache, exclude]);
 
   const { manifest } = props;
   useEffect(() => {
