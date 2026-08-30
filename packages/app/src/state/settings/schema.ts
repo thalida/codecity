@@ -2,8 +2,13 @@
 // a live, persisted signal. What a field IS lives in @codecity/city; this is
 // where the app gives it a value. See README.md.
 
-import { ChangeRoute, coerceField } from '@codecity/city';
-import type { ConfigOf, FieldDef, FieldMap } from '@codecity/city';
+import {
+  type ChangeRoute,
+  coerceField,
+  type ConfigOf,
+  type FieldDef,
+  type FieldMap,
+} from '@codecity/city';
 import { computed, type Signal } from '@preact/signals';
 
 import { persistedSignal, getDefault } from '@/state/persist';

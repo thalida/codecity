@@ -2,15 +2,14 @@
 // a section per layer. A landmark row is itself the button that flies there.
 
 import { CITY_STORES } from '@/state/settings/values/city';
-import { DirNode, Manifest, NodeKind } from '@codecity/city';
+import { type DirNode, type Manifest, NodeKind } from '@codecity/city';
 import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
-import type { CityCommands } from '@/views/CityView/commands';
-import { computeAlmanac } from '../../almanac';
-import type { AlmanacFact, LandmarkRef } from '../../almanac';
+import type { CityCommands } from '@/views/CityView/state/commands';
+import { computeAlmanac, type AlmanacFact, type LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree

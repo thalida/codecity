@@ -1,11 +1,11 @@
 // components/timeline/TimelineToggle/TimelineToggle.tsx — prominent Live/Timeline
 // toggle centered at the bottom of the scene (above the time-travel bar).
 
-import { useSourceInfo } from '@/hooks/useSourceInfo';
+import { useSourceInfo } from '@/views/CityView/hooks/useSourceInfo';
 import './TimelineToggle.css';
 
 import { useCityTimeline } from '@codecity/city/preact';
-import { setUrlTimelineMode } from '@/router/useUrlViewState';
+import { setUrlTimelineMode } from '@/router/cityUrl';
 
 export function TimelineToggle() {
   const sourceInfo = useSourceInfo();

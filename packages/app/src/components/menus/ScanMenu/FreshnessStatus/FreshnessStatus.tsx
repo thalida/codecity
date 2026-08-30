@@ -10,7 +10,7 @@ import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import { CityLifecycle } from '@codecity/city';
 import { useCityStatus } from '@codecity/city/preact';
-import { HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/views/CityView/chrome';
+import { HOST_WORK, LAST_UPDATED_AT, REBUILD_DETAIL } from '@/views/CityView/state/readout';
 
 // CSS modifier classes for the combined dot/detail (see FreshnessStatus.css).
 // Named so the className composition reads without inline magic strings.

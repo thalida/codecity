@@ -4,8 +4,7 @@
 
 import './SplitButton.css';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { ChevronDown } from 'lucide-preact';
-import type { LucideIcon } from 'lucide-preact';
+import { ChevronDown, type LucideIcon } from 'lucide-preact';
 import { useDismissable } from '@/hooks/useDismissable';
 
 export interface SplitButtonItem {

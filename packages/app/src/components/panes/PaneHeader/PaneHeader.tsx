@@ -2,9 +2,8 @@
 // apart and a new pane is one call rather than a copied row.
 
 import './PaneHeader.css';
-import type { ComponentChildren } from 'preact';
+import { type ComponentChildren, createContext, type RefObject } from 'preact';
 import { Focus, EyeOff, ExternalLink } from 'lucide-preact';
-import { createContext, type RefObject } from 'preact';
 import { useRef } from 'preact/hooks';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';

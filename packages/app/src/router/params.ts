@@ -1,7 +1,10 @@
-// The page URL is THIS app's contract with the browser, not the package's.
-// It happens to spell the source the same way the /api wire form does; that
-// is a choice made here, and a host routing by path — or showing two cities
-// with no single `?src` to give either — makes a different one.
+// router/params.ts — the query params, and what they mean. THIS app's contract
+// with the browser, not the package's: a host routing by path, or showing two
+// cities with no single ?src to give either, spells it otherwise.
+
+import { NodeKind } from '@codecity/city';
+
+/** What to load. The server reads these too, under the same names. */
 export const URL_PARAMS = {
   /** Source to render: a git URL or a local path. */
   SRC: 'src',
@@ -13,12 +16,8 @@ export const URL_PARAMS = {
   EXCLUDE: 'exclude',
 } as const;
 
-import { NodeKind } from '@codecity/city';
-// router/params.ts — the query params that never leave the browser: what you
-// were looking at. Their own vocabulary, so renaming a NodeKind cannot change
-// what a link someone is already holding means. The params the server also
-// reads are constants/urlParams.
-
+/** Where you are in what was loaded. Their own vocabulary, so renaming a
+ *  NodeKind cannot change what a link someone is holding means. */
 export const VIEW_PARAMS = {
   /** 'timeline' when the city is the union city under the scrubber. Absent is Live. */
   MODE: 'mode',

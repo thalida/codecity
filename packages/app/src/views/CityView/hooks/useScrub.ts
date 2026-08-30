@@ -4,8 +4,14 @@
 
 import { useMemo } from 'preact/hooks';
 import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';
-import { paneManifest, presentPaths, scrubbedDirFor } from '@codecity/city';
-import type { DirNode, Manifest, ScrubbedFileStats } from '@codecity/city';
+import {
+  paneManifest,
+  presentPaths,
+  scrubbedDirFor,
+  type DirNode,
+  type Manifest,
+  type ScrubbedFileStats,
+} from '@codecity/city';
 
 export interface Scrub {
   /** In Timeline, the paths that exist at the scrub. Empty in Live. */

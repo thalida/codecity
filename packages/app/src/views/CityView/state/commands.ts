@@ -4,8 +4,8 @@
 // what the screen does afterwards is ours. All these add is the second half.
 
 import type { City, FocusRef, FocusMode } from '@codecity/city';
-import { OVERLAY_OPEN } from '@/views/CityView/chrome';
-import type { CityChromeState } from '@/views/CityView/chrome';
+import { OVERLAY_OPEN } from '@/views/CityView/state/modals';
+import { type CityChromeState } from '@/views/CityView/state/sidebar';
 
 /** A focus asks to LOOK at the node, so the details get out of the way; a
  *  go-to names it, so the details are the answer. Both are screen decisions. */

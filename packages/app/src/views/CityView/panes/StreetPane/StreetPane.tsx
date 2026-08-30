@@ -3,7 +3,14 @@
 // the breadcrumb, so this answers what the neighbourhood is made of.
 
 import { CITY_STORES } from '@/state/settings/values/city';
-import { extHueColor, ROOT_PATH, DirNode, ExtBreakdownEntry, NodeKind } from '@codecity/city';
+import {
+  extHueColor,
+  ROOT_PATH,
+  type DirNode,
+  type ExtBreakdownEntry,
+  NodeKind,
+  nodeUrl,
+} from '@codecity/city';
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { Pane } from '@/components/panes/Pane/Pane';
@@ -14,7 +21,6 @@ import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
 import { directoryStatItems } from '@/components/panes/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
-import { nodeUrl } from '@codecity/city';
 import { pluralize } from '@/utils/format';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 

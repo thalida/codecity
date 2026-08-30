@@ -3,10 +3,16 @@
 // Cross-feature, which is why it is here: the landing opens one, the city
 // view reads what opened.
 
-import type { Manifest } from '@codecity/city';
+import {
+  type Manifest,
+  srcKind,
+  SourceKind,
+  resolveBranch,
+  identityBranch,
+  sourceKey,
+  type ScanErrorCode,
+} from '@codecity/city';
 import { signal, computed } from '@preact/signals';
-import { srcKind, SourceKind, resolveBranch, identityBranch, sourceKey } from '@codecity/city';
-import type { ScanErrorCode } from '@codecity/city';
 import { pushRecent } from '@/state/recents';
 
 /** What the switcher hands over when you open something. */
@@ -41,38 +47,12 @@ export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
   CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
 );
 
-export interface SourceInfo {
-  /** Human-readable project label (owner/repo or directory name). */
-  label: string;
-  /** Branch name when the loaded source is a git URL with a known branch. */
-  branch: string | undefined;
-  /** Original git URL when the source is a hosted git repo. */
-  sourceUrl: string | undefined;
-  /** Raw source as entered: the git URL for a remote, the path for a local. */
-  src: string | undefined;
-}
-
 /** A working tree on disk rather than a clone. Only a working tree can change
  *  under the app, so anything watching for change keys off this. */
 export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
   const cur = CURRENT_SOURCE.value;
   return cur ? srcKind(cur.src) === SourceKind.Local : false;
 });
-
-/** What is on screen, named: the label the server gave it, the branch it
- *  resolved to, and where it came from. Derived from the city's own manifest */
-export function sourceInfoFrom(manifest: Manifest | null): SourceInfo {
-  const cur = CURRENT_SOURCE.value;
-  if (!cur || !manifest) {
-    return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
-  }
-  return {
-    label: manifest.tree?.name ?? '',
-    branch: resolveBranch(manifest, cur.branch),
-    sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
-    src: cur.src,
-  };
-}
 
 /** Commit a loaded source: CURRENT_SOURCE, its recents entry, and the manifest
  *  the UI reads. Every mode ends its load here, with its own manifest. */

@@ -2,12 +2,10 @@
 // panes hand to <PaneStats>. Pure: the caller supplies the node, so the same
 // formatting rules serve both panes without either reaching for the picker.
 
-import { parseDateMs } from '@codecity/city';
-import type { DirNode, FileNode } from '@codecity/city';
+import { parseDateMs, type DirNode, type FileNode, type ScrubbedFileStats } from '@codecity/city';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/format';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
-import type { ScrubbedFileStats } from '@codecity/city';
 import type { PaneStatItem } from './PaneStats';
 
 /** Direct and recursive counts as one item, collapsing to a single number when
@@ -42,9 +40,8 @@ export interface FileStatOpts {
   dates?: boolean;
   /** Reference point for the relative ages. Defaults to now. */
   now?: number;
-  /** This file's numbers replayed at the scrub, when a scrub is what is being
-   *  shown. Passed in rather than looked up: which city is being described is
-   *  the caller's to know. */
+  /** This file's numbers replayed at the scrub. Passed in rather than looked
+   *  up: which city is being described is the caller's to know. */
   scrubbed?: ScrubbedFileStats | null;
 }
 

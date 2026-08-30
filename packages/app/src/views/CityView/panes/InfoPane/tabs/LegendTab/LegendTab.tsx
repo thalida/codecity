@@ -3,8 +3,7 @@
 // every project.
 
 import './LegendTab.css';
-import { LAYER_LEGEND } from '../../almanac';
-import type { LayerCue } from '../../almanac';
+import { LAYER_LEGEND, type LayerCue } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
 
 /** One world layer: accented glyph + name, a lead line, then its cue → meaning

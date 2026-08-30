@@ -6,8 +6,7 @@
 import type { DirNode, Manifest, TreeNode } from '@codecity/city';
 import './ExplorePane.css';
 import { useState } from 'preact/hooks';
-import { useSignalEffect } from '@preact/signals';
-import type { Signal, ReadonlySignal } from '@preact/signals';
+import { useSignalEffect, type Signal, type ReadonlySignal } from '@preact/signals';
 import { FolderTree, BookOpen } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';

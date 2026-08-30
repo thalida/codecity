@@ -6,10 +6,10 @@ import {
   MATERIAL_ICON_URLS,
   getFileIconName,
   getFolderIconName,
-  DirNode,
-  FileNode,
+  type DirNode,
+  type FileNode,
   NodeKind,
-  TreeNode,
+  type TreeNode,
 } from '@codecity/city';
 import './NodeIcon.css';
 

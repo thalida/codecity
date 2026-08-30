@@ -3,10 +3,9 @@
 // Single-branch invariant: one chain from the root is exposed at a time, so
 // expanding a dir closes every other branch.
 
-import { DirNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
+import { type DirNode, type Manifest, NodeKind, type TreeNode } from '@codecity/city';
 import './TreeTab.css';
-import { effect, useComputed } from '@preact/signals';
-import type { ReadonlySignal, Signal } from '@preact/signals';
+import { effect, useComputed, type ReadonlySignal, type Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';

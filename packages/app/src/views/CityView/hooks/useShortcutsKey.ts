@@ -3,7 +3,7 @@
 // easy to miss, so this is how it is realistically reached.
 
 import { useEffect } from 'preact/hooks';
-import { openShortcuts, OVERLAY_OPEN } from '@/views/CityView/chrome';
+import { openShortcuts, OVERLAY_OPEN } from '@/views/CityView/state/modals';
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants/keyboard';
 
 export function useShortcutsKey(): void {

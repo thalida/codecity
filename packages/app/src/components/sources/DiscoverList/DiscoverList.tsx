@@ -3,7 +3,7 @@
 // stars or timings, which would rot or reopen a third-party dependency, and no
 // "Featured" note, since what a row can usefully say is whether you can see it.
 import { ACTIVE_SOURCE } from '@/views/HomeView/backdrop';
-import { useDiscover } from '@/views/HomeView/discover';
+import { useDiscover } from '@/api/reads';
 import {} from '@/state/source';
 import { sameSourceIdentity } from '@codecity/city';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';

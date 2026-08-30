@@ -10,8 +10,10 @@ import {
   VIDEO_EXTS,
   isDataBuilding,
   ContentPendingError,
+  type FileNode,
+  type SourceRef,
+  nodeUrl,
 } from '@codecity/city';
-import type { FileNode, SourceRef } from '@codecity/city';
 import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
@@ -43,11 +45,10 @@ import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/panes/PathBreadcrumbs/PathBreadcrumbs';
-import { nodeUrl } from '@codecity/city';
 import { formatBytes } from '@/utils/format';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
-import { API } from '@/apiClient';
+import { API } from '@/api/client';
 
 // In sync with MAX_FILE_BYTES in the API, so anything it will serve, this will
 // render. Past that the server rejects the fetch and the error state shows it.

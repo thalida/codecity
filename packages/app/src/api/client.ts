@@ -1,5 +1,5 @@
 import { createClient } from '@codecity/city';
-// apiClient.ts — the app's one client. Every backend call in the app goes
+// api/client.ts — the app's one client. Every backend call in the app goes
 // through it, and the code behind it lives in @codecity/city, so the repo has a
 // single place that knows the wire format.
 //

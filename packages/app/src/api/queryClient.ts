@@ -1,4 +1,4 @@
-// state/queryClient.ts — the cache for what the SERVER tells us about itself.
+// api/queryClient.ts — the cache for what the SERVER tells us about itself.
 //
 // Server state, not UI state: signals hold what this app decides, this holds
 // what it was told. The manifest is neither — it is the city's, and it streams.

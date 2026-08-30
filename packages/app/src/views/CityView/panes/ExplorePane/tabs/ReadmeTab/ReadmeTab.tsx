@@ -2,8 +2,14 @@
 // manifest's readmePath and renders it as markdown, with the empty states
 // around it. No <Pane> wrapper; the pane owns that.
 
-import { sourceOf } from '@codecity/city';
-import type { DirNode, Manifest, SourceRef } from '@codecity/city';
+import {
+  sourceOf,
+  type DirNode,
+  type Manifest,
+  type SourceRef,
+  resolveReadmeAssetUrl,
+  rewriteHtmlImageUrls,
+} from '@codecity/city';
 import './ReadmeTab.css';
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -12,8 +18,7 @@ import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { useScrub } from '@/views/CityView/hooks/useScrub';
-import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@codecity/city';
-import { API } from '@/apiClient';
+import { API } from '@/api/client';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
  *  instead of 404ing. The href is mutated on the token, so marked escapes. */

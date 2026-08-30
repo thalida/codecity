@@ -3,8 +3,7 @@
 // grows, and every pose reads ?elev=&az=&dist= overrides so a shot can be dialled
 // in live before the numbers are baked in. Debug-only.
 
-import { BACKDROP_CAMERA, DirNode, Manifest, NodeKind } from '@codecity/city';
-import type { City } from '@codecity/city';
+import { BACKDROP_CAMERA, type DirNode, type Manifest, NodeKind, type City } from '@codecity/city';
 import { loadTimelineScene } from '@/views/CityView/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the city to it.

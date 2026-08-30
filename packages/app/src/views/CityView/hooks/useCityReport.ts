@@ -8,13 +8,13 @@ import { useCity, useCityStatus } from '@codecity/city/preact';
 import { srcKind } from '@codecity/city';
 
 import { attachSettingsReactions } from '@/state/settings/reactions';
+import { createBuildReport } from '@/views/CityView/state/readout';
 import {
-  createBuildReport,
   createOverlayDriver,
   PENDING_SOURCE_LABEL,
   type LoadingSource,
-} from '@/views/CityView/chrome';
-import type { UrlSource } from '@/router/useUrlSource';
+} from '@/views/CityView/state/overlay';
+import type { UrlSource } from '@/router/cityUrl';
 
 export function useCityReport(source: UrlSource | null): void {
   const city = useCity();

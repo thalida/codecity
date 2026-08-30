@@ -2,11 +2,11 @@
 // resolved repo. It tracks no url changes itself: the parent re-keys it per url,
 // and that remount is what stops a previous repo's pick leaking into the next.
 // A lookup failure goes to onError, since it means the URL is bad, not the branch.
-import { ScanError, ScanErrorCode } from '@codecity/city';
+import { ScanError, type ScanErrorCode } from '@codecity/city';
 import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
 import { LoaderCircle } from 'lucide-preact';
-import { API } from '@/apiClient';
+import { API } from '@/api/client';
 
 export interface BranchSelectProps {
   url: string; // a resolvable git URL, or '' to stay idle

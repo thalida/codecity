@@ -1,7 +1,7 @@
 // views/CityView/SelectionAnnouncer/SelectionAnnouncer.tsx — a visually-hidden
 // live region speaking the city selection to screen readers, since the canvas is
 // a graphic and cannot announce its own (WCAG 4.1.3).
-import { NodeKind, PickTarget } from '@codecity/city';
+import { NodeKind, type PickTarget } from '@codecity/city';
 import { useCity, useCitySelection } from '@codecity/city/preact';
 
 function describe(sel: PickTarget | null): string {
@@ -23,7 +23,6 @@ export function SelectionAnnouncer() {
   const selection = useCitySelection();
   // Nothing to announce before there is a city to select in. Re-resolving the
   // same selection across a rebuild produces the same string, and an unchanged
-  // aria-live region does not re-announce.
   const message = city ? describe(selection) : '';
   return (
     <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">

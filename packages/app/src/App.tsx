@@ -11,8 +11,8 @@ import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
 import { SOURCE_ERROR } from '@/state/source';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@/state/queryClient';
-import { useSourceUrl } from '@/router/useSourceUrl';
+import { queryClient } from '@/api/queryClient';
+import { usePublishSourceToUrl } from '@/router/cityUrl';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
@@ -29,7 +29,7 @@ export function App() {
 function Routes() {
   // The open project, reflected into the URL. Mounted, not a module effect: it
   // navigates, and a navigation on import fires on any import reaching it.
-  useSourceUrl();
+  usePublishSourceToUrl();
 
   // Before anything that reads the URL, so back/forward is never missed.
   useEffect(() => attachRouteHistory(), []);

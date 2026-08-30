@@ -6,7 +6,7 @@ import type { City } from '@codecity/city';
 
 import { CURRENT_SOURCE } from '@/state/source';
 import { activeExcludePathsFor } from '@/state/excludes';
-import { failHostWork } from '@/views/CityView/chrome';
+import { failHostWork } from '@/views/CityView/state/readout';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

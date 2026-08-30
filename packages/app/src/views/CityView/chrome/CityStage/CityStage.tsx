@@ -5,7 +5,7 @@
 import './CityStage.css';
 import { useEffect, useMemo } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
-import type { City as CityInstance, CityViewState } from '@codecity/city';
+import { type City as CityInstance, type CityViewState, ScanError } from '@codecity/city';
 import { City as CityCanvas } from '@codecity/city/preact';
 
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
@@ -14,14 +14,13 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { useCityReport } from '@/views/CityView/hooks/useCityReport';
-import { cityKeyboardEnabled } from '@/views/CityView/commands';
-import { useCityChrome } from '@/views/CityView/chrome';
+import { cityKeyboardEnabled } from '@/views/CityView/state/commands';
+import { useCityChrome } from '@/views/CityView/state/sidebar';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
-import { useUrlSource } from '@/router/useUrlSource';
+import { useCityUrl } from '@/router/cityUrl';
 import { activeExcludePathsFor } from '@/state/excludes';
 import { commitSource, SOURCE_ERROR } from '@/state/source';
-import { ScanError } from '@codecity/city';
 
 export function CityStage({
   city,
@@ -37,7 +36,7 @@ export function CityStage({
   // Straight off the URL, as values: a ?sel= write leaves src and branch alone,
   // so the city is never re-asked for the project it is already showing.
   const chrome = useCityChrome();
-  const source = useUrlSource();
+  const { source } = useCityUrl();
   // Everything this app says ABOUT the city it is showing.
   useCityReport(source);
   const exclude = useComputed(() => (source ? activeExcludePathsFor(source.src) : undefined)).value;

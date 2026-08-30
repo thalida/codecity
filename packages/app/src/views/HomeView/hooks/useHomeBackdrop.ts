@@ -6,15 +6,19 @@
 // It chooses; it does not paint. The manifest it settles on is what <City>
 // gets as a prop, so there is no city here to reach into and no way for a
 
-import { ScanPhase } from '@codecity/city';
-import type { Manifest } from '@codecity/city';
+import {
+  ScanPhase,
+  type Manifest,
+  identityBranch,
+  resolveBranch,
+  sameSourceIdentity,
+} from '@codecity/city';
 import { useEffect, useState } from 'preact/hooks';
-import { useServerConfig } from '@/state/server';
+import { useServerConfig } from '@/api/reads';
 import { RECENTS } from '@/state/recents';
 import { CURRENT_SOURCE } from '@/state/source';
 import { BACKDROP_CITY, BackdropKind } from '@/views/HomeView/backdrop';
-import { identityBranch, resolveBranch, sameSourceIdentity } from '@codecity/city';
-import { API } from '@/apiClient';
+import { API } from '@/api/client';
 
 interface Candidate {
   src: string;

@@ -2,25 +2,28 @@
 // is collapsed, its resize handle, and the bridge between the tree pane and the
 // picker.
 
-import { NodeKind, TreeNode, PickTarget } from '@codecity/city';
+import { NodeKind, type TreeNode, type PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
 import { useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { useCity } from '@codecity/city/preact';
+import { useCity, useCityManifest } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
-import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/views/CityView/chrome';
-import { useCityChrome } from '@/views/CityView/chrome';
+import {
+  ACTIVITY_BAR_TABS,
+  DEFAULT_SIDEBAR_TAB,
+  TabPlacement,
+  useCityChrome,
+  SidebarTab,
+} from '@/views/CityView/state/sidebar';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
 import { useScrub } from '@/views/CityView/hooks/useScrub';
-import { useCityManifest } from '@codecity/city/preact';
 import { CURRENT_SOURCE } from '@/state/source';
 import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
 import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { SidebarTab } from '@/views/CityView/chrome';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

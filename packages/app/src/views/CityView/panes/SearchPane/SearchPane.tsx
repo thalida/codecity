@@ -3,7 +3,13 @@
 // string; scoring favours earlier matches, prefixes and word boundaries. Cheap
 // enough to re-run over tens of thousands of paths on every keystroke.
 
-import { DirNode, FileNode, Manifest, NodeKind, TreeNode } from '@codecity/city';
+import {
+  type DirNode,
+  type FileNode,
+  type Manifest,
+  NodeKind,
+  type TreeNode,
+} from '@codecity/city';
 import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';

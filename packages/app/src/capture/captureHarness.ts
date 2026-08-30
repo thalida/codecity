@@ -3,10 +3,9 @@
 // <html data-cc-capture-ready="1"> for the screenshot script. Lazy-loaded only
 // when ?shot is present, so it never ships in a normal session.
 
-import type { City, Manifest } from '@codecity/city';
+import { type City, type Manifest, CityLifecycle } from '@codecity/city';
 
 import { isDebugMode } from '@/utils/debugMode';
-import { CityLifecycle } from '@codecity/city';
 
 import { SHOTS, type ShotOverrides } from './shots';
 

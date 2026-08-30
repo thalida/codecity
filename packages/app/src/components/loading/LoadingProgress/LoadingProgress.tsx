@@ -6,15 +6,15 @@
 import './LoadingProgress.css';
 import { BranchPill } from '@/components/sources/BranchPill/BranchPill';
 
-import { SourceKind } from '@codecity/city';
+import { type SourceKind } from '@codecity/city';
 import {
-  LoadingStep,
+  type LoadingStep,
   LoadingStepState,
   LOADING_STEPS,
   LOADING_STEP_LABELS,
   stepRuns,
-} from '@/constants/progress';
-import { PENDING_SOURCE_LABEL } from '@/views/CityView/chrome';
+} from '@/views/CityView/state/loading';
+import { PENDING_SOURCE_LABEL } from '@/views/CityView/state/overlay';
 
 export interface LoadingProgressProps {
   activeStep: LoadingStep;

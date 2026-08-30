@@ -1,10 +1,9 @@
 // state/settings/reactions.ts — the "rebuilding" flash on a Save the city
 // answers by refreshing materials rather than re-packing. See README.md.
 
-import { ChangeRoute } from '@codecity/city';
-import type { City } from '@codecity/city';
+import { ChangeRoute, type City } from '@codecity/city';
 
-import { HOST_WORK, beginHostWork, endHostWork } from '@/views/CityView/chrome';
+import { HOST_WORK, beginHostWork, endHostWork } from '@/views/CityView/state/readout';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;

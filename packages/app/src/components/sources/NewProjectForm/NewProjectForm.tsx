@@ -6,19 +6,19 @@
 // Submits on Enter (a real <form>) or the split button, whose menu carries the
 // fresh-scan variant: skipping the cache is a way of opening, not a setting.
 
-import { ScanErrorCode } from '@codecity/city';
-import './NewProjectForm.css';
-import { useEffect, useState } from 'preact/hooks';
-import { DatabaseZap } from 'lucide-preact';
-import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
-import { SplitButton } from '@/components/buttons/SplitButton/SplitButton';
 import {
+  type ScanErrorCode,
   srcKind,
   SourceKind,
   validateGitUrl,
   looksResolvable,
   looksLikePath,
 } from '@codecity/city';
+import './NewProjectForm.css';
+import { useEffect, useState } from 'preact/hooks';
+import { DatabaseZap } from 'lucide-preact';
+import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
+import { SplitButton } from '@/components/buttons/SplitButton/SplitButton';
 import {
   UnreachableSource,
   NoticeReason,

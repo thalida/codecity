@@ -3,8 +3,7 @@
 // from its default, so a fresh install holds no entries at all and a value put
 // back to its default takes its own entry with it.
 
-import { signal, effect } from '@preact/signals';
-import type { Signal } from '@preact/signals';
+import { signal, effect, type Signal } from '@preact/signals';
 import { STORAGE_PREFIX } from '@/constants/storage';
 import { deepEqual, deepClone } from '@/state/deep';
 

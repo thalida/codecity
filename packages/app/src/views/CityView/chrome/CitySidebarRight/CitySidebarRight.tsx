@@ -6,32 +6,31 @@ import {
   ROOT_PATH,
   findNodeByPath,
   sourceOf,
-  CommitEntry,
-  DirNode,
-  FileNode,
-  Manifest,
+  type CommitEntry,
+  type DirNode,
+  type FileNode,
+  type Manifest,
   NodeKind,
-  PickTarget,
+  type PickTarget,
+  type City,
 } from '@codecity/city';
-import { useSourceInfo } from '@/hooks/useSourceInfo';
+import { useSourceInfo } from '@/views/CityView/hooks/useSourceInfo';
 import './CitySidebarRight.css';
 import { useComputed, useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { useCity } from '@codecity/city/preact';
-import type { City } from '@codecity/city';
+import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';
 import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
-import { useCityManifest, useCityTimeline } from '@codecity/city/preact';
 import { useScrub } from '@/views/CityView/hooks/useScrub';
 import { addExclude } from '@/state/excludes';
-import { setUrlTimelineMode } from '@/router/useUrlViewState';
-import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
-import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
-import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
-import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
-import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
+import { setUrlTimelineMode } from '@/router/cityUrl';
+import {
+  FilePreviewPane,
+  type FilePreviewPaneState,
+} from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
+import { CommitPane, type CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
+import { StreetPane, type StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { useCityChrome } from '@/views/CityView/chrome';
+import { useCityChrome } from '@/views/CityView/state/sidebar';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

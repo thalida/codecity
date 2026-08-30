@@ -6,7 +6,8 @@
 import './CityView.css';
 import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider } from '@/views/CityView/chrome';
+import { CityChromeProvider } from '@/views/CityView/state/sidebar';
+import { LOADING_CANCEL } from '@/views/CityView/state/overlay';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
 
@@ -22,17 +23,15 @@ import { useShortcutsKey } from '@/views/CityView/hooks/useShortcutsKey';
 import { useDocumentTitle } from '@/views/CityView/hooks/useDocumentTitle';
 import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
 import { refreshCurrentSource } from '@/views/CityView/hooks/useManifestSource';
-import { useUrlViewState } from '@/router/useUrlViewState';
+import { useCityUrl, clearSourceUrl } from '@/router/cityUrl';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { LOADING_CANCEL } from '@/views/CityView/chrome';
 import { CURRENT_SOURCE } from '@/state/source';
-import { clearSourceUrl } from '@/router/useSourceUrl';
 import {
   runCollisionCheck,
   runStemDiagnostic,
   runTreeGroundingCheck,
-} from '@/views/CityView/commands';
+} from '@/views/CityView/state/commands';
 
 export function CityView() {
   // Held here rather than in a module slot, which is what lets a second city
@@ -40,7 +39,7 @@ export function CityView() {
   const [city, setCity] = useState<City | null>(null);
   // THIS city's view, and this view's: reflecting on the landing would write a
   // selection onto `/`. A prop in, a callback out, no binding to mount.
-  const [viewState, onViewStateChange] = useUrlViewState();
+  const { viewState, onViewStateChange } = useCityUrl();
 
   return (
     <CityProvider city={city}>

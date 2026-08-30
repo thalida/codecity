@@ -1,10 +1,8 @@
-// constants/progress.ts — the vocabulary of one load, at two grains: the rows
+// views/CityView/state/loading.ts — the vocabulary of one load, at two grains: the rows
 // the overlay advances through, and the sub-stages that run inside its last row
 // once the stream has handed over to the build.
 
-import { CityPhase, TimelineStage, BuildStage } from '@codecity/city';
-import type { CityStatus } from '@codecity/city';
-import { SourceKind } from '@codecity/city';
+import { CityPhase, TimelineStage, BuildStage, type CityStatus, SourceKind } from '@codecity/city';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 

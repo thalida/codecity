@@ -3,7 +3,7 @@
 // repo you have open: which one it is, what you can do with its address, and
 // how fresh it is. Two clusters, each outlined: see .chrome-cluster.
 
-import { useSourceInfo } from '@/hooks/useSourceInfo';
+import { useSourceInfo } from '@/views/CityView/hooks/useSourceInfo';
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
 

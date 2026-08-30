@@ -2,7 +2,14 @@
 // server-computed leaders in manifest.stats. This file decides what to show and
 // OverviewTab renders it; landmark facts carry the key to fly the camera.
 
-import { CommitLeader, DirLeader, DirNode, FileLeader, Manifest, NodeKind } from '@codecity/city';
+import {
+  type CommitLeader,
+  type DirLeader,
+  type DirNode,
+  type FileLeader,
+  type Manifest,
+  NodeKind,
+} from '@codecity/city';
 import { formatShortDate } from '@/utils/dates';
 import { formatBytes, formatCount, pluralize } from '@/utils/format';
 

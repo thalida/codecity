@@ -7,7 +7,7 @@ import './RecentsList.css';
 import { useState } from 'preact/hooks';
 import { RECENTS, removeRecent } from '@/state/recents';
 import {} from '@/state/source';
-import { useServerConfig } from '@/state/server';
+import { useServerConfig } from '@/api/reads';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@codecity/city';
 import { RecentRow } from './RecentRow';
 import { cityHref } from '@/router/location';

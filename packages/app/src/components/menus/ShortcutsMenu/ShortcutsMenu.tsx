@@ -4,7 +4,7 @@
 import './ShortcutsMenu.css';
 import { Keyboard } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { SHORTCUTS_OPEN } from '@/views/CityView/chrome';
+import { SHORTCUTS_OPEN } from '@/views/CityView/state/modals';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { IS_TOUCH } from '@/state/viewport';
 

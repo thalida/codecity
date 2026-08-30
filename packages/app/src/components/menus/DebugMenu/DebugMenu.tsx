@@ -5,7 +5,7 @@
 
 import { Bug } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { DEBUG_OPEN } from '@/views/CityView/chrome';
+import { DEBUG_OPEN } from '@/views/CityView/state/modals';
 
 export interface DebugMenuProps {
   onRunCollisionCheck?: () => void;

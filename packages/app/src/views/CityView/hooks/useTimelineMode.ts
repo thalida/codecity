@@ -3,28 +3,30 @@
 // Every exit path only flips TIMELINE_MODE: the city layer (city/index.ts)
 // reacts to that and does the scene teardown itself.
 
-import { Manifest, TimelineProgress, TimelineStage } from '@codecity/city';
+import {
+  type Manifest,
+  type TimelineProgress,
+  TimelineStage,
+  srcKind,
+  type City,
+} from '@codecity/city';
 import { CURRENT_SOURCE, commitSource } from '@/state/source';
 import { RECENTS } from '@/state/recents';
 import { activeExcludePathsFor } from '@/state/excludes';
+import { failHostWork, beginHostWork, setRebuildDetail } from '@/views/CityView/state/readout';
 import {
-  failHostWork,
-  beginHostWork,
-  setRebuildDetail,
   showLoadingOverlay,
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
   PENDING_SOURCE_LABEL,
-} from '@/views/CityView/chrome';
+} from '@/views/CityView/state/overlay';
 import {
   LoadingStep,
   TIMELINE_LOADING_STEPS,
   stepForTimelineStage,
   transferTail,
-} from '@/constants/progress';
-import { srcKind } from '@codecity/city';
-import type { City } from '@codecity/city';
+} from '@/views/CityView/state/loading';
 import { setTimelineRefreshHandler } from '@/views/CityView/hooks/useManifestSource';
 
 /** How far the current stage has got. Written beside its own step row, and
