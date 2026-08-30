@@ -10,7 +10,6 @@ import {
   commitSource,
   activeExcludePathsFor,
 } from '@/state/stores/source';
-import { SCENE_HANDLE } from '@/state/stores/city';
 import {
   failHostWork,
   beginHostWork,
@@ -28,6 +27,7 @@ import {
   transferTail,
 } from '@/constants/progress';
 import { srcKind } from '@codecity/city';
+import type { City } from '@codecity/city';
 import { setTimelineRefreshHandler } from '@/hooks/useManifestSource';
 
 /** How far the current stage has got. Written beside its own step row, and
@@ -45,27 +45,26 @@ function timelineStageTail(p: TimelineProgress): string | null {
 
 /** Load a source in Timeline: its own call and manifest, committed the way Live
  *  commits its scan. `inPlace` is the refetch that holds the scrub. */
-export async function loadTimelineSource({
-  src,
-  branch,
-  commit,
-  inPlace = false,
-  noCache = false,
-  overlay = !inPlace,
-}: {
-  src: string;
-  branch?: string;
-  commit?: string;
-  inPlace?: boolean;
-  noCache?: boolean;
-  overlay?: boolean;
-}): Promise<void> {
+export async function loadTimelineSource(
+  handle: City,
+  {
+    src,
+    branch,
+    commit,
+    inPlace = false,
+    noCache = false,
+    overlay = !inPlace,
+  }: {
+    src: string;
+    branch?: string;
+    commit?: string;
+    inPlace?: boolean;
+    noCache?: boolean;
+    overlay?: boolean;
+  }
+): Promise<void> {
   let cancelled = false;
   let committed = false;
-
-  // Nothing to load into: this is a command about a city, and there is none.
-  const handle = SCENE_HANDLE.peek();
-  if (!handle) return;
 
   // Unoverlaid, the readout is the only progress surface: say so now, and the
   // stage tails land beside it. Overlaid, a cancel has nothing to unwind.
@@ -86,12 +85,8 @@ export async function loadTimelineSource({
 
   if (cancelled) return;
 
-  // One row per server stage, so a stall is attributable to the stage it is in
-  // and the rows below say what is still to come. The percent inside the
-  // Building row is the CITY's now (city.status.fraction), so the app no longer
-  // mirrors a plan of its own alongside it.
-  // The city reports the assembly like any other work it does; this app turns
-  // that into rows. Subscribed for the life of the load and dropped after.
+  // One row per server stage, so a stall is attributable to the stage it is in.
+  // The percent in the Building row is the CITY's (city.status.fraction).
   const stopProgress = handle.on('timeline:progress', ({ event: p }) => {
     if (p.stage === TimelineStage.Assemble) {
       // The server's wait, but the same wait as the build after it: one readout.
@@ -109,10 +104,8 @@ export async function loadTimelineSource({
   });
 
   try {
-    // The load is the CITY's: it holds the bundle, the replay and the scrub
-    // controller, and the order those go in — mode before the manifest,
-    // transparency after the pack, controller last — is a property of the
-    // pieces, not of this app. What this app keeps is the readout above it.
+    // The load is the CITY's: the order — mode before manifest, transparency
+    // after the pack, controller last — is the pieces', not this app's.
     const bundle = await handle.loadTimeline({
       src,
       branch,
@@ -146,6 +139,7 @@ export async function loadTimelineSource({
 
 /** Enter Timeline for the source already open. */
 export function loadTimelineScene(
+  handle: City,
   opts: {
     inPlace?: boolean;
     noCache?: boolean;
@@ -155,16 +149,14 @@ export function loadTimelineScene(
 ): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return Promise.resolve();
-  return loadTimelineSource({ src: cur.src, branch: cur.branch, ...opts });
+  return loadTimelineSource(handle, { src: cur.src, branch: cur.branch, ...opts });
 }
 
 // A refresh in Timeline → refetch the bundle, not a HEAD re-scan. A callback
 // because a direct import was a cycle; registered before the mode can turn on.
-setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }));
+setTimelineRefreshHandler((city, opts) => loadTimelineScene(city, { inPlace: true, ...opts }));
 
-// Re-pack from the warm bundle, holding SCRUB_POS, so a settings Save in
-// Timeline stays in Timeline instead of dropping to live HEAD.
-// Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
-export function teardownTimelineMode(): void {
-  SCENE_HANDLE.peek()?.timeline.exit();
+// Leaves the mode; the city reacts and does its own scene teardown.
+export function teardownTimelineMode(city: City): void {
+  city.timeline.exit();
 }

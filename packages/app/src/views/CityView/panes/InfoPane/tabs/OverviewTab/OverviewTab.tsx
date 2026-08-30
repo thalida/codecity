@@ -7,16 +7,17 @@ import './OverviewTab.css';
 import { useMemo } from 'preact/hooks';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
-import { focusPath, focusCommit } from '@/state/stores/city';
+import { useCityCommands } from '@/hooks/useCityCommands';
+import type { CityCommands } from '@/state/stores/city';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
 
 // The row carries a focus icon, so the whole row is that button: unlike a tree
 // or search row, whose point is the details it opens.
-function visit(landmark: LandmarkRef): void {
-  if (landmark.kind === NodeKind.Commit) focusCommit(landmark.id);
-  else focusPath(landmark.id);
+function visit(commands: CityCommands, landmark: LandmarkRef): void {
+  if (landmark.kind === NodeKind.Commit) commands.focusCommit(landmark.id);
+  else commands.focusPath(landmark.id);
 }
 
 /** Collapse a section's flat fact list into render groups: consecutive facts
@@ -50,6 +51,7 @@ function PrimaryValue({ fact }: { fact: AlmanacFact }) {
 /** One fact row. A landmark is the whole row as a button; a summary fact is a
  *  plain row with nothing to press. */
 function FactRow({ fact }: { fact: AlmanacFact }) {
+  const commands = useCityCommands();
   const landmark = fact.landmark;
   const inner = (
     <>
@@ -72,7 +74,7 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
       class="almanac-fact almanac-fact--nav"
       title={fact.tip}
       aria-label={`Focus ${fact.primary} in the world`}
-      onClick={() => visit(landmark)}
+      onClick={() => visit(commands, landmark)}
     >
       {inner}
     </button>

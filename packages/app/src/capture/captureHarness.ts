@@ -1,14 +1,11 @@
-// capture/captureHarness.ts — debug-only. With ?shot=<name>, wait for the
-// first render, pose the camera, let the tween settle, then mark
-// <html data-cc-capture-ready="1"> for the screenshot script. Lazy-loaded from
-// main.tsx only when ?shot is present, so it never ships in a normal session.
+// capture/captureHarness.ts — debug-only. With ?shot=<name>, pose the camera on
+// the city it is handed, let the tween settle, then mark
+// <html data-cc-capture-ready="1"> for the screenshot script. Lazy-loaded only
+// when ?shot is present, so it never ships in a normal session.
 
-import type { Manifest } from '@codecity/city';
-import { effect } from '@preact/signals';
+import type { City, Manifest } from '@codecity/city';
 
 import { isDebugMode } from '@/utils/debugMode';
-import { SCENE_HANDLE } from '@/state/stores/city';
-import { CITY_STATUS } from '@/state/stores/progress';
 import { CityLifecycle } from '@codecity/city';
 
 import { SHOTS, type ShotOverrides } from './shots';
@@ -20,7 +17,9 @@ const SETTLE_MS = 2200;
 const POSE_RETRY_MS = 400;
 const MAX_POSE_ATTEMPTS = 120;
 
-export function initCaptureHarness(): void {
+/** Pose one city for a screenshot. Called by the view that built it: a shot is
+ *  of a particular city, and this is a dev tool, not a second owner of one. */
+export function captureCity(city: City): void {
   const params = new URLSearchParams(window.location.search);
   const shot = params.get('shot');
   if (!shot || !isDebugMode()) return;
@@ -45,22 +44,17 @@ export function initCaptureHarness(): void {
   const overrides: ShotOverrides = { elev: num('elev'), az: num('az'), dist: num('dist') };
 
   let posed = false;
-  const stop = effect(() => {
-    const handle = SCENE_HANDLE.value;
-    const manifest = SCENE_HANDLE.value?.manifest as Manifest;
-    const status = CITY_STATUS.value;
+  const consider = (): void => {
     // On screen AND final: a shot of a city still growing trees is a shot of a
     // different city from the one it will be a second later.
-    if (posed || !handle || !manifest) return;
-    if (status.lifecycle !== CityLifecycle.Ready || status.fetching) return;
-    // A skeleton also reaches Idle, and framing on its root-street bbox locks
-    // onto a close-up. Reading anchors subscribes to bbox, so this re-fires.
-    if (handle.rig.captureAnchors().tallestHeight <= 0) return;
+    if (posed || !city.manifest) return;
+    if (city.status.lifecycle !== CityLifecycle.Ready || city.status.fetching) return;
+    // A skeleton also reaches Ready, and framing on its root-street bbox locks
+    // onto a close-up.
+    if (city.rig.captureAnchors().tallestHeight <= 0) return;
     posed = true;
-    const h = handle; // non-null past the guard
+    const h = city;
 
-    // Pose OUTSIDE the tracking scope: it writes CAMERA, and a signal write in
-    // the sync scope would cycle. A shot returns false until its target lands.
     queueMicrotask(() => {
       stop();
       let attempts = 0;
@@ -82,5 +76,8 @@ export function initCaptureHarness(): void {
       };
       tryPose();
     });
-  });
+  };
+
+  const stop = city.onStatus(consider);
+  consider();
 }

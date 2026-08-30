@@ -11,7 +11,7 @@ import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { goToPath, hoverPath, clearHover } from '@/state/stores/city';
+import { useCityCommands } from '@/hooks/useCityCommands';
 import { useScrub } from '@/hooks/useScrub';
 import { useCityManifest } from '@codecity/city/preact';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -86,6 +86,7 @@ export function CitySidebarLeft() {
   // The city this view is about. Nothing here reads a module slot: a second
   // city on the page gets a second sidebar, pointed at its own.
   const city = useCity();
+  const { goToPath, hoverPath, clearHover } = useCityCommands();
   // What the panes render: the live tree, or the union filtered to the scrub.
   const scrub = useScrub();
   const manifest = useCityManifest();

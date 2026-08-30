@@ -226,7 +226,7 @@ export function TimelineScrubber() {
             type="button"
             class="timeline-scrubber-commit"
             title="Show this commit's details"
-            onClick={() => showCommit(commit.sha)}
+            onClick={() => showCommit(city, commit.sha)}
           >
             <span class="timeline-scrubber-sha">{commit.sha.slice(0, 7)}</span>
             <span class="timeline-scrubber-subject">{commit.subject || '(no subject)'}</span>

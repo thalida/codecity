@@ -4,13 +4,12 @@
 // in live before the numbers are baked in. Debug-only.
 
 import { BACKDROP_CAMERA, DirNode, Manifest, NodeKind } from '@codecity/city';
-import type { SceneHandle } from '@/state/stores/city';
+import type { City } from '@codecity/city';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
-/** Set the default-view angle (degrees) on the city being shot; the rig
- *  re-frames the whole city to it. Elevation is height above the horizon,
- *  azimuth the swing around the gem. */
-function angle(handle: SceneHandle, elevation: number, azimuth: number): void {
+/** Set the default-view angle (degrees); the rig re-frames the city to it.
+ *  Elevation is height above the horizon, azimuth the swing around the gem. */
+function angle(handle: City, elevation: number, azimuth: number): void {
   handle.updateSettings({ CAMERA: { ELEVATION: elevation, AZIMUTH: azimuth } });
 }
 
@@ -23,15 +22,11 @@ export interface ShotOverrides {
 
 /** Pose the camera for one shot. false when its target isn't ready yet, which
  *  is the harness's cue to retry. */
-export type ShotPose = (
-  handle: SceneHandle,
-  manifest: Manifest,
-  o: ShotOverrides
-) => boolean | void;
+export type ShotPose = (handle: City, manifest: Manifest, o: ShotOverrides) => boolean | void;
 
 /** A placed tree's bounds. A named commit often has no tree, so this walks
  *  commits most-authors-first: the one it lands on carries the most orbs. */
-function placedTree(handle: SceneHandle, manifest: Manifest) {
+function placedTree(handle: City, manifest: Manifest) {
   const byAuthors = [...manifest.commits].sort((x, y) => y.authors.length - x.authors.length);
   for (const c of byAuthors) {
     const tree = handle.rig.treeAnchor(c.sha);
@@ -101,9 +96,8 @@ export const SHOTS: Record<string, ShotPose> = {
   hero: (handle) => {
     if (!handle.rig.captureAnchors().gem) return false; // no city yet
     handle.updateSettings({ CAMERA: BACKDROP_CAMERA });
-    // Still: a capture wants the frame the turntable opens on, not wherever a
-    // spin happened to be when the shutter fell. Not a settings write — the
-    // reader never asked for a still wallpaper, this one frame did.
+    // A capture wants the frame the turntable opens on, not wherever a spin
+    // happened to be. Not a settings write: this one frame asked, not the reader.
     handle.rig.setAutoRotate(false);
   },
 
@@ -113,7 +107,7 @@ export const SHOTS: Record<string, ShotPose> = {
     if (!handle.timeline.mode) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
-        void loadTimelineScene();
+        void loadTimelineScene(handle);
       }
       return false;
     }

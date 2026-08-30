@@ -1,10 +1,10 @@
 // views/CityView — what `/city` renders: the city, flyable and pickable in the
-// center pane, and the chrome that belongs to it. Everything city-shaped mounts
-// here rather than at the root: the URL⇄view binding, the selection announcer,
-// and the syntax theme the file preview reads.
+// center pane, and the chrome that belongs to it. Two components, because one
+// cannot both provide a city and read one: the outer holds it, the inner is
+// inside the provider and reads it through hooks like any other chrome.
 
 import './CityView.css';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
@@ -19,32 +19,57 @@ import { HljsThemeLink } from '@/views/CityView/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useCityCommands } from '@/hooks/useCityCommands';
 import { refreshCurrentSource } from '@/hooks/useManifestSource';
 import { useUrlViewState } from '@/router/useUrlViewState';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 import { LOADING_CANCEL } from '@/state/stores/progress';
 import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
-import {
-  clearSelection,
-  runCollisionCheck,
-  runStemDiagnostic,
-  runTreeGroundingCheck,
-} from '@/state/stores/city';
-
-/** The tab's name, from inside the provider: it is the city's, not the app's. */
-function DocumentTitle() {
-  useDocumentTitle();
-  return null;
-}
+import { runCollisionCheck, runStemDiagnostic, runTreeGroundingCheck } from '@/state/stores/city';
 
 export function CityView() {
+  // Held here rather than in a module slot, which is what lets a second city
+  // exist with chrome of its own.
   const [city, setCity] = useState<City | null>(null);
+  // THIS city's view, and this view's: reflecting on the landing would write a
+  // selection onto `/`. A prop in, a callback out, no binding to mount.
+  const [viewState, onViewStateChange] = useUrlViewState();
+
+  return (
+    <CityProvider city={city}>
+      <CityChrome city={city} />
+      <main id="city-body" tabIndex={-1}>
+        <CitySidebarLeft />
+        <CityStage
+          city={city}
+          onReady={setCity}
+          viewState={viewState}
+          onViewStateChange={onViewStateChange}
+        />
+        <CitySidebarRight />
+      </main>
+      <HljsThemeLink />
+      <SelectionAnnouncer />
+    </CityProvider>
+  );
+}
+
+/** Everything around the stage. Inside the provider, so it asks the city the
+ *  same way every other pane does. */
+function CityChrome({ city }: { city: City | null }) {
+  const { clearSelection } = useCityCommands();
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();
-  // THIS city's view, and this view's: reflecting on the landing would write
-  // a selection onto `/`. A prop in, a callback out, no binding to mount.
-  const [viewState, onViewStateChange] = useUrlViewState();
+  // The tab is named after the city, not the app.
+  useDocumentTitle();
+
+  // Debug-only README screenshots. Imported only when asked for, so the harness
+  // never ships in a normal session, and handed THIS city rather than finding one.
+  useEffect(() => {
+    if (!city || !new URLSearchParams(window.location.search).has('shot')) return;
+    void import('@/capture/captureHarness').then((m) => m.captureCity(city));
+  }, [city]);
 
   // A newly loaded source has nothing selected in it yet.
   useSignalEffect(() => {
@@ -63,10 +88,7 @@ export function CityView() {
   };
 
   return (
-    // Everything below reads THIS city. Held here rather than in a module slot,
-    // which is what lets a second one exist with chrome of its own.
-    <CityProvider city={city}>
-      <DocumentTitle />
+    <>
       <a class="skip-link" href="#city-body">
         Skip to content
       </a>
@@ -76,26 +98,14 @@ export function CityView() {
         onSwitchSource={() => navigate(ROUTES.HOME)}
         onRefresh={(skipCache) => refreshCurrentSource(city, skipCache)}
       />
-      <main id="city-body" tabIndex={-1}>
-        <CitySidebarLeft />
-        <CityStage
-          city={city}
-          onReady={setCity}
-          viewState={viewState}
-          onViewStateChange={onViewStateChange}
-        />
-        <CitySidebarRight />
-      </main>
       <CityFooter
-        onRunCollisionCheck={runCollisionCheck}
-        onRunStemDiagnostic={runStemDiagnostic}
-        onRunTreeGroundingCheck={runTreeGroundingCheck}
+        onRunCollisionCheck={() => runCollisionCheck(city)}
+        onRunStemDiagnostic={() => runStemDiagnostic(city)}
+        onRunTreeGroundingCheck={() => runTreeGroundingCheck(city)}
       />
       {/* Belongs to this route: a load started from the landing shows its
           progress there, in the card it was started from. */}
       <LoadingOverlay onCancel={onCancelLoad} />
-      <HljsThemeLink />
-      <SelectionAnnouncer />
-    </CityProvider>
+    </>
   );
 }

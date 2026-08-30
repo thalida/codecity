@@ -5,7 +5,7 @@
 import './CityStage.css';
 import { useEffect, useMemo } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
-import type { City as CityInstance, CityViewState, Manifest } from '@codecity/city';
+import type { City as CityInstance, CityViewState } from '@codecity/city';
 import { CityLifecycle } from '@codecity/city';
 import { City as CityCanvas } from '@codecity/city/preact';
 
@@ -15,7 +15,7 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { attachCity } from '@/state/stores/attachCity';
-import { cityKeyboardEnabled, revealCityChrome, SCENE_HANDLE } from '@/state/stores/city';
+import { cityKeyboardEnabled, revealCityChrome } from '@/state/stores/city';
 import { openSelectionPane } from '@/state/stores/chrome';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
@@ -45,13 +45,6 @@ export function CityStage({
   ).value;
   // Everything this app keeps about the city it is showing, in one call.
   useEffect(() => (city ? attachCity(city) : undefined), [city]);
-
-  // The last slot standing: the timeline loader and capture harness still reach
-  // for it. Cleared by the effect that set it, not by whoever tears the city down.
-  useEffect(() => {
-    SCENE_HANDLE.value = city;
-    return () => void (SCENE_HANDLE.value = null);
-  }, [city]);
 
   // The card the cursor drags around. The city says what is under the pointer;
   // drawing something about it is this view's decision.

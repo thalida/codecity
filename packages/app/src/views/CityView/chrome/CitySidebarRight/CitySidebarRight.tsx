@@ -19,7 +19,7 @@ import { useComputed, useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import type { City } from '@codecity/city';
-import { clearSelection, focusPath, focusCommit } from '@/state/stores/city';
+import { useCityCommands } from '@/hooks/useCityCommands';
 import { useCityManifest, useCityTimeline } from '@codecity/city/preact';
 import { useScrub } from '@/hooks/useScrub';
 import { addExclude } from '@/state/stores/source';
@@ -60,6 +60,7 @@ export function CitySidebarRight() {
   // The city this sidebar is about, and its selection as a signal: the panes
   // take signals so a scrub repaints a pane without re-rendering the sidebar.
   const city = useCity();
+  const { clearSelection, focusPath, focusCommit } = useCityCommands();
   const manifest = useCityManifest();
   const inTimeline = useCityTimeline().mode;
   const scrub = useScrub();

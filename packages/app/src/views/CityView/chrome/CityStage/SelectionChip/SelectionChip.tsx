@@ -7,7 +7,7 @@ import './SelectionChip.css';
 import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { useCitySelection } from '@codecity/city/preact';
-import { clearSelection } from '@/state/stores/city';
+import { useCityCommands } from '@/hooks/useCityCommands';
 import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 
@@ -33,6 +33,7 @@ function useChipSelection(): ChipSelection | null {
 
 export function SelectionChip() {
   const selection = useChipSelection();
+  const { clearSelection } = useCityCommands();
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
   const dismissed = useComputed(() => SELECTION_PANE_DISMISSED.value);
