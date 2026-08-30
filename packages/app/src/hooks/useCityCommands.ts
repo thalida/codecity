@@ -7,7 +7,7 @@ import { useMemo } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 
 import { cityCommands, type CityCommands } from '@/state/stores/city';
-import { useCityChrome } from '@/state/chromeContext';
+import { useCityChrome } from '@/state/stores/chrome';
 
 export function useCityCommands(): CityCommands {
   const city = useCity();

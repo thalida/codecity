@@ -6,7 +6,6 @@ import './CityStage.css';
 import { useEffect, useMemo } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
 import type { City as CityInstance, CityViewState } from '@codecity/city';
-import { CityLifecycle } from '@codecity/city';
 import { City as CityCanvas } from '@codecity/city/preact';
 
 import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
@@ -14,15 +13,14 @@ import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineTog
 import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
-import { attachCity } from '@/state/stores/attachCity';
+import { useCityReport } from '@/hooks/useCityReport';
 import { cityKeyboardEnabled } from '@/state/stores/city';
-import { useCityChrome } from '@/state/chromeContext';
+import { useCityChrome } from '@/state/stores/chrome';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import { useUrlSource } from '@/router/useUrlSource';
 import { activeExcludePathsFor, commitSource, SOURCE_ERROR } from '@/state/stores/source';
 import { ScanError } from '@codecity/city';
-import { CITY_STATUS } from '@/state/stores/progress';
 
 export function CityStage({
   city,
@@ -39,14 +37,13 @@ export function CityStage({
   // so the city is never re-asked for the project it is already showing.
   const chrome = useCityChrome();
   const source = useUrlSource();
+  // Everything this app says ABOUT the city it is showing.
+  useCityReport(source);
   const exclude = useComputed(() => (source ? activeExcludePathsFor(source.src) : undefined)).value;
   // Live updates are a reader setting, and zero seconds is off.
   const watchSeconds = useComputed(() =>
     LIVE_UPDATES_ACTIVE.value ? LIVE_UPDATES.value.POLL_SECONDS : undefined
   ).value;
-  // Everything this app keeps about the city it is showing, in one call.
-  useEffect(() => (city ? attachCity(city) : undefined), [city]);
-
   // The card the cursor drags around. The city says what is under the pointer;
   // drawing something about it is this view's decision.
   const tooltip = useMemo(() => createCityTooltip(), []);
@@ -91,12 +88,6 @@ export function CityStage({
             };
           }
           console.error('[codecity] could not load a city', error);
-          CITY_STATUS.value = {
-            ...CITY_STATUS.peek(),
-            lifecycle: CityLifecycle.Error,
-            fetching: false,
-            error,
-          };
         }}
       />
       <SelectionChip />

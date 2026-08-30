@@ -151,3 +151,22 @@ export * from './settings/fields/scene';
 export * from './settings/fields/scrubber';
 export * from './settings/fields/streets';
 export * from './settings/fields/trees';
+
+// The date/index mapping a scrub track is drawn on.
+export {
+  buildScrubberScale,
+  commitFraction,
+  indexToFraction,
+  indexToMs,
+  msToIndex,
+  snapToStop,
+  fractionToIndex,
+} from './timeline/scale';
+export type { ScrubberScale } from './timeline/scale';
+
+// What a scrub POSITION implies: which paths exist, the tree filtered to them,
+// and a folder's measures re-added at it.
+export { presentPaths, paneManifest, scrubbedDirFor } from './timeline/scrubbed';
+
+// README asset refs to URLs the browser can load.
+export { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from './client/readmeAssets';

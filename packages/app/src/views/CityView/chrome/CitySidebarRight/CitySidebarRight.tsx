@@ -31,7 +31,7 @@ import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPa
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { useCityChrome } from '@/state/chromeContext';
+import { useCityChrome } from '@/state/stores/chrome';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

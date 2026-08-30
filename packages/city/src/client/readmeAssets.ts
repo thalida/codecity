@@ -2,8 +2,8 @@
 // image path would resolve against the app origin and 404, so repo-relative
 // refs are rewritten through /api/file, against the README's own directory.
 
-import type { SourceRef } from '@codecity/city';
-import { API } from '@/apiClient';
+import type { SourceRef } from '../types/manifest';
+import type { CodecityClient } from './index';
 
 // Already addressable as-is: a scheme, a protocol-relative //host, or a bare
 // #anchor.
@@ -11,7 +11,12 @@ const _ABSOLUTE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 
 /** Absolute URLs pass through; repo-relative ones route through /api/file. A
  *  leading slash is repo-root-relative, which is this README's own directory. */
-export function resolveReadmeAssetUrl(source: SourceRef, href: string, readmePath: string): string {
+export function resolveReadmeAssetUrl(
+  client: CodecityClient,
+  source: SourceRef,
+  href: string,
+  readmePath: string
+): string {
   if (!href || _ABSOLUTE.test(href)) return href;
   const slash = readmePath.lastIndexOf('/');
   // Drop any ?query / #fragment (e.g. GitHub's #gh-dark-mode-only) — the
@@ -26,7 +31,7 @@ export function resolveReadmeAssetUrl(source: SourceRef, href: string, readmePat
     }
     segs.push(part);
   }
-  return API.fileUrl(source, segs.join('/'));
+  return client.fileUrl(source, segs.join('/'));
 }
 
 // Matches the src="…" / src='…' of a raw-HTML <img> tag. The leading whitespace
@@ -35,10 +40,15 @@ const _IMG_SRC = /(<img\b[^>]*?\ssrc\s*=\s*)(["'])(.*?)\2/gi;
 
 /** The same rewrite for raw-HTML <img> tags: marked emits those as `html`
  *  tokens, which the image-token hook never sees. Run it per html token. */
-export function rewriteHtmlImageUrls(source: SourceRef, html: string, readmePath: string): string {
+export function rewriteHtmlImageUrls(
+  client: CodecityClient,
+  source: SourceRef,
+  html: string,
+  readmePath: string
+): string {
   return html.replace(
     _IMG_SRC,
     (_full, prefix: string, quote: string, src: string) =>
-      `${prefix}${quote}${resolveReadmeAssetUrl(source, src, readmePath)}${quote}`
+      `${prefix}${quote}${resolveReadmeAssetUrl(client, source, src, readmePath)}${quote}`
   );
 }

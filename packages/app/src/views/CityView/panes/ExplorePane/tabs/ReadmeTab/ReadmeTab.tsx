@@ -12,10 +12,7 @@ import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { useScrub } from '@/hooks/useScrub';
-import {
-  resolveReadmeAssetUrl,
-  rewriteHtmlImageUrls,
-} from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/readmeAssets';
+import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@codecity/city';
 import { API } from '@/apiClient';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load
@@ -25,11 +22,11 @@ export function renderReadme(text: string, source: SourceRef, readmePath: string
   md.use({
     walkTokens(token) {
       if (token.type === 'image') {
-        token.href = resolveReadmeAssetUrl(source, token.href, readmePath);
+        token.href = resolveReadmeAssetUrl(API, source, token.href, readmePath);
       } else if (token.type === 'html') {
         // READMEs often use raw <img src="…"> (for width/align) rather than
         // markdown ![](…); those arrive as html tokens, not image tokens.
-        token.text = rewriteHtmlImageUrls(source, token.text, readmePath);
+        token.text = rewriteHtmlImageUrls(API, source, token.text, readmePath);
       }
     },
   });

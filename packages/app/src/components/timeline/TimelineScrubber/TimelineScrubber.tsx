@@ -9,7 +9,7 @@ import { useCity, useCityTimeline } from '@codecity/city/preact';
 import { ACCENT_THEME } from '@/state/settings/values/theme';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/city';
-import { useCityChrome } from '@/state/chromeContext';
+import { useCityChrome } from '@/state/stores/chrome';
 import {
   buildScrubberScale,
   commitFraction,
@@ -17,7 +17,7 @@ import {
   indexToMs,
   fractionToIndex,
   snapToStop,
-} from './scrubberScale';
+} from '@codecity/city';
 
 export function TimelineScrubber() {
   // The reports drive the render; the engine takes the drag.

@@ -1,14 +1,53 @@
-// state/chromeContext.tsx — the chrome AROUND one city: which left pane, whether
-// it is collapsed, whether the selection's details are put away. Per city: two
-// side by side each have their own, and a module signal would make one win.
+// state/stores/chrome.tsx — what the app chrome is showing.
+//
+// Two scopes, one topic. The modals are app-wide: one keyboard, one modal
+// layer. What surrounds a PARTICULAR city is per city, because two side by side
+// each have their own and a module signal would make one of them win.
 
 import { createContext, type ComponentChildren } from 'preact';
 import { useContext, useMemo } from 'preact/hooks';
-import { signal, type Signal } from '@preact/signals';
+import { signal, computed, type Signal } from '@preact/signals';
 
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { SidebarTab } from '@/types/ui';
 import { IS_PHONE } from '@/state/stores/viewport';
+import { ON_HOME } from '@/router/paths';
+
+// ── App-wide: the modals ─────────────────────────────────────────────
+
+/** Whether the keyboard/mouse shortcuts reference modal is open. */
+export const SHORTCUTS_OPEN = signal(false);
+
+/** Open the shortcuts modal (header `?` icon). */
+export function openShortcuts(): void {
+  SHORTCUTS_OPEN.value = true;
+}
+
+/** Close the shortcuts modal. */
+export function closeShortcuts(): void {
+  SHORTCUTS_OPEN.value = false;
+}
+
+/** Whether the developer-diagnostics modal is open. */
+export const DEBUG_OPEN = signal(false);
+
+/** Open the debug modal (header bug icon, flag-gated). */
+export function openDebug(): void {
+  DEBUG_OPEN.value = true;
+}
+
+/** Close the debug modal. */
+export function closeDebug(): void {
+  DEBUG_OPEN.value = false;
+}
+
+/** True when something else owns the keyboard: a modal, or the landing, whose
+ *  backdrop canvas would otherwise answer keystrokes meant for its form. */
+export const OVERLAY_OPEN = computed(
+  () => ON_HOME.value || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+);
+
+// ── Per city: the chrome around one ──────────────────────────────────
 
 export interface CityChromeState {
   tab: Signal<SidebarTab>;

@@ -6,7 +6,7 @@
 import './CityView.css';
 import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider } from '@/state/chromeContext';
+import { CityChromeProvider } from '@/state/stores/chrome';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
 

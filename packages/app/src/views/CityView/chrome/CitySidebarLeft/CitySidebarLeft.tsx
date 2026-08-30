@@ -9,7 +9,7 @@ import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
-import { useCityChrome } from '@/state/chromeContext';
+import { useCityChrome } from '@/state/stores/chrome';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { useCityCommands } from '@/hooks/useCityCommands';
 import { useScrub } from '@/hooks/useScrub';

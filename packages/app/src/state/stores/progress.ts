@@ -5,9 +5,9 @@
 // app's own: which rows THIS overlay lists, how they read, and the fact that a
 // source was asked for before the city had anything to say about it.
 
-import type { City, CityStatus } from '@codecity/city';
-import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
-import { signal, effect } from '@preact/signals';
+import type { CityStatus } from '@codecity/city';
+import { CityLifecycle, CityPhase } from '@codecity/city';
+import { signal } from '@preact/signals';
 import { SourceKind } from '@codecity/city';
 import {
   LoadingStep,
@@ -18,30 +18,12 @@ import {
 } from '@/constants/progress';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 
-// ── What the scene city is doing ─────────────────────────────────────
-
-/** The scene city's own status, mirrored onto a signal so the view layer can
- *  render off it. Empty before a city is mounted. attachCityStatus keeps it. */
-export const CITY_STATUS = signal<CityStatus>(EMPTY_CITY_STATUS);
-
 /** What THIS app asked for, which it knows before the city reports anything:
  *  a local path skips the rows a remote source runs, and the branch is in the
  *  header. Non-null while a load this app started is in flight. */
 export interface LoadingSource {
   kind: SourceKind;
   branch?: string;
-}
-
-export const LOADING_SOURCE = signal<LoadingSource | null>(null);
-
-/** Mirror one city's status onto CITY_STATUS. The SCENE city's only: the
- *  landing's wallpaper builds behind the page and must not move a readout that
- *  belongs to the project being read. Returns the unsubscribe. */
-export function attachCityStatus(city: Pick<City, 'status' | 'onStatus'>): () => void {
-  CITY_STATUS.value = city.status;
-  return city.onStatus((status) => {
-    CITY_STATUS.value = status;
-  });
 }
 
 // ── What the app adds to it ─────────────────────────────────────────
@@ -157,14 +139,10 @@ export function setLoadingStepTail(step: LoadingStep, tail: string | null): void
 
 // ── The Live driver ──────────────────────────────────────────────────
 
-export function attachOverlayDriver(): () => void {
-  return attachCityStatusReaction();
-}
-
-// The overlay's rows, driven by the one status the city reports. What this
-// reduces is presentation only — which rows this app lists, and how far down
-// them the load has got. What is HAPPENING is not derived here any more.
-function attachCityStatusReaction(): () => void {
+/** Drive the overlay's rows off one city's status. Presentation only: which
+ *  rows this app lists, and how far down them the load has got. Returns the
+ *  advance, called with the status and what THIS app asked for. */
+export function createOverlayDriver(): (status: CityStatus, asked: LoadingSource | null) => void {
   let overlayUp = false;
   // How far down the list this load has got. A row that lights up again after a
   // later one reads as the whole load starting over.
@@ -177,9 +155,7 @@ function attachCityStatusReaction(): () => void {
     setLoadingStep(step);
   };
 
-  return effect(() => {
-    const status = CITY_STATUS.value;
-    const asked = LOADING_SOURCE.value;
+  return (status: CityStatus, asked: LoadingSource | null) => {
     const hide = () => {
       if (overlayUp) hideLoadingOverlay();
       overlayUp = false;
@@ -220,7 +196,7 @@ function attachCityStatusReaction(): () => void {
       LoadingStep.Building,
       step === CityPhase.Building ? buildStageTail(status) : null
     );
-  });
+  };
 }
 
 // ── Where a build's own reports come in ──────────────────────────────
@@ -229,9 +205,9 @@ function attachCityStatusReaction(): () => void {
  *  finished city was built from, and when it finished. The SCENE city's only —
  *  a wallpaper's build is not this readout's business. Returns the unsubscribe.
  */
-export function attachBuildProgress(city: Pick<City, 'status' | 'onStatus'>): () => void {
-  let wasReady = city.status.lifecycle === CityLifecycle.Ready;
-  return city.onStatus((status) => {
+export function createBuildReport(initial: CityStatus): (status: CityStatus) => void {
+  let wasReady = initial.lifecycle === CityLifecycle.Ready;
+  return (status: CityStatus) => {
     const ready = status.lifecycle === CityLifecycle.Ready;
     if (ready && !wasReady) {
       LAST_UPDATED_AT.value = Date.now();
@@ -245,5 +221,5 @@ export function attachBuildProgress(city: Pick<City, 'status' | 'onStatus'>): ()
       console.error('[codecity] city build failed', status.error);
       REBUILD_DETAIL.value = null;
     }
-  });
+  };
 }

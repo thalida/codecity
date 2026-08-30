@@ -1,26 +1,16 @@
-// state/scrub.ts — what a scrub POSITION implies, as pure functions.
+// timeline/scrubbed.ts — what a scrub POSITION implies, as pure functions.
 //
-// The engine is the city's (a bundle is one repo's history, and the landing
-// mounts a second city showing a different one), and where the scrubber sits is
-// the city's answer. None of that is copied here. What is here is the
-// arithmetic the panes render off: which paths exist at this commit, the tree
-// filtered to them, and a folder's measures re-added from the per-blob numbers
-// the buildings use.
-//
-// Every function takes the timeline it is about. There is no ambient one.
+// Which paths exist at this commit, the tree filtered to them, and a folder's
+// measures re-added from the per-blob numbers the buildings use. Any host
+// listing a scrubbed repo needs these, so they are the package's rather than
+// something each one re-derives.
 
-import {
-  findNodeByPath,
-  ruinStateAt,
-  PathState,
-  entryAt,
-  lastModifiedIndexAt,
-  DirNode,
-  Manifest,
-  NodeKind,
-  TreeNode,
-} from '@codecity/city';
-import type { TimelineState, PathTimeline } from '@codecity/city';
+import { findNodeByPath } from '../utils/manifest';
+import { ruinStateAt, PathState, entryAt, lastModifiedIndexAt } from './replay';
+import type { DirNode, Manifest, TreeNode } from '../types/manifest';
+import { NodeKind } from '../types/manifest';
+import type { TimelineState } from './state';
+import type { PathTimeline } from './replay';
 
 // ── What that position implies ───────────────────────────────────────
 

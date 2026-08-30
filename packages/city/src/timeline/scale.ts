@@ -1,6 +1,6 @@
-import { parseDateMs } from '@codecity/city';
-// The scrubber's date/index mapping. Track position blends a commit's moment
-// with its ordinal, and dates parse through utils/dates, the same rule the
+import { parseDateMs } from '../utils/dates';
+// timeline/scale.ts — the date/index mapping a scrub track is drawn on. Track
+// position blends a commit's moment with its ordinal, and dates parse through
 // labels print by, so the handle's day is the day the axis names.
 
 export interface ScrubberScale {

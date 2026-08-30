@@ -5,7 +5,7 @@
 
 import type { City, FocusRef, FocusMode } from '@codecity/city';
 import { OVERLAY_OPEN } from '@/state/stores/chrome';
-import type { CityChromeState } from '@/state/chromeContext';
+import type { CityChromeState } from '@/state/stores/chrome';
 
 /** A focus asks to LOOK at the node, so the details get out of the way; a
  *  go-to names it, so the details are the answer. Both are screen decisions. */
