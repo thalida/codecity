@@ -4,10 +4,10 @@
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
+import { RECENTS, CURRENT_SOURCE } from '@/state/source';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
 import { setManifest } from '@/state/stores/manifest';
-import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
+import { RecentsList } from '@/features/home/components/sources/RecentsList/RecentsList';
 import { flush } from '../_helpers/preact';
 
 describe('RecentsList', () => {

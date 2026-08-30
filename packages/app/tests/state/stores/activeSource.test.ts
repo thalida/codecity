@@ -7,11 +7,11 @@ import {
   commitSource,
   clearSourceUrl,
   RECENTS,
-} from '@/state/stores/source';
+} from '@/state/source';
 import { sourceKey } from '@codecity/city';
 import { setManifest } from '@/state/stores/manifest';
 import { navigate, HREF, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {

@@ -4,10 +4,18 @@
 
 import { City, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { openShortcuts, closeShortcuts, SELECTION_PANE_DISMISSED } from '@/state/stores/chrome';
-import { SCENE_HANDLE, attachCityChrome, cityKeyboardEnabled } from '@/state/stores/city';
+import {
+  openShortcuts,
+  closeShortcuts,
+  SELECTION_PANE_DISMISSED,
+} from '@/features/city/state/modals';
+import {
+  SCENE_HANDLE,
+  attachCityChrome,
+  cityKeyboardEnabled,
+} from '@/features/settings/state/values/city';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
 // The two mocks below reach past the package's public surface on purpose, and
 // say so by path: they replace what jsdom has no implementation of (a WebGL

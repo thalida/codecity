@@ -4,7 +4,7 @@ import {
   extShareLabel,
   extTypeLabel,
   streetDateRange,
-} from '@/views/CityView/panes/StreetPane/streetStats';
+} from '@/features/city/components/StreetPane/streetStats';
 
 describe('extBarPct', () => {
   it('is 100 when one extension is all the files', () => {

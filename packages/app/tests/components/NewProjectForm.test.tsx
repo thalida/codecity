@@ -5,11 +5,11 @@ import { ScanError } from '@codecity/city';
 import type { BranchList } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
-import { API } from '@/apiClient';
-import { LOADING_SOURCE } from '@/state/stores/progress';
+import { NewProjectForm } from '@/features/home/components/sources/NewProjectForm/NewProjectForm';
+import { API } from '@/api/client';
+import { LOADING_SOURCE } from '@/features/city/state/overlay';
 import { flush, drainAsync } from '../_helpers/preact';
-import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/components/sources/NewProjectForm/NewProjectForm';
+import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/features/home/components/sources/NewProjectForm/NewProjectForm';
 
 // Label-independent: the source field's label switches on allowLocalRepos.
 const FIELD = 'input.form-input';

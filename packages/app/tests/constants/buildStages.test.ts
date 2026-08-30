@@ -2,7 +2,7 @@
 // counts against the plan THIS build runs — and this is the word beside it.
 
 import { describe, it, expect } from 'vitest';
-import { BuildStage, buildStageTail } from '@/constants/progress';
+import { BuildStage, buildStageTail } from '@/features/city/state/loading';
 import { EMPTY_CITY_STATUS, CityPhase, type CityStatus } from '@codecity/city';
 
 const building = (fraction: number | null, stage: BuildStage | null): CityStatus => ({

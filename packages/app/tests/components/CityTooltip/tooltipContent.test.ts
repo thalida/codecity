@@ -4,7 +4,7 @@ import {
   hoverTooltipContent,
   isDeletedTarget,
   middleTruncatePath,
-} from '@/components/CityTooltip/tooltipContent';
+} from '@/features/city/components/CityTooltip/tooltipContent';
 import { commits as buildCommits } from '@codecity/city/testing';
 
 // The formatter reads a handful of fields but the types want the whole shape,

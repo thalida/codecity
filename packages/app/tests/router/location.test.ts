@@ -12,7 +12,7 @@ import {
   hrefFor,
   attachRouteHistory,
 } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
 describe('router/location', () => {
   beforeEach(() => {

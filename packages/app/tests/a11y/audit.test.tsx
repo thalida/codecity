@@ -9,8 +9,8 @@ import { render } from 'preact';
 
 // HomeView's form asks the API for branches the moment it holds a remote URL,
 // and a live request rejecting mid-run lands in whichever test is up by then.
-vi.mock('@/apiClient', async (orig) => {
-  const mod = (await orig()) as typeof import('@/apiClient');
+vi.mock('@/api/client', async (orig) => {
+  const mod = (await orig()) as typeof import('@/api/client');
   return {
     API: { ...mod.API, fetchBranches: vi.fn(async () => ({ branches: [], default: null })) },
   };
@@ -18,21 +18,21 @@ vi.mock('@/apiClient', async (orig) => {
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import axe from 'axe-core';
-import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
-import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
-import { HomeView } from '@/views/HomeView/HomeView';
-import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
-import { ShortcutsMenu } from '@/components/menus/ShortcutsMenu/ShortcutsMenu';
-import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
-import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
-import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
-import { CityFooter } from '@/views/CityView/chrome/CityFooter/CityFooter';
+import { ControlsPane } from '@/features/city/components/ControlsPane/ControlsPane';
+import { DynamicSection } from '@/features/settings/components/DynamicSection/DynamicSection';
+import { BUILDINGS_SECTION } from '@/features/city/components/ControlsPane/sectionConfigs/Buildings';
+import { HomeView } from '@/features/home/HomeView';
+import { DebugMenu } from '@/features/city/components/DebugMenu/DebugMenu';
+import { ShortcutsMenu } from '@/features/city/components/ShortcutsMenu/ShortcutsMenu';
+import { AppearanceMenu } from '@/features/city/components/AppearanceMenu/AppearanceMenu';
+import { TreeTab } from '@/features/city/components/ExplorePane/tabs/TreeTab/TreeTab';
+import { CityHeader } from '@/features/city/components/CityHeader/CityHeader';
+import { CityFooter } from '@/features/city/components/CityFooter/CityFooter';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
-import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/state/stores/chrome';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverData';
+import { ROUTES } from '@/router/location';
+import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/features/city/state/modals';
+import { CURRENT_SOURCE } from '@/state/source';
+import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
 import { setManifest } from '@/state/stores/manifest';
 
 /** Enough of a loaded project for the chrome bars to render everything they

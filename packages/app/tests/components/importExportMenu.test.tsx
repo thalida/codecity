@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ImportExportMenu } from '@/components/menus/ImportExportMenu/ImportExportMenu';
+import { ImportExportMenu } from '@/features/city/components/ImportExportMenu/ImportExportMenu';
 import {
   settingSignal,
   _unregisterForTests,
   FieldKind,
   ChangeRoute,
   type FieldMap,
-} from '@/state/settings/schema';
-import { TransferFamily, type TransferGroup } from '@/state/settings/transfer';
-import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
+} from '@/features/settings/state/schema';
+import { TransferFamily, type TransferGroup } from '@/features/settings/state/transfer';
+import { CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/source';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 

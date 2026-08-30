@@ -7,7 +7,7 @@ import { City } from '@codecity/city';
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CURRENT_SOURCE } from '@/state/source';
 import { mkDir } from '@codecity/city/testing';
 
 // The two mocks below reach past the package's public surface on purpose, and

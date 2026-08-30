@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderReadme } from '@/views/CityView/panes/ExplorePane/tabs/ReadmeTab/ReadmeTab';
+import { renderReadme } from '@/features/city/components/ExplorePane/tabs/ReadmeTab/ReadmeTab';
 import { TEST_SOURCE } from '@codecity/city/testing';
 
 // A README is a file out of whatever repo was opened, and its HTML goes

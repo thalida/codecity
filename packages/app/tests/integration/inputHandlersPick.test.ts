@@ -13,10 +13,10 @@ import {
   SELECTION_PANE_DISMISSED,
   dismissSelectionPane,
   openSelectionPane,
-} from '@/state/stores/chrome';
+} from '@/features/city/state/modals';
 import { createEmitter } from '@codecity/city/testing';
 import { fakePicker } from '@codecity/city/testing';
-import { attachCityChrome } from '@/state/stores/city';
+import { attachCityChrome } from '@/features/settings/state/values/city';
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,

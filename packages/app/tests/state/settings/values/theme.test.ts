@@ -6,7 +6,7 @@ import {
   SURFACE_THEME_DEFAULT,
   ACCENT_PRESETS,
   SURFACE_PRESETS,
-} from '@/state/settings/values/theme';
+} from '@/features/settings/state/values/theme';
 
 afterEach(() => {
   ACCENT_THEME.value = ACCENT_THEME_DEFAULT;

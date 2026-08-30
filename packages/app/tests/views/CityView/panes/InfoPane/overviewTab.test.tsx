@@ -10,12 +10,12 @@ const { focusPath, focusCommit } = vi.hoisted(() => ({
   focusPath: vi.fn(),
   focusCommit: vi.fn(),
 }));
-vi.mock('@/state/stores/city', () => ({ focusPath, focusCommit }));
+vi.mock('@/features/settings/state/values/city', () => ({ focusPath, focusCommit }));
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).
 const treesState = vi.hoisted(() => ({ ENABLED: true }));
-vi.mock('@/state/settings/values/city', () => ({
+vi.mock('@/features/settings/state/values/city', () => ({
   CITY_STORES: {
     TREES: {
       get value() {
@@ -25,8 +25,8 @@ vi.mock('@/state/settings/values/city', () => ({
   },
 }));
 
-import { OverviewTab } from '@/views/CityView/panes/InfoPane/tabs/OverviewTab/OverviewTab';
-import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
+import { OverviewTab } from '@/features/city/components/InfoPane/tabs/OverviewTab/OverviewTab';
+import { InfoPane } from '@/features/city/components/InfoPane/InfoPane';
 import { commits as buildCommits } from '@codecity/city/testing';
 import { uniformFileStats } from '@codecity/city/testing';
 

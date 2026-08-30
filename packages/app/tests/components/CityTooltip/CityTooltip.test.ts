@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { createCityTooltip, type CityTooltip } from '@/components/CityTooltip/CityTooltip';
-import type { TooltipContent } from '@/components/CityTooltip/tooltipContent';
+import {
+  createCityTooltip,
+  type CityTooltip,
+} from '@/features/city/components/CityTooltip/CityTooltip';
+import type { TooltipContent } from '@/features/city/components/CityTooltip/tooltipContent';
 
 function content(partial: Partial<TooltipContent> = {}): TooltipContent {
   return { title: 'hello.ts', stats: [], deleted: false, ...partial };

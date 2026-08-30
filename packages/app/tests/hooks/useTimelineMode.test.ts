@@ -8,31 +8,13 @@ import {
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { signal } from '@preact/signals';
 
-import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
-import { EXCLUDES, addExclude, CURRENT_SOURCE } from '@/state/stores/source';
-import {
-  SCRUB_POS,
-  TIMELINE_BUNDLE,
-  TIMELINE_MODE,
-  beginTimelineMode,
-  resetTimelineMode,
-  setScrubPos,
-  setTimelineBundle,
-} from '@/state/stores/timeline';
-import { SCENE_HANDLE } from '@/state/stores/city';
-import { MANIFEST } from '@/state/stores/manifest';
-import {
-  HOST_WORK,
-  REBUILD_DETAIL,
-  LOADING_OVERLAY,
-  LOADING_CANCEL,
-  LOADING_SOURCE,
-} from '@/state/stores/progress';
-import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
-import { LIVE_UPDATES } from '@/state/settings/values/updates';
+import { loadTimelineScene, teardownTimelineMode } from '@/features/city/state/timeline';
+import { CURRENT_SOURCE } from '@/state/source';
+import { EXCLUDES, addExclude } from '@/state/excludes';
+import { HOST_WORK, REBUILD_DETAIL } from '@/features/city/state/readout';
+import { LOADING_OVERLAY, LOADING_CANCEL } from '@/features/city/state/overlay';
+import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/features/city/state/loading';
 import { createEmitter, EMPTY_MANIFEST } from '@codecity/city/testing';
-import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import { StubEventSource, installEventSource } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 
@@ -66,7 +48,13 @@ function fakeHandle() {
   // the whole of what this app is still responsible for. The emitter is real,
   // so a test can drive the progress the city would report during one.
   const events = createEmitter();
-  const loadTimeline = vi.fn(async () => BUNDLE);
+  // A real city INSTALLS what it loaded, as part of the load: the app never
+  // calls setBundle itself. A fake that only returns one would let a test pass
+  // against an app that had to install it by hand.
+  const loadTimeline = vi.fn(async () => {
+    handle.timeline.setBundle(BUNDLE);
+    return BUNDLE;
+  });
   const cancelTimelineLoad = vi.fn();
   const watchSource = vi.fn(() => () => {});
   const refreshSource = vi.fn(async () => {});
@@ -124,24 +112,24 @@ describe('loadTimelineScene', () => {
     // Published first: the app's timeline store is a view of THIS city's
     // engine, so state set before it exists lands on a detached one.
     f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     // Reset: SOURCE_INFO reads it, so a manifest left by a neighbour decides
     // whether this test throws.
-    MANIFEST.value = null;
-    resetTimelineMode();
-    setScrubPos(0);
-    setTimelineBundle(null);
+    f.handle.timeline.exit();
+    f.handle.timeline.setPosition(0);
+    f.handle.timeline.setBundle(null);
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     HOST_WORK.value = { busy: false, error: null };
     // Reset, not clear: clear drops the CALLS and keeps the implementation, so
     // a rejection staged by one case is still staged for the next.
     f.loadTimeline.mockReset();
-    f.loadTimeline.mockResolvedValue(BUNDLE);
+    f.loadTimeline.mockImplementation(async () => {
+      f.handle.timeline.setBundle(BUNDLE);
+      return BUNDLE;
+    });
   });
   afterEach(() => {
-    resetTimelineMode();
-    SCENE_HANDLE.value = null;
+    f.handle.timeline.exit();
   });
 
   // The load itself — the order of mode, pack, transparency and controller — is
@@ -149,13 +137,13 @@ describe('loadTimelineScene', () => {
   // What this app is responsible for is asking for the right thing, and what it
   // does with the answer.
   it('asks the city for the open source’s history, and shows what came back', async () => {
-    await loadTimelineScene();
+    await loadTimelineScene(f.handle as never);
 
     expect(f.loadTimeline).toHaveBeenCalledWith(
       expect.objectContaining({ src: 's', branch: undefined, exclude: expect.any(Array) })
     );
     // The bundle every pane reads, and the source it belongs to.
-    expect(TIMELINE_BUNDLE.value).toBe(BUNDLE);
+    expect(f.handle.timeline.bundle).toBe(BUNDLE);
 
     // Overlay held through the first painted frame, then hidden.
     await nextFrame();
@@ -170,7 +158,7 @@ describe('loadTimelineScene', () => {
           resolveFetch = resolve;
         })
     );
-    const entering = loadTimelineScene();
+    const entering = loadTimelineScene(f.handle as never);
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
@@ -209,7 +197,7 @@ describe('loadTimelineScene', () => {
         })
     );
 
-    const entering = loadTimelineScene();
+    const entering = loadTimelineScene(f.handle as never);
     await flush();
 
     onProgress({ stage: TimelineStage.Fetch, percent: 40 });
@@ -243,18 +231,18 @@ describe('loadTimelineScene', () => {
 
   it('no-ops without a current source', async () => {
     CURRENT_SOURCE.value = null;
-    await loadTimelineScene();
+    await loadTimelineScene(f.handle as never);
     expect(f.loadTimeline).not.toHaveBeenCalled();
-    expect(TIMELINE_MODE.value).toBe(false);
+    expect(f.handle.timeline.mode).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
   it('surfaces a fetch error, leaves mode unset, and hides the overlay', async () => {
     f.loadTimeline.mockRejectedValue(new Error('boom'));
-    await loadTimelineScene();
+    await loadTimelineScene(f.handle as never);
     // Unwinding the SCENE is the city's — it never entered the mode, since the
     // load threw before it got there. What this app owes is the readout.
-    expect(TIMELINE_MODE.value).toBe(false);
+    expect(f.handle.timeline.mode).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(HOST_WORK.value.error).not.toBeNull();
   });
@@ -264,7 +252,7 @@ describe('loadTimelineScene', () => {
   it('asks the history read to ignore its cache for a fresh scan', async () => {
     f.loadTimeline.mockResolvedValue(BUNDLE);
 
-    await loadTimelineScene({ inPlace: true, noCache: true });
+    await loadTimelineScene(f.handle as never, { inPlace: true, noCache: true });
 
     expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ noCache: true }));
   });
@@ -272,88 +260,28 @@ describe('loadTimelineScene', () => {
   it('leaves the cache alone on an ordinary refetch', async () => {
     f.loadTimeline.mockResolvedValue(BUNDLE);
 
-    await loadTimelineScene({ inPlace: true });
+    await loadTimelineScene(f.handle as never, { inPlace: true });
 
     expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ noCache: false }));
   });
 });
 
-describe('exitTimelineMode', () => {
-  let restoreEventSource: () => void;
-  beforeEach(() => {
-    restoreEventSource = installEventSource();
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    beginTimelineMode();
-    setScrubPos(2);
-    setTimelineBundle(BUNDLE);
-  });
-  afterEach(() => {
-    restoreEventSource();
-    resetTimelineMode();
-    SCENE_HANDLE.value = null;
-  });
-
-  // The scene-side teardown belongs to the city layer's own effect; this covers
-  // the hook's half of the contract.
-  it('flips TIMELINE_MODE, clears the scrub store, and reloads live HEAD', async () => {
-    exitTimelineMode();
-
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(SCRUB_POS.value).toBe(0);
-    expect(TIMELINE_BUNDLE.value).toBeNull();
-    await flush();
-    expect(StubEventSource.instances.length).toBeGreaterThan(0); // live HEAD reload started
-    expect(new URL(StubEventSource.instances[0].url).searchParams.get('ref')).toBeNull();
-  });
-});
-
 describe('teardownTimelineMode', () => {
-  afterEach(() => {
-    resetTimelineMode();
-  });
-
-  it('is a pure signal flip — no source reload, scene-free', () => {
-    beginTimelineMode();
-    setScrubPos(2);
-    setTimelineBundle(BUNDLE);
-
-    teardownTimelineMode();
-
-    expect(TIMELINE_MODE.value).toBe(false);
-    expect(SCRUB_POS.value).toBe(0);
-    expect(TIMELINE_BUNDLE.value).toBeNull();
-  });
-});
-
-describe('this app starts and stops a watch', () => {
-  let restoreEventSource: () => void;
+  let f: ReturnType<typeof fakeHandle>;
   beforeEach(() => {
-    restoreEventSource = installEventSource();
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    LOADING_SOURCE.value = null;
-    resetTimelineMode();
-  });
-  afterEach(() => {
-    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
-    resetTimelineMode();
-    restoreEventSource();
-    vi.useRealTimers();
+    f = fakeHandle();
   });
 
-  // The rule that a watch suspends while Timeline owns the scene is the CITY's
-  // now — see packages/city/tests/watch.test.ts. What is left here is that this
-  // app starts and stops one at all.
-  it('starts a watch when live updates are on, and stops it when they go off', async () => {
-    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: true, POLL_SECONDS: 1 };
-    const dispose = setupLiveUpdates();
+  it('leaves the mode and the history behind it, touching nothing else', () => {
+    f.handle.timeline.enter();
+    f.handle.timeline.setPosition(2);
+    f.handle.timeline.setBundle(BUNDLE);
 
-    expect(city.watching).toBe(true);
+    teardownTimelineMode(f.handle as never);
 
-    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
-    expect(city.watching).toBe(false);
-
-    dispose();
+    expect(f.handle.timeline.mode).toBe(false);
+    expect(f.handle.timeline.pos).toBe(0);
+    expect(f.handle.timeline.bundle).toBeNull();
   });
 });
 
@@ -364,24 +292,23 @@ describe('loadTimelineScene inPlace refetch', () => {
     // Published first: the app's timeline store is a view of THIS city's
     // engine, so state set before it exists lands on a detached one.
     f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    // SOURCE_INFO reads the loaded manifest for the overlay's repo label.
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    beginTimelineMode();
-    setScrubPos(2);
-    setTimelineBundle(BUNDLE);
+    f.handle.timeline.enter();
+    f.handle.timeline.setPosition(2);
+    f.handle.timeline.setBundle(BUNDLE);
     HOST_WORK.value = { busy: false, error: null }; // inPlace reports through the footer
     REBUILD_DETAIL.value = null;
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     // Reset, not clear: clear drops the CALLS and keeps the implementation, so
     // a rejection staged by one case is still staged for the next.
     f.loadTimeline.mockReset();
-    f.loadTimeline.mockResolvedValue(BUNDLE);
+    f.loadTimeline.mockImplementation(async () => {
+      f.handle.timeline.setBundle(BUNDLE);
+      return BUNDLE;
+    });
   });
   afterEach(() => {
-    resetTimelineMode();
-    SCENE_HANDLE.value = null;
+    f.handle.timeline.exit();
   });
 
   it('refetches the bundle with the current excludes, re-packs, and holds SCRUB_POS', async () => {
@@ -389,21 +316,27 @@ describe('loadTimelineScene inPlace refetch', () => {
       ...BUNDLE,
       unionManifest: { tree: { name: 'r2' }, stats: {}, repo: UNION_REPO },
     } as unknown as TimelineBundle;
-    f.loadTimeline.mockResolvedValue(NEXT);
+    f.loadTimeline.mockImplementation(async () => {
+      f.handle.timeline.setBundle(NEXT);
+      return NEXT;
+    });
 
-    await loadTimelineScene({ inPlace: true });
+    await loadTimelineScene(f.handle as never, { inPlace: true });
 
     // The re-pack and the controller are inside the city's load; what this app
     // asked for, and what it did with the answer, is its half.
     expect(f.loadTimeline).toHaveBeenCalledWith(
       expect.objectContaining({ exclude: expect.any(Array), keepPosition: true })
     );
-    expect(TIMELINE_BUNDLE.value).toBe(NEXT);
+    expect(f.handle.timeline.bundle).toBe(NEXT);
   });
 
-  it('no-ops without a scene handle', async () => {
-    SCENE_HANDLE.value = null;
-    await loadTimelineScene({ inPlace: true });
+  // A refetch is about the source already open; without one there is nothing
+  // to re-read, and waiting for a city that will never come would hang the
+  // readout it opened.
+  it('no-ops with no source open', async () => {
+    CURRENT_SOURCE.value = null;
+    await loadTimelineScene(f.handle as never, { inPlace: true });
     expect(f.loadTimeline).not.toHaveBeenCalled();
   });
 
@@ -421,7 +354,7 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
 
-    const refetching = loadTimelineScene({ inPlace: true });
+    const refetching = loadTimelineScene(f.handle as never, { inPlace: true });
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(HOST_WORK.value.busy).toBe(true);
@@ -450,7 +383,11 @@ describe('loadTimelineScene inPlace refetch', () => {
         })
     );
 
-    const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
+    const refetching = loadTimelineScene(f.handle as never, {
+      inPlace: true,
+      noCache: true,
+      overlay: true,
+    });
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
@@ -462,7 +399,7 @@ describe('loadTimelineScene inPlace refetch', () => {
 
     resolveFetch(BUNDLE);
     await refetching;
-    expect(SCRUB_POS.value).toBe(2); // held, not reset to the present
+    expect(f.handle.timeline.pos).toBe(2); // held, not reset to the present
     await nextFrame();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
@@ -480,57 +417,19 @@ describe('loadTimelineScene inPlace refetch', () => {
       rejectLoad(aborted);
     });
 
-    const refetching = loadTimelineScene({ inPlace: true, noCache: true, overlay: true });
+    const refetching = loadTimelineScene(f.handle as never, {
+      inPlace: true,
+      noCache: true,
+      overlay: true,
+    });
     await flush();
     LOADING_CANCEL.value?.();
     await refetching;
 
     expect(LOADING_OVERLAY.value.visible).toBe(false);
-    expect(TIMELINE_MODE.value).toBe(true); // still in Timeline
-    expect(TIMELINE_BUNDLE.value).toBe(BUNDLE); // on the bundle it already had
+    expect(f.handle.timeline.mode).toBe(true); // still in Timeline
+    expect(f.handle.timeline.bundle).toBe(BUNDLE); // on the bundle it already had
     expect(f.applyManifest).not.toHaveBeenCalled();
     expect(HOST_WORK.value).toEqual({ busy: false, error: null }); // nothing to unwind
-  });
-});
-
-describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)', () => {
-  let f: ReturnType<typeof fakeHandle>;
-
-  let restoreEventSource: () => void;
-  beforeEach(() => {
-    restoreEventSource = installEventSource();
-    // Published first, for the same reason as the block above.
-    f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
-    CURRENT_SOURCE.value = { src: 's', branch: undefined };
-    MANIFEST.value = { ...EMPTY_MANIFEST, content_signature: 'sig0' };
-    LOADING_SOURCE.value = null;
-    beginTimelineMode();
-    setScrubPos(2);
-    setTimelineBundle(BUNDLE);
-    EXCLUDES.value = {};
-    // Reset, not clear: clear drops the CALLS and keeps the implementation, so
-    // a rejection staged by one case is still staged for the next.
-    f.loadTimeline.mockReset();
-    f.loadTimeline.mockResolvedValue(BUNDLE);
-    f.loadTimeline.mockResolvedValue(BUNDLE);
-  });
-  afterEach(() => {
-    restoreEventSource();
-    resetTimelineMode();
-    SCENE_HANDLE.value = null;
-    EXCLUDES.value = {};
-  });
-
-  it('refetches the union bundle with the new exclude and opens no live stream', async () => {
-    const dispose = setupLiveUpdates();
-
-    addExclude('vendor');
-    await flush();
-
-    expect(f.loadTimeline).toHaveBeenCalledTimes(1);
-    expect(f.loadTimeline).toHaveBeenCalledWith(expect.objectContaining({ exclude: ['vendor'] }));
-    expect(StubEventSource.instances.length).toBe(0); // Timeline must not fall back to a live re-scan
-    dispose();
   });
 });

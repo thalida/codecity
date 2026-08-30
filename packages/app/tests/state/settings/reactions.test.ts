@@ -9,8 +9,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ChangeRoute } from '@codecity/city';
 import { settingsStore } from '@codecity/city/testing';
-import { attachSettingsReactions } from '@/state/settings/reactions';
-import { HOST_WORK } from '@/state/stores/progress';
+import { attachSettingsReactions } from '@/features/settings/state/reactions';
+import { HOST_WORK } from '@/features/city/state/readout';
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 

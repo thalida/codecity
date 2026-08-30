@@ -16,6 +16,7 @@ vi.mock('../../src/render/postFx', async () =>
 
 import { City as CityCanvas } from '../../src/preact/index';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
+import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 import { mkDir, mkFile } from '../_helpers/cityFixtures';
 import { encodeSelection, decodeSelection } from '../../src/state/viewState';
 import type { CityViewState } from '../../src/state/viewState';
@@ -264,5 +265,134 @@ describe('what a host gets without touching the instance', () => {
     );
     await settle();
     expect(views.length).toBe(before);
+  });
+});
+
+// Loading is a PROP. A host says which repo it wants and the component streams
+// it; these are the distinctions that surface makes, which nothing tested while
+// the app was still driving the load by hand.
+describe('what a src prop loads', () => {
+  let host: HTMLDivElement;
+  let rafSpy: ReturnType<typeof vi.spyOn>;
+  let restoreES: () => void;
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    restoreES = installEventSource();
+    let calls = 0;
+    rafSpy = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        if (calls++ < 40) setTimeout(() => cb(performance.now()), 0);
+        return 0 as unknown as number;
+      });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', {
+      value: 1280,
+      configurable: true,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', {
+      value: 720,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    render(null, host);
+    host.remove();
+    restoreES();
+    rafSpy.mockRestore();
+  });
+
+  const urls = () => StubEventSource.instances.map((i) => i.url);
+
+  it('asks for nothing until a src names something', async () => {
+    render(<CityCanvas />, host);
+    await until('the city', () => host.querySelector('canvas') !== null);
+    await settle();
+    expect(urls()).toHaveLength(0);
+  });
+
+  it('streams the repo the src names, with its branch', async () => {
+    render(<CityCanvas src="/repo" branch="main" />, host);
+    await until('a request', () => urls().length > 0);
+    expect(urls()[0]).toContain('src=%2Frepo');
+    expect(urls()[0]).toContain('branch=main');
+  });
+
+  it('loads the next repo when the src changes', async () => {
+    render(<CityCanvas src="/one" />, host);
+    await until('the first request', () => urls().length > 0);
+
+    render(<CityCanvas src="/two" />, host);
+    await until('the second request', () => urls().length > 1);
+    expect(urls()[1]).toContain('src=%2Ftwo');
+  });
+
+  it('does not re-ask when a prop it does not load from changes', async () => {
+    render(<CityCanvas src="/repo" aria-label="one" />, host);
+    await until('a request', () => urls().length > 0);
+
+    render(<CityCanvas src="/repo" aria-label="two" />, host);
+    await settle();
+    expect(urls()).toHaveLength(1);
+  });
+
+  it('re-scans in place when only the excludes move', async () => {
+    render(<CityCanvas src="/repo" exclude={['a']} />, host);
+    await until('a request', () => urls().length > 0);
+    // A re-scan re-asks a question about a repo that is already showing, so
+    // the first load has to have landed for there to be one.
+    StubEventSource.instances[0]!.emit(
+      'manifest-complete',
+      JSON.stringify({ ...EMPTY_MANIFEST, src: '/repo' })
+    );
+    await until('the city to be showing it', () => urls().length === 1);
+    await settle();
+
+    render(<CityCanvas src="/repo" exclude={['a', 'b']} />, host);
+    await until('the re-scan', () => urls().length > 1);
+    // Same repo, so the second ask carries the new question rather than being
+    // a fresh load of a different one.
+    expect(urls()[1]).toContain('src=%2Frepo');
+    expect(urls()[1]).toContain('exclude=b');
+  });
+
+  // Regression #128: hiding a folder while the reader is scrubbing must
+  // re-read the HISTORY, not fall back to a live scan of HEAD — which would
+  // answer the edit by leaving Timeline.
+  it('re-reads the history, not HEAD, when the excludes move in Timeline', async () => {
+    const got: { city: CityInstance | null } = { city: null };
+    render(<CityCanvas src="/repo" exclude={['a']} onReady={(c) => void (got.city = c)} />, host);
+    await until('the city', () => got.city !== null);
+    await until('a request', () => urls().length > 0);
+    StubEventSource.instances[0]!.emit(
+      'manifest-complete',
+      JSON.stringify({ ...EMPTY_MANIFEST, src: '/repo' })
+    );
+    await settle();
+
+    const asked: Array<{ exclude?: string[]; keepPosition?: boolean }> = [];
+    got.city!.timeline.enter();
+    (got.city as unknown as { loadTimeline: (r: unknown) => Promise<unknown> }).loadTimeline =
+      async (r) => {
+        asked.push(r as { exclude?: string[] });
+        return { commits: [], deltas: [] };
+      };
+
+    render(
+      <CityCanvas src="/repo" exclude={['a', 'b']} onReady={(c) => void (got.city = c)} />,
+      host
+    );
+    await until('the history re-read', () => asked.length > 0);
+
+    expect(asked[0]).toMatchObject({ exclude: ['a', 'b'], keepPosition: true });
+    expect(urls(), 'no live re-scan under the scrubber').toHaveLength(1);
+  });
+
+  it('asks the server to skip its cache when told to', async () => {
+    render(<CityCanvas src="/repo" noCache />, host);
+    await until('a request', () => urls().length > 0);
+    expect(urls()[0]).toContain('no_cache=true');
   });
 });

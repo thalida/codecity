@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LoadingOverlay } from '@/components/loading/LoadingOverlay/LoadingOverlay';
+import { LoadingOverlay } from '@/features/city/components/LoadingOverlay/LoadingOverlay';
 import {
   LOADING_OVERLAY,
   showLoadingOverlay,
@@ -8,11 +8,11 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/progress';
+} from '@/features/city/state/overlay';
 
-import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/progress';
+import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/features/city/state/loading';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 import { SourceKind } from '@codecity/city';
 import { flush } from '../_helpers/preact';
 

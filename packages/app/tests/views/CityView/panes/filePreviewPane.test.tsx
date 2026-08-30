@@ -7,8 +7,8 @@ import {
   FilePreviewPane,
   PreviewKind,
   _previewKind,
-} from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
+} from '@/features/city/components/FilePreviewPane/FilePreviewPane';
+import type { FilePreviewPaneState } from '@/features/city/components/FilePreviewPane/FilePreviewPane';
 // A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
 // rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../../../_helpers/preact';
@@ -19,7 +19,7 @@ import {
   resetTimelineMode,
   setScrubPos,
   setTimelineBundle,
-} from '@/state/stores/timeline';
+} from '@/features/city/state/timeline';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

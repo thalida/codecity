@@ -1,11 +1,11 @@
-import { CITY_STORES } from '@/state/settings/values/city';
+import { CITY_STORES } from '@/features/settings/state/values/city';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
-import { LIVE_UPDATES } from '@/state/settings/values/updates';
-import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/settings/values/theme';
-import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/stores/source';
-import { getDefault } from '@/state/persist';
-import { getFieldKeys } from '@/state/settings/schema';
+import { CHANGED_SETTINGS_COUNT } from '@/features/settings/state/indicators';
+import { LIVE_UPDATES } from '@/features/settings/state/values/updates';
+import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/features/settings/state/values/theme';
+import { CURRENT_SOURCE, EXCLUDES, addExclude, clearExcludes } from '@/state/source';
+import { getDefault } from '@/lib/persist';
+import { getFieldKeys } from '@/features/settings/state/schema';
 
 beforeEach(() => {
   LIVE_UPDATES.value = getDefault(LIVE_UPDATES);

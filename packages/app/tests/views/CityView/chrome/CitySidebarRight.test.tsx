@@ -2,11 +2,11 @@ import { DirNode, FileNode, Manifest, NodeKind, PickTarget } from '@codecity/cit
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { CitySidebarRight } from '@/views/CityView/chrome/CitySidebarRight/CitySidebarRight';
-import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
+import { CitySidebarRight } from '@/features/city/components/CitySidebarRight/CitySidebarRight';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/features/settings/state/values/city';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
-import { beginTimelineMode, resetTimelineMode } from '@/state/stores/timeline';
-import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
+import { beginTimelineMode, resetTimelineMode } from '@/features/city/state/timeline';
+import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/features/city/state/modals';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush, drainAsync } from '../../../_helpers/preact';
 import { fakePicker } from '@codecity/city/testing';

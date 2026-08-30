@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { render } from 'preact';
-import { LegendTab } from '@/views/CityView/panes/InfoPane/tabs/LegendTab/LegendTab';
-import { InfoPane } from '@/views/CityView/panes/InfoPane/InfoPane';
-import { LAYER_LEGEND } from '@/views/CityView/panes/InfoPane/almanac';
+import { LegendTab } from '@/features/city/components/InfoPane/tabs/LegendTab/LegendTab';
+import { InfoPane } from '@/features/city/components/InfoPane/InfoPane';
+import { LAYER_LEGEND } from '@/features/city/components/InfoPane/almanac';
 import { flush } from '../../../../_helpers/preact';
 
 describe('LegendTab', () => {

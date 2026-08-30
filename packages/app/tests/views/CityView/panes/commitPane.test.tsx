@@ -3,8 +3,8 @@ import type { CommitEntry } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { signal, type Signal } from '@preact/signals';
-import { CommitPane } from '@/views/CityView/panes/CommitPane/CommitPane';
-import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPane';
+import { CommitPane } from '@/features/city/components/CommitPane/CommitPane';
+import type { CommitPaneState } from '@/features/city/components/CommitPane/CommitPane';
 // Settling this render crosses two schedulers, the fetch chain and Preact, so
 // drainAsync alternates microtask and macrotask yields to cover both.
 import { commits as buildCommits } from '@codecity/city/testing';

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { flush } from '../_helpers/preact';
 
 let container: HTMLDivElement;

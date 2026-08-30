@@ -11,11 +11,11 @@ import {
   isDirty,
   DRAFTS_REV,
   _resetForTests,
-} from '@/state/settings/drafts';
-import { persistedSignal } from '@/state/persist';
-import { markSettingStore, _unregisterForTests } from '@/state/settings/schema';
-import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/values/syntaxTheme';
-import { LIVE_UPDATES } from '@/state/settings/values/updates';
+} from '@/features/settings/state/drafts';
+import { persistedSignal } from '@/lib/persist';
+import { markSettingStore, _unregisterForTests } from '@/features/settings/state/schema';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/features/settings/state/values/syntaxTheme';
+import { LIVE_UPDATES } from '@/features/settings/state/values/updates';
 
 interface FooConfig {
   COLOR: string;

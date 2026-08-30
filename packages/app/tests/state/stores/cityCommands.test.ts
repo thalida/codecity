@@ -6,8 +6,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FocusMode } from '@codecity/city';
 import type { City } from '@codecity/city';
-import { cityCommands } from '@/state/stores/city';
-import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
+import { cityCommands } from '@/features/settings/state/values/city';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/features/city/state/modals';
 
 /** A city that reports whether it found anything to look at. */
 function fakeCity(found = true) {

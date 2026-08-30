@@ -228,7 +228,22 @@ export class City {
 
   /** Ask once, now, whether the repo has moved. What a host calls when
    *  something IT knows about changed. */
-  refreshSource(options?: WatchOptions): Promise<void> {
+  async refreshSource(options?: WatchOptions): Promise<void> {
+    // In Timeline the scene IS the union city, and a live re-scan would answer
+    // "show me this again" by leaving the mode. Re-read the history instead,
+    // holding the position, so the reader stays where they were.
+    if (this.parts.timeline.mode) {
+      const showing = this.parts.sourceLoader.request();
+      if (!showing) return;
+      await this.loadTimeline({
+        src: showing.src,
+        branch: showing.branch,
+        keepPosition: true,
+        exclude: options?.excludes?.(),
+        noCache: options?.noCache,
+      });
+      return;
+    }
     return refreshOnce(this.parts.watchDeps, options);
   }
 

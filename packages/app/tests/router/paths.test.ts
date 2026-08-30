@@ -2,7 +2,7 @@
 // follow the URL rather than any flag someone remembered to set.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ON_HOME, ROUTES } from '@/router/paths';
+import { ON_HOME, ROUTES } from '@/router/location';
 import { navigate } from '@/router/location';
 
 const A_CITY = '/city?src=https%3A%2F%2Fgithub.com%2Fo%2Floaded';

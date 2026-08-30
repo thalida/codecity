@@ -10,13 +10,13 @@ import {
   attachOverlayDriver,
   CITY_STATUS,
   LOADING_SOURCE,
-  REBUILD_DETAIL,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/progress';
+} from '@/features/city/state/overlay';
+import { REBUILD_DETAIL } from '@/features/city/state/readout';
 
 import { SourceKind } from '@codecity/city';
-import { LoadingStep } from '@/constants/progress';
+import { LoadingStep } from '@/features/city/state/loading';
 
 /** Put the city in a state, the way its own status would report it. */
 function say(status: Partial<CityStatus>): void {

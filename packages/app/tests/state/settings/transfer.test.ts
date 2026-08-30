@@ -6,8 +6,8 @@ import {
   FieldKind,
   ChangeRoute,
   type FieldMap,
-} from '@/state/settings/schema';
-import { persistedSignal } from '@/state/persist';
+} from '@/features/settings/state/schema';
+import { persistedSignal } from '@/lib/persist';
 import {
   buildSettingsFile,
   parseSettingsFile,
@@ -19,9 +19,13 @@ import {
   EXCLUDES_PART,
   TransferFamily,
   type TransferPart,
-} from '@/state/settings/transfer';
-import { setDraft, getEffective, _resetForTests as resetDrafts } from '@/state/settings/drafts';
-import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/stores/source';
+} from '@/features/settings/state/transfer';
+import {
+  setDraft,
+  getEffective,
+  _resetForTests as resetDrafts,
+} from '@/features/settings/state/drafts';
+import { ACTIVE_EXCLUDES, CURRENT_SOURCE, EXCLUDES, setExcludesFor } from '@/state/source';
 import { sourceKey } from '@codecity/city';
 
 const FIELDS = {

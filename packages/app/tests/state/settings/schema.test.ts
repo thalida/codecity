@@ -6,8 +6,8 @@ import {
   FieldKind,
   ChangeRoute,
   type FieldMap,
-} from '@/state/settings/schema';
-import { getDefault } from '@/state/persist';
+} from '@/features/settings/state/schema';
+import { getDefault } from '@/lib/persist';
 import { STORAGE_PREFIX } from '@/constants/storage';
 
 // settingSignal derives the defaults and registers the field map, and is

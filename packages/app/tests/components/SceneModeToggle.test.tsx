@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { TimelineToggle } from '@/components/timeline/TimelineToggle/TimelineToggle';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { TimelineToggle } from '@/features/city/components/TimelineToggle/TimelineToggle';
+import { CURRENT_SOURCE } from '@/state/source';
 import { setManifest } from '@/state/stores/manifest';
 import { renderWithCity, type FakeCity } from '../_helpers/cityChrome';
 import { flush } from '../_helpers/preact';
 
-vi.mock('@/hooks/useTimelineMode', () => ({
+vi.mock('@/features/city/state/timeline', () => ({
   loadTimelineScene: vi.fn().mockResolvedValue(undefined),
   exitTimelineMode: vi.fn(),
 }));
-import { loadTimelineScene, exitTimelineMode } from '@/hooks/useTimelineMode';
+import { loadTimelineScene, exitTimelineMode } from '@/features/city/state/timeline';
 
 const TEST_MANIFEST = {
   tree: { name: 'project', type: 'directory', path: '.', children: [] },

@@ -2,8 +2,8 @@ import { ROOT_PATH, DirNode, ExtBreakdownEntry, FileNode, NodeKind } from '@code
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { signal, type Signal } from '@preact/signals';
-import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
-import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
+import { StreetPane } from '@/features/city/components/StreetPane/StreetPane';
+import type { StreetPaneState } from '@/features/city/components/StreetPane/StreetPane';
 import { flush } from '../../../_helpers/preact';
 
 function f(name: string, ext: string, size: number, lines = 0): FileNode {

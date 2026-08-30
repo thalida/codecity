@@ -1,13 +1,13 @@
-import { CITY_STORES } from '@/state/settings/values/city';
+import { CITY_STORES } from '@/features/settings/state/values/city';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { DynamicSection } from '@/components/settings/DynamicSection/DynamicSection';
-import type { SectionChild, FieldRef } from '@/types/controls';
-import { TREES_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Trees';
-import { BUILDINGS_SECTION } from '@/views/CityView/panes/ControlsPane/sectionConfigs/Buildings';
-import { CONTROLS_SECTIONS } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { HOME_BACKDROP } from '@/state/settings/values/city';
-import { getFieldKeys, isAutosave } from '@/state/settings/schema';
+import { DynamicSection } from '@/features/settings/components/DynamicSection/DynamicSection';
+import type { SectionChild, FieldRef } from '@/features/city/components/ControlsPane/types';
+import { TREES_SECTION } from '@/features/city/components/ControlsPane/sectionConfigs/Trees';
+import { BUILDINGS_SECTION } from '@/features/city/components/ControlsPane/sectionConfigs/Buildings';
+import { CONTROLS_SECTIONS } from '@/features/city/components/ControlsPane/ControlsPane';
+import { HOME_BACKDROP } from '@/features/settings/state/values/city';
+import { getFieldKeys, isAutosave } from '@/features/settings/state/schema';
 import { flush } from '../../../../_helpers/preact';
 
 // Walk a section's node tree and collect every field reference (depth-first).

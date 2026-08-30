@@ -1,8 +1,8 @@
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { CityHeader } from '@/views/CityView/chrome/CityHeader/CityHeader';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CityHeader } from '@/features/city/components/CityHeader/CityHeader';
+import { CURRENT_SOURCE } from '@/state/source';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush } from '../../../_helpers/preact';

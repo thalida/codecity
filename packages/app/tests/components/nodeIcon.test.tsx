@@ -1,7 +1,7 @@
 import { NodeKind } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NodeIcon } from '@/components/nodes/NodeIcon/NodeIcon';
+import { NodeIcon } from '@/features/city/components/NodeIcon/NodeIcon';
 import { flush } from '../_helpers/preact';
 
 // jsdom never fetches the src, so these assert the URL the component picks, via

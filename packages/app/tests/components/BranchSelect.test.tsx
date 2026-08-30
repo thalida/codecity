@@ -4,8 +4,8 @@
 import { ScanError } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { BranchSelect } from '@/components/sources/BranchSelect/BranchSelect';
-import { API } from '@/apiClient';
+import { BranchSelect } from '@/features/home/components/sources/BranchSelect/BranchSelect';
+import { API } from '@/api/client';
 import { flush, drainAsync } from '../_helpers/preact';
 
 describe('BranchSelect', () => {

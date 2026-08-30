@@ -6,7 +6,7 @@
 
 import { render } from 'preact';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider } from '@/state/stores/chrome';
+import { CityChromeProvider } from '@/features/city/state/sidebar';
 import { fakeCity } from '@codecity/city/testing';
 import type { ComponentChildren } from 'preact';
 

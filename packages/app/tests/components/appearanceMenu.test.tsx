@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { AppearanceMenu } from '@/components/menus/AppearanceMenu/AppearanceMenu';
+import { AppearanceMenu } from '@/features/city/components/AppearanceMenu/AppearanceMenu';
 import {
   ACCENT_THEME,
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
-} from '@/state/settings/values/theme';
+} from '@/features/settings/state/values/theme';
 import { flush } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 

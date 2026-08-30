@@ -8,13 +8,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { mkDir, mkFile } from '@codecity/city/testing';
-import { CURRENT_SOURCE, commitSource } from '@/state/stores/source';
+import { CURRENT_SOURCE, commitSource } from '@/state/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { SCENE_HANDLE } from '@/state/stores/city';
-import { PICKER_SELECTION_KEY } from '@/state/stores/city';
+import { SCENE_HANDLE } from '@/features/settings/state/values/city';
+import { PICKER_SELECTION_KEY } from '@/features/settings/state/values/city';
 import { attachViewUrlReactions } from '@/router/viewBinding';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
 // The two mocks below reach past the package's public surface on purpose, and
 // say so by path: they replace what jsdom has no implementation of (a WebGL
@@ -40,8 +40,8 @@ vi.mock('../../../city/src/components/buildings/atlas', async () => {
 });
 
 import { nextBuild } from '@codecity/city/testing';
-import { attachBuildProgress } from '@/state/stores/progress';
-import { attachCityChrome } from '@/state/stores/city';
+import { attachBuildProgress } from '@/features/city/state/overlay';
+import { attachCityChrome } from '@/features/settings/state/values/city';
 
 const W = 800;
 const H = 600;

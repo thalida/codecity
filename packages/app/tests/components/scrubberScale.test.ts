@@ -7,7 +7,7 @@ import {
   fractionToIndex,
   msToIndex,
   snapToStop,
-} from '@/components/timeline/TimelineScrubber/scrubberScale';
+} from '@codecity/city';
 
 const DAY = 86_400_000;
 

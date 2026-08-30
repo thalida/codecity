@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ExplorePane } from '@/views/CityView/panes/ExplorePane/ExplorePane';
+import { ExplorePane } from '@/features/city/components/ExplorePane/ExplorePane';
 import { flush } from '../../../../_helpers/preact';
 
 const TREE = {

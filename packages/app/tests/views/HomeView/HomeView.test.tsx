@@ -14,8 +14,8 @@ vi.mock('@/components/City/City', () => ({
 
 // Typing a remote URL mounts BranchSelect, which asks the API for branches: left
 // real, that rejects "fetch failed" into whichever LATER test is running by then.
-vi.mock('@/apiClient', async (orig) => {
-  const mod = (await orig()) as typeof import('@/apiClient');
+vi.mock('@/api/client', async (orig) => {
+  const mod = (await orig()) as typeof import('@/api/client');
   return {
     API: { ...mod.API, fetchBranches: vi.fn(async () => ({ branches: [], default: null })) },
   };
@@ -23,8 +23,8 @@ vi.mock('@/apiClient', async (orig) => {
 
 // The view calls these directly now, so they are what "it opened a project" and
 // "it cancelled the load" mean.
-vi.mock('@/hooks/useManifestSource', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/useManifestSource')>()),
+vi.mock('@/features/city/state/commands', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/city/state/commands')>()),
   loadSource: vi.fn(),
   cancelLoad: vi.fn(),
 }));
@@ -34,25 +34,19 @@ vi.mock('@/router/location', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/router/location')>()),
   navigate: vi.fn(),
 }));
-import { HomeView } from '@/views/HomeView/HomeView';
+import { HomeView } from '@/features/home/HomeView';
 import {
   attachOverlayDriver,
   hideLoadingOverlay,
   PENDING_SOURCE_LABEL,
   LOADING_SOURCE,
-} from '@/state/stores/progress';
-import {
-  BACKDROP_CITY,
-  BackdropKind,
-  RECENTS,
-  CURRENT_SOURCE,
-  SOURCE_ERROR,
-} from '@/state/stores/source';
-import { loadSource } from '@/hooks/useManifestSource';
+} from '@/features/city/state/overlay';
+import { BACKDROP_CITY, BackdropKind, RECENTS, CURRENT_SOURCE, SOURCE_ERROR } from '@/state/source';
+import { loadSource } from '@/features/city/state/commands';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/state/stores/serverData';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/api/reads';
 import { flush } from '../../_helpers/preact';
 
 /** A project already loaded, which the landing names as its backdrop. */

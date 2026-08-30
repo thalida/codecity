@@ -8,13 +8,9 @@ import { createEmitter, settingsStore, statusFrom } from '@codecity/city/testing
 import { CityLifecycle, ScanPhase } from '@codecity/city';
 import type { City } from '@codecity/city';
 import { attachCity } from '@/state/stores/attachCity';
-import {
-  CITY_STATUS,
-  LOADING_SOURCE,
-  PENDING_SOURCE_LABEL,
-  HOST_WORK,
-} from '@/state/stores/progress';
-import { CITY_HOVER } from '@/state/stores/city';
+import { CITY_STATUS, LOADING_SOURCE, PENDING_SOURCE_LABEL } from '@/features/city/state/overlay';
+import { HOST_WORK } from '@/features/city/state/readout';
+import { CITY_HOVER } from '@/features/settings/state/values/city';
 import { EMPTY_CITY_STATUS } from '@codecity/city';
 
 /** A city with the pieces attachCity subscribes to, and nothing else. */

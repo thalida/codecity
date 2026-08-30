@@ -2,7 +2,7 @@ import { NodeKind } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { SearchPane } from '@/views/CityView/panes/SearchPane/SearchPane';
+import { SearchPane } from '@/features/city/components/SearchPane/SearchPane';
 import { flush } from '../../../_helpers/preact';
 
 // Only the fields the search pane reads, plus enough extras to pass as a

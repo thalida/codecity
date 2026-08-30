@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal, type Signal } from '@preact/signals';
-import { TreeTab } from '@/views/CityView/panes/ExplorePane/tabs/TreeTab/TreeTab';
+import { TreeTab } from '@/features/city/components/ExplorePane/tabs/TreeTab/TreeTab';
 import { flush } from '../../../../_helpers/preact';
 
 type TreeLike = Manifest | DirNode | { tree?: unknown; [k: string]: unknown };

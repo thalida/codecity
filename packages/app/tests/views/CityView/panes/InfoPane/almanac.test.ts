@@ -1,6 +1,6 @@
 import { DirNode, FileNode, Manifest, NodeKind, RepoStats } from '@codecity/city';
 import { describe, it, expect } from 'vitest';
-import { computeAlmanac } from '@/views/CityView/panes/InfoPane/almanac';
+import { computeAlmanac } from '@/features/city/components/InfoPane/almanac';
 import { EMPTY_REPO_STATS } from '@codecity/city/testing';
 import { commits as buildCommits } from '@codecity/city/testing';
 import { fileLeader, uniformFileStats } from '@codecity/city/testing';

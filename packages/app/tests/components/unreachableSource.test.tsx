@@ -3,7 +3,7 @@ import { render } from 'preact';
 import {
   UnreachableSource,
   NoticeReason,
-} from '@/components/sources/UnreachableSource/UnreachableSource';
+} from '@/features/home/components/sources/UnreachableSource/UnreachableSource';
 import { flush } from '../_helpers/preact';
 
 const SRC = 'https://github.com/owner/private';

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { persistedSignal } from '@/state/persist';
+import { persistedSignal } from '@/lib/persist';
 
 beforeEach(() => {
   localStorage.clear();

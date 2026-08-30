@@ -1,8 +1,8 @@
-import { CITY_STORES } from '@/state/settings/values/city';
+import { CITY_STORES } from '@/features/settings/state/values/city';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { FieldRow } from '@/components/fields/FieldRow/FieldRow';
-import { Field } from '@/components/fields/Field/Field';
+import { FieldRow } from '@/features/settings/components/FieldRow/FieldRow';
+import { Field } from '@/features/settings/components/Field/Field';
 import { flush } from '../_helpers/preact';
 
 describe('FieldRow layout B', () => {

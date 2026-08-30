@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { DebugMenu } from '@/components/menus/DebugMenu/DebugMenu';
-import { DEBUG_OPEN, openDebug } from '@/state/stores/chrome';
+import { DebugMenu } from '@/features/city/components/DebugMenu/DebugMenu';
+import { DEBUG_OPEN, openDebug } from '@/features/city/state/modals';
 import { flush, drainAsync } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 

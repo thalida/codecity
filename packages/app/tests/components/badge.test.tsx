@@ -11,7 +11,7 @@ const settings = vi.hoisted(() => ({
 // The two stores the badge reads. They are generated from the city's own
 // CITY_FIELDS now, so the whole set is one module and the mock replaces the
 // two entries rather than two files.
-vi.mock('@/state/settings/values/city', () => ({
+vi.mock('@/features/settings/state/values/city', () => ({
   CITY_STORES: {
     BUILDINGS: {
       get value() {
@@ -26,7 +26,7 @@ vi.mock('@/state/settings/values/city', () => ({
   },
 }));
 
-import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
+import { KindBadge } from '@/features/city/components/KindBadge/KindBadge';
 
 let container: HTMLDivElement;
 

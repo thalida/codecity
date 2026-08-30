@@ -1,11 +1,11 @@
 import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useDocumentTitle } from '@/features/city/hooks/useDocumentTitle';
 import { setManifest } from '@/state/stores/manifest';
 
 import { drainAsync } from '../_helpers/preact';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
+import { PENDING_SOURCE_LABEL } from '@/features/city/state/overlay';
 
 // The single owner of document.title, driven by MANIFEST alone. drainAsync()
 // settles useSignalEffect's deferred run; a single flush() is not enough.

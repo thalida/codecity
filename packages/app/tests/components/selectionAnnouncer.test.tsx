@@ -2,8 +2,8 @@ import { NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { SelectionAnnouncer } from '@/views/CityView/SelectionAnnouncer/SelectionAnnouncer';
-import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
+import { SelectionAnnouncer } from '@/features/city/SelectionAnnouncer/SelectionAnnouncer';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/features/settings/state/values/city';
 import { flush } from '../_helpers/preact';
 
 describe('SelectionAnnouncer', () => {

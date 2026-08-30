@@ -2,7 +2,7 @@
 // halves (a fixture missing a branch under-enforces silently); globs, not lists.
 
 import { describe, it, expect } from 'vitest';
-import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settings/schema';
+import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/features/settings/state/schema';
 
 // Self-registration happens on import; glob so a new store is covered the day
 // it lands rather than whenever someone remembers to add it here.

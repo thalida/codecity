@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { flush } from '../_helpers/preact';
 
 describe('PaneTabs', () => {

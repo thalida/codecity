@@ -7,7 +7,7 @@ import {
   removeExclude,
   clearExcludes,
   activeExcludePathsFor,
-} from '@/state/stores/source';
+} from '@/state/source';
 import { sourceKey } from '@codecity/city';
 
 beforeEach(() => {

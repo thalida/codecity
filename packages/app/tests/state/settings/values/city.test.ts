@@ -7,8 +7,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { CITY_FIELDS, defaultCitySettings } from '@codecity/city';
-import { CITY_STORES, CITY_SETTINGS, BACKDROP_SETTINGS } from '@/state/settings/values/city';
-import { getFieldKeys } from '@/state/settings/schema';
+import {
+  CITY_STORES,
+  CITY_SETTINGS,
+  BACKDROP_SETTINGS,
+} from '@/features/settings/state/values/city';
+import { getFieldKeys } from '@/features/settings/state/schema';
 
 const CITY_STORE_NAMES = Object.keys(CITY_FIELDS).sort();
 

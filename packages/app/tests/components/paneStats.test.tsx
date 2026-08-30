@@ -2,15 +2,15 @@ import { DirNode, FileNode, NodeKind } from '@codecity/city';
 import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { PaneStats } from '@/components/panes/PaneStats/PaneStats';
-import { fileStatItems, directoryStatItems } from '@/components/panes/PaneStats/statItems';
+import { PaneStats } from '@/components/PaneStats/PaneStats';
+import { fileStatItems, directoryStatItems } from '@/components/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
 import {
   beginTimelineMode,
   resetTimelineMode,
   setScrubPos,
   setTimelineBundle,
-} from '@/state/stores/timeline';
+} from '@/features/city/state/timeline';
 
 const NOW = Date.UTC(2024, 2, 25);
 

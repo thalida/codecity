@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { CitySidebarLeft } from '@/views/CityView/chrome/CitySidebarLeft/CitySidebarLeft';
-import { SCENE_HANDLE } from '@/state/stores/city';
+import { CitySidebarLeft } from '@/features/city/components/CitySidebarLeft/CitySidebarLeft';
+import { SCENE_HANDLE } from '@/features/settings/state/values/city';
 import { setManifest } from '@/state/stores/manifest';
-import { CURRENT_SOURCE } from '@/state/stores/source';
-import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/state/stores/chrome';
+import { CURRENT_SOURCE } from '@/state/source';
+import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/features/city/state/modals';
 import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { flush, drainAsync } from '../../../_helpers/preact';
 

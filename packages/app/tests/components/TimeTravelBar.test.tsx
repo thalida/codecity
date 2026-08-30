@@ -5,7 +5,7 @@ import { parseDateMs } from '@codecity/city';
 import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { TimelineScrubber } from '@/components/timeline/TimelineScrubber/TimelineScrubber';
+import { TimelineScrubber } from '@/features/city/components/TimelineScrubber/TimelineScrubber';
 import {
   SCRUB_POS,
   beginTimelineMode,
@@ -14,7 +14,7 @@ import {
   setScrubPos,
   setTimelineBundle,
   setTodayMs,
-} from '@/state/stores/timeline';
+} from '@/features/city/state/timeline';
 import { flush, drainAsync } from '../_helpers/preact';
 import { commits as buildCommits } from '@codecity/city/testing';
 

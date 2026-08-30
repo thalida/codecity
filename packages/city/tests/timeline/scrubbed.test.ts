@@ -2,21 +2,20 @@
 // files with two near-identical fixtures, which is how the set and the filtered
 // tree could have drifted apart without a test noticing.
 
-import { CITY_STORES } from '@/state/settings/values/city';
-import { NodeKind, TreeNode, TimelineBundle } from '@codecity/city';
-import { afterEach, expect, test } from 'vitest';
-import {
-  PANE_MANIFEST,
-  PRESENT_PATHS,
-  beginTimelineMode,
-  resetTimelineMode,
-  scrubbedBlobShaFor,
-  scrubbedDirFor,
-  scrubbedStatsFor,
-  setScrubPos,
-  setTimelineBundle,
-} from '@/state/stores/timeline';
-import { makeBundle, PRESENCE_BUNDLE } from '@codecity/city/testing';
+import { beforeEach, expect, test } from 'vitest';
+
+import { NodeKind, type TreeNode } from '../../src/types/manifest';
+import type { TimelineBundle } from '../../src/types/timeline';
+import { createTimelineState, type TimelineState } from '../../src/timeline/state';
+import { paneManifest, presentPaths, scrubbedDirFor } from '../../src/timeline/scrubbed';
+import { makeBundle, PRESENCE_BUNDLE } from '../_helpers/scrub';
+
+// A fresh engine per test: these are about what a POSITION implies, so nothing
+// should carry over from the position the last one left it at.
+let timeline: TimelineState;
+beforeEach(() => {
+  timeline = createTimelineState();
+});
 
 function paths(m: unknown): Set<string> {
   const out = new Set<string>();
@@ -30,21 +29,15 @@ function paths(m: unknown): Set<string> {
 }
 
 function atCommitTwo(): void {
-  setTimelineBundle(PRESENCE_BUNDLE);
-  beginTimelineMode();
-  setScrubPos(2);
+  timeline.setBundle(PRESENCE_BUNDLE);
+  timeline.enter();
+  timeline.setPosition(2);
 }
-
-afterEach(() => {
-  resetTimelineMode();
-  setTimelineBundle(null);
-  setScrubPos(0);
-});
 
 test('present files + their ancestor dirs are in the set; deleted/future are not', () => {
   atCommitTwo();
 
-  const p = PRESENT_PATHS.value;
+  const p = presentPaths(timeline);
   expect(p.has('src/present.txt')).toBe(true);
   expect(p.has('src')).toBe(true); // ancestor of a live file
   expect(p.has('')).toBe(true); // root
@@ -54,26 +47,28 @@ test('present files + their ancestor dirs are in the set; deleted/future are not
 });
 
 test('empty outside Timeline mode', () => {
-  setTimelineBundle(PRESENCE_BUNDLE);
-  resetTimelineMode();
-  expect(PRESENT_PATHS.value.size).toBe(0);
+  timeline.setBundle(PRESENCE_BUNDLE);
+  timeline.exit();
+  expect(presentPaths(timeline).size).toBe(0);
 });
 
 test('the pane tree carries exactly the present set (empty dirs pruned)', () => {
   atCommitTwo();
 
-  const p = paths(PANE_MANIFEST.value);
+  const p = paths(paneManifest(timeline, null));
   expect(p.has('src/present.txt')).toBe(true);
   expect(p.has('src/gone.txt')).toBe(false); // deleted at commit 2
   expect(p.has('future/y.txt')).toBe(false); // not created until commit 3
   expect(p.has('future')).toBe(false); // dir emptied → dropped
 });
 
-test('the pane tree is present-only regardless of the ruins toggle', () => {
+// Ruins are a RENDERING choice: a deleted file can still be drawn in the city.
+// The pane tree is about what exists, so it must not follow that setting — and
+// here it cannot, because this arithmetic has no settings to read.
+test('the pane tree is present-only, whatever the city chooses to draw', () => {
   atCommitTwo();
-  CITY_STORES.RUINS.value = { ...CITY_STORES.RUINS.value, ENABLED: true };
 
-  const p = paths(PANE_MANIFEST.value);
+  const p = paths(paneManifest(timeline, null));
   expect(p.has('src/gone.txt')).toBe(false);
   expect(p.has('future/y.txt')).toBe(false);
   expect(p.has('src/present.txt')).toBe(true);
@@ -95,22 +90,22 @@ const growing = makeBundle({
 } as unknown as Partial<TimelineBundle>);
 
 test('displayed stats describe the blob being served, across unchanged commits', () => {
-  setTimelineBundle(growing);
-  beginTimelineMode();
+  timeline.setBundle(growing);
+  timeline.enter();
 
   // Each of these still serves the commit-0 blob, so each must report its
   // numbers: the drift is what put "42 lines" over a 36-line body.
   for (const pos of [0, 0.7, 1, 2, 2.9]) {
-    setScrubPos(pos);
-    expect(scrubbedBlobShaFor('f.txt')).toBe('small');
-    expect(scrubbedStatsFor('f.txt')?.lines).toBe(36);
-    expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
+    timeline.setPosition(pos);
+    expect(timeline.scrubbedBlobShaFor('f.txt')).toBe('small');
+    expect(timeline.scrubbedStatsFor('f.txt')?.lines).toBe(36);
+    expect(timeline.scrubbedStatsFor('f.txt')?.bytes).toBe(100);
   }
 
-  setScrubPos(3);
-  expect(scrubbedBlobShaFor('f.txt')).toBe('big');
-  expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
-  expect(scrubbedStatsFor('f.txt')?.bytes).toBe(200);
+  timeline.setPosition(3);
+  expect(timeline.scrubbedBlobShaFor('f.txt')).toBe('big');
+  expect(timeline.scrubbedStatsFor('f.txt')?.lines).toBe(46);
+  expect(timeline.scrubbedStatsFor('f.txt')?.bytes).toBe(200);
 });
 
 // ── Folder rollups ───────────────────────────────────────────────────
@@ -196,44 +191,44 @@ function rollups(d: unknown): Record<string, unknown> {
 }
 
 test('at HEAD the derived rollups equal the ones the backend authored', () => {
-  setTimelineBundle(steady);
-  beginTimelineMode();
-  setScrubPos(2);
+  timeline.setBundle(steady);
+  timeline.enter();
+  timeline.setPosition(2);
 
-  expect(rollups(scrubbedDirFor('src'))).toEqual(HEAD_SRC_ROLLUPS);
+  expect(rollups(scrubbedDirFor(timeline, 'src'))).toEqual(HEAD_SRC_ROLLUPS);
 });
 
 test('earlier commits count only what existed, at the size it was then', () => {
-  setTimelineBundle(steady);
-  beginTimelineMode();
-  setScrubPos(0);
+  timeline.setBundle(steady);
+  timeline.enter();
+  timeline.setPosition(0);
 
-  const d = scrubbedDirFor('src')!;
+  const d = scrubbedDirFor(timeline, 'src')!;
   expect(d.descendants_file_count).toBe(1); // b.md does not exist yet
   expect(d.descendants_size).toBe(100); // a.txt before its rewrite, not 300
   expect(d.descendants_ext_breakdown).toEqual([{ ext: 'txt', count: 1, size: 100 }]);
 });
 
 test('the newest change never runs ahead of the scrub', () => {
-  setTimelineBundle(steady);
-  beginTimelineMode();
-  setScrubPos(1);
+  timeline.setBundle(steady);
+  timeline.enter();
+  timeline.setPosition(1);
 
   // The union says a.txt was last touched at C2. Reading that here is what put
   // a future date on a folder you scrubbed into the past.
-  expect(scrubbedDirFor('src')!.descendants_modified_max).toBe(C1);
+  expect(scrubbedDirFor(timeline, 'src')!.descendants_modified_max).toBe(C1);
 });
 
 test('a deleted file leaves the folder totals, and an emptied folder is gone', () => {
   atCommitTwo();
 
-  const src = scrubbedDirFor('src')!;
+  const src = scrubbedDirFor(timeline, 'src')!;
   expect(src.descendants_file_count).toBe(1); // gone.txt deleted at this commit
-  expect(scrubbedDirFor('future')).toBeNull(); // nothing in it exists yet
+  expect(scrubbedDirFor(timeline, 'future')).toBeNull(); // nothing in it exists yet
 });
 
 test('null in Live, where MANIFEST is already the answer', () => {
-  setTimelineBundle(steady);
-  resetTimelineMode();
-  expect(scrubbedDirFor('src')).toBeNull();
+  timeline.setBundle(steady);
+  timeline.exit();
+  expect(scrubbedDirFor(timeline, 'src')).toBeNull();
 });

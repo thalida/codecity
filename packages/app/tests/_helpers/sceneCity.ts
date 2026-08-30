@@ -12,10 +12,12 @@ import type { TimelineState, Manifest } from '@codecity/city';
 import { createEmitter } from '../../../city/src/state/events';
 import { createSourceLoader } from '../../../city/src/data/loadSource';
 import { refreshOnce, startWatch } from '../../../city/src/data/watch';
-import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/city';
-import { attachScanToStores } from '@/hooks/useManifestSource';
+import type { City } from '@codecity/city';
 
 export interface StubSceneCity {
+  /** The city itself. Handed to whatever is being driven, rather than published
+   *  to a slot for it to find. */
+  city: City;
   /** Whether a live-update watch is running on this city. */
   readonly watching: boolean;
   /** Every manifest the city was asked to render, in order. */
@@ -25,8 +27,8 @@ export interface StubSceneCity {
   dispose(): void;
 }
 
-/** Publish a scene city the app can load into, wired to the app's scan
- *  reduction exactly as City.tsx wires it. */
+/** A scene city a test can drive: the real source loader over the real client,
+ *  with only the rendering stubbed. */
 export function stubSceneCity(): StubSceneCity {
   const events = createEmitter();
   const client = createClient({ baseUrl: '/api' });
@@ -36,7 +38,6 @@ export function stubSceneCity(): StubSceneCity {
     events,
     applyManifest: async (m) => void applied.push(m),
   });
-  const detach = attachScanToStores(events.on);
   const timeline = createTimelineState();
 
   let watching = false;
@@ -50,7 +51,7 @@ export function stubSceneCity(): StubSceneCity {
     currentSignature: () => applied[applied.length - 1]?.content_signature ?? null,
   };
 
-  SCENE_HANDLE.value = {
+  const city = {
     on: events.on,
     client,
     loadSource: loader.load,
@@ -70,9 +71,10 @@ export function stubSceneCity(): StubSceneCity {
     refreshSource: (options) => refreshOnce(watchDeps, options),
     timeline,
     dispose() {},
-  } as unknown as SceneHandle;
+  } as unknown as City;
 
   return {
+    city,
     applied,
     /** Whether a watch is running on this city — what the host decides. */
     get watching() {
@@ -80,11 +82,9 @@ export function stubSceneCity(): StubSceneCity {
     },
     timeline,
     dispose(): void {
-      detach();
       loader.dispose();
       timeline.dispose();
       events.clear();
-      SCENE_HANDLE.value = null;
     },
   };
 }

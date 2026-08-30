@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ControlsPane } from '@/views/CityView/panes/ControlsPane/ControlsPane';
-import { SyntaxThemeField } from '@/components/fields/SyntaxThemeField/SyntaxThemeField';
-import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/settings/values/syntaxTheme';
-import { _resetForTests } from '@/state/settings/drafts';
+import { ControlsPane } from '@/features/city/components/ControlsPane/ControlsPane';
+import { SyntaxThemeField } from '@/features/settings/components/SyntaxThemeField/SyntaxThemeField';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/features/settings/state/values/syntaxTheme';
+import { _resetForTests } from '@/features/settings/state/drafts';
 // Load every settings store for its registration side-effect (settingSignal
 // registers each store at module-load) so every field renders. The city's
 // stores come as one module now, and it can no longer fall behind the list.
-import '@/state/settings/values/city';
-import '@/state/settings/values/updates';
-import '@/state/settings/values/syntaxTheme';
-import '@/state/settings/values/theme';
+import '@/features/settings/state/values/city';
+import '@/features/settings/state/values/updates';
+import '@/features/settings/state/values/syntaxTheme';
+import '@/features/settings/state/values/theme';
 import { flush } from '../../../../_helpers/preact';
 
 describe('ControlsPane', () => {

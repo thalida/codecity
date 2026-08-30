@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { useShortcutsKey } from '@/hooks/useShortcutsKey';
-import { SHORTCUTS_OPEN, closeShortcuts } from '@/state/stores/chrome';
+import { useShortcutsKey } from '@/features/city/hooks/useShortcutsKey';
+import { SHORTCUTS_OPEN, closeShortcuts } from '@/features/city/state/modals';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 import { drainAsync } from '../_helpers/preact';
 
 function Harness() {

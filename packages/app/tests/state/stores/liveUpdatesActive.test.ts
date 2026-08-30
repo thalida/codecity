@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CURRENT_SOURCE, CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
-import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
+import { CURRENT_SOURCE, CURRENT_SOURCE_IS_LOCAL } from '@/state/source';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/features/settings/state/values/updates';
 
 const LOCAL = { src: '/Users/me/projects/codecity' };
 const REMOTE = { src: 'https://github.com/thalida/codecity', branch: 'main' };

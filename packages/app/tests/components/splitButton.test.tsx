@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { SplitButton } from '@/components/buttons/SplitButton/SplitButton';
+import { SplitButton } from '@/features/home/components/SplitButton/SplitButton';
 import { drainAsync, flush } from '../_helpers/preact';
 
 // Preact schedules useEffect on rAF, so the open effect needs a real timer

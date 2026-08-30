@@ -8,9 +8,9 @@ import {
   closeShortcuts,
   openDebug,
   closeDebug,
-} from '@/state/stores/chrome';
+} from '@/features/city/state/modals';
 import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { ROUTES } from '@/router/location';
 
 describe('OVERLAY_OPEN', () => {
   beforeEach(() => navigate(ROUTES.CITY, { replace: true }));

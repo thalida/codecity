@@ -5,9 +5,9 @@ import { FileNode, NodeKind, PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/SelectionChip';
-import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/state/stores/city';
-import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
+import { SelectionChip } from '@/features/city/components/CityStage/SelectionChip/SelectionChip';
+import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/features/settings/state/values/city';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/features/city/state/modals';
 import { flush } from '../_helpers/preact';
 
 const FILE: FileNode = {

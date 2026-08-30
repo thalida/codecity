@@ -18,8 +18,8 @@ import {
   attachCityStatus,
   PENDING_SOURCE_LABEL,
   LOADING_SOURCE,
-} from '@/state/stores/progress';
-import { attachScanToStores } from '@/hooks/useManifestSource';
+} from '@/features/city/state/overlay';
+import { attachScanToStores } from '@/features/city/state/commands';
 
 import { settingsStore, statusFrom } from '@codecity/city/testing';
 import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
