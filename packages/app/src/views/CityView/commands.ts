@@ -1,11 +1,11 @@
-// state/stores/city.ts — the commands this app's chrome sends a city.
+// views/CityView/commands.ts — the commands this app's chrome sends a city.
 //
 // Thin on purpose: pointing the camera is the city's job (`city.focus`), and
 // what the screen does afterwards is ours. All these add is the second half.
 
 import type { City, FocusRef, FocusMode } from '@codecity/city';
-import { OVERLAY_OPEN } from '@/state/stores/chrome';
-import type { CityChromeState } from '@/state/stores/chrome';
+import { OVERLAY_OPEN } from '@/views/CityView/chrome';
+import type { CityChromeState } from '@/views/CityView/chrome';
 
 /** A focus asks to LOOK at the node, so the details get out of the way; a
  *  go-to names it, so the details are the answer. Both are screen decisions. */

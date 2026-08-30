@@ -6,11 +6,11 @@
 import { useSourceInfo } from '@/hooks/useSourceInfo';
 import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
-import {} from '@/state/stores/source';
+
 import { useCityManifest } from '@codecity/city/preact';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { IS_PHONE } from '@/state/stores/viewport';
+import { IS_PHONE } from '@/state/viewport';
 import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/buttons/CopyButton/CopyButton';

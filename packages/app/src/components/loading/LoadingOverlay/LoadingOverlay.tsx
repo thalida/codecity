@@ -4,7 +4,7 @@
 // suppresses itself (below), so two full-viewport surfaces never stack.
 
 import './LoadingOverlay.css';
-import { LOADING_OVERLAY } from '@/state/stores/progress';
+import { LOADING_OVERLAY } from '@/views/CityView/chrome';
 import { LoadingProgress } from '@/components/loading/LoadingProgress/LoadingProgress';
 
 export interface LoadingOverlayProps {

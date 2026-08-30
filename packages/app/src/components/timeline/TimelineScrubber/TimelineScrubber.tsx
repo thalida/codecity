@@ -8,8 +8,8 @@ import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { useCity, useCityTimeline } from '@codecity/city/preact';
 import { ACCENT_THEME } from '@/state/settings/values/theme';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
-import { showCommit } from '@/state/stores/city';
-import { useCityChrome } from '@/state/stores/chrome';
+import { showCommit } from '@/views/CityView/commands';
+import { useCityChrome } from '@/views/CityView/chrome';
 import {
   buildScrubberScale,
   commitFraction,

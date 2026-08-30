@@ -23,7 +23,7 @@ import {
   UnreachableSource,
   NoticeReason,
 } from '@/components/sources/UnreachableSource/UnreachableSource';
-import type { SourcePayload } from '@/types/ui';
+import type { SourcePayload } from '@/state/source';
 import { useCityStatus } from '@codecity/city/preact';
 
 // Resolving a branch list means the server reaching the remote, and a typed URL

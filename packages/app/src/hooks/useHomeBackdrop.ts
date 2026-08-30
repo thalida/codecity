@@ -5,14 +5,15 @@
 
 // It chooses; it does not paint. The manifest it settles on is what <City>
 // gets as a prop, so there is no city here to reach into and no way for a
-// wallpaper to end up applied to the project you opened.
 
 import { ScanPhase } from '@codecity/city';
 import type { Manifest } from '@codecity/city';
 import { useEffect, useState } from 'preact/hooks';
 import { effect } from '@preact/signals';
-import { SERVER_CONFIG } from '@/state/stores/serverData';
-import { RECENTS, CURRENT_SOURCE, BACKDROP_CITY, BackdropKind } from '@/state/stores/source';
+import { SERVER_CONFIG } from '@/state/server';
+import { RECENTS } from '@/state/recents';
+import { CURRENT_SOURCE } from '@/state/source';
+import { BACKDROP_CITY, BackdropKind } from '@/views/HomeView/backdrop';
 import { identityBranch, resolveBranch, sameSourceIdentity } from '@codecity/city';
 import { API } from '@/apiClient';
 
@@ -53,7 +54,6 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
   const out: Candidate[] = [];
   // The project you just left, from the server's cache. It used to be handed
   // over in memory, which meant the landing reading a manifest belonging to a
-  // city that had already been torn down.
   const current = CURRENT_SOURCE.peek();
   if (current) {
     out.push({

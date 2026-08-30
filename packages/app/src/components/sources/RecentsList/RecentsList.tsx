@@ -2,10 +2,12 @@
 // CURRENT_SOURCE by source identity, not the manifest's display fields, so a
 // checkout change never drops a local path's active badge. Remove forgets the
 // entry only; the scan cache is the skip-cache control's business.
+import { ACTIVE_SOURCE } from '@/views/HomeView/backdrop';
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { RECENTS, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
-import { SERVER_CONFIG } from '@/state/stores/serverData';
+import { RECENTS, removeRecent } from '@/state/recents';
+import {} from '@/state/source';
+import { SERVER_CONFIG } from '@/state/server';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@codecity/city';
 import { RecentRow } from './RecentRow';
 import { cityHref } from '@/router/location';

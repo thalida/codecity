@@ -14,7 +14,7 @@ import {
   LOADING_STEP_LABELS,
   stepRuns,
 } from '@/constants/progress';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/progress';
+import { PENDING_SOURCE_LABEL } from '@/views/CityView/chrome';
 
 export interface LoadingProgressProps {
   activeStep: LoadingStep;

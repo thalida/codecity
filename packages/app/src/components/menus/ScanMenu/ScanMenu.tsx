@@ -14,12 +14,8 @@ import { Field } from '@/components/fields/Field/Field';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { LIVE_UPDATES } from '@/state/settings/values/updates';
-import {
-  CURRENT_SOURCE_IS_LOCAL,
-  ACTIVE_EXCLUDES,
-  removeExclude,
-  clearExcludes,
-} from '@/state/stores/source';
+import { CURRENT_SOURCE_IS_LOCAL } from '@/state/source';
+import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/excludes';
 import { EXCLUDES_DOCS_URL } from '@/constants/ui';
 import { SetupGuideLink } from '@/components/app/SetupGuideLink/SetupGuideLink';
 

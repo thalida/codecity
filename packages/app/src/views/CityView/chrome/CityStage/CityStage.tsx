@@ -14,12 +14,13 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { useCityReport } from '@/hooks/useCityReport';
-import { cityKeyboardEnabled } from '@/state/stores/city';
-import { useCityChrome } from '@/state/stores/chrome';
+import { cityKeyboardEnabled } from '@/views/CityView/commands';
+import { useCityChrome } from '@/views/CityView/chrome';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import { useUrlSource } from '@/router/useUrlSource';
-import { activeExcludePathsFor, commitSource, SOURCE_ERROR } from '@/state/stores/source';
+import { activeExcludePathsFor } from '@/state/excludes';
+import { commitSource, SOURCE_ERROR } from '@/state/source';
 import { ScanError } from '@codecity/city';
 
 export function CityStage({

@@ -4,9 +4,9 @@
 import './ShortcutsMenu.css';
 import { Keyboard } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/menus/Popover/Popover';
-import { SHORTCUTS_OPEN } from '@/state/stores/chrome';
+import { SHORTCUTS_OPEN } from '@/views/CityView/chrome';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { IS_TOUCH } from '@/state/stores/viewport';
+import { IS_TOUCH } from '@/state/viewport';
 
 interface ShortcutItem {
   kbd?: string[];

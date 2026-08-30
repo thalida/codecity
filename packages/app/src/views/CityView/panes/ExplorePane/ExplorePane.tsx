@@ -12,7 +12,7 @@ import { FolderTree, BookOpen } from 'lucide-preact';
 import { Pane } from '@/components/panes/Pane/Pane';
 import { PaneCloseButton } from '@/components/panes/PaneCloseButton/PaneCloseButton';
 import { PaneTabs } from '@/components/panes/PaneTabs/PaneTabs';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CURRENT_SOURCE } from '@/state/source';
 import { TreeTab } from './tabs/TreeTab/TreeTab';
 import { ReadmeTab } from './tabs/ReadmeTab/ReadmeTab';
 

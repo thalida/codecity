@@ -13,25 +13,6 @@ export enum SidebarTab {
   Controls = 'controls',
 }
 
-/** What the source picker submits when the user opens a project. */
-export interface SourcePayload {
-  src: string;
-  branch?: string;
-  /** When true, this open forces a fresh scan (server-side ?no_cache=1).
-   *  Not persisted — re-opening from a recent uses cached scan by default. */
-  skipCache?: boolean;
-}
-
-/** A load that failed: what went wrong, and what was being opened. The landing
- *  reads it to explain itself and to refill the form. */
-export interface SourceError {
-  error: string;
-  /** The failure's machine-readable reason, where the server gave one, so the
-   *  form can offer a remedy instead of only echoing the message. */
-  code?: ScanErrorCode;
-  prefill?: SourcePayload;
-}
-
 /** Options for showing the loading overlay. */
 export interface LoadingOverlayShowOpts {
   kind: SourceKind;

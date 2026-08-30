@@ -10,7 +10,7 @@ import { createPortal } from 'preact/compat';
 import { useSignal, type Signal } from '@preact/signals';
 import { useCallback, useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useDismissable } from '@/hooks/useDismissable';
-import { IS_PHONE } from '@/state/stores/viewport';
+import { IS_PHONE } from '@/state/viewport';
 
 /** Which edge of the trigger the panel grows from, and which end it aligns to.
  *  A bar at the bottom of the window can only open upward. */

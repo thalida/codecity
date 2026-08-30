@@ -2,8 +2,9 @@
 // rows Recents uses: a Discover entry is a recent you have not opened yet. No
 // stars or timings, which would rot or reopen a third-party dependency, and no
 // "Featured" note, since what a row can usefully say is whether you can see it.
-import { DISCOVER } from '@/state/stores/serverData';
-import { ACTIVE_SOURCE } from '@/state/stores/source';
+import { ACTIVE_SOURCE } from '@/views/HomeView/backdrop';
+import { DISCOVER } from '@/views/HomeView/discover';
+import {} from '@/state/source';
 import { sameSourceIdentity } from '@codecity/city';
 import { SourceRow } from '@/components/sources/SourceRow/SourceRow';
 import { cityHref } from '@/router/location';

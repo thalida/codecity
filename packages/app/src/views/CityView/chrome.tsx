@@ -1,14 +1,18 @@
-// state/stores/progress.ts — what the overlay above the scene city shows.
+// views/CityView/chrome.tsx — what this view shows around its city: the modals,
+// the loading overlay, the freshness readout, and the sidebar state.
 //
-// The city answers "what is happening, how far along, is this the finished
-// city" itself, as one value: see CITY_STATUS below. What is left here is the
-// app's own: which rows THIS overlay lists, how they read, and the fact that a
-// source was asked for before the city had anything to say about it.
+// Two scopes. Modals are app-wide (one keyboard); the rest is per city.
 
+import { createContext, type ComponentChildren } from 'preact';
+import { useContext, useMemo } from 'preact/hooks';
+import { signal, computed, type Signal } from '@preact/signals';
+
+import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
+import { SidebarTab } from '@/types/ui';
+import { IS_PHONE } from '@/state/viewport';
+import { ON_HOME } from '@/router/paths';
 import type { CityStatus } from '@codecity/city';
-import { CityLifecycle, CityPhase } from '@codecity/city';
-import { signal } from '@preact/signals';
-import { SourceKind } from '@codecity/city';
+import { CityLifecycle, CityPhase, SourceKind } from '@codecity/city';
 import {
   LoadingStep,
   LOADING_STEPS,
@@ -18,9 +22,101 @@ import {
 } from '@/constants/progress';
 import type { LoadingOverlayShowOpts, LoadingOverlayState } from '@/types/ui';
 
+// ── App-wide: the modals ─────────────────────────────────────────────
+
+/** Whether the keyboard/mouse shortcuts reference modal is open. */
+export const SHORTCUTS_OPEN = signal(false);
+
+/** Open the shortcuts modal (header `?` icon). */
+export function openShortcuts(): void {
+  SHORTCUTS_OPEN.value = true;
+}
+
+/** Close the shortcuts modal. */
+export function closeShortcuts(): void {
+  SHORTCUTS_OPEN.value = false;
+}
+
+/** Whether the developer-diagnostics modal is open. */
+export const DEBUG_OPEN = signal(false);
+
+/** Open the debug modal (header bug icon, flag-gated). */
+export function openDebug(): void {
+  DEBUG_OPEN.value = true;
+}
+
+/** Close the debug modal. */
+export function closeDebug(): void {
+  DEBUG_OPEN.value = false;
+}
+
+/** True when something else owns the keyboard: a modal, or the landing, whose
+ *  backdrop canvas would otherwise answer keystrokes meant for its form. */
+export const OVERLAY_OPEN = computed(
+  () => ON_HOME.value || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+);
+
+// ── Per city: the chrome around one ──────────────────────────────────
+
+export interface CityChromeState {
+  tab: Signal<SidebarTab>;
+  collapsed: Signal<boolean>;
+  /** Whether the current selection's details are put away. */
+  detailsDismissed: Signal<boolean>;
+  /** Put the details away, leaving the node selected and outlined. */
+  dismissDetails(): void;
+  /** Bring the details back for a node that is already selected. */
+  openDetails(): void;
+  /** Focusing is asking to LOOK at something, so it clears what is in the way. */
+  revealCity(): void;
+  /** You asked for the node by name, so its details are the answer. */
+  revealDetails(): void;
+}
+
+export function createCityChrome(): CityChromeState {
+  const tab = signal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
+  const collapsed = signal<boolean>(true);
+  const detailsDismissed = signal(false);
+
+  // Phone: the left drawer covers the city, so a camera move behind it is one
+  // you cannot see. It is the whole screen there and a column everywhere else.
+  const collapseDrawerOnPhone = () => {
+    if (IS_PHONE.peek()) collapsed.value = true;
+  };
+
+  return {
+    tab,
+    collapsed,
+    detailsDismissed,
+    dismissDetails: () => void (detailsDismissed.value = true),
+    openDetails: () => void (detailsDismissed.value = false),
+    revealCity: () => {
+      detailsDismissed.value = true;
+      collapseDrawerOnPhone();
+    },
+    revealDetails: () => {
+      detailsDismissed.value = false;
+      collapseDrawerOnPhone();
+    },
+  };
+}
+
+const Ctx = createContext<CityChromeState | null>(null);
+
+export function CityChromeProvider({ children }: { children: ComponentChildren }) {
+  const chrome = useMemo(createCityChrome, []);
+  return <Ctx.Provider value={chrome}>{children}</Ctx.Provider>;
+}
+
+/** The chrome around the city this subtree is about. Detached outside a
+ *  provider, so a component on its own still works rather than throwing. */
+export function useCityChrome(): CityChromeState {
+  const fallback = useMemo(createCityChrome, []);
+  return useContext(Ctx) ?? fallback;
+}
+
 /** What THIS app asked for, which it knows before the city reports anything:
- *  a local path skips the rows a remote source runs, and the branch is in the
- *  header. Non-null while a load this app started is in flight. */
+ *  a local path skips the rows a remote source runs, and the branch is in the */
 export interface LoadingSource {
   kind: SourceKind;
   branch?: string;
@@ -28,17 +124,9 @@ export interface LoadingSource {
 
 // ── What the app adds to it ─────────────────────────────────────────
 // Two facts the city has no event for, because neither is about the city: a
-// Save it answers by refreshing materials in place (nothing rebuilds, so
-// nothing is reported), and when the last finished build landed in wall time.
 
 /** Work THIS app is doing that no city is reporting, and failures of it. Three
- *  cases, all genuinely the host's: a Save the city answers by refreshing
- *  materials in place (nothing rebuilds, so nothing is reported), a re-scan it
- *  has decided on but not yet asked for, and the timeline bundle it fetches
- *  itself before handing a city anything.
- *
- *  Deliberately one shape and one signal. The five-state machine this replaces
- *  was a second account of what the city already says. */
+ *  cases, all genuinely the host's: a Save the city answers by refreshing */
 export interface HostWork {
   busy: boolean;
   error: unknown | null;
@@ -140,8 +228,7 @@ export function setLoadingStepTail(step: LoadingStep, tail: string | null): void
 // ── The Live driver ──────────────────────────────────────────────────
 
 /** Drive the overlay's rows off one city's status. Presentation only: which
- *  rows this app lists, and how far down them the load has got. Returns the
- *  advance, called with the status and what THIS app asked for. */
+ *  rows this app lists, and how far down them the load has got. Returns the */
 export function createOverlayDriver(): (status: CityStatus, asked: LoadingSource | null) => void {
   let overlayUp = false;
   // How far down the list this load has got. A row that lights up again after a
@@ -163,7 +250,6 @@ export function createOverlayDriver(): (status: CityStatus, asked: LoadingSource
 
     // Nothing is coming and there is nothing left to wait for. `fetching` is
     // the whole of the second half: a city can be on screen and still not be
-    // the finished one, which is what grew trees after the overlay went.
     if (!asked && !status.fetching && status.lifecycle !== CityLifecycle.Loading) {
       hide();
       return;
@@ -183,7 +269,6 @@ export function createOverlayDriver(): (status: CityStatus, asked: LoadingSource
     if (step) advance(step);
     // The counts belong to the row that is producing them, and clear when it
     // hands over: a stale "1,204 files" beside "Building city" reads as a
-    // scanner that is still running.
     setLoadingStepTail(
       LoadingStep.Cloning,
       step === LoadingStep.Cloning ? countsTail(status) : null
@@ -202,9 +287,7 @@ export function createOverlayDriver(): (status: CityStatus, asked: LoadingSource
 // ── Where a build's own reports come in ──────────────────────────────
 
 /** Keep the app's own two facts in step with one city's status: what the
- *  finished city was built from, and when it finished. The SCENE city's only —
- *  a wallpaper's build is not this readout's business. Returns the unsubscribe.
- */
+ *  finished city was built from, and when it finished. The SCENE city's only — */
 export function createBuildReport(initial: CityStatus): (status: CityStatus) => void {
   let wasReady = initial.lifecycle === CityLifecycle.Ready;
   return (status: CityStatus) => {
@@ -217,7 +300,6 @@ export function createBuildReport(initial: CityStatus): (status: CityStatus) => 
     if (status.lifecycle === CityLifecycle.Error) {
       // Logged with the stack, where a developer can use it. The UI shows a
       // generic line: the message names our internals, and a reader cannot act
-      // on it.
       console.error('[codecity] city build failed', status.error);
       REBUILD_DETAIL.value = null;
     }

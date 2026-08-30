@@ -1,9 +1,7 @@
-// hooks/useCityReport.ts — this app's readout for one city.
-//
-// Replaces the five attach* functions and the one call that bundled them. They
-// mirrored the city's own facts onto module signals; what is genuinely this
-// app's — the loading overlay's rows, when the last build landed, the flash for
-// a Save answered in place — is derived here from what the city reports.
+// hooks/useCityReport.ts — this app's readout for one city: the loading
+// overlay's rows, when the last build landed, and the flash for a Save the city
+// answers in place. All of it derived from what the city reports, rather than
+// copied onto module signals the way the attach* functions did.
 
 import { useEffect, useMemo } from 'preact/hooks';
 import { useCity, useCityStatus } from '@codecity/city/preact';
@@ -15,7 +13,7 @@ import {
   createOverlayDriver,
   PENDING_SOURCE_LABEL,
   type LoadingSource,
-} from '@/state/stores/progress';
+} from '@/views/CityView/chrome';
 import type { UrlSource } from '@/router/useUrlSource';
 
 export function useCityReport(source: UrlSource | null): void {

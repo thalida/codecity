@@ -3,7 +3,7 @@
 
 import { useSourceInfo } from '@/hooks/useSourceInfo';
 import './TimelineToggle.css';
-import {} from '@/state/stores/source';
+
 import { useCityTimeline } from '@codecity/city/preact';
 import { setUrlTimelineMode } from '@/router/useUrlViewState';
 

@@ -1,13 +1,11 @@
-// hooks/useServerData.ts — the two boot reads that describe the SERVER, not a
-// city: what it is configured with, and what it offers to open.
-//
-// Genuinely app-global, and the only thing left of what used to be the fetch
-// layer: loading a repo is now <City>'s `src` prop, and the city reports its
-// own progress.
+// hooks/useServerData.ts — the boot read that describes the SERVER, not a city:
+// what it is configured with. Genuinely app-wide, and the only thing left of
+// what used to be the fetch layer: loading a repo is <City>'s `src` prop now.
 
 import { useEffect } from 'preact/hooks';
 
-import { DISCOVER, SERVER_CONFIG } from '@/state/stores/serverData';
+import { SERVER_CONFIG } from '@/state/server';
+import { DISCOVER } from '@/views/HomeView/discover';
 import { API } from '@/apiClient';
 
 export function useServerData(): void {

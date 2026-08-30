@@ -4,8 +4,9 @@
 
 import type { City } from '@codecity/city';
 
-import { CURRENT_SOURCE, activeExcludePathsFor } from '@/state/stores/source';
-import { failHostWork } from '@/state/stores/progress';
+import { CURRENT_SOURCE } from '@/state/source';
+import { activeExcludePathsFor } from '@/state/excludes';
+import { failHostWork } from '@/views/CityView/chrome';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 

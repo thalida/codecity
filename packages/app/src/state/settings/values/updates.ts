@@ -3,7 +3,7 @@
 // On by default so the city tracks edits out of the box. manifestPoll owns the
 // hard bounds POLL_SECONDS is clamped to.
 import { computed } from '@preact/signals';
-import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
+import { CURRENT_SOURCE_IS_LOCAL } from '@/state/source';
 import {
   settingSignal,
   markAutosave,

@@ -6,7 +6,7 @@
 import './CityView.css';
 import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider } from '@/state/stores/chrome';
+import { CityChromeProvider } from '@/views/CityView/chrome';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
 
@@ -25,9 +25,14 @@ import { refreshCurrentSource } from '@/hooks/useManifestSource';
 import { useUrlViewState } from '@/router/useUrlViewState';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/paths';
-import { LOADING_CANCEL } from '@/state/stores/progress';
-import { CURRENT_SOURCE, clearSourceUrl } from '@/state/stores/source';
-import { runCollisionCheck, runStemDiagnostic, runTreeGroundingCheck } from '@/state/stores/city';
+import { LOADING_CANCEL } from '@/views/CityView/chrome';
+import { CURRENT_SOURCE } from '@/state/source';
+import { clearSourceUrl } from '@/router/useSourceUrl';
+import {
+  runCollisionCheck,
+  runStemDiagnostic,
+  runTreeGroundingCheck,
+} from '@/views/CityView/commands';
 
 export function CityView() {
   // Held here rather than in a module slot, which is what lets a second city

@@ -22,7 +22,7 @@ import type { City } from '@codecity/city';
 import { useCityCommands } from '@/hooks/useCityCommands';
 import { useCityManifest, useCityTimeline } from '@codecity/city/preact';
 import { useScrub } from '@/hooks/useScrub';
-import { addExclude } from '@/state/stores/source';
+import { addExclude } from '@/state/excludes';
 import { setUrlTimelineMode } from '@/router/useUrlViewState';
 import { FilePreviewPane } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/CityView/panes/FilePreviewPane/FilePreviewPane';
@@ -31,7 +31,7 @@ import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPa
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { useCityChrome } from '@/state/stores/chrome';
+import { useCityChrome } from '@/views/CityView/chrome';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {

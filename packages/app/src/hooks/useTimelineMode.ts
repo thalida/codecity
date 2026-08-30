@@ -4,12 +4,9 @@
 // reacts to that and does the scene teardown itself.
 
 import { Manifest, TimelineProgress, TimelineStage } from '@codecity/city';
-import {
-  CURRENT_SOURCE,
-  RECENTS,
-  commitSource,
-  activeExcludePathsFor,
-} from '@/state/stores/source';
+import { CURRENT_SOURCE, commitSource } from '@/state/source';
+import { RECENTS } from '@/state/recents';
+import { activeExcludePathsFor } from '@/state/excludes';
 import {
   failHostWork,
   beginHostWork,
@@ -19,7 +16,7 @@ import {
   setLoadingStepTail,
   hideLoadingOverlay,
   PENDING_SOURCE_LABEL,
-} from '@/state/stores/progress';
+} from '@/views/CityView/chrome';
 import {
   LoadingStep,
   TIMELINE_LOADING_STEPS,

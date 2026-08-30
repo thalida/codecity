@@ -8,7 +8,7 @@ import { useMemo } from 'preact/hooks';
 import { FolderOpen, Focus } from 'lucide-preact';
 import { PaneEmpty } from '@/components/panes/PaneEmpty/PaneEmpty';
 import { useCityCommands } from '@/hooks/useCityCommands';
-import type { CityCommands } from '@/state/stores/city';
+import type { CityCommands } from '@/views/CityView/commands';
 import { computeAlmanac } from '../../almanac';
 import type { AlmanacFact, LandmarkRef } from '../../almanac';
 import { SECTION_ICON } from '../../sectionIcons';
