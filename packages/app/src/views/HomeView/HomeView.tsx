@@ -16,8 +16,8 @@ import { BACKDROP_CITY } from '@/views/HomeView/backdrop';
 import { RECENTS } from '@/state/recents';
 import { SOURCE_ERROR } from '@/state/source';
 import { cityHref, navigate } from '@/router/location';
-import { SERVER_CONFIG } from '@/state/server';
-import { DISCOVER } from '@/views/HomeView/discover';
+import { useServerConfig } from '@/state/server';
+import { useDiscover } from '@/views/HomeView/discover';
 import { RUN_DOCS_URL } from '@/constants/ui';
 import { NewProjectForm } from '@/components/sources/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/sources/RecentsList/RecentsList';
@@ -28,6 +28,8 @@ const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
 export function HomeView() {
+  const serverConfig = useServerConfig();
+  const discover = useDiscover();
   // What the wallpaper shows: chosen here, drawn by the city below. Nothing on
   // this route holds a city, because nothing on it has anything to ask one.
   const backdrop = useHomeBackdrop();
@@ -39,7 +41,7 @@ export function HomeView() {
   // Recent is always offered, empty state and all, so a first visit learns that
   // codecity remembers what you open.
   const hasRecents = RECENTS.value.length > 0;
-  const hasDiscover = DISCOVER.value.length > 0;
+  const hasDiscover = discover.length > 0;
   const tabs = [
     { id: SOURCE_TAB.recents, label: 'Recent', icon: History },
     ...(hasDiscover ? [{ id: SOURCE_TAB.discover, label: 'Discover', icon: Compass }] : []),
@@ -110,7 +112,7 @@ export function HomeView() {
 
           {/* The resting statement, wherever a folder can't be opened here. A
               failure gets the same fact under the field, with the command. */}
-          {!SERVER_CONFIG.value.allowLocalRepos && (
+          {!serverConfig.allowLocalRepos && (
             <div class="landing-local">
               <p class="landing-local-lead">Yes, private and local repos work</p>
               <p class="landing-local-body">
@@ -141,7 +143,7 @@ export function HomeView() {
               // Remount on a new prefill so a failed submit restores what
               // was typed instead of clearing it.
               key={failed?.prefill?.src ?? ''}
-              allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
+              allowLocalRepos={serverConfig.allowLocalRepos}
               error={failed?.error}
               errorCode={failed?.code}
               prefill={failed?.prefill}

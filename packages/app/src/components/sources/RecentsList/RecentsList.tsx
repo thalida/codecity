@@ -7,7 +7,7 @@ import './RecentsList.css';
 import { useState } from 'preact/hooks';
 import { RECENTS, removeRecent } from '@/state/recents';
 import {} from '@/state/source';
-import { SERVER_CONFIG } from '@/state/server';
+import { useServerConfig } from '@/state/server';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@codecity/city';
 import { RecentRow } from './RecentRow';
 import { cityHref } from '@/router/location';
@@ -15,7 +15,7 @@ import { cityHref } from '@/router/location';
 export function RecentsList() {
   const recents = RECENTS.value;
   const active = ACTIVE_SOURCE.value;
-  const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
+  const allowLocal = useServerConfig().allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row
 
   const keyOf = (r: { src: string; branch?: string }) => sourceIdentity(r.src, r.branch);

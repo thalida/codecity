@@ -3,12 +3,12 @@
 // (header, footer, switcher), so one definition each keeps the wording and the
 // link targets from drifting. `linkClass` leaves the treatment to the surface.
 import './MetaLine.css';
-import { SERVER_CONFIG } from '@/state/server';
+import { useServerConfig } from '@/state/server';
 import { REPO_URL, CREATOR_URL } from '@/constants/ui';
 
 /** The running build's version, as reported by the server. */
 function MetaVersion() {
-  return <span class="meta-version">v{SERVER_CONFIG.value.version}</span>;
+  return <span class="meta-version">v{useServerConfig().version}</span>;
 }
 
 export interface MetaLinkProps {

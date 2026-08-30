@@ -10,17 +10,25 @@ import { Router, Route, Switch, Redirect } from 'wouter-preact';
 import { HomeView } from '@/views/HomeView/HomeView';
 import { CityView } from '@/views/CityView/CityView';
 import { SOURCE_ERROR } from '@/state/source';
-import { useServerData } from '@/hooks/useServerData';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/state/queryClient';
 import { useSourceUrl } from '@/router/useSourceUrl';
 import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
 import { ROUTES } from '@/router/paths';
 
+/** The provider shell. Everything a single view needs is mounted by that view;
+ *  what is here spans both routes. */
 export function App() {
-  // The title spans both routes; everything a single view needs is mounted by
-  // that view.
-  useServerData();
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Routes />
+    </QueryClientProvider>
+  );
+}
+
+function Routes() {
   // The open project, reflected into the URL. Mounted, not a module effect: it
-  // navigates, and a navigation on import fires in every test downstream.
+  // navigates, and a navigation on import fires on any import reaching it.
   useSourceUrl();
 
   // Before anything that reads the URL, so back/forward is never missed.

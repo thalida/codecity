@@ -7,8 +7,6 @@ import type { Manifest } from '@codecity/city';
 import { signal, computed } from '@preact/signals';
 import { srcKind, SourceKind, resolveBranch, identityBranch, sourceKey } from '@codecity/city';
 import type { ScanErrorCode } from '@codecity/city';
-import { URL_PARAMS } from '@/router/params';
-import { ROUTE_PARAMS } from '@/router/location';
 import { pushRecent } from '@/state/recents';
 
 /** What the switcher hands over when you open something. */

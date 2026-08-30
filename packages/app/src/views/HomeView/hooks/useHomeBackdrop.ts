@@ -9,8 +9,7 @@
 import { ScanPhase } from '@codecity/city';
 import type { Manifest } from '@codecity/city';
 import { useEffect, useState } from 'preact/hooks';
-import { effect } from '@preact/signals';
-import { SERVER_CONFIG } from '@/state/server';
+import { useServerConfig } from '@/state/server';
 import { RECENTS } from '@/state/recents';
 import { CURRENT_SOURCE } from '@/state/source';
 import { BACKDROP_CITY, BackdropKind } from '@/views/HomeView/backdrop';
@@ -87,6 +86,8 @@ function candidates(featuredRepo: string | undefined): Candidate[] {
  *  looking. Hand it to a <City> as its `manifest`. */
 export function useHomeBackdrop(): Manifest | null {
   const [manifest, setManifest] = useState<Manifest | null>(null);
+  // Featured gets its turn once the server's description lands.
+  const featured = useServerConfig().featuredRepo;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -124,18 +125,13 @@ export function useHomeBackdrop(): Manifest | null {
       }
     }
 
-    // Re-runs when the server config lands, which gives featured its turn.
-    const stop = effect(() => {
-      const featured = SERVER_CONFIG.value.featuredRepo;
-      if (!inFlight && !BACKDROP_CITY.peek()) void tryNext(featured);
-    });
+    if (!inFlight && !BACKDROP_CITY.peek()) void tryNext(featured);
 
     return () => {
-      stop();
       controller.abort();
       BACKDROP_CITY.value = null;
     };
-  }, []);
+  }, [featured]);
 
   return manifest;
 }

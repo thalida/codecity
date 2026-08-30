@@ -1,7 +1,6 @@
 // state/recents.ts — the projects you have opened, most recent first. Persisted,
 // and cross-feature: the landing lists them, the city view adds to them.
 
-import { signal } from '@preact/signals';
 import { sameSourceIdentity } from '@codecity/city';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';

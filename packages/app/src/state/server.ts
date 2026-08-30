@@ -1,14 +1,18 @@
-// state/server.ts — what the server told us about itself at boot:
-// how it is configured, and the repos it offers to show you. Fetched once, never
-// written by the app. Both shapes live in @/api, which must not depend on this.
+// state/server.ts — what the server told us about itself at boot: how it is
+// configured. App-wide, because the footer names the version on every route.
 
-import { DEFAULT_SERVER_CONFIG, ServerConfig } from '@codecity/city';
-import { signal } from '@preact/signals';
+import { useQuery } from '@tanstack/react-query';
+import { DEFAULT_SERVER_CONFIG, type ServerConfig } from '@codecity/city';
 
-export type { ServerConfig };
-export { DEFAULT_SERVER_CONFIG };
+import { API } from '@/apiClient';
 
-export const SERVER_CONFIG = signal<ServerConfig>(DEFAULT_SERVER_CONFIG);
+export const SERVER_CONFIG_KEY = ['server-config'] as const;
 
-// Empty until the fetch lands, and forever if Discover is off. The tab keys its
-// visibility off that, so there is no "loaded yet?" flag to keep in step.
+/** The server's configuration, with its defaults until the read lands. */
+export function useServerConfig(): ServerConfig {
+  const { data } = useQuery({
+    queryKey: SERVER_CONFIG_KEY,
+    queryFn: () => API.getServerConfig(),
+  });
+  return data ?? DEFAULT_SERVER_CONFIG;
+}
