@@ -1,8 +1,7 @@
-// router/location.ts — the page URL, and the routes it can be on.
-//
-// One writer: nothing else calls pushState/replaceState. wouter renders off the
-// hooks below rather than holding location itself, which is what lets the boot
-// normalizer and the city's keyboard predicate read the URL outside a render.
+// router/location.ts — the page URL, and the routes it can be on. One writer:
+// nothing else calls pushState/replaceState. wouter renders off the hooks below
+// rather than holding location itself, which is what lets the boot normalizer
+// and the city's keyboard predicate read the URL outside a render.
 
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
