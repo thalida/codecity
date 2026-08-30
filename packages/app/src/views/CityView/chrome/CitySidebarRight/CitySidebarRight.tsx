@@ -31,7 +31,7 @@ import type { CommitPaneState } from '@/views/CityView/panes/CommitPane/CommitPa
 import { StreetPane } from '@/views/CityView/panes/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/CityView/panes/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/panes/Sidebar/Sidebar';
-import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/chrome';
+import { useCityChrome } from '@/state/chromeContext';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -65,6 +65,7 @@ export function CitySidebarRight() {
   const inTimeline = useCityTimeline().mode;
   const scrub = useScrub();
   const sourceInfo = useSourceInfo();
+  const chrome = useCityChrome();
   const selection = useSignal<PickTarget | null>(null);
   useEffect(() => {
     if (!city) {
@@ -140,9 +141,9 @@ export function CitySidebarRight() {
 
   // Two facts, not one: closing used to deselect, throwing away the outline
   // because you wanted the details out of the way.
-  const isOpen = useComputed(() => activeKind.value !== null && !SELECTION_PANE_DISMISSED.value);
+  const isOpen = useComputed(() => activeKind.value !== null && !chrome.detailsDismissed.value);
 
-  const dismiss = dismissSelectionPane;
+  const dismiss = chrome.dismissDetails;
 
   // Clearing the drawers out of the way on a phone is the focus command's job
   // (stores/scene), so every focus button in the app behaves the same.

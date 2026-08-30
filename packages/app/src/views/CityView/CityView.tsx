@@ -6,6 +6,7 @@
 import './CityView.css';
 import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
+import { CityChromeProvider } from '@/state/chromeContext';
 import type { City } from '@codecity/city';
 import { useSignalEffect } from '@preact/signals';
 
@@ -38,19 +39,21 @@ export function CityView() {
 
   return (
     <CityProvider city={city}>
-      <CityChrome city={city} />
-      <main id="city-body" tabIndex={-1}>
-        <CitySidebarLeft />
-        <CityStage
-          city={city}
-          onReady={setCity}
-          viewState={viewState}
-          onViewStateChange={onViewStateChange}
-        />
-        <CitySidebarRight />
-      </main>
-      <HljsThemeLink />
-      <SelectionAnnouncer />
+      <CityChromeProvider>
+        <CityChrome city={city} />
+        <main id="city-body" tabIndex={-1}>
+          <CitySidebarLeft />
+          <CityStage
+            city={city}
+            onReady={setCity}
+            viewState={viewState}
+            onViewStateChange={onViewStateChange}
+          />
+          <CitySidebarRight />
+        </main>
+        <HljsThemeLink />
+        <SelectionAnnouncer />
+      </CityChromeProvider>
     </CityProvider>
   );
 }

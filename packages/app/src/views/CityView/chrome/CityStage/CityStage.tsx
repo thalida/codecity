@@ -15,8 +15,8 @@ import { SelectionChip } from '@/views/CityView/chrome/CityStage/SelectionChip/S
 import { createCityTooltip } from '@/components/CityTooltip/CityTooltip';
 import { hoverTooltipContent } from '@/components/CityTooltip/tooltipContent';
 import { attachCity } from '@/state/stores/attachCity';
-import { cityKeyboardEnabled, revealCityChrome } from '@/state/stores/city';
-import { openSelectionPane } from '@/state/stores/chrome';
+import { cityKeyboardEnabled } from '@/state/stores/city';
+import { useCityChrome } from '@/state/chromeContext';
 import { CITY_SETTINGS } from '@/state/settings/values/city';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/settings/values/updates';
 import { useUrlSource } from '@/router/useUrlSource';
@@ -37,6 +37,7 @@ export function CityStage({
 }) {
   // Straight off the URL, as values: a ?sel= write leaves src and branch alone,
   // so the city is never re-asked for the project it is already showing.
+  const chrome = useCityChrome();
   const source = useUrlSource();
   const exclude = useComputed(() => (source ? activeExcludePathsFor(source.src) : undefined)).value;
   // Live updates are a reader setting, and zero seconds is off.
@@ -69,10 +70,10 @@ export function CityStage({
         }
         // Picking a node is asking what it is, so a pane put away for the last
         // one comes back for this one.
-        onPick={() => openSelectionPane()}
+        onPick={() => chrome.openDetails()}
         // The focus key makes the same request the panes' Focus buttons do, so
         // it gets the same chrome.
-        onFocusRequest={() => revealCityChrome()}
+        onFocusRequest={() => chrome.revealCity()}
         // What the city just published is what this app calls the open
         // project: one commit point, whichever view asked for it.
         onChange={(change) => {

@@ -11,9 +11,11 @@
 // rather than a wrapper over it.
 
 import './City.css';
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { City as CityInstance } from '../city';
+import { CityProvider } from './context';
 import type { CityExtension } from '../types';
 import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../state/status';
@@ -63,6 +65,9 @@ export interface CityProps {
 
   /** What is selected changed — however it got selected: a click, a restored
    *  link, a host calling focus(). Null is nothing selected. */
+  /** Drawn over the city, inside its provider: a host's own tooltips, badges
+   *  and controls. Inert by default; turn pointer events on per element. */
+  children?: ComponentChildren;
   /** Ask the server to re-scan rather than answer from its cache. */
   noCache?: boolean;
   /** Show this manifest, instead of loading one from a `src`. For a host that
@@ -254,14 +259,21 @@ export function City(props: CityProps) {
   }, [city]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      class={`codecity-canvas codecity-canvas--${props.transparent ? 'transparent' : 'opaque'}${
-        props.class ? ` ${props.class}` : ''
-      }`}
-      // Non-text content needs a text alternative (WCAG 1.1.1).
-      role="img"
-      aria-label={props['aria-label'] ?? DEFAULT_LABEL}
-    />
+    <div class={`codecity-root${props.class ? ` ${props.class}` : ''}`}>
+      <canvas
+        ref={canvasRef}
+        class={`codecity-canvas codecity-canvas--${props.transparent ? 'transparent' : 'opaque'}`}
+        // Non-text content needs a text alternative (WCAG 1.1.1).
+        role="img"
+        aria-label={props['aria-label'] ?? DEFAULT_LABEL}
+      />
+      {/* The host's own UI, over the city and inside its provider: a tooltip
+          drawn here can ask what is hovered without being handed anything. */}
+      {props.children ? (
+        <div class="codecity-overlay">
+          <CityProvider city={city}>{props.children}</CityProvider>
+        </div>
+      ) : null}
+    </div>
   );
 }

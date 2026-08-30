@@ -1,3 +1,19 @@
+/* The root fills whatever box the host gives it, and positions the overlay the
+   host's own UI is drawn into. */
+.codecity-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Over the canvas, and inert: a slot for a host's own tooltips and controls,
+   each of which turns pointer events back on for itself. */
+.codecity-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 /* The canvas fills whatever box the host gives it. Scoped to the class, not a
    bare `canvas` selector, which would reach every canvas on the page. */
 .codecity-canvas {

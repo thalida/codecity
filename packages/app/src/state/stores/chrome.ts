@@ -1,33 +1,9 @@
-// state/stores/chrome.ts — what the app chrome is showing around the city:
-// which left pane, whether it is collapsed, whether the selection's details are
-// put away, and which modal is up. Lifted out of the components so anything can
-// send you to a pane without growing its own copy of that control.
+// state/stores/chrome.ts — the app-wide chrome: which modal is up, and whether
+// something other than the city owns the keyboard. What is around a PARTICULAR
+// city (its sidebar, its details pane) is per city and lives in chromeContext.
 
 import { signal, computed } from '@preact/signals';
-import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
-import { SidebarTab } from '@/types/ui';
 import { ON_HOME } from '@/router/paths';
-
-// ── The left sidebar ─────────────────────────────────────────────────
-
-export const SIDEBAR_TAB = signal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
-export const SIDEBAR_COLLAPSED = signal<boolean>(true);
-
-// ── The right sidebar's selection pane ───────────────────────────────
-
-/** Whether the current selection's details are put away. Cleared whenever the
- *  selection changes, so coming back to a node always shows them again. */
-export const SELECTION_PANE_DISMISSED = signal(false);
-
-/** Put the details away, leaving the node selected (and outlined in the city). */
-export function dismissSelectionPane(): void {
-  SELECTION_PANE_DISMISSED.value = true;
-}
-
-/** Bring the details back for a node that is already selected. */
-export function openSelectionPane(): void {
-  SELECTION_PANE_DISMISSED.value = false;
-}
 
 // ── Modals ───────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import { PanelRightOpen, X } from 'lucide-preact';
 import { useComputed } from '@preact/signals';
 import { useCitySelection } from '@codecity/city/preact';
 import { useCityCommands } from '@/hooks/useCityCommands';
-import { SELECTION_PANE_DISMISSED, openSelectionPane } from '@/state/stores/chrome';
+import { useCityChrome } from '@/state/chromeContext';
 import { KindBadge } from '@/components/nodes/KindBadge/KindBadge';
 
 /** What the chip names: the node's own label, plus the kind badge its pane
@@ -34,9 +34,10 @@ function useChipSelection(): ChipSelection | null {
 export function SelectionChip() {
   const selection = useChipSelection();
   const { clearSelection } = useCityCommands();
+  const chrome = useCityChrome();
   // Only in the state the pane leaves behind: something selected, details put
   // away. With the pane open it would name what the pane already titles.
-  const dismissed = useComputed(() => SELECTION_PANE_DISMISSED.value);
+  const dismissed = useComputed(() => chrome.detailsDismissed.value);
   if (selection === null || !dismissed.value) return null;
 
   const { label, kind, extension } = selection;
@@ -56,7 +57,7 @@ export function SelectionChip() {
         type="button"
         class="selection-chip-label"
         title="Show details"
-        onClick={openSelectionPane}
+        onClick={chrome.openDetails}
       >
         <KindBadge kind={kind} extension={extension} />
         <span class="selection-chip-name">{label}</span>

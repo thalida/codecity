@@ -9,7 +9,7 @@ import { useEffect } from 'preact/hooks';
 import { useCity } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
-import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/chrome';
+import { useCityChrome } from '@/state/chromeContext';
 import { CHANGED_SETTINGS_COUNT } from '@/state/settings/indicators';
 import { useCityCommands } from '@/hooks/useCityCommands';
 import { useScrub } from '@/hooks/useScrub';
@@ -92,8 +92,8 @@ export function CitySidebarLeft() {
   const manifest = useCityManifest();
   // Both live in the store so the header can send you to a pane; still not
   // persisted, and still force-closed on every world load.
-  const activeTab = SIDEBAR_TAB;
-  const collapsed = SIDEBAR_COLLAPSED;
+  const activeTab = useCityChrome().tab;
+  const collapsed = useCityChrome().collapsed;
 
   // Tree selection + hover paths, derived from the city's picker.
   const selectedPath = useSignal<string | null>(null);

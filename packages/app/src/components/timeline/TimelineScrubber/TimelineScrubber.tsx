@@ -9,6 +9,7 @@ import { useCity, useCityTimeline } from '@codecity/city/preact';
 import { ACCENT_THEME } from '@/state/settings/values/theme';
 import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
 import { showCommit } from '@/state/stores/city';
+import { useCityChrome } from '@/state/chromeContext';
 import {
   buildScrubberScale,
   commitFraction,
@@ -21,6 +22,7 @@ import {
 export function TimelineScrubber() {
   // The reports drive the render; the engine takes the drag.
   const city = useCity();
+  const chrome = useCityChrome();
   const timeline = useCityTimeline();
   const inTimeline = timeline.mode;
   const bundle = timeline.bundle;
@@ -226,7 +228,7 @@ export function TimelineScrubber() {
             type="button"
             class="timeline-scrubber-commit"
             title="Show this commit's details"
-            onClick={() => showCommit(city, commit.sha)}
+            onClick={() => showCommit(city, chrome, commit.sha)}
           >
             <span class="timeline-scrubber-sha">{commit.sha.slice(0, 7)}</span>
             <span class="timeline-scrubber-subject">{commit.subject || '(no subject)'}</span>
