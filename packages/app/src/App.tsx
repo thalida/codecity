@@ -13,8 +13,13 @@ import { SOURCE_ERROR } from '@/state/source';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/api/queryClient';
 import { usePublishSourceToUrl } from '@/router/cityUrl';
-import { navigate, attachRouteHistory, useRouteLocation, useRouteSearch } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import {
+  navigate,
+  attachRouteHistory,
+  useRouteLocation,
+  useRouteSearch,
+  ROUTES,
+} from '@/router/location';
 
 /** The provider shell. Everything a single view needs is mounted by that view;
  *  what is here spans both routes. */

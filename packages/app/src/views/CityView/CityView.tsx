@@ -24,8 +24,7 @@ import { useDocumentTitle } from '@/views/CityView/hooks/useDocumentTitle';
 import { useCityCommands } from '@/views/CityView/hooks/useCityCommands';
 import { refreshCurrentSource } from '@/views/CityView/hooks/useManifestSource';
 import { useCityUrl, clearSourceUrl } from '@/router/cityUrl';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { navigate, ROUTES } from '@/router/location';
 import { CURRENT_SOURCE } from '@/state/source';
 import {
   runCollisionCheck,

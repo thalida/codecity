@@ -23,8 +23,8 @@ import {
   hrefFor,
   setRouteParams,
   type NavigateOptions,
+  ROUTES,
 } from '@/router/location';
-import { ROUTES } from '@/router/paths';
 
 // Replace-only: neither a scrub nor a click is a place the reader asked to go,
 // and a drag would bury their history under a hundred entries.

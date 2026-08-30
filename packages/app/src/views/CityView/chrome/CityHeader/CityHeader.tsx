@@ -8,8 +8,7 @@ import './CityHeader.css';
 import { ExternalLink } from 'lucide-preact';
 
 import { useCityManifest } from '@codecity/city/preact';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/paths';
+import { navigate, ROUTES } from '@/router/location';
 import { IS_PHONE } from '@/state/viewport';
 import { ChromeCluster } from '@/views/CityView/chrome/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/sources/ProjectSwitcher/ProjectSwitcher';

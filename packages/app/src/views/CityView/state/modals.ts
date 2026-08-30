@@ -2,7 +2,7 @@
 // other than the city owns the keyboard. App-wide: one keyboard, one layer.
 
 import { signal, computed } from '@preact/signals';
-import { ON_HOME } from '@/router/paths';
+import { ON_HOME } from '@/router/location';
 
 /** Whether the keyboard/mouse shortcuts reference modal is open. */
 export const SHORTCUTS_OPEN = signal(false);

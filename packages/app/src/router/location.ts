@@ -1,19 +1,26 @@
-// router/location.ts — the page URL, as a signal. The single writer of path AND
-// query, so nothing else calls pushState/replaceState. wouter renders off the
-// hooks at the bottom; effects and pre-paint code read the signals directly,
-// which is why the URL lives here rather than in router context.
+// router/location.ts — the page URL, and the routes it can be on.
+//
+// One writer: nothing else calls pushState/replaceState. wouter renders off the
+// hooks below rather than holding location itself, which is what lets the boot
+// normalizer and the city's keyboard predicate read the URL outside a render.
 
-import { URL_PARAMS } from '@/router/params';
 import { signal, computed } from '@preact/signals';
 import type { BaseLocationHook, BaseSearchHook } from 'wouter-preact';
-import { ROUTES } from './paths';
+
+import { URL_PARAMS } from '@/router/params';
+
+export const ROUTES = {
+  HOME: '/',
+  CITY: '/city',
+} as const;
 
 function readHref(): string {
   return `${window.location.pathname}${window.location.search}`;
 }
 
-/** Path + query as one string, the shape wouter's location hook wants. */
-export const HREF = signal<string>(readHref());
+/** Path + query as one string, the shape wouter's location hook wants. Private:
+ *  everything outside this file reads one of the derivations below. */
+const HREF = signal<string>(readHref());
 
 export const ROUTE_PATH = computed<string>(() => {
   const q = HREF.value.indexOf('?');
@@ -100,6 +107,10 @@ export function normalizeBootRoute(): void {
   // /city describes a project; without one there is nothing for it to show.
   else if (!hasSrc && path !== ROUTES.HOME) navigate(ROUTES.HOME, { replace: true });
 }
+
+/** On the landing: it shows because of where you are, not because a flag says
+ *  so, which is what makes back and forward land on it correctly. */
+export const ON_HOME = computed(() => ROUTE_PATH.value === ROUTES.HOME);
 
 // ── wouter hooks ─────────────────────────────────────────────────────
 
