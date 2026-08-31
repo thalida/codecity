@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { CityHeader } from '@/features/city/components/CityHeader/CityHeader';
 import { CURRENT_SOURCE } from '@/state/source';
-import { setManifest } from '@/state/stores/manifest';
+import { renderWithCity, type FakeCity } from '../../../_helpers/cityChrome';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { flush } from '../../../_helpers/preact';
 import { popoverPanel } from '../../../_helpers/popover';
@@ -13,13 +13,18 @@ const LOADED: Manifest = {
   tree: { ...EMPTY_MANIFEST.tree, name: 'codecity' },
 };
 
-function loadProject() {
-  setManifest(LOADED);
-  CURRENT_SOURCE.value = { src: '/repos/codecity', branch: 'main' };
-}
-
 describe('CityHeader', () => {
   let container: HTMLDivElement;
+  let city: FakeCity;
+
+  /** Mount the header over a city that has published `LOADED`. */
+  function loadProject(props: { onSwitchSource?: () => void } = {}) {
+    city = renderWithCity(<CityHeader {...props} />, container);
+    city.setManifest(LOADED);
+    CURRENT_SOURCE.value = { src: '/repos/codecity', branch: 'main' };
+    render(null, container);
+    renderWithCity(<CityHeader {...props} />, container, city);
+  }
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -30,12 +35,10 @@ describe('CityHeader', () => {
     render(null, container);
     document.body.removeChild(container);
     CURRENT_SOURCE.value = null;
-    setManifest(null);
   });
 
   it('renders the gem inside the project chip', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -46,8 +49,7 @@ describe('CityHeader', () => {
 
   it('opens the switcher when the chip is clicked', async () => {
     const onSwitchSource = vi.fn();
-    loadProject();
-    render(<CityHeader onSwitchSource={onSwitchSource} />, container);
+    loadProject({ onSwitchSource });
     await flush();
 
     container.querySelector<HTMLButtonElement>('.project-switcher')!.click();
@@ -57,7 +59,7 @@ describe('CityHeader', () => {
   });
 
   it('still renders the gem before a project loads', async () => {
-    render(<CityHeader />, container);
+    renderWithCity(<CityHeader />, container, city);
     await flush();
 
     const chip = container.querySelector('.project-switcher');
@@ -69,7 +71,6 @@ describe('CityHeader', () => {
   // the repo you have open.
   it('holds neither the about link nor the shortcuts button', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
@@ -78,7 +79,6 @@ describe('CityHeader', () => {
 
   it('puts the freshness readout opposite the project, with nothing beside it', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     const freshness = container.querySelector('.city-header-freshness')!;
@@ -95,7 +95,6 @@ describe('CityHeader', () => {
   // wrapper around the trigger would break both.
   it('makes the readout a direct child of the cluster, not a wrapped one', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     const cluster = container.querySelector('.city-header-freshness')!;
@@ -106,19 +105,17 @@ describe('CityHeader', () => {
   // The gem says which app this is; this says which kind of repo the name
   // beside it belongs to, the way every row in the switcher already does.
   it('marks the chip with the repo kind, and drops it before a project loads', async () => {
-    render(<CityHeader />, container);
+    renderWithCity(<CityHeader />, container, city);
     await flush();
     expect(container.querySelector('.project-switcher-kind')).toBeNull();
 
     loadProject();
-    render(<CityHeader />, container);
     await flush();
     expect(container.querySelector('.project-switcher-kind .icon')).not.toBeNull();
   });
 
   it('groups the project controls in one outlined cluster', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     const cluster = container.querySelector('.chrome-cluster')!;
@@ -129,7 +126,7 @@ describe('CityHeader', () => {
   it('holds both ways to re-open the source in the panel, and none in the bar', async () => {
     loadProject();
     const onRefresh = vi.fn();
-    render(<CityHeader onRefresh={onRefresh} />, container);
+    renderWithCity(<CityHeader onRefresh={onRefresh} />, container, city);
     await flush();
 
     expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
@@ -153,7 +150,6 @@ describe('CityHeader', () => {
   // panel to the bar and laid it out inside it. The panel belongs on <body>.
   it('opens the panel outside the cluster, leaving its one item behind', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     const freshness = container.querySelector('.city-header-freshness')!;
@@ -170,14 +166,13 @@ describe('CityHeader', () => {
   });
 
   it('shows nothing to refresh before a project is loaded', async () => {
-    render(<CityHeader />, container);
+    renderWithCity(<CityHeader />, container, city);
     await flush();
     expect(container.querySelector('.city-header-freshness')).toBeNull();
   });
 
   it('has no reset-view control', async () => {
     loadProject();
-    render(<CityHeader />, container);
     await flush();
 
     expect(container.querySelector('[aria-label="Reset view"]')).toBeNull();

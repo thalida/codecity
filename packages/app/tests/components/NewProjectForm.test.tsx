@@ -40,7 +40,6 @@ describe('NewProjectForm', () => {
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    LOADING_SOURCE.value = null;
     vi.restoreAllMocks();
   });
 

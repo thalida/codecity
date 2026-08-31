@@ -6,13 +6,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS } from '@/state/recents';
 import { CURRENT_SOURCE } from '@/state/source';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
-import { setManifest } from '@/state/stores/manifest';
+import { renderWithServer } from '../_helpers/query';
 import { RecentsList } from '@/features/home/components/sources/RecentsList/RecentsList';
 import { flush } from '../_helpers/preact';
 
 describe('RecentsList', () => {
   let container: HTMLDivElement;
+  // The server says whether a local path may be opened at all; a row for one is
+  // shown unopenable rather than hidden.
+  let allowLocalRepos = false;
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -28,7 +30,6 @@ describe('RecentsList', () => {
     ];
     CURRENT_SOURCE.value = { src: 'https://github.com/o/alpha', branch: 'main' };
     // SOURCE_INFO (which active detection reads) derives from a loaded manifest.
-    setManifest({ tree: { name: 'o/alpha' }, repo: { branch: 'main' } } as unknown as Manifest);
   });
 
   afterEach(() => {
@@ -36,12 +37,11 @@ describe('RecentsList', () => {
     document.body.removeChild(container);
     RECENTS.value = [];
     CURRENT_SOURCE.value = null;
-    setManifest(null);
-    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false };
+    allowLocalRepos = false;
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
-    render(<RecentsList />, container);
+    renderWithServer(<RecentsList />, container, { config: { allowLocalRepos } });
     await flush();
 
     const activeRow = container.querySelector('.source-row--active');
@@ -56,7 +56,7 @@ describe('RecentsList', () => {
     RECENTS.value = [
       { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
     ];
-    render(<RecentsList />, container);
+    renderWithServer(<RecentsList />, container, { config: { allowLocalRepos } });
     await flush();
     const note = container.querySelector('.source-row--active .source-row-note');
     expect(note?.textContent).toBe('Active');
@@ -65,7 +65,7 @@ describe('RecentsList', () => {
   it('every row is a link to the project it names', async () => {
     // A real href, so the destination shows on hover, cmd-click opens a tab,
     // and a row can never open a repo other than the one it is labelled with.
-    render(<RecentsList />, container);
+    renderWithServer(<RecentsList />, container, { config: { allowLocalRepos } });
     await flush();
 
     const active = container.querySelector<HTMLAnchorElement>('.source-row--active')!;
@@ -78,13 +78,12 @@ describe('RecentsList', () => {
   });
 
   it('renders a branch-less local recent with no @branch pill, matched active by path', async () => {
-    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
+    allowLocalRepos = true;
     // A local recent is branch-less; CURRENT_SOURCE is too, so they match by src
     // even though the loaded manifest reports a checkout branch (display only).
     RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
     CURRENT_SOURCE.value = { src: '/Users/me/proj' };
-    setManifest({ tree: { name: 'proj' }, repo: { branch: 'feat/x' } } as unknown as Manifest);
-    render(<RecentsList />, container);
+    renderWithServer(<RecentsList />, container, { config: { allowLocalRepos } });
     await flush();
 
     const rows = container.querySelectorAll('.source-list-item');
@@ -94,7 +93,7 @@ describe('RecentsList', () => {
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
-    render(<RecentsList />, container);
+    renderWithServer(<RecentsList />, container, { config: { allowLocalRepos } });
     await flush();
 
     const removeButtons = container.querySelectorAll<HTMLButtonElement>(
