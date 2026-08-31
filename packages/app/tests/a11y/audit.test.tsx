@@ -32,17 +32,20 @@ import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/location';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/features/city/state/modals';
 import { CURRENT_SOURCE } from '@/state/source';
-import { DISCOVER, SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
-import { setManifest } from '@/state/stores/manifest';
+import { renderWithServer } from '../_helpers/query';
+import { renderWithCity } from '../_helpers/cityChrome';
+import { fakeCity } from '@codecity/city/testing';
 
 /** Enough of a loaded project for the chrome bars to render everything they
  *  have: the project cluster, the freshness readout and the refresh control. */
-function loadProject(): void {
+function loadedCity(): ReturnType<typeof fakeCity> {
   CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
-  setManifest({
+  const city = fakeCity();
+  city.setManifest({
     tree: { name: 'o/r', type: 'directory', path: '.', children: [] },
     repo: { remote_url: 'https://github.com/o/r' },
   } as unknown as Manifest);
+  return city;
 }
 
 /** Click a control by its accessible name, so a surface can be audited in an
@@ -96,7 +99,7 @@ const SURFACES: Surface[] = [
     name: 'HomeView',
     mount: (c) => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, c);
+      renderWithServer(<HomeView />, c);
     },
   },
   {
@@ -104,26 +107,24 @@ const SURFACES: Surface[] = [
     // the footer slot are only in the DOM while open.
     name: 'HomeView (Discover tab, open-project menu)',
     mount: (c) => {
-      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted: true };
-      DISCOVER.value = [
-        { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
-      ];
       navigate(ROUTES.HOME);
-      render(<HomeView />, c);
+      renderWithServer(<HomeView />, c, {
+        config: { hosted: true },
+        discover: [{ url: 'https://github.com/preactjs/preact', label: 'preact', featured: true }],
+      });
       openByLabel(c, 'More ways to open');
     },
   },
   {
     name: 'CityHeader (refresh menu open)',
     mount: (c) => {
-      loadProject();
-      render(<CityHeader />, c);
+      renderWithCity(<CityHeader />, c, loadedCity());
       openByLabel(c, 'More refresh options');
     },
   },
   {
     name: 'CityFooter',
-    mount: (c) => render(<CityFooter />, c),
+    mount: (c) => renderWithServer(<CityFooter />, c),
   },
   {
     name: 'DebugMenu',
@@ -151,7 +152,7 @@ const SURFACES: Surface[] = [
     mount: (c) =>
       render(
         <TreeTab
-          manifest={signal(TREE as unknown as DirNode)}
+          manifest={TREE as unknown as DirNode}
           selectedPath={signal(null)}
           hoveredPath={signal(null)}
           expanded={signal(new Set(['.']))}
@@ -173,8 +174,6 @@ describe('accessibility audit (issue #79)', () => {
     closeDebug();
     closeShortcuts();
     CURRENT_SOURCE.value = null;
-    DISCOVER.value = [];
-    SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
     resetAxe();
   });
 

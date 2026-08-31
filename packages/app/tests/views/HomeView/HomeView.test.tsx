@@ -21,13 +21,6 @@ vi.mock('@/api/client', async (orig) => {
   };
 });
 
-// The view calls these directly now, so they are what "it opened a project" and
-// "it cancelled the load" mean.
-vi.mock('@/features/city/state/commands', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/city/state/commands')>()),
-  loadSource: vi.fn(),
-  cancelLoad: vi.fn(),
-}));
 // Opening anything from here is a navigation, so this is what the assertions
 // watch: the landing starts no load of its own.
 vi.mock('@/router/location', async (importOriginal) => ({
@@ -35,20 +28,15 @@ vi.mock('@/router/location', async (importOriginal) => ({
   navigate: vi.fn(),
 }));
 import { HomeView } from '@/features/home/HomeView';
-import {
-  attachOverlayDriver,
-  hideLoadingOverlay,
-  PENDING_SOURCE_LABEL,
-  LOADING_SOURCE,
-} from '@/features/city/state/overlay';
+import { hideLoadingOverlay, PENDING_SOURCE_LABEL } from '@/features/city/state/overlay';
 import { BACKDROP_CITY, BackdropKind } from '@/features/home/backdrop';
 import { RECENTS } from '@/state/recents';
 import { CURRENT_SOURCE, SOURCE_ERROR } from '@/state/source';
-import { loadSource } from '@/features/city/state/commands';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/location';
 
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG, DISCOVER } from '@/api/reads';
+import { renderWithServer } from '../../_helpers/query';
+import type { DiscoverEntry } from '@codecity/city';
 import { flush } from '../../_helpers/preact';
 
 /** A project already loaded, which the landing names as its backdrop. */
@@ -59,15 +47,13 @@ function loadedCity(): void {
 describe('HomeView', () => {
   let container: HTMLDivElement;
 
-  // The real chain: LOADING_SOURCE feeds the one driver, and the driver decides
-  // when a load is over. Setting it by hand is what let the two disagree.
-  let stopDriver: () => void;
+  // What the server offers this run; seeded into the query cache at render.
+  let discover: readonly DiscoverEntry[] = [];
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
-    stopDriver = attachOverlayDriver();
+    discover = [];
   });
 
   afterEach(() => {
@@ -76,12 +62,9 @@ describe('HomeView', () => {
     navigate(ROUTES.HOME, { replace: true });
     SOURCE_ERROR.value = null;
     CURRENT_SOURCE.value = null;
-    stopDriver();
-    LOADING_SOURCE.value = null;
     hideLoadingOverlay();
     PENDING_SOURCE_LABEL.value = null;
     RECENTS.value = [];
-    DISCOVER.value = [];
     BACKDROP_CITY.value = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -89,7 +72,7 @@ describe('HomeView', () => {
 
   it('renders the new-project form when open and idle', async () => {
     loadedCity();
-    render(<HomeView />, container);
+    renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
     expect(container.querySelector('.landing-progress')).toBeNull();
@@ -101,7 +84,7 @@ describe('HomeView', () => {
       error: 'unrecognized source',
       prefill: { src: 'https://forgejo.example/o/r' },
     };
-    render(<HomeView />, container);
+    renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
     await flush();
     expect(container.textContent).toMatch(/unrecognized source/i);
 
@@ -125,7 +108,7 @@ describe('HomeView', () => {
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
     const open = async () => {
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
     };
 
@@ -144,7 +127,7 @@ describe('HomeView', () => {
     });
 
     it('opens on Discover when you have no recents, since that is the tab with something in it', async () => {
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       expect(tabLabels()).toEqual(['Recent', 'Discover']);
       expect(container.querySelector('[data-list="discover"]')).not.toBeNull();
@@ -155,7 +138,7 @@ describe('HomeView', () => {
 
     it('opens on Recent once you have some, since your own projects outrank a suggestion', async () => {
       RECENTS.value = [RECENT];
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       expect(tabLabels()).toEqual(['Recent', 'Discover']);
       expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
@@ -164,7 +147,7 @@ describe('HomeView', () => {
 
     it('switches the panel when a tab is picked', async () => {
       RECENTS.value = [RECENT];
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       const discoverTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
         (el) => el.textContent === 'Discover'
@@ -181,7 +164,7 @@ describe('HomeView', () => {
       const src = 'https://github.com/preactjs/preact';
       CURRENT_SOURCE.value = { src, branch: 'main' };
       RECENTS.value = [{ src, branch: 'main', label: 'preactjs/preact', lastOpenedAt: 1 }];
-      DISCOVER.value = [{ url: src, label: 'preact', featured: false }];
+      discover = [{ url: src, label: 'preact', featured: false }];
       await open();
 
       const noteIn = (list: string) =>
@@ -203,7 +186,7 @@ describe('HomeView', () => {
       // carry a branch or it won't match its own recents row.
       const src = 'https://github.com/thalida/codecity';
       RECENTS.value = [{ src, branch: 'main', label: 'thalida/codecity', lastOpenedAt: 1 }];
-      DISCOVER.value = [{ url: src, label: 'codecity', featured: true }];
+      discover = [{ url: src, label: 'codecity', featured: true }];
       BACKDROP_CITY.value = {
         src,
         label: 'thalida/codecity',
@@ -221,7 +204,7 @@ describe('HomeView', () => {
       // The route unmounts the view on close, which resets the tab: it used to
       // stay mounted and hidden, so one pick stuck for every later open.
       RECENTS.value = [RECENT];
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       const discoverTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
         (el) => el.textContent === 'Discover'
@@ -238,9 +221,9 @@ describe('HomeView', () => {
     });
 
     it('links a Discover row straight at the project it names', async () => {
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       loadedCity();
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
       // A link, not a handler: the destination is visible on hover, and the row
       // cannot open a repo other than the one it is labelled with.
@@ -248,11 +231,10 @@ describe('HomeView', () => {
         '[data-list="discover"] a.source-row'
       )!;
       expect(row.getAttribute('href')).toBe('/city?src=https://github.com/preactjs/preact');
-      expect(loadSource).not.toHaveBeenCalled();
     });
 
     it('shows no remove control on a Discover row: it is not yours to forget', async () => {
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       expect(
         container.querySelector('[data-list="discover"] [aria-label="Remove from recents"]')
@@ -261,7 +243,7 @@ describe('HomeView', () => {
 
     it('wires the panel to the active tab for screen readers', async () => {
       RECENTS.value = [RECENT];
-      DISCOVER.value = CURATED;
+      discover = CURATED;
       await open();
       const panel = container.querySelector('[role="tabpanel"]')!;
       const activeTab = container.querySelector('[role="tab"][aria-selected="true"]')!;
@@ -275,7 +257,7 @@ describe('HomeView', () => {
     const featured = () => container.querySelector('.landing-featured');
 
     it('always stages the wallpaper: it is what "no city yet" looks like', async () => {
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
       expect(stage()).not.toBeNull();
       // Decoration: named for nobody, so it stays out of the a11y tree.
@@ -283,7 +265,7 @@ describe('HomeView', () => {
     });
 
     it('reveals the canvas over the wallpaper only once a backdrop has painted', async () => {
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
       expect(stage()!.classList.contains('is-painted')).toBe(false);
 
@@ -298,7 +280,7 @@ describe('HomeView', () => {
 
     it('names the city on screen once it has actually painted', async () => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
       // Nothing painted yet: naming a repo the viewer can't see would be a lie.
       expect(featured()).toBeNull();
@@ -318,7 +300,7 @@ describe('HomeView', () => {
   describe('hero column', () => {
     const hero = async () => {
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos: true }, discover });
       await flush();
       return container.querySelector('.landing-hero')!;
     };
@@ -348,9 +330,8 @@ describe('HomeView', () => {
     const band = () => container.querySelector('.landing-local');
 
     const renderAt = async (allowLocalRepos: boolean) => {
-      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos };
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, { config: { allowLocalRepos }, discover });
       await flush();
     };
 
@@ -365,9 +346,11 @@ describe('HomeView', () => {
     // message used to move between the hero and the field slot with `hosted`.
     it('stays put whether or not this is the public deployment', async () => {
       for (const hosted of [false, true]) {
-        SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false, hosted };
         navigate(ROUTES.HOME);
-        render(<HomeView />, container);
+        renderWithServer(<HomeView />, container, {
+          config: { allowLocalRepos: false, hosted },
+          discover,
+        });
         await flush();
         expect(band()).not.toBeNull();
         expect(container.querySelector('.unreachable')).toBeNull();
@@ -385,10 +368,12 @@ describe('HomeView', () => {
   // boot shows no version, repo link, or credit at all.
   describe('identity line', () => {
     const renderLanding = async (opts: { dismissible: boolean }) => {
-      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
       if (opts.dismissible) loadedCity();
       navigate(ROUTES.HOME);
-      render(<HomeView />, container);
+      renderWithServer(<HomeView />, container, {
+        config: { allowLocalRepos: true, version: '1.4.0' },
+        discover,
+      });
       await flush();
       return container.querySelector('.landing-hero')!;
     };

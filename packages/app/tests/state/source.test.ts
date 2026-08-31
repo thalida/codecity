@@ -22,5 +22,4 @@ describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
     CURRENT_SOURCE.value = { src: '/foo', branch: 'main' };
     expect(CURRENT_SOURCE_KEY.value).toBe(sourceKey('/foo', 'main'));
   });
-
 });

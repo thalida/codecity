@@ -343,13 +343,15 @@ describe('TimelineScrubber', () => {
     expect(city.timeline.pos).toBe(0);
   });
 
-  it('tracks SCRUB_POS updates from outside the component', async () => {
+  it('tracks a scrub driven from outside the component', async () => {
     city.timeline.setPosition(0);
     mount();
-    await flush();
+    await drainAsync();
 
+    // The city batches its reports to a microtask and Preact re-renders off
+    // that, so a single 0ms flush races them under parallel load.
     city.timeline.setPosition(1);
-    await flush();
+    await drainAsync();
 
     expect(track(container).getAttribute('aria-valuenow')).toBe('1');
     expect(container.querySelector('.timeline-scrubber-sha')!.textContent).toBe(

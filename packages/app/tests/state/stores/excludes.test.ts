@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CURRENT_SOURCE } from '@/state/source';
-import { EXCLUDES, ACTIVE_EXCLUDES, addExclude, removeExclude, clearExcludes, activeExcludePathsFor } from '@/state/excludes';
+import {
+  EXCLUDES,
+  ACTIVE_EXCLUDES,
+  addExclude,
+  removeExclude,
+  clearExcludes,
+  activeExcludePathsFor,
+} from '@/state/excludes';
 import { sourceKey } from '@codecity/city';
 
 beforeEach(() => {

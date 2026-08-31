@@ -82,13 +82,16 @@ const TREE = {
 describe('SearchPane', () => {
   let container: HTMLDivElement;
 
-  function mount(opts: { onSelect?: (p: string) => void } = {}): ReturnType<typeof signal> {
-    const manifest = signal<unknown>({ tree: TREE });
-    render(
-      <SearchPane manifest={manifest as never} onClose={() => {}} onSelect={opts.onSelect} />,
-      container
-    );
-    return manifest;
+  /** Mount, and hand back the way to show a different manifest — which is a
+   *  re-render now, the same thing the sidebar does on a live update. */
+  function mount(opts: { onSelect?: (p: string) => void } = {}): (m: unknown) => void {
+    const show = (manifest: unknown) =>
+      render(
+        <SearchPane manifest={manifest as never} onClose={() => {}} onSelect={opts.onSelect} />,
+        container
+      );
+    show({ tree: TREE });
+    return show;
   }
 
   async function typeQuery(value: string): Promise<void> {
@@ -194,11 +197,11 @@ describe('SearchPane', () => {
   });
 
   it('re-indexes when the manifest signal changes', async () => {
-    const manifest = mount();
+    const show = mount();
     await typeQuery('newfile');
     expect(container.querySelector('.text-card-title')!.textContent).toContain('No files');
 
-    manifest.value = {
+    show({
       tree: {
         ...TREE,
         children: [
@@ -216,7 +219,7 @@ describe('SearchPane', () => {
           },
         ],
       },
-    };
+    });
     await flush();
 
     const results = container.querySelectorAll<HTMLButtonElement>('.search-result');

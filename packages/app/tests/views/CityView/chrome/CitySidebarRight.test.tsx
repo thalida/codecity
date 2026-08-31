@@ -161,7 +161,6 @@ describe('CitySidebarRight', () => {
   // The pane states re-derive from MANIFEST on every read, so a live update
   // refreshes them even though the selection snapshot is stale.
   describe('live MANIFEST re-derive', () => {
-
     beforeEach(() => {
       // FileTextPreview fetches on mount; stub a small text body so the
       // preview settles without a real server.
@@ -171,7 +170,7 @@ describe('CitySidebarRight', () => {
 
     it('file pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       handle.setManifest(manifestWithFile(FILE_NODE));
-        handle.picker.setSelection({
+      handle.picker.setSelection({
         kind: NodeKind.File,
         file: FILE_NODE, // the picker's snapshot — becomes stale below
         mesh: {} as never,
@@ -194,7 +193,7 @@ describe('CitySidebarRight', () => {
 
     it('street pane reflects a fresh MANIFEST node, not the stale picker snapshot', async () => {
       handle.setManifest(manifestWithDir(DIR_NODE));
-        handle.picker.setSelection({
+      handle.picker.setSelection({
         kind: NodeKind.Directory,
         dir: DIR_NODE, // the picker's snapshot — becomes stale below
         sidewalk: {} as never,
@@ -232,7 +231,7 @@ describe('CitySidebarRight', () => {
       await drainAsync();
 
       expect(isOpen()).toBe(false);
-        expect(handle.picker.selection).not.toBeNull();
+      expect(handle.picker.selection).not.toBeNull();
     });
 
     it('re-asking for the selected node reopens it', async () => {
@@ -276,7 +275,7 @@ describe('CitySidebarRight', () => {
       await drainAsync();
 
       expect(isOpen()).toBe(false);
-        expect(handle.picker.selection).not.toBeNull();
+      expect(handle.picker.selection).not.toBeNull();
     });
 
     it('stays shut for no selection at all', async () => {

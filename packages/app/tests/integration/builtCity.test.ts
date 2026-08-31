@@ -9,10 +9,15 @@ import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@codecity/city/testing';
 import { mkDir, mkFile } from '@codecity/city/testing';
 import { CURRENT_SOURCE, commitSource } from '@/state/source';
-import { MANIFEST } from '@/state/stores/manifest';
-import { SCENE_HANDLE } from '@/features/settings/state/values/city';
-import { PICKER_SELECTION_KEY } from '@/features/settings/state/values/city';
-import { attachViewUrlReactions } from '@/router/viewBinding';
+import { decodeSelection } from '@codecity/city';
+import { ROUTE_PARAMS } from '@/router/location';
+import { VIEW_PARAMS } from '@/router/params';
+
+/** What the URL is asking to look at, as a view state. */
+const readViewStateFromUrl = () => ({
+  selection: decodeSelection(ROUTE_PARAMS.peek().get(VIEW_PARAMS.SELECTION)),
+  timeline: null,
+});
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/location';
 
@@ -40,8 +45,6 @@ vi.mock('../../../city/src/components/buildings/atlas', async () => {
 });
 
 import { nextBuild } from '@codecity/city/testing';
-import { attachBuildProgress } from '@/features/city/state/overlay';
-import { attachCityChrome } from '@/features/settings/state/values/city';
 
 const W = 800;
 const H = 600;
@@ -53,8 +56,6 @@ describe('a built city is pickable', () => {
 
   beforeEach(() => {
     CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    PICKER_SELECTION_KEY.value = null;
     navigate(ROUTES.HOME, { replace: true });
     rafSpy = vi
       .spyOn(globalThis, 'requestAnimationFrame')
@@ -67,11 +68,8 @@ describe('a built city is pickable', () => {
   afterEach(() => {
     stopUrlBinding?.();
     stopUrlBinding = null;
-    SCENE_HANDLE.value = null;
     rafSpy.mockRestore();
     CURRENT_SOURCE.value = null;
-    MANIFEST.value = null;
-    PICKER_SELECTION_KEY.value = null;
     vi.clearAllMocks();
   });
 
@@ -129,30 +127,21 @@ describe('a built city is pickable', () => {
   // not swing overhead, so the pivot→camera offset survives the centring.
   it('centres a URL selection on the loaded framing, without turning the camera', async () => {
     const handle = await City.create(makeCanvas());
-    let detachProgress: (() => void) | null = null;
-    let detachChrome: (() => void) | null = null;
     try {
-      SCENE_HANDLE.value = handle;
-      // The URL follow waits on BUILT_MANIFEST, which the app sets when the
-      // city reports it is up: this is the whole path, so it needs the app's
-      // half of it wired the way City.tsx wires it.
-      detachProgress = attachBuildProgress(handle);
-      // The URL is written off the app's copy of the selection key, which this
-      // keeps current — the same wiring City.tsx does.
-      detachChrome = attachCityChrome(handle.on);
       navigate('/city?src=test%3A%2F%2Frepo&sel=file:src/a.ts', { replace: true });
-      stopUrlBinding = attachViewUrlReactions();
 
       const manifest = makeManifest();
       commitSource('test://repo', undefined, manifest);
-      MANIFEST.value = manifest;
       const built = nextBuild(handle);
       await handle.applyManifest(manifest);
       await built;
 
       const framedOffset = handle.rig.camera.position.clone().sub(handle.rig.controls.target);
+      // What the URL says, handed to the city as one value — the same thing the
+      // viewState prop does. The city resolves the key and points the camera.
+      await handle.setViewState(readViewStateFromUrl());
       await vi.waitFor(() =>
-        expect(PICKER_SELECTION_KEY.value).toEqual({ kind: NodeKind.File, path: 'src/a.ts' })
+        expect(handle.picker.selectionKey).toEqual({ kind: NodeKind.File, path: 'src/a.ts' })
       );
 
       const placed = handle.picker.targetForPath('src/a.ts');
@@ -166,8 +155,6 @@ describe('a built city is pickable', () => {
       expect(restoredOffset.y).toBeCloseTo(framedOffset.y, 1);
       expect(restoredOffset.z).toBeCloseTo(framedOffset.z, 1);
     } finally {
-      detachProgress?.();
-      detachChrome?.();
       handle.dispose();
     }
   });

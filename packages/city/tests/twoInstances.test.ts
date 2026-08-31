@@ -1,28 +1,17 @@
-import { createTimelineState, BuildStage, ScanPhase, defaultCitySettings } from '@codecity/city';
-import type { TimelineBundle } from '@codecity/city';
+import { createTimelineState, BuildStage, ScanPhase, defaultCitySettings } from '../src/index';
+import type { TimelineBundle } from '../src/index';
 
-// The imports below reach past the package's public surface on purpose, and
-// say so by path: they are its internal wiring, which no consumer needs and
+// Two cities on one page must share nothing: materials, atlases, renderers,
+// settings, history. Reaches past the public surface on purpose — this is
 // which these tests assemble by hand. A test may reach in; nothing in src/ may.
-import { createEmitter } from '../../../city/src/state/events';
-import {
-  SHARED_MEDIA_LOAD_LIMITER,
-  createMediaLoadLimiter,
-} from '../../../city/src/render/mediaLoadLimiter';
-import { createCityResources } from '../../../city/src/render/resources';
-import { createSettingsStore } from '../../../city/src/settings/store';
+import { createEmitter } from '../src/state/events';
+import { SHARED_MEDIA_LOAD_LIMITER, createMediaLoadLimiter } from '../src/render/mediaLoadLimiter';
+import { createCityResources } from '../src/render/resources';
+import { createSettingsStore } from '../src/settings/store';
 import { describe, it, expect, afterEach } from 'vitest';
 
-import {
-  CITY_STATUS,
-  attachCityStatus,
-  PENDING_SOURCE_LABEL,
-  LOADING_SOURCE,
-} from '@/features/city/state/overlay';
-import { attachScanToStores } from '@/features/city/state/commands';
-
-import { settingsStore, statusFrom } from '@codecity/city/testing';
-import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
+import { settingsStore, statusFrom } from './index';
+import { CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '../src/index';
 
 /** Two cities on one page must share no GPU resource.
  *
@@ -203,109 +192,6 @@ describe('two cities hold their own settings', () => {
     const two = defaultCitySettings();
     expect(one).not.toBe(two);
     expect(one.BUILDINGS).not.toBe(two.BUILDINGS);
-  });
-});
-
-/** A city reports to its own subscribers, and the overlay above the project you
- *  are reading subscribes to exactly one of them. The landing mounts a wallpaper
- *  city that builds behind the page; before events, its build wrote the same
- *  global the project's overlay read. */
-describe('two cities report to their own subscribers', () => {
-  const stages = [BuildStage.Layout, BuildStage.Assemble];
-
-  afterEach(() => {
-    CITY_STATUS.value = EMPTY_CITY_STATUS;
-  });
-
-  it('the readout follows the city it was attached to', () => {
-    const scene = createEmitter();
-    const detach = attachCityStatus(statusFrom(scene));
-
-    scene.emit('build:start', { stages });
-    scene.emit('build:stage', { stage: BuildStage.Assemble });
-
-    expect(CITY_STATUS.value.phase).toBe(CityPhase.Building);
-    expect(CITY_STATUS.value.stage).toBe(BuildStage.Assemble);
-    detach();
-  });
-
-  it('a second city building does not touch it', () => {
-    const scene = createEmitter();
-    const backdrop = createEmitter();
-    const detach = attachCityStatus(statusFrom(scene));
-    scene.emit('build:start', { stages });
-    const mid = CITY_STATUS.value;
-
-    // The whole of a wallpaper's build, start to finish, behind the page.
-    backdrop.emit('build:start', { stages: [BuildStage.Icons] });
-    backdrop.emit('build:stage', { stage: BuildStage.Icons });
-    backdrop.emit('build:progress', { percent: 80 });
-    backdrop.emit('build:done', { pending: [] });
-
-    expect(CITY_STATUS.value).toBe(mid);
-    // And the scene's city is emphatically not being reported as finished.
-    expect(CITY_STATUS.value.lifecycle).not.toBe(CityLifecycle.Ready);
-    detach();
-  });
-
-  it('detaching stops the reports, so an unmounted city cannot drive it', () => {
-    const scene = createEmitter();
-    attachCityStatus(statusFrom(scene))();
-
-    scene.emit('build:start', { stages });
-
-    expect(CITY_STATUS.value.phase).toBeNull();
-  });
-});
-
-/** Scan progress is the other half of the same problem, and the one the plan
- *  warned about: the overlay folds SERVER scan progress and BUILD progress into
- *  one reduction, so a wallpaper scanning its own repo behind the landing had a
- *  second route into the readout above the project you are reading. */
-describe('two cities scan their own repos', () => {
-  afterEach(() => {
-    CITY_STATUS.value = EMPTY_CITY_STATUS;
-    LOADING_SOURCE.value = null;
-    PENDING_SOURCE_LABEL.value = null;
-  });
-
-  it('the readout follows the city it was attached to', () => {
-    const scene = createEmitter();
-    const detach = attachCityStatus(statusFrom(scene));
-
-    scene.emit('scan:start', { src: 'https://github.com/o/r' });
-    scene.emit('scan:progress', {
-      event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
-    });
-
-    expect(CITY_STATUS.value.phase).toBe(CityPhase.Scanning);
-    expect(CITY_STATUS.value.counts.filesScanned).toBe(900);
-    detach();
-  });
-
-  it('a wallpaper scanning a different repo does not touch it', () => {
-    const scene = createEmitter();
-    const backdrop = createEmitter();
-    const detach = attachCityStatus(statusFrom(scene));
-    const detachScan = attachScanToStores(scene.on);
-    scene.emit('scan:start', { src: 'https://github.com/o/r' });
-    scene.emit('scan:progress', {
-      event: { phase: ScanPhase.ScanProgress, files_scanned: 900 } as never,
-    });
-    const mid = CITY_STATUS.value;
-
-    // A whole load of somebody else's repo, behind the page.
-    backdrop.emit('scan:start', { src: 'https://github.com/other/repo' });
-    backdrop.emit('scan:label', { label: 'other/repo' });
-    backdrop.emit('scan:progress', {
-      event: { phase: ScanPhase.CloneProgress, percent: 12 } as never,
-    });
-
-    expect(CITY_STATUS.value).toBe(mid);
-    // And it does not rename the project in the header either.
-    expect(PENDING_SOURCE_LABEL.value).toBeNull();
-    detach();
-    detachScan();
   });
 });
 

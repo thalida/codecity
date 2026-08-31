@@ -3,14 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { render } from 'preact';
 import { flush } from '../../../../_helpers/preact';
-
-// The row wears a focus icon, so it behaves like every other focus control:
-// one command that selects, takes the camera there, and clears the panel away.
-const { focusPath, focusCommit } = vi.hoisted(() => ({
-  focusPath: vi.fn(),
-  focusCommit: vi.fn(),
-}));
-vi.mock('@/features/settings/state/values/city', () => ({ focusPath, focusCommit }));
+import { renderWithCity, type FakeCity } from '../../../../_helpers/cityChrome';
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).
@@ -100,8 +93,6 @@ describe('OverviewTab', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    focusPath.mockClear();
-    focusCommit.mockClear();
     treesState.ENABLED = true;
   });
   afterEach(() => {
@@ -110,7 +101,7 @@ describe('OverviewTab', () => {
   });
 
   it('renders the empty state when there is no project', async () => {
-    const sig = signal(null);
+    const sig = null;
     render(<OverviewTab manifest={sig as never} />, container);
     await flush();
     expect(container.textContent).toContain('No project loaded');
@@ -119,15 +110,13 @@ describe('OverviewTab', () => {
   // The pane opens straight into its first section. The Legend guards the same
   // copy, and two of the Overview's empty-state notes had em-dashes.
   it('keeps all visible copy free of em-dashes (house style: colons/commas)', async () => {
-    const sig = signal(manifest);
-    render(<OverviewTab manifest={sig as never} />, container);
+    render(<OverviewTab manifest={manifest as never} />, container);
     await flush();
     expect(container.textContent).not.toContain('—');
   });
 
   it('opens with a section, not a preamble', async () => {
-    const sig = signal(manifest);
-    render(<OverviewTab manifest={sig as never} />, container);
+    render(<OverviewTab manifest={manifest as never} />, container);
     await flush();
     expect(container.querySelector('.almanac-intro')).toBeNull();
     expect(container.querySelector('.almanac-name')).toBeNull();
@@ -135,44 +124,48 @@ describe('OverviewTab', () => {
     expect(container.querySelector('.almanac > .almanac-section')).toBeTruthy();
   });
 
-  it('updates when the manifest signal changes (live update)', async () => {
-    const sig = signal<Manifest | null>(manifest);
-    render(<OverviewTab manifest={sig as never} />, container);
+  it('updates when a fresh scan changes the winner', async () => {
+    render(<OverviewTab manifest={manifest as never} />, container);
     await flush();
     expect(container.textContent).toContain('a.ts');
 
     // A fresh scan whose superlatives land on a different file: the facts
     // themselves re-derive, so the rows name the new winner.
-    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
+    render(
+      <OverviewTab manifest={{ ...manifest, stats: uniformFileStats('b.ts', 9, 90) } as never} />,
+      container
+    );
     await flush();
     expect(container.textContent).toContain('b.ts');
     expect(container.textContent).not.toContain('a.ts');
   });
 
-  it('updates through the InfoPane shell when MANIFEST changes (parent does not re-render)', async () => {
-    const sig = signal<Manifest | null>(manifest);
-    render(<InfoPane manifest={sig as never} />, container);
+  it('updates through the InfoPane shell when a fresh scan changes the winner', async () => {
+    render(<InfoPane manifest={manifest as never} />, container);
     await flush();
     expect(container.textContent).toContain('a.ts');
 
     // A fresh scan whose superlatives land on a different file: the facts
     // themselves re-derive, so the rows name the new winner.
-    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
+    render(
+      <InfoPane manifest={{ ...manifest, stats: uniformFileStats('b.ts', 9, 90) } as never} />,
+      container
+    );
     await flush();
     expect(container.textContent).toContain('b.ts');
     expect(container.textContent).not.toContain('a.ts');
   });
 
   it('clicking a building landmark focuses its file', async () => {
-    const sig = signal(manifest);
-    render(<OverviewTab manifest={sig as never} />, container);
+    const city = renderWithCity(<OverviewTab manifest={manifest as never} />, container);
+    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Tallest')
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(focusPath).toHaveBeenCalledWith('a.ts');
+    expect(focus).toHaveBeenCalledWith({ path: 'a.ts' }, undefined);
   });
 
   it('clicking a commit landmark focuses the commit', async () => {
@@ -183,15 +176,15 @@ describe('OverviewTab', () => {
       ],
       stats: commitStats,
     };
-    const sig = signal(withCommits);
-    render(<OverviewTab manifest={sig as never} />, container);
+    const city = renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
+    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Grandest')
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(focusCommit).toHaveBeenCalledWith('abc1234');
+    expect(focus).toHaveBeenCalledWith({ sha: 'abc1234' }, undefined);
   });
 
   it('renders non-landmark facts as non-button rows', async () => {
@@ -202,8 +195,8 @@ describe('OverviewTab', () => {
       ],
       stats: commitStats,
     };
-    const sig = signal(withCommits);
-    render(<OverviewTab manifest={sig as never} />, container);
+    const city = renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
+    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Busiest')
@@ -222,8 +215,8 @@ describe('OverviewTab', () => {
       ],
       stats: commitStats,
     };
-    const sig = signal(withCommits);
-    render(<OverviewTab manifest={sig as never} />, container);
+    const city = renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
+    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
     await flush();
     // Section header still shows, but canopy rows are replaced by a note.
     expect(container.textContent).toContain('Forest');

@@ -49,14 +49,7 @@ export interface StreetPaneProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPaneProps) {
-  const {
-    directory: d,
-    rootLabel = '',
-    rootPath = '',
-    remoteUrl,
-    branch = '',
-    isAbsent,
-  } = state;
+  const { directory: d, rootLabel = '', rootPath = '', remoteUrl, branch = '', isAbsent } = state;
 
   if (!d) {
     return (

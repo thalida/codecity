@@ -32,7 +32,7 @@ describe('ExplorePane', () => {
     ) as HTMLButtonElement;
 
   function mount() {
-    const manifest = signal<unknown>({ tree: TREE });
+    const manifest = { tree: TREE };
     const selectedPath = signal<string | null>(null);
     const hoveredPath = signal<string | null>(null);
     const expanded = signal<Set<string>>(new Set(['.']));
