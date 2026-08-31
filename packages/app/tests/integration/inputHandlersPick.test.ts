@@ -9,14 +9,10 @@ import { FileNode, NodeKind, PickTarget } from '@codecity/city';
 // which these tests assemble by hand. A test may reach in; nothing in src/ may.
 import { createInputHandlers } from '../../../city/src/interaction/inputHandlers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  SELECTION_PANE_DISMISSED,
-  dismissSelectionPane,
-  openSelectionPane,
-} from '@/features/city/state/modals';
+import { closeShortcuts, openShortcuts } from '@/features/city/state/modals';
 import { createEmitter } from '@codecity/city/testing';
 import { fakePicker } from '@codecity/city/testing';
-import { attachCityChrome } from '@/features/settings/state/values/city';
+import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
 
 const fileNode = (path: string): FileNode => ({
   name: path.split('/').pop()!,
@@ -46,6 +42,7 @@ describe('canvas pick → selection pane', () => {
   let nextTarget: PickTarget | null = null;
   let events: ReturnType<typeof createEmitter>;
   let chromeOff: () => void;
+  let chrome: CityChromeState;
 
   beforeEach(() => {
     canvas = document.createElement('canvas');
@@ -53,9 +50,16 @@ describe('canvas pick → selection pane', () => {
     // The pane opening is the APP's reaction to a pick, so it is wired here
     // exactly as City.tsx wires it.
     events = createEmitter();
-    chromeOff = attachCityChrome(events.on);
+    // The pane opening is the APP's reaction to a pick, wired the way CityStage
+    // wires it as a prop.
+    chrome = createCityChrome();
+    const offs = [
+      events.on('pick', () => chrome.openDetails()),
+      events.on('focus', () => chrome.revealCity()),
+    ];
+    chromeOff = () => offs.forEach((off) => off());
     nextTarget = null;
-    SELECTION_PANE_DISMISSED.value = false;
+    chrome.detailsDismissed.value = false;
 
     picker = Object.assign(fakePicker(), {
       // The raycast is not what this covers: hand the handler a hit whenever a
@@ -85,7 +89,7 @@ describe('canvas pick → selection pane', () => {
     chromeOff();
     handlers.dispose();
     canvas.remove();
-    SELECTION_PANE_DISMISSED.value = false;
+    chrome.detailsDismissed.value = false;
   });
 
   // A press and release in the same spot, inside the click thresholds.
@@ -108,25 +112,25 @@ describe('canvas pick → selection pane', () => {
 
   it('reopens a pane put away for the previous node', () => {
     pick('src/index.ts');
-    dismissSelectionPane();
+    chrome.dismissDetails();
 
     pick('src/other.ts');
 
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
   });
 
   it('reopens the pane when the node picked is the one already selected', () => {
     pick('src/index.ts');
-    dismissSelectionPane();
+    chrome.dismissDetails();
 
     pick('src/index.ts');
 
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
   });
 
   it('reopens the pane for a node picked again after a deselect', () => {
     pick('src/index.ts');
-    dismissSelectionPane();
+    chrome.dismissDetails();
 
     nextTarget = null; // click on empty sky
     clickCanvas();
@@ -134,24 +138,24 @@ describe('canvas pick → selection pane', () => {
 
     pick('src/index.ts');
 
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
   });
 
   // Nothing to show details for, so a deselect leaves the dismissal alone
   // rather than pretending the pane was reopened.
   it('leaves the pane state alone on a click that selects nothing', () => {
     pick('src/index.ts');
-    dismissSelectionPane();
+    chrome.dismissDetails();
 
     nextTarget = null;
     clickCanvas();
 
-    expect(SELECTION_PANE_DISMISSED.value).toBe(true);
+    expect(chrome.detailsDismissed.value).toBe(true);
   });
 
   it('leaves an already-open pane open', () => {
-    openSelectionPane();
+    chrome.openDetails();
     pick('src/index.ts');
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
   });
 });

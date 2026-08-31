@@ -4,16 +4,9 @@
 
 import { City, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  openShortcuts,
-  closeShortcuts,
-  SELECTION_PANE_DISMISSED,
-} from '@/features/city/state/modals';
-import {
-  SCENE_HANDLE,
-  attachCityChrome,
-  cityKeyboardEnabled,
-} from '@/features/settings/state/values/city';
+import { closeShortcuts, openShortcuts } from '@/features/city/state/modals';
+import { cityKeyboardEnabled } from '@/features/city/state/commands';
+import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
 import { navigate } from '@/router/location';
 import { ROUTES } from '@/router/location';
 
@@ -57,15 +50,21 @@ describe('scene keydown handler — modal suppression', () => {
     vi.clearAllMocks();
     closeShortcuts();
     navigate(ROUTES.HOME, { replace: true });
-    SCENE_HANDLE.value = null;
-    SELECTION_PANE_DISMISSED.value = false;
+    chrome.detailsDismissed.value = false;
   });
 
   // Mounted the way City.tsx mounts one, so the keyboard gate and the chrome
   // reactions under test are the same wiring the app ships.
   async function mountCity() {
     const handle = await City.create(makeCanvas(), { keyboard: cityKeyboardEnabled });
-    chromeOff = attachCityChrome(handle.on);
+    // The same two reactions CityStage wires as props: a pick asks what
+    // something is, a focus asks to look at it.
+    chrome = createCityChrome();
+    const offs = [
+      handle.on('pick', () => chrome.openDetails()),
+      handle.on('focus', () => chrome.revealCity()),
+    ];
+    chromeOff = () => offs.forEach((off) => off());
     cities.push(handle);
     return handle;
   }
@@ -78,6 +77,7 @@ describe('scene keydown handler — modal suppression', () => {
   }
 
   let chromeOff: (() => void) | null = null;
+  let chrome: CityChromeState;
   afterEach(() => {
     chromeOff?.();
     chromeOff = null;
@@ -102,7 +102,6 @@ describe('scene keydown handler — modal suppression', () => {
   // the same command — including putting the panel away to uncover the city.
   it("focuses the selection on F and leaves the chip in the panel's place", async () => {
     const handle = await mountCity();
-    SCENE_HANDLE.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
     handle.picker.setSelection({
       kind: NodeKind.Commit,
@@ -110,24 +109,23 @@ describe('scene keydown handler — modal suppression', () => {
       mesh: {},
       instanceId: 0,
     } as never);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
 
     expect(focusSpy).toHaveBeenCalledTimes(1);
-    expect(SELECTION_PANE_DISMISSED.value).toBe(true);
+    expect(chrome.detailsDismissed.value).toBe(true);
     // The selection itself survives: the chip has something to name.
     expect(handle.picker.selection).not.toBeNull();
   });
 
   it('ignores F with nothing selected, panel included', async () => {
     const handle = await mountCity();
-    SCENE_HANDLE.value = handle;
     const focusSpy = vi.spyOn(handle.rig, 'focusSelection').mockImplementation(() => {});
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
 
     expect(focusSpy).not.toHaveBeenCalled();
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
   });
 });

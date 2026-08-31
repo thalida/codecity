@@ -12,7 +12,7 @@ import { createCityState } from '../../../city/src/state';
 import { stubPlacementClient, statusFrom } from '@codecity/city/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
-import { CITY_STATUS, attachCityStatus } from '@/features/city/state/overlay';
+
 import { buildStageTail } from '@/features/city/state/loading';
 import { EMPTY_CITY_STATUS } from '@codecity/city';
 import { createTestCityResources } from '@codecity/city/testing';
@@ -75,13 +75,14 @@ function fakeLayoutClient(percents: number[] = []) {
  *  inside. The city folds its own stages into one fraction over the whole
  *  build; the app only renders it, so this covers the seam between what the
  *  city reports and what a readout makes of it. */
+let tracked: ReturnType<typeof statusFrom>;
+
 async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
-  // From a clean readout: the emitter is module-level and a previous case's
-  // un-awaited apply is still posting into it.
-  CITY_STATUS.value = EMPTY_CITY_STATUS;
+  // Straight off the status the city reports: there is no copy of it to keep
+  // clean between cases.
   const seen: string[] = [];
-  const stop = effect(() => {
-    const tail = buildStageTail(CITY_STATUS.value);
+  const stop = tracked.onStatus((status) => {
+    const tail = buildStageTail(status);
     if (tail && tail !== seen[seen.length - 1]) seen.push(tail);
   });
   await run();
@@ -90,19 +91,13 @@ async function tailsDuring(run: () => Promise<void>): Promise<string[]> {
 }
 
 describe('cityState.applyManifest — the build says where it is (#185)', () => {
-  let detach: () => void;
-
-  let tracked: ReturnType<typeof statusFrom>;
-
   beforeEach(() => {
-    // A fresh fold per case, disposed after: the emitter is module-level, and a
-    // previous case's tracker still listening would keep folding into it.
+    // A fresh fold per case: the emitter is module-level, and a previous case's
+    // tracker still listening would keep folding into it.
     tracked = statusFrom(events);
-    detach = attachCityStatus(tracked);
   });
 
   afterEach(() => {
-    detach();
     tracked.dispose();
   });
 
@@ -182,11 +177,11 @@ describe('cityState.applyManifest — the build says where it is (#185)', () => 
 
     void state.applyManifest(manifest('sig-1'));
     void state.applyManifest(manifest('sig-2')); // supersedes the first
-    const before = CITY_STATUS.value.fraction;
+    const before = tracked.status.fraction;
     loserProgress?.(80);
 
     // The loser's percent must not walk over the live build's readout: what it
     // reported is 80%, and the readout has not moved at all.
-    expect(CITY_STATUS.value.fraction).toBe(before);
+    expect(tracked.status.fraction).toBe(before);
   });
 });
