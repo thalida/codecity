@@ -3,7 +3,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
-  HREF,
   ROUTE_PATH,
   ROUTE_SEARCH,
   ROUTE_PARAMS,
@@ -55,7 +54,7 @@ describe('router/location', () => {
       navigate('/city?src=b', { replace: true });
       expect(push).toHaveBeenCalledTimes(1);
       expect(replace).toHaveBeenCalledTimes(1);
-      expect(HREF.value).toBe('/city?src=b');
+      expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city?src=b');
     });
 
     it('no-ops when the href is unchanged, so a reflection cannot stack entries', () => {
@@ -83,7 +82,7 @@ describe('router/location', () => {
     it('drops the ? entirely when the last param goes', () => {
       navigate('/city?mode=timeline');
       setRouteParams((p) => p.delete('mode'));
-      expect(HREF.value).toBe('/city');
+      expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city');
     });
 
     // A repo path and a node path are most of what this URL says, and form
@@ -95,7 +94,7 @@ describe('router/location', () => {
         p.set('sel', 'file:src/app.ts');
       });
 
-      expect(HREF.value).toBe('/city?src=/repos/codecity&sel=file:src/app.ts');
+      expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city?src=/repos/codecity&sel=file:src/app.ts');
       // Still the values that went in: what the app reads is unchanged.
       expect(ROUTE_PARAMS.value.get('src')).toBe('/repos/codecity');
       expect(ROUTE_PARAMS.value.get('sel')).toBe('file:src/app.ts');
@@ -106,7 +105,7 @@ describe('router/location', () => {
       navigate('/city');
       setRouteParams((p) => p.set('src', 'https://host/a&b=c#d'));
 
-      expect(HREF.value).toBe('/city?src=https://host/a%26b%3Dc%23d');
+      expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city?src=https://host/a%26b%3Dc%23d');
       expect(ROUTE_PARAMS.value.get('src')).toBe('https://host/a&b=c#d');
     });
   });
@@ -122,7 +121,7 @@ describe('router/location', () => {
     navigate('/city?src=a');
     history.replaceState(null, '', '/city?src=elsewhere');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    expect(HREF.value).toBe('/city?src=elsewhere');
+    expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city?src=elsewhere');
     detach();
   });
 
@@ -132,6 +131,6 @@ describe('router/location', () => {
     navigate('/city?src=a');
     history.replaceState(null, '', '/city?src=b');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    expect(HREF.value).toBe('/city?src=a');
+    expect(`${ROUTE_PATH.value}${ROUTE_SEARCH.value ? `?${ROUTE_SEARCH.value}` : ''}`).toBe('/city?src=a');
   });
 });

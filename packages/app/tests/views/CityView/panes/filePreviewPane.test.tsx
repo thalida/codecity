@@ -14,12 +14,7 @@ import type { FilePreviewPaneState } from '@/features/city/components/FilePrevie
 import { drainAsync } from '../../../_helpers/preact';
 import { TEST_SOURCE } from '@codecity/city/testing';
 import { makeBundle } from '@codecity/city/testing';
-import {
-  beginTimelineMode,
-  resetTimelineMode,
-  setScrubPos,
-  setTimelineBundle,
-} from '@/features/city/state/timeline';
+import { renderWithCity, type FakeCity } from '../../../_helpers/cityChrome';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -36,21 +31,21 @@ const FILE_NODE: FileNode = {
 
 describe('FilePreviewPane', () => {
   let container: HTMLDivElement;
-  let state: Signal<FilePreviewPaneState>;
+  let show: (state: FilePreviewPaneState) => void;
 
   function mount(opts: { onClose?: () => void; onFocus?: (f: FileNode) => void } = {}): void {
-    state = signal<FilePreviewPaneState>({ file: null });
-    render(
-      <FilePreviewPane state={state} onClose={opts.onClose} onFocus={opts.onFocus} />,
-      container
-    );
+    show = (state) =>
+      render(
+        <FilePreviewPane state={state} onClose={opts.onClose} onFocus={opts.onFocus} />,
+        container
+      );
+    show({ file: null });
   }
 
-  // setFile(file) on the old factory maps to assigning the signal value and
-  // letting the body useEffect + fetch + rAF settle.
+  // Showing a file is a re-render, then the body useEffect + fetch + rAF settle.
   async function setFile(file: FileNode | null): Promise<void> {
     await act(async () => {
-      state.value = { file, source: TEST_SOURCE };
+      show({ file, source: TEST_SOURCE });
     });
     await drainAsync();
   }
@@ -378,10 +373,16 @@ describe('FilePreviewPane in Timeline', () => {
     modified: '2024-03-20T10:00:00Z',
   } as unknown as FileNode;
 
+  let city: FakeCity;
+
   async function showAt(commit: number): Promise<void> {
     await act(async () => {
-      setScrubPos(commit);
-      state.value = { file: IMAGE_NODE, source: TEST_SOURCE };
+      city.timeline.setPosition(commit);
+      renderWithCity(
+        <FilePreviewPane state={{ file: IMAGE_NODE, source: TEST_SOURCE }} />,
+        container,
+        city
+      );
     });
     await drainAsync();
   }
@@ -389,18 +390,16 @@ describe('FilePreviewPane in Timeline', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    setTimelineBundle(BUNDLE);
-    beginTimelineMode();
-    state = signal<FilePreviewPaneState>({ file: null });
-    render(<FilePreviewPane state={state} />, container);
+    // The preview reads the scrub off the city it is inside, so the history
+    // being scrubbed has to be that city's.
+    city = renderWithCity(<FilePreviewPane state={{ file: null }} />, container);
+    city.timeline.setBundle(BUNDLE);
+    city.timeline.enter();
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    resetTimelineMode();
-    setTimelineBundle(null);
-    setScrubPos(0);
   });
 
   it('asks for the blob at this commit, not for whatever HEAD has', async () => {

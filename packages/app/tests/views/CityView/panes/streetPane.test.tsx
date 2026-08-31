@@ -43,15 +43,18 @@ function dir(
 
 describe('StreetPane', () => {
   let container: HTMLDivElement;
-  let state: Signal<StreetPaneState>;
+  // Plain state: showing something else is a re-render, the same thing the
+  // sidebar does when the city reports a new selection.
+  let show: (state: StreetPaneState) => void;
 
   function mount(opts: { onFocus?: (d: DirNode) => void } = {}): void {
-    state = signal<StreetPaneState>({ directory: null });
-    render(<StreetPane state={state} onClose={() => {}} onFocus={opts.onFocus} />, container);
+    show = (state) =>
+      render(<StreetPane state={state} onClose={() => {}} onFocus={opts.onFocus} />, container);
+    show({ directory: null });
   }
 
   async function setDirectory(d: DirNode | null): Promise<void> {
-    state.value = { directory: d };
+    show({ directory: d });
     await flush();
   }
 
@@ -82,10 +85,10 @@ describe('StreetPane', () => {
   // you are looking at. Showing them misaligned is worse than showing nothing.
   it('shows nothing but the absent state for a road gone by this commit', async () => {
     mount();
-    state.value = {
+    show({
       directory: dir('src', [], [{ ext: '.ts', count: 3 } as ExtBreakdownEntry]),
       isAbsent: true,
-    };
+    });
     await flush();
 
     const empty = container.querySelector('.empty-state--absent');
@@ -166,8 +169,7 @@ describe('StreetPane', () => {
   describe('exclude action', () => {
     function mountWithExclude(directory: DirNode) {
       const onExclude = vi.fn();
-      const s = signal<StreetPaneState>({ directory });
-      render(<StreetPane state={s} onExclude={onExclude} />, container);
+      render(<StreetPane state={{ directory }} onExclude={onExclude} />, container);
       return {
         onExclude,
         button: container.querySelector<HTMLButtonElement>('button[aria-label*="Exclude"]'),

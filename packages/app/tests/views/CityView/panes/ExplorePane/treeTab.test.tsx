@@ -78,7 +78,7 @@ describe('TreePane', () => {
     act(() => {
       render(
         <TreeTab
-          manifest={manifest}
+          manifest={manifest.value}
           selectedPath={selectedPath}
           hoveredPath={hoveredPath}
           expanded={expanded}

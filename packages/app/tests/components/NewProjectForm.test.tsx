@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/features/home/components/sources/NewProjectForm/NewProjectForm';
 import { API } from '@/api/client';
-import { LOADING_SOURCE } from '@/features/city/state/overlay';
 import { flush, drainAsync } from '../_helpers/preact';
 import { BRANCH_LOOKUP_DEBOUNCE_MS } from '@/features/home/components/sources/NewProjectForm/NewProjectForm';
 

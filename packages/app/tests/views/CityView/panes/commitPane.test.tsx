@@ -28,7 +28,9 @@ const AUTHOR_HUES: Record<string, number> = { Alice: 10, Bob: 120, Carol: 250 };
 
 describe('CommitPane', () => {
   let container: HTMLDivElement;
-  let state: Signal<CommitPaneState>;
+  // The pane takes plain state, so showing something else is a re-render — the
+  // same thing its parent does when the city reports a new selection.
+  let show: (state: CommitPaneState) => void;
 
   function mount(
     opts: {
@@ -37,20 +39,21 @@ describe('CommitPane', () => {
       onViewInTimeline?: (c: CommitEntry) => void;
     } = {}
   ): void {
-    state = signal<CommitPaneState>({ commit: null });
-    render(
-      <CommitPane
-        state={state}
-        onClose={opts.onClose ?? (() => {})}
-        onFocus={opts.onFocus}
-        onViewInTimeline={opts.onViewInTimeline}
-      />,
-      container
-    );
+    show = (state) =>
+      render(
+        <CommitPane
+          state={state}
+          onClose={opts.onClose ?? (() => {})}
+          onFocus={opts.onFocus}
+          onViewInTimeline={opts.onViewInTimeline}
+        />,
+        container
+      );
+    show({ commit: null });
   }
 
   async function setCommit(commit: CommitEntry | null, opts: SetOpts = {}): Promise<void> {
-    state.value = { commit, source: TEST_SOURCE, authorHues: AUTHOR_HUES, ...opts };
+    show({ commit, source: TEST_SOURCE, authorHues: AUTHOR_HUES, ...opts });
     await drainAsync();
   }
 
