@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { CityFooter } from '@/features/city/components/CityFooter/CityFooter';
-import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/api/reads';
+import { renderWithServer } from '../../../_helpers/query';
 import { flush } from '../../../_helpers/preact';
 
 describe('CityFooter', () => {
@@ -10,17 +10,15 @@ describe('CityFooter', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, version: '1.3.0' };
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
   });
 
   it('shows the running build version in the app line, on the right', async () => {
-    render(<CityFooter />, container);
+    renderWithServer(<CityFooter />, container, { config: { version: '1.3.0' } });
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -29,14 +27,14 @@ describe('CityFooter', () => {
 
   // The header is the project, the footer is the app.
   it('holds no project state: the freshness readout lives in the header', async () => {
-    render(<CityFooter />, container);
+    renderWithServer(<CityFooter />, container, { config: { version: '1.3.0' } });
     await flush();
 
     expect(container.querySelector('.freshness-status')).toBeNull();
   });
 
   it('credits the creator on the right, linked to thalida.com', async () => {
-    render(<CityFooter />, container);
+    renderWithServer(<CityFooter />, container, { config: { version: '1.3.0' } });
     await flush();
 
     const right = container.querySelector('.app-footer-right')!;
@@ -51,7 +49,7 @@ describe('CityFooter', () => {
   });
 
   it('no longer reads as a code comment', async () => {
-    render(<CityFooter />, container);
+    renderWithServer(<CityFooter />, container, { config: { version: '1.3.0' } });
     await flush();
 
     expect(container.querySelector('#city-footer')!.textContent).not.toContain('//');
@@ -59,7 +57,7 @@ describe('CityFooter', () => {
 
   // Both are app-level, so both belong here rather than in the project header.
   it('holds the shortcuts button and the about link', async () => {
-    render(<CityFooter />, container);
+    renderWithServer(<CityFooter />, container, { config: { version: '1.3.0' } });
     await flush();
 
     // Prefix match: jsdom's selector engine will not match an `&` inside a

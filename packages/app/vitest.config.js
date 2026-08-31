@@ -23,6 +23,13 @@ export default defineConfig({
     // bare package name.
     alias: [
       { find: /^@\//, replacement: `${resolve(appDir, 'src')}/` },
+      // React-facing libraries (TanStack Query) onto preact/compat. The build
+      // gets this from @preact/preset-vite; vitest resolves modules itself, so
+      // without it a query provider reaches the real react and finds no hooks.
+      { find: /^react-dom\/test-utils$/, replacement: 'preact/test-utils' },
+      { find: /^react-dom$/, replacement: 'preact/compat' },
+      { find: /^react\/jsx-runtime$/, replacement: 'preact/jsx-runtime' },
+      { find: /^react$/, replacement: 'preact/compat' },
       // @codecity/city ships TypeScript source, not a build, for as long as the
       // extraction is in flight (#208). Vite will not process TS inside
       // node_modules, so resolve the workspace link to the source directly.
@@ -68,6 +75,10 @@ export default defineConfig({
     },
   },
   test: {
+    // TanStack Query ships React imports. The alias above rewrites them onto
+    // preact/compat, but an aliased dependency has to be transformed by vite to
+    // see it — externalised, it resolves the real react and finds no hooks.
+    server: { deps: { inline: [/@tanstack\/react-query/] } },
     projects: [
       {
         extends: true,

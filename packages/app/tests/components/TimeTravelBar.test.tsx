@@ -6,17 +6,9 @@ import type { TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimelineScrubber } from '@/features/city/components/TimelineScrubber/TimelineScrubber';
-import {
-  SCRUB_POS,
-  beginTimelineMode,
-  leaveTimelineMode,
-  resetTimelineMode,
-  setScrubPos,
-  setTimelineBundle,
-  setTodayMs,
-} from '@/features/city/state/timeline';
+import { renderWithCity, type FakeCity } from '../_helpers/cityChrome';
 import { flush, drainAsync } from '../_helpers/preact';
-import { commits as buildCommits } from '@codecity/city/testing';
+import { commits as buildCommits, fakeCity } from '@codecity/city/testing';
 
 const [old, mid, head] = buildCommits(
   { date: '2026-01-01', files: 1, subject: 'oldest', authors: ['Someone'] },
@@ -40,35 +32,37 @@ function track(container: HTMLElement) {
 
 describe('TimelineScrubber', () => {
   let container: HTMLDivElement;
+  let city: FakeCity;
+
+  /** Mount the scrubber over the city these cases drive. */
+  const mount = () => void renderWithCity(<TimelineScrubber />, container, city);
 
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    beginTimelineMode();
-    setTimelineBundle(BUNDLE);
+    city = fakeCity();
+    city.timeline.enter();
+    city.timeline.setBundle(BUNDLE);
     // Today IS the last commit's day, so these cases have no extra stop; the
     // ones that need one move it forward.
-    setTodayMs(parseDateMs('2026-03-01'));
-    setScrubPos(2);
+    city.timeline.setTodayMs(parseDateMs('2026-03-01'));
+    city.timeline.setPosition(2);
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    resetTimelineMode();
-    setScrubPos(0);
-    setTimelineBundle(null);
   });
 
   // The city keeps aging after the last commit, so the track runs one stop past
   // it and the axis ends at today rather than at that commit's date.
   describe('today', () => {
-    const aged = () => setTodayMs(parseDateMs('2026-06-15'));
+    const aged = () => city.timeline.setTodayMs(parseDateMs('2026-06-15'));
 
     it('ends the axis at today and scrubs into the stretch since the last commit', async () => {
       aged();
-      setScrubPos(3);
-      render(<TimelineScrubber />, container);
+      city.timeline.setPosition(3);
+      mount();
       await flush();
       // Both ends name a date; the handle is the one that says where you are.
       const edges = container.querySelectorAll('.timeline-scrubber-edge');
@@ -82,30 +76,30 @@ describe('TimelineScrubber', () => {
 
     it('names the day, not today, once scrubbed back off it', async () => {
       aged();
-      setScrubPos(2);
-      render(<TimelineScrubber />, container);
+      city.timeline.setPosition(2);
+      mount();
       await flush();
       expect(container.querySelector('.timeline-scrubber-date')!.textContent).toBe('Mar 1, 2026');
     });
 
     it('keeps the last commit as the end when nothing has aged since', async () => {
-      render(<TimelineScrubber />, container);
+      mount();
       await flush();
       const edges = container.querySelectorAll('.timeline-scrubber-edge');
       expect(edges[1].textContent).toBe('Mar 1, 2026');
-      expect(SCRUB_POS.value).toBe(2);
+      expect(city.timeline.pos).toBe(2);
     });
   });
 
   it('renders nothing when timeline mode is off', async () => {
-    resetTimelineMode();
-    render(<TimelineScrubber />, container);
+    city.timeline.exit();
+    mount();
     await flush();
     expect(container.querySelector('.timeline-scrubber')).toBeNull();
   });
 
   it('exposes a role=slider track spanning the commit range', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const t = track(container);
     expect(t.getAttribute('role')).toBe('slider');
@@ -116,7 +110,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('labels the axis ends with the first and last commit dates', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const edges = container.querySelectorAll('.timeline-scrubber-edge');
     expect(edges).toHaveLength(2);
@@ -128,7 +122,7 @@ describe('TimelineScrubber', () => {
   // Three rows: the track, the dates it lands between, then the commit. The
   // track has its row to itself so it runs the bar's full width.
   it('stacks the track, the axis and the commit in that order', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const rows = Array.from(container.querySelector('.timeline-scrubber')!.children).map(
       (c) => c.className
@@ -153,20 +147,20 @@ describe('TimelineScrubber', () => {
   });
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
-    setScrubPos(1);
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(1);
+    mount();
     await flush();
     const edges = container.querySelectorAll<HTMLButtonElement>('button.timeline-scrubber-edge');
 
     edges[0].click(); // first commit
-    expect(SCRUB_POS.value).toBe(0);
+    expect(city.timeline.pos).toBe(0);
 
     edges[1].click(); // latest commit
-    expect(SCRUB_POS.value).toBe(2);
+    expect(city.timeline.pos).toBe(2);
   });
 
   it('renders a tick canvas + a handle positioned by date fraction', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     expect(track(container).querySelector('canvas.timeline-scrubber-ticks')).not.toBeNull();
     // At HEAD the handle sits at the far right (100%).
@@ -175,7 +169,7 @@ describe('TimelineScrubber', () => {
   });
 
   it('drives SCRUB_POS from a pointer press by DATE, not by index', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const t = track(container);
     // jsdom returns a zero rect; pin a 100px-wide track at x=0.
@@ -192,29 +186,29 @@ describe('TimelineScrubber', () => {
     ev.pointerId = 1;
     t.dispatchEvent(ev);
 
-    expect(SCRUB_POS.value).toBeGreaterThan(0.5);
-    expect(SCRUB_POS.value).toBeLessThan(1);
+    expect(city.timeline.pos).toBeGreaterThan(0.5);
+    expect(city.timeline.pos).toBeLessThan(1);
   });
 
   it('steps one commit per arrow key and jumps with Home/End', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const t = track(container);
 
     t.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-    expect(SCRUB_POS.value).toBe(1); // 2 -> 1
+    expect(city.timeline.pos).toBe(1); // 2 -> 1
 
     t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
-    expect(SCRUB_POS.value).toBe(0);
+    expect(city.timeline.pos).toBe(0);
 
     t.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-    expect(SCRUB_POS.value).toBe(2);
+    expect(city.timeline.pos).toBe(2);
   });
 
   // The scrubbed date sits on the axis with the two it falls between; the
   // commit it belongs to reads sha then subject on the row underneath.
   it('puts the scrubbed date on the axis and the commit below it', async () => {
-    render(<TimelineScrubber />, container);
+    mount();
     await flush();
     const axis = container.querySelector('.timeline-scrubber-axis')!;
     expect(axis.querySelector('.timeline-scrubber-date')).not.toBeNull();
@@ -232,8 +226,8 @@ describe('TimelineScrubber', () => {
   // A commit belongs to its own day. Carrying it along made the message snap
   // between commits while the date moved smoothly, and named undrawn trees.
   it('shows the commit only on the day it happened', async () => {
-    setScrubPos(1); // parked on the Feb 1 commit
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(1); // parked on the Feb 1 commit
+    mount();
     await flush();
     expect(container.querySelector('.timeline-scrubber-sha')!.textContent).toBe(
       mid.sha.slice(0, 7)
@@ -242,8 +236,8 @@ describe('TimelineScrubber', () => {
   });
 
   it('says so on a day with no commit, rather than carrying the last one along', async () => {
-    setScrubPos(0.9); // late January, weeks past the Jan 1 commit
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(0.9); // late January, weeks past the Jan 1 commit
+    mount();
     await flush();
     expect(container.querySelector('.timeline-scrubber-sha')).toBeNull();
     expect(container.querySelector('.timeline-scrubber-nocommit')).not.toBeNull();
@@ -252,8 +246,8 @@ describe('TimelineScrubber', () => {
   // The date follows the handle rather than snapping to the nearest commit, so
   // dragging through a quiet stretch reads as days passing.
   it('shows the day the handle sits on, even alongside a commit', async () => {
-    setScrubPos(0.5); // midway between Jan 1 and Feb 1
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(0.5); // midway between Jan 1 and Feb 1
+    mount();
     await flush();
     const shown = container.querySelector('.timeline-scrubber-date')!.textContent;
     expect(shown).not.toBe('Jan 1, 2026');
@@ -261,8 +255,8 @@ describe('TimelineScrubber', () => {
   });
 
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
-    setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
+    mount();
     await flush();
     const nocommit = container.querySelector('.timeline-scrubber-nocommit');
     expect(nocommit).not.toBeNull();
@@ -274,7 +268,7 @@ describe('TimelineScrubber', () => {
 
   it('single-commit repo: handle pins right, track is inert (no drag)', async () => {
     const [only] = buildCommits({ date: '2026-07-24', files: 1, subject: 'init' });
-    setTimelineBundle({
+    city.timeline.setBundle({
       commits: [only],
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
       deltas: [],
@@ -283,8 +277,8 @@ describe('TimelineScrubber', () => {
       notes: [],
       note: null,
     } as unknown as TimelineBundle);
-    setScrubPos(0);
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(0);
+    mount();
     await flush();
 
     const t = track(container);
@@ -306,12 +300,12 @@ describe('TimelineScrubber', () => {
     ev.clientX = 10;
     ev.pointerId = 1;
     t.dispatchEvent(ev);
-    expect(SCRUB_POS.value).toBe(0);
+    expect(city.timeline.pos).toBe(0);
   });
 
   it('same-day repo stays scrubbable: track is live, a press moves SCRUB_POS', async () => {
     const day = '2026-07-24';
-    setTimelineBundle({
+    city.timeline.setBundle({
       commits: buildCommits(
         { date: day, files: 1, subject: 'c1' },
         { date: day, files: 1, subject: 'c2' },
@@ -324,8 +318,8 @@ describe('TimelineScrubber', () => {
       notes: [],
       note: null,
     } as unknown as TimelineBundle);
-    setScrubPos(2);
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(2);
+    mount();
     await flush();
 
     const t = track(container);
@@ -346,15 +340,15 @@ describe('TimelineScrubber', () => {
     ev.clientX = 0;
     ev.pointerId = 1;
     t.dispatchEvent(ev);
-    expect(SCRUB_POS.value).toBe(0);
+    expect(city.timeline.pos).toBe(0);
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {
-    setScrubPos(0);
-    render(<TimelineScrubber />, container);
+    city.timeline.setPosition(0);
+    mount();
     await flush();
 
-    setScrubPos(1);
+    city.timeline.setPosition(1);
     await flush();
 
     expect(track(container).getAttribute('aria-valuenow')).toBe('1');
@@ -377,18 +371,18 @@ describe('TimelineScrubber', () => {
     const ticks = () =>
       container.querySelector<HTMLCanvasElement>('canvas.timeline-scrubber-ticks');
     try {
-      render(<TimelineScrubber />, container);
+      mount();
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       const first = ticks()!;
       expect(first.width).toBe(200);
 
       // The mode alone, not resetTimelineMode: this is about re-entering on
       // deps that did NOT change, so the bundle and position have to survive.
-      leaveTimelineMode();
+      city.timeline.setMode(false);
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       expect(ticks()).toBeNull();
 
-      beginTimelineMode(); // same bundle, same position: no dep changes
+      city.timeline.enter(); // same bundle, same position: no dep changes
       await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
       const second = ticks()!;
       expect(second, 'the canvas is rebuilt, not reused').not.toBe(first);

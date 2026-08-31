@@ -44,9 +44,16 @@ const DIR: DirNode = {
 // and the pane both read it through here, which is what keeps them agreeing.
 describe('statItems in Timeline', () => {
   const PATH = 'src/index.ts';
+  let timeline: ReturnType<typeof createTimelineState>;
+
+  /** What the row shows for FILE at wherever the scrubber is. Passed in, not
+   *  looked up: which city is being described is the caller's to know. */
+  const texts = () =>
+    fileStatItems(FILE, { now: NOW, scrubbed: timeline.scrubbedStatsFor(PATH) }).map((i) => i.text);
 
   beforeEach(() => {
-    setTimelineBundle({
+    timeline = createTimelineState();
+    timeline.setBundle({
       commits: [
         { sha: 'a', date: '2024-01-01T00:00:00Z' },
         { sha: 'b', date: '2024-01-02T00:00:00Z' },
@@ -59,29 +66,23 @@ describe('statItems in Timeline', () => {
       blobSizes: { s1: 100, s2: 900 },
       notes: [],
     } as unknown as TimelineBundle);
-    beginTimelineMode();
-    setScrubPos(0);
-  });
-
-  afterEach(() => {
-    resetTimelineMode();
-    setTimelineBundle(null);
-    setScrubPos(0);
+    timeline.enter();
+    timeline.setPosition(0);
   });
 
   it('shows the count at the scrubbed commit, not the union maximum', () => {
     // The static node carries 50, the union max across every commit.
-    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('7 lines');
+    expect(texts()).toContain('7 lines');
   });
 
   it('follows the scrubber forward', () => {
-    setScrubPos(1);
-    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('42 lines');
+    timeline.setPosition(1);
+    expect(texts()).toContain('42 lines');
   });
 
   it('falls back to the node itself outside Timeline', () => {
-    resetTimelineMode();
-    expect(fileStatItems(FILE, { now: NOW }).map((i) => i.text)).toContain('50 lines');
+    timeline.exit();
+    expect(texts()).toContain('50 lines');
   });
 });
 
