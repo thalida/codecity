@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { CitySidebarLeft } from '@/features/city/components/CitySidebarLeft/CitySidebarLeft';
-import { SCENE_HANDLE } from '@/features/settings/state/values/city';
-import { setManifest } from '@/state/stores/manifest';
+import type { Manifest } from '@codecity/city';
 import { CURRENT_SOURCE } from '@/state/source';
-import { SIDEBAR_COLLAPSED, SIDEBAR_TAB } from '@/features/city/state/modals';
-import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
-import { flush, drainAsync } from '../../../_helpers/preact';
+import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
+import { renderWithCity, type FakeCity } from '../../../_helpers/cityChrome';
+import { drainAsync } from '../../../_helpers/preact';
 
 const TEST_TREE = {
   name: 'project',
@@ -15,47 +14,26 @@ const TEST_TREE = {
   children: [{ name: 'a.ts', type: 'file', path: 'a.ts', extension: '.ts', size: 100, lines: 10 }],
 };
 
-// Minimal SCENE_HANDLE stand-in: the panes only read getManifest() and
-// subscribe to onChange, so nothing else on the handle is touched here.
-function makeSceneHandle() {
-  return {
-    world: {
-      getManifest() {
-        return { tree: TEST_TREE };
-      },
-    },
-    picker: {
-      selection: { value: null, peek: () => null, subscribe: () => () => {} },
-      hover: { value: null, peek: () => null, subscribe: () => () => {} },
-      selectByPath() {},
-      setHover() {},
-    },
-  };
-}
-
 describe('CitySidebarLeft', () => {
   let container: HTMLDivElement;
+  let city: FakeCity;
+  // Per test, so opening the sidebar in one leaves it open for none of them.
+  let chrome: CityChromeState;
 
   beforeEach(async () => {
-    // The sidebar's open state is a module signal: a test that opens it leaves
-    // it open for whoever runs next.
-    SIDEBAR_COLLAPSED.value = true;
-    SIDEBAR_TAB.value = DEFAULT_SIDEBAR_TAB;
     container = document.createElement('div');
     document.body.appendChild(container);
-    // Seed MANIFEST directly, the way the fetch layer does; SCENE_HANDLE is
-    // still seeded for the picker the panes read.
-    setManifest({ tree: TEST_TREE } as never);
-    SCENE_HANDLE.value = makeSceneHandle() as never;
-    render(<CitySidebarLeft />, container);
-    await flush();
+    chrome = createCityChrome();
+    city = renderWithCity(<CitySidebarLeft />, container, undefined, chrome);
+    city.setManifest({ tree: TEST_TREE } as unknown as Manifest);
+    render(null, container);
+    renderWithCity(<CitySidebarLeft />, container, city, chrome);
+    await drainAsync();
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
-    SCENE_HANDLE.value = null;
-    setManifest(null);
     CURRENT_SOURCE.value = null;
   });
 
@@ -96,7 +74,7 @@ describe('CitySidebarLeft', () => {
       '.activity-bar-icon[data-tab="controls"]'
     )!;
     controlsBtn.click();
-    await flush();
+    await drainAsync();
 
     expect(container.querySelector('.info-pane')).toBeNull();
     expect(container.querySelector('.controls-pane')).not.toBeNull();
@@ -110,7 +88,7 @@ describe('CitySidebarLeft', () => {
   it('collapses and resets to Info on world load (open state not remembered)', async () => {
     // Open the sidebar on a non-default tab.
     container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="explore"]')!.click();
-    await flush();
+    await drainAsync();
     expect(container.querySelector('#city-sidebar-left')!.classList.contains('is-collapsed')).toBe(
       false
     );

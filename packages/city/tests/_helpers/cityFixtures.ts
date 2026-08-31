@@ -409,16 +409,22 @@ export function fakeCity(over: Partial<Record<string, unknown>> = {}) {
           ? { kind: NodeKind.File, path: (selection as { file: { path: string } }).file.path }
           : null;
       },
+      // A real city does BOTH: it emits the event a host may be listening to,
+      // and marks the change a host may be rendering off. A fake that only did
+      // the second let a subscriber pass against a city that never told it.
       setSelection(next: PickTarget | null) {
         selection = next;
+        events.emit('select', { target: next });
         tell('selectionChanged');
       },
       setHover(next: PickTarget | null) {
         hover = next;
+        events.emit('hover', { target: next });
         tell('hoverChanged');
       },
       clearSelection() {
         selection = null;
+        events.emit('select', { target: null });
         tell('selectionChanged');
       },
       hoverByPath() {},

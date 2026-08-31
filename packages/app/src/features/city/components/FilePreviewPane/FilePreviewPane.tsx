@@ -77,7 +77,7 @@ export interface FilePreviewPaneState {
 }
 
 export interface FilePreviewPaneProps {
-  state: ReadonlySignal<FilePreviewPaneState>;
+  state: FilePreviewPaneState;
   onClose?: () => void;
   onFocus?: (file: FileNode) => void;
   onExclude?: (file: FileNode) => void;
@@ -558,7 +558,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
     remoteUrl,
     branch = '',
     isAbsent,
-  } = state.value;
+  } = state;
   const path = file?.path ?? '';
   // Absent from the scrub tree, or in it with no blob here: either way a read
   // by path would answer with HEAD's bytes, or 404 for a file HEAD dropped.

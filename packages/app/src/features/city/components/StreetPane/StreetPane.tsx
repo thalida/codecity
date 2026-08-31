@@ -40,7 +40,7 @@ export interface StreetPaneState {
 }
 
 export interface StreetPaneProps {
-  state: ReadonlySignal<StreetPaneState>;
+  state: StreetPaneState;
   onClose?: () => void;
   onFocus?: (dir: DirNode) => void;
   onExclude?: (dir: DirNode) => void;
@@ -56,7 +56,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
     remoteUrl,
     branch = '',
     isAbsent,
-  } = state.value;
+  } = state;
 
   if (!d) {
     return (

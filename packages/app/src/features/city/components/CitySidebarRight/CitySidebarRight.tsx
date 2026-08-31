@@ -78,7 +78,7 @@ export function CitySidebarRight() {
 
   // Computeds read during render: no effect writing signals, no bridge, and a
   // live-update poll re-derives every pane on its own.
-  const activeKind = useComputed<SidebarPaneKind | null>(() => {
+  const activeKind = ((): SidebarPaneKind | null => {
     const sel = selection.value;
     // Every selection opens the panel: the sidebar is the only place one is
     // shown. The panes handle the union-city caveat themselves.
@@ -86,8 +86,8 @@ export function CitySidebarRight() {
     if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
     if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
     return null;
-  });
-  const fileState = useComputed<FilePreviewPaneState>(() => {
+  })();
+  const fileState = ((): FilePreviewPaneState => {
     // History manifest, so the pane follows the scrub: a file absent at this
     // commit says so here instead of quietly showing HEAD's version.
     const m = scrub?.manifest as Manifest | DirNode | null;
@@ -107,8 +107,8 @@ export function CitySidebarRight() {
       branch: sourceInfo.branch,
       isAbsent: inTimeline && !present,
     };
-  });
-  const commitState = useComputed<CommitPaneState>(() => {
+  })();
+  const commitState = ((): CommitPaneState => {
     void manifest; // re-derive on live-update rebuilds
     const sel = selection.value;
     return city && sel?.kind === NodeKind.Commit
@@ -118,8 +118,8 @@ export function CitySidebarRight() {
           inTimeline,
         }
       : { commit: null };
-  });
-  const streetState = useComputed<StreetPaneState>(() => {
+  })();
+  const streetState = ((): StreetPaneState => {
     const m = manifest as Manifest | DirNode | null;
     const sel = selection.value;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
@@ -136,11 +136,11 @@ export function CitySidebarRight() {
       // can't still read as live here.
       isAbsent: inTimeline && !scrub?.present.has(sel.dir.path),
     };
-  });
+  })();
 
   // Two facts, not one: closing used to deselect, throwing away the outline
   // because you wanted the details out of the way.
-  const isOpen = useComputed(() => activeKind.value !== null && !chrome.detailsDismissed.value);
+  const isOpen = activeKind !== null && !chrome.detailsDismissed.value;
 
   const dismiss = chrome.dismissDetails;
 
@@ -155,8 +155,8 @@ export function CitySidebarRight() {
     clearSelection(); // the node is about to vanish from the re-fetched manifest
   };
 
-  const kind = activeKind.value;
-  const open = isOpen.value;
+  const kind = activeKind;
+  const open = isOpen;
 
   return (
     <Sidebar

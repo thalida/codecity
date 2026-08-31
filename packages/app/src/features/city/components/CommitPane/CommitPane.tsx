@@ -66,7 +66,7 @@ export interface CommitPaneState {
 }
 
 export interface CommitPaneProps {
-  state: ReadonlySignal<CommitPaneState>;
+  state: CommitPaneState;
   onClose?: () => void;
   onFocus?: (commit: CommitEntry) => void;
   /** Enter Timeline mode (if needed) and scrub to this commit. */
@@ -86,7 +86,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
     color,
     now = new Date(),
     inTimeline = false,
-  } = state.value;
+  } = state;
 
   const [bodyState, setBodyState] = useState<BodyState>({ kind: CommitBodyKind.Loading });
   const bodyCache = useRef(new Map<string, string>());
