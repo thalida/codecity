@@ -5,12 +5,7 @@ import { render } from 'preact';
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { fileStatItems, directoryStatItems } from '@/components/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
-import {
-  beginTimelineMode,
-  resetTimelineMode,
-  setScrubPos,
-  setTimelineBundle,
-} from '@/features/city/state/timeline';
+import { createTimelineState } from '@codecity/city';
 
 const NOW = Date.UTC(2024, 2, 25);
 

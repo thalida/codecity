@@ -1,35 +1,39 @@
-import { NodeKind, PickTarget } from '@codecity/city';
+// The canvas cannot be read by a screen reader, so what is selected in it is
+// spoken here. Off the city's own picker: two cities would announce their own.
+
+import { NodeKind, type PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { signal } from '@preact/signals';
+
 import { SelectionAnnouncer } from '@/features/city/SelectionAnnouncer/SelectionAnnouncer';
-import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/features/settings/state/values/city';
-import { flush } from '../_helpers/preact';
+import { renderWithCity, type FakeCity } from '../_helpers/cityChrome';
+import { drainAsync } from '../_helpers/preact';
 
 describe('SelectionAnnouncer', () => {
   let container: HTMLDivElement;
-  const selection = signal<PickTarget | null>(null);
+  let city: FakeCity;
 
-  beforeEach(() => {
-    CITY_SELECTION.value = null;
-    CITY_HOVER.value = null;
+  beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    CITY_SELECTION.value = null;
-    // Minimal fake handle exposing just the picker.selection signal.
-    SCENE_HANDLE.value = { picker: { selection } } as unknown as typeof SCENE_HANDLE.value;
+    city = renderWithCity(<SelectionAnnouncer />, container);
+    await drainAsync();
   });
+
   afterEach(() => {
     render(null, container);
     container.remove();
-    SCENE_HANDLE.value = null;
   });
 
   const region = () => container.querySelector('[role="status"]') as HTMLElement;
 
-  it('is a polite, atomic, visually-hidden live region', async () => {
-    render(<SelectionAnnouncer />, container);
-    await flush();
+  /** Pick something in the city, and let the announcement settle. */
+  async function pick(target: PickTarget | null): Promise<void> {
+    city.picker.setSelection(target);
+    await drainAsync();
+  }
+
+  it('is a polite, atomic, visually-hidden live region', () => {
     expect(region().getAttribute('aria-live')).toBe('polite');
     expect(region().getAttribute('aria-atomic')).toBe('true');
     expect(region().classList.contains('sr-only')).toBe(true);
@@ -37,27 +41,15 @@ describe('SelectionAnnouncer', () => {
   });
 
   it('announces a selected file by path', async () => {
-    render(<SelectionAnnouncer />, container);
-    await flush();
-    CITY_SELECTION.value = {
-      kind: NodeKind.File,
-      file: { path: 'src/a.ts' },
-    } as unknown as PickTarget;
-    await flush();
+    await pick({ kind: NodeKind.File, file: { path: 'src/a.ts' } } as unknown as PickTarget);
     expect(region().textContent).toBe('Selected file: src/a.ts');
   });
 
   it('announces a selected directory and clears on deselect', async () => {
-    render(<SelectionAnnouncer />, container);
-    await flush();
-    CITY_SELECTION.value = {
-      kind: NodeKind.Directory,
-      dir: { path: 'src' },
-    } as unknown as PickTarget;
-    await flush();
+    await pick({ kind: NodeKind.Directory, dir: { path: 'src' } } as unknown as PickTarget);
     expect(region().textContent).toBe('Selected directory: src');
-    CITY_SELECTION.value = null;
-    await flush();
+
+    await pick(null);
     expect(region().textContent).toBe('');
   });
 });

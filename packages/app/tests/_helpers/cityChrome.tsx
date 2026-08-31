@@ -6,7 +6,8 @@
 
 import { render } from 'preact';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider } from '@/features/city/state/sidebar';
+import { CityChromeProvider, createCityChrome } from '@/features/city/state/sidebar';
+import type { CityChromeState } from '@/features/city/state/sidebar';
 import { fakeCity } from '@codecity/city/testing';
 import type { ComponentChildren } from 'preact';
 
@@ -17,11 +18,12 @@ export type FakeCity = ReturnType<typeof fakeCity>;
 export function renderWithCity(
   ui: ComponentChildren,
   host: HTMLElement,
-  city: FakeCity = fakeCity()
+  city: FakeCity = fakeCity(),
+  chrome: CityChromeState = createCityChrome()
 ): FakeCity {
   render(
     <CityProvider city={city as never}>
-      <CityChromeProvider>{ui}</CityChromeProvider>
+      <CityChromeProvider value={chrome}>{ui}</CityChromeProvider>
     </CityProvider>,
     host
   );

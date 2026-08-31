@@ -2,6 +2,7 @@
 // module-level effect that navigates fires on any import that reaches it.
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import type { Manifest } from '@codecity/city';
 import { render } from 'preact';
 
 import { usePublishSourceToUrl } from '@/router/cityUrl';

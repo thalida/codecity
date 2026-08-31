@@ -90,9 +90,17 @@ export function createCityChrome(): CityChromeState {
 
 const Ctx = createContext<CityChromeState | null>(null);
 
-export function CityChromeProvider({ children }: { children: ComponentChildren }) {
-  const chrome = useMemo(createCityChrome, []);
-  return <Ctx.Provider value={chrome}>{children}</Ctx.Provider>;
+export function CityChromeProvider({
+  children,
+  value,
+}: {
+  children: ComponentChildren;
+  /** Supply the chrome rather than letting the provider make one — for a host
+   *  that drives it from outside, and for a test that asserts on it. */
+  value?: CityChromeState;
+}) {
+  const made = useMemo(createCityChrome, []);
+  return <Ctx.Provider value={value ?? made}>{children}</Ctx.Provider>;
 }
 
 /** The chrome around the city this subtree is about. Detached outside a

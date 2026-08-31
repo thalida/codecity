@@ -16,14 +16,16 @@ describe('CityTooltip', () => {
   function mount(): HTMLElement {
     canvas = document.createElement('div');
     document.body.appendChild(canvas);
-    tooltip = createCityTooltip(canvas);
+    tooltip = createCityTooltip();
     return canvas;
   }
 
-  /** Move the pointer over the canvas, which is where the card takes its
+  /** Move the pointer. The card tracks the WINDOW: it only shows while
+   *  something is hovered, and while something is hovered the pointer is over
+   *  that city — so it costs nothing but the city's own hover report.
    *  position from: the city reports what is under it, never where. */
   function pointTo(x: number, y: number): void {
-    canvas.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y }));
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y }));
   }
 
   const el = () => document.getElementById('hover-tooltip')!;
@@ -117,7 +119,7 @@ describe('CityTooltip', () => {
   });
 
   // Two cities on one page would otherwise leave a card behind on unmount, and
-  // the survivor would keep tracking a canvas that no longer exists.
+  // the survivor would keep tracking the pointer after its city had gone.
   it('dispose() takes its element and its listener with it', () => {
     mount();
     tooltip.show(content());
@@ -125,9 +127,9 @@ describe('CityTooltip', () => {
     expect(document.getElementById('hover-tooltip')).toBeNull();
   });
 
-  it('gives each canvas its own card', () => {
-    const a = createCityTooltip(document.createElement('div'));
-    const b = createCityTooltip(document.createElement('div'));
+  it('gives each city its own card', () => {
+    const a = createCityTooltip();
+    const b = createCityTooltip();
     a.show(content({ title: 'scene' }));
     b.show(content({ title: 'backdrop' }));
     const cards = document.querySelectorAll('#hover-tooltip');

@@ -6,9 +6,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { SelectionChip } from '@/features/city/components/CityStage/SelectionChip/SelectionChip';
-import { CITY_HOVER, CITY_SELECTION, SCENE_HANDLE } from '@/features/settings/state/values/city';
-import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/features/city/state/modals';
-import { flush } from '../_helpers/preact';
+import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
+import { renderWithCity, type FakeCity } from '../_helpers/cityChrome';
+import { drainAsync } from '../_helpers/preact';
 
 const FILE: FileNode = {
   name: 'index.ts',
@@ -23,55 +23,39 @@ const FILE: FileNode = {
   modified: '2024-01-02T00:00:00Z',
 };
 
-function makeHandle() {
-  // The chip RENDERS off the app's view of the selection and CLEARS through the
-  // handle, so the double keeps both in step the way attachCityChrome does.
-  return {
-    picker: {
-      get selection() {
-        return CITY_SELECTION.value;
-      },
-      clearSelection() {
-        CITY_SELECTION.value = null;
-      },
-    },
-  };
-}
-
 describe('SelectionChip', () => {
   let container: HTMLDivElement;
+  let city: FakeCity;
+  let chrome: CityChromeState;
   const chip = () => container.querySelector('.selection-chip');
 
-  const select = async () => {
-    CITY_SELECTION.value = {
+  const pick = async (target: PickTarget) => {
+    city.picker.setSelection(target);
+    await drainAsync();
+  };
+  const select = () =>
+    pick({
       kind: NodeKind.File,
       file: FILE,
       mesh: {} as never,
       data: {} as never,
-    } as unknown as PickTarget;
-    await flush();
-  };
+    } as unknown as PickTarget);
   const dismiss = async () => {
-    dismissSelectionPane();
-    await flush();
+    chrome.dismissDetails();
+    await drainAsync();
   };
 
   beforeEach(async () => {
-    CITY_SELECTION.value = null;
-    CITY_HOVER.value = null;
     container = document.createElement('div');
     document.body.appendChild(container);
-    SELECTION_PANE_DISMISSED.value = false;
-    SCENE_HANDLE.value = makeHandle() as never;
-    render(<SelectionChip />, container);
-    await flush();
+    chrome = createCityChrome();
+    city = renderWithCity(<SelectionChip />, container, undefined, chrome);
+    await drainAsync();
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    SCENE_HANDLE.value = null;
-    SELECTION_PANE_DISMISSED.value = false;
   });
 
   it('stays out of the way with nothing selected', () => {
@@ -103,13 +87,12 @@ describe('SelectionChip', () => {
   });
 
   it('carries the dir badge for a directory', async () => {
-    CITY_SELECTION.value = {
+    await pick({
       kind: NodeKind.Directory,
       dir: { name: 'styles', type: NodeKind.Directory, path: 'src/styles' } as never,
       sidewalk: {} as never,
       street: {} as never,
-    } as unknown as PickTarget;
-    await flush();
+    } as unknown as PickTarget);
     await dismiss();
 
     const badge = chip()!.querySelector('.path-badge');
@@ -119,13 +102,12 @@ describe('SelectionChip', () => {
   });
 
   it('names the kind for a commit, whose label is only a hash', async () => {
-    CITY_SELECTION.value = {
+    await pick({
       kind: NodeKind.Commit,
       commit: { sha: 'abc1234def5678' } as never,
       mesh: {} as never,
       instanceId: 0,
-    } as unknown as PickTarget;
-    await flush();
+    } as unknown as PickTarget);
     await dismiss();
 
     expect(chip()!.querySelector('.path-badge')!.textContent).toBe('commit');
@@ -137,10 +119,9 @@ describe('SelectionChip', () => {
     await dismiss();
 
     act(() => container.querySelector<HTMLButtonElement>('.selection-chip-clear')!.click());
-    await flush();
+    await drainAsync();
 
-    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
-    expect(handle.picker.selection).toBeNull();
+    expect(city.picker.selection).toBeNull();
     expect(chip()).toBeNull();
   });
 
@@ -149,9 +130,9 @@ describe('SelectionChip', () => {
     await dismiss();
 
     act(() => container.querySelector<HTMLButtonElement>('.selection-chip-label')!.click());
-    await flush();
+    await drainAsync();
 
-    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
+    expect(chrome.detailsDismissed.value).toBe(false);
     expect(chip()).toBeNull();
   });
 });
