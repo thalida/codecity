@@ -4,8 +4,7 @@
 // pattern inherited a singleton it never asked for.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { FocusMode } from '@codecity/city';
-import type { City } from '@codecity/city';
+import { FocusMode, type City } from '@codecity/city';
 import { cityCommands } from '@/features/city/state/commands';
 import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
 

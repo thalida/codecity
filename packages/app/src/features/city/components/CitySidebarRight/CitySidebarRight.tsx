@@ -16,7 +16,7 @@ import {
 } from '@codecity/city';
 import { useSourceInfo } from '@/features/city/hooks/useSourceInfo';
 import './CitySidebarRight.css';
-import { useComputed, useSignal } from '@preact/signals';
+import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';
 import { useCityCommands } from '@/features/city/state/commands';

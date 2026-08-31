@@ -3,16 +3,19 @@
 // EventSource and every assertion about phases and cancellation still means
 // something; only the rendering is stubbed, which jsdom has no GPU for anyway.
 
-import { createClient, createTimelineState } from '@codecity/city';
-import type { TimelineState, Manifest } from '@codecity/city';
+import {
+  createClient,
+  createTimelineState,
+  type TimelineState,
+  type Manifest,
+  type City,
+} from '@codecity/city';
 
-// The imports below reach past the package's public surface on purpose, and
-// say so by path: they are its internal wiring, which no consumer needs and
-// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+// The imports below reach past the package's public surface on purpose, and say so by path:
+// they are its internal wiring, which no consumer needs and which these tests assemble by
 import { createEmitter } from '../../../city/src/state/events';
 import { createSourceLoader } from '../../../city/src/data/loadSource';
 import { refreshOnce, startWatch } from '../../../city/src/data/watch';
-import type { City } from '@codecity/city';
 
 export interface StubSceneCity {
   /** The city itself. Handed to whatever is being driven, rather than published
@@ -57,9 +60,8 @@ export function stubSceneCity(): StubSceneCity {
     loadSource: loader.load,
     cancelLoad: loader.cancel,
     applyManifest: async (m: Manifest) => void applied.push(m),
-    // The real watch over the real loader and client, so a test that drives an
-    // exclude edit or a poll exercises the city's own rules — which foreground
-    // load wins, what a refresh must not apply — rather than a stand-in's.
+    // The real watch over the real loader and client, so a test that drives an exclude edit or
+    // a poll exercises the city's own rules — which foreground load wins, what a refresh must
     watchSource: (options) => {
       watching = true;
       const stop = startWatch(watchDeps, options);

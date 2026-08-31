@@ -1,19 +1,18 @@
-import { FileNode, NodeKind, TimelineBundle } from '@codecity/city';
+import { type FileNode, NodeKind, type TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { signal, type Signal } from '@preact/signals';
+import { type Signal } from '@preact/signals';
 import {
   FilePreviewPane,
   PreviewKind,
   _previewKind,
+  type FilePreviewPaneState,
 } from '@/features/city/components/FilePreviewPane/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/features/city/components/FilePreviewPane/FilePreviewPane';
 // A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
 // rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
 import { drainAsync } from '../../../_helpers/preact';
-import { TEST_SOURCE } from '@codecity/city/testing';
-import { makeBundle } from '@codecity/city/testing';
+import { TEST_SOURCE, makeBundle } from '@codecity/city/testing';
 import { renderWithCity, type FakeCity } from '../../../_helpers/cityChrome';
 
 const FILE_NODE: FileNode = {

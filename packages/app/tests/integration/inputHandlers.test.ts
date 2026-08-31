@@ -7,14 +7,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { closeShortcuts, openShortcuts } from '@/features/city/state/modals';
 import { cityKeyboardEnabled } from '@/features/city/state/commands';
 import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
+import { navigate, ROUTES } from '@/router/location';
 
-// The two mocks below reach past the package's public surface on purpose, and
-// say so by path: they replace what jsdom has no implementation of (a WebGL
-// post pipeline, an icon atlas that waits on image onload). There is no export
-// for either, and there should not be — substituting a city's internals is a
-// test's business, not an API.
+// The two mocks below reach past the package's public surface on purpose, and say so by path:
+// they replace what jsdom has no implementation of (a WebGL post pipeline, an icon atlas that
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');

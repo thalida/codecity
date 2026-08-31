@@ -2,16 +2,13 @@
 // dismissal used to be cleared by an effect watching the selection, which also
 // fired on the picker's own bookkeeping (a backdrop save/restore round trip).
 
-import { FileNode, NodeKind, PickTarget } from '@codecity/city';
+import { type FileNode, NodeKind, type PickTarget } from '@codecity/city';
 
-// The imports below reach past the package's public surface on purpose, and
-// say so by path: they are its internal wiring, which no consumer needs and
-// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+// The imports below reach past the package's public surface on purpose, and say so by path:
+// they are its internal wiring, which no consumer needs and which these tests assemble by
 import { createInputHandlers } from '../../../city/src/interaction/inputHandlers';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { closeShortcuts, openShortcuts } from '@/features/city/state/modals';
-import { createEmitter } from '@codecity/city/testing';
-import { fakePicker } from '@codecity/city/testing';
+import { createEmitter, fakePicker } from '@codecity/city/testing';
 import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
 
 const fileNode = (path: string): FileNode => ({

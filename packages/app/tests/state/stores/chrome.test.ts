@@ -9,8 +9,7 @@ import {
   openDebug,
   closeDebug,
 } from '@/features/city/state/modals';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
+import { navigate, ROUTES } from '@/router/location';
 
 describe('OVERLAY_OPEN', () => {
   beforeEach(() => navigate(ROUTES.CITY, { replace: true }));

@@ -1,9 +1,5 @@
-// The app holds a value for every store the city declares, and it derives that
-// list rather than restating it. It used to be restated twice — one
-// settingSignal line per store across thirteen files, and one `X: X.value` line
-// per store in the object handed to a city — so adding a store to the city was
-// three edits, and the two the app owned failed by doing nothing: no signal for
-// the panel to bind to, and a city that never heard about the new store at all.
+// The app holds a value for every store the city declares, and it derives that list rather
+// than restating it.
 
 import { describe, it, expect } from 'vitest';
 import { CITY_FIELDS, defaultCitySettings } from '@codecity/city';

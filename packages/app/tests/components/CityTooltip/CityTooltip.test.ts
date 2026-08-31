@@ -20,10 +20,7 @@ describe('CityTooltip', () => {
     return canvas;
   }
 
-  /** Move the pointer. The card tracks the WINDOW: it only shows while
-   *  something is hovered, and while something is hovered the pointer is over
-   *  that city — so it costs nothing but the city's own hover report.
-   *  position from: the city reports what is under it, never where. */
+  /** Move the pointer. */
   function pointTo(x: number, y: number): void {
     window.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y }));
   }
@@ -83,10 +80,8 @@ describe('CityTooltip', () => {
     expect(el().style.top).toBe('144px');
   });
 
-  // Regression: flipping to the other side of the cursor was the only clamp, so
-  // a card too wide to fit on either side was pushed off the opposite edge.
-  // Reproducing it needs a card wider than half the viewport, with the cursor
-  // far enough right that the flip fires.
+  // Regression: flipping to the other side of the cursor was the only clamp, so a card too
+  // wide to fit on either side was pushed off the opposite edge.
   it('never positions the card off the left or top edge', () => {
     mount();
     tooltip.show(content());

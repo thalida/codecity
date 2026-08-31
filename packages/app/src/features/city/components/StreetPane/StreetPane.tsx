@@ -12,7 +12,6 @@ import {
   nodeUrl,
 } from '@codecity/city';
 import './StreetPane.css';
-import type { ReadonlySignal } from '@preact/signals';
 import { Pane } from '@/components/Pane/Pane';
 import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
 import { KEY_BINDINGS } from '@/constants/keyboard';

@@ -1,4 +1,4 @@
-import { DirNode, FileNode, Manifest, NodeKind, PickTarget } from '@codecity/city';
+import { type DirNode, type FileNode, type Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';

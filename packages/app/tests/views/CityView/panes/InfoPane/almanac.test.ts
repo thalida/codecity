@@ -1,9 +1,18 @@
-import { DirNode, FileNode, Manifest, NodeKind, RepoStats } from '@codecity/city';
+import {
+  type DirNode,
+  type FileNode,
+  type Manifest,
+  NodeKind,
+  type RepoStats,
+} from '@codecity/city';
 import { describe, it, expect } from 'vitest';
 import { computeAlmanac } from '@/features/city/components/InfoPane/almanac';
-import { EMPTY_REPO_STATS } from '@codecity/city/testing';
-import { commits as buildCommits } from '@codecity/city/testing';
-import { fileLeader, uniformFileStats } from '@codecity/city/testing';
+import {
+  EMPTY_REPO_STATS,
+  commits as buildCommits,
+  fileLeader,
+  uniformFileStats,
+} from '@codecity/city/testing';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {

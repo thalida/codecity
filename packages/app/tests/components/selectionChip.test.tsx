@@ -1,7 +1,7 @@
 // The chip is the only thing on screen that says something is selected once its
 // pane is closed, and the only pointer-reachable way to clear one.
 
-import { FileNode, NodeKind, PickTarget } from '@codecity/city';
+import { type FileNode, NodeKind, type PickTarget } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';

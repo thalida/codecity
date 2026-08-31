@@ -4,8 +4,14 @@
 // keep in step, which is what this file used to be full of.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { BuildStage, CityLifecycle, CityPhase, EMPTY_CITY_STATUS } from '@codecity/city';
-import type { CityStatus } from '@codecity/city';
+import {
+  BuildStage,
+  CityLifecycle,
+  CityPhase,
+  EMPTY_CITY_STATUS,
+  type CityStatus,
+  SourceKind,
+} from '@codecity/city';
 import {
   createOverlayDriver,
   LOADING_OVERLAY,
@@ -14,8 +20,7 @@ import {
 } from '@/features/city/state/overlay';
 import { REBUILD_DETAIL } from '@/features/city/state/readout';
 
-import { SourceKind } from '@codecity/city';
-import { LoadingStep } from '@/features/city/state/loading';
+import { type LoadingStep } from '@/features/city/state/loading';
 
 // The driver is a plain reduction now: it is handed the status the city reports
 // and what THIS app asked for, rather than reading either from a signal.

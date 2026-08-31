@@ -3,18 +3,13 @@
 // rides BUILT_MANIFEST, gated on a CURRENT_SOURCE_KEY change.
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
-import { City } from '@codecity/city';
-import type { Manifest } from '@codecity/city';
+import { City, type Manifest } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EMPTY_MANIFEST } from '@codecity/city/testing';
+import { EMPTY_MANIFEST, mkDir, nextBuild } from '@codecity/city/testing';
 import { CURRENT_SOURCE } from '@/state/source';
-import { mkDir } from '@codecity/city/testing';
 
-// The two mocks below reach past the package's public surface on purpose, and
-// say so by path: they replace what jsdom has no implementation of (a WebGL
-// post pipeline, an icon atlas that waits on image onload). There is no export
-// for either, and there should not be — substituting a city's internals is a
-// test's business, not an API.
+// The two mocks below reach past the package's public surface on purpose, and say so by path:
+// they replace what jsdom has no implementation of (a WebGL post pipeline, an icon atlas that
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');
@@ -33,8 +28,6 @@ vi.mock('../../../city/src/components/buildings/atlas', async () => {
   >('../../../city/src/components/buildings/atlas');
   return { ...actual, buildIconAtlas: async () => null };
 });
-
-import { nextBuild } from '@codecity/city/testing';
 
 describe('initial-load framing (issue #62)', () => {
   let rafSpy: ReturnType<typeof vi.spyOn>;
@@ -86,9 +79,8 @@ describe('initial-load framing (issue #62)', () => {
     return { STREET_TIERS: { TIERS: [{ min_descendants: 0, width }] } };
   }
 
-  /** Apply, then wait out the decoration pass that ends the build: the framing
-   *  rides the finished city, and the tree placement lands a few ticks later.
-   *  The city says when it is on screen; nothing here reads a store. */
+  /** Apply, then wait out the decoration pass that ends the build: the framing rides the
+   *  finished city, and the tree placement lands a few ticks later. */
   async function build(handle: City, m: Manifest): Promise<void> {
     const built = nextBuild(handle);
     await handle.applyManifest(m);

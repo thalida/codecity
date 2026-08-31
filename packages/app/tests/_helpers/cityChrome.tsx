@@ -1,15 +1,15 @@
-// Rendering a chrome component that reads a city.
-//
-// Panels take the city their subtree is about now, so a test has to give them
-// one. Building a real city for a panel that shows a filename would be a WebGL
-// context nobody asked for; `fakeCity` is the same surface without the GPU.
+// Rendering a chrome component that reads a city. Panels take the city their subtree is about
+// now, so a test has to give them one. Building a real city for a panel that shows a filename
+// would be a WebGL context nobody asked for; `fakeCity` is the same surface without the GPU.
 
-import { render } from 'preact';
+import { render, type ComponentChildren } from 'preact';
 import { CityProvider } from '@codecity/city/preact';
-import { CityChromeProvider, createCityChrome } from '@/features/city/state/sidebar';
-import type { CityChromeState } from '@/features/city/state/sidebar';
+import {
+  CityChromeProvider,
+  createCityChrome,
+  type CityChromeState,
+} from '@/features/city/state/sidebar';
 import { fakeCity } from '@codecity/city/testing';
-import type { ComponentChildren } from 'preact';
 
 export type FakeCity = ReturnType<typeof fakeCity>;
 

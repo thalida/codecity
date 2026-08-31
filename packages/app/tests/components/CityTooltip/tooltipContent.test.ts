@@ -1,4 +1,4 @@
-import { DirNode, FileNode, NodeKind, PickTarget } from '@codecity/city';
+import { type DirNode, type FileNode, NodeKind, type PickTarget } from '@codecity/city';
 import { describe, it, expect } from 'vitest';
 import {
   hoverTooltipContent,
@@ -80,9 +80,8 @@ describe('hoverTooltipContent', () => {
     expect(c.stats.some((s) => s.startsWith('created'))).toBe(false);
   });
 
-  // The Timeline line count is fileStatItems' own lookup off the path — see
-  // its test — so hovering and selecting a ruin cannot disagree. What is
-  // asserted here is the badge, which is the tooltip's own decision.
+  // The Timeline line count is fileStatItems' own lookup off the path — see its test — so
+  // hovering and selecting a ruin cannot disagree.
   it('leads a deleted file with the ruin flag', () => {
     const t = {
       ...fileTarget({ name: 'gone.py', path: 'app/gone.py', lines: 0 }),

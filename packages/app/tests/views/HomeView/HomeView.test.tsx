@@ -32,8 +32,7 @@ import { hideLoadingOverlay, PENDING_SOURCE_LABEL } from '@/features/city/state/
 import { BACKDROP_CITY, BackdropKind } from '@/features/home/backdrop';
 import { RECENTS } from '@/state/recents';
 import { CURRENT_SOURCE, SOURCE_ERROR } from '@/state/source';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
+import { navigate, ROUTES } from '@/router/location';
 
 import { renderWithServer } from '../../_helpers/query';
 import type { DiscoverEntry } from '@codecity/city';

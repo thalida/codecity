@@ -1,11 +1,9 @@
 // What the open project is, and the one commit point every view goes through.
 
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { sourceKey } from '@codecity/city';
 
-import { CURRENT_SOURCE, CURRENT_SOURCE_KEY, commitSource } from '@/state/source';
-import { RECENTS } from '@/state/recents';
-import { navigate, ROUTES, ROUTE_PATH, ROUTE_PARAMS } from '@/router/location';
+import { CURRENT_SOURCE, CURRENT_SOURCE_KEY } from '@/state/source';
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {

@@ -8,9 +8,8 @@ const settings = vi.hoisted(() => ({
   hueMap: {} as Record<string, number>,
   asphalt: '#1a1d28',
 }));
-// The two stores the badge reads. They are generated from the city's own
-// CITY_FIELDS now, so the whole set is one module and the mock replaces the
-// two entries rather than two files.
+// The two stores the badge reads. They are generated from the city's own CITY_FIELDS now, so
+// the whole set is one module and the mock replaces the two entries rather than two files.
 vi.mock('@/features/settings/state/values/city', () => ({
   CITY_STORES: {
     BUILDINGS: {

@@ -1,11 +1,15 @@
-import { DirNode, FileNode, NodeKind } from '@codecity/city';
-import type { TimelineBundle } from '@codecity/city';
+import {
+  type DirNode,
+  type FileNode,
+  NodeKind,
+  type TimelineBundle,
+  createTimelineState,
+} from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { fileStatItems, directoryStatItems } from '@/components/PaneStats/statItems';
 import { flush } from '../_helpers/preact';
-import { createTimelineState } from '@codecity/city';
 
 const NOW = Date.UTC(2024, 2, 25);
 
@@ -39,9 +43,8 @@ const DIR: DirNode = {
   descendants_ext_breakdown: [{ ext: '.ts', count: 9, size: 4096 }],
 };
 
-// In Timeline a node carries max-over-history values, so what the row must
-// show is the replayed count for the commit under the scrubber. The tooltip
-// and the pane both read it through here, which is what keeps them agreeing.
+// In Timeline a node carries max-over-history values, so what the row must show is the
+// replayed count for the commit under the scrubber.
 describe('statItems in Timeline', () => {
   const PATH = 'src/index.ts';
   let timeline: ReturnType<typeof createTimelineState>;

@@ -3,10 +3,9 @@
 // That is server state, held in a query cache rather than a signal, so a test
 // seeds the cache the way a landed fetch would — no network, no waiting.
 
-import { render } from 'preact';
+import { render, type ComponentChildren } from 'preact';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_SERVER_CONFIG, type DiscoverEntry, type ServerConfig } from '@codecity/city';
-import type { ComponentChildren } from 'preact';
 
 export interface ServerSeed {
   config?: Partial<ServerConfig>;

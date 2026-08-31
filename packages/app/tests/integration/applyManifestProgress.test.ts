@@ -2,22 +2,22 @@
 // city" used to sit silent for the whole apply; it now names each stage, and
 // the count beside it has to come from the stages this apply actually runs.
 
-import { DateRanges, Manifest, NodeKind, CityLayout } from '@codecity/city';
+import { type DateRanges, type Manifest, NodeKind, type CityLayout } from '@codecity/city';
 
-// The imports below reach past the package's public surface on purpose, and
-// say so by path: they are its internal wiring, which no consumer needs and
-// which these tests assemble by hand. A test may reach in; nothing in src/ may.
+// The imports below reach past the package's public surface on purpose, and say so by path:
+// they are its internal wiring, which no consumer needs and which these tests assemble by
 import type { LayoutConfig } from '../../../city/src/layout/config';
 import { createCityState } from '../../../city/src/state';
-import { stubPlacementClient, statusFrom } from '@codecity/city/testing';
+import {
+  stubPlacementClient,
+  statusFrom,
+  createTestCityResources,
+  settingsStore,
+  createEmitter,
+} from '@codecity/city/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { effect } from '@preact/signals';
 
 import { buildStageTail } from '@/features/city/state/loading';
-import { EMPTY_CITY_STATUS } from '@codecity/city';
-import { createTestCityResources } from '@codecity/city/testing';
-import { settingsStore } from '@codecity/city/testing';
-import { createEmitter } from '@codecity/city/testing';
 
 const SETTINGS = settingsStore();
 
@@ -71,10 +71,7 @@ function fakeLayoutClient(percents: number[] = []) {
   };
 }
 
-/** Every distinct percent the readout showed, in order, for the apply run
- *  inside. The city folds its own stages into one fraction over the whole
- *  build; the app only renders it, so this covers the seam between what the
- *  city reports and what a readout makes of it. */
+/** Every distinct percent the readout showed, in order, for the apply run inside. */
 let tracked: ReturnType<typeof statusFrom>;
 
 async function tailsDuring(run: () => Promise<void>): Promise<string[]> {

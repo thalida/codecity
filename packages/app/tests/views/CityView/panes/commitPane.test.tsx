@@ -1,15 +1,12 @@
-import { colorForAuthor } from '@codecity/city';
-import type { CommitEntry } from '@codecity/city';
+import { colorForAuthor, type CommitEntry } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
-import { signal, type Signal } from '@preact/signals';
-import { CommitPane } from '@/features/city/components/CommitPane/CommitPane';
-import type { CommitPaneState } from '@/features/city/components/CommitPane/CommitPane';
+import { CommitPane, type CommitPaneState } from '@/features/city/components/CommitPane/CommitPane';
 // Settling this render crosses two schedulers, the fetch chain and Preact, so
 // drainAsync alternates microtask and macrotask yields to cover both.
-import { commits as buildCommits } from '@codecity/city/testing';
+
 import { drainAsync } from '../../../_helpers/preact';
-import { TEST_SOURCE } from '@codecity/city/testing';
+import { commits as buildCommits, TEST_SOURCE } from '@codecity/city/testing';
 
 const [COMMIT] = buildCommits({
   date: '2026-03-12',

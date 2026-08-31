@@ -11,7 +11,6 @@ import {
 } from '@codecity/city';
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
-import type { ReadonlySignal } from '@preact/signals';
 import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane } from '@/components/Pane/Pane';
 import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';

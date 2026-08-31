@@ -15,7 +15,6 @@ import {
   nodeUrl,
 } from '@codecity/city';
 import './FilePreviewPane.css';
-import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
 

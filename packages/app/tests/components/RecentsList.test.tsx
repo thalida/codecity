@@ -1,7 +1,6 @@
 // Native-harness tests for RecentsList — mirrors app/tests/layout/leftSidebar.test.tsx's
 // render/flush/container pattern (this repo has no @testing-library/preact dependency).
 
-import type { Manifest } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS } from '@/state/recents';

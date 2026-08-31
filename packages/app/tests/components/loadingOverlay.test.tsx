@@ -11,8 +11,7 @@ import {
 } from '@/features/city/state/overlay';
 
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/features/city/state/loading';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
+import { navigate, ROUTES } from '@/router/location';
 import { SourceKind } from '@codecity/city';
 import { flush } from '../_helpers/preact';
 

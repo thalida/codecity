@@ -1,10 +1,7 @@
-// What is left of the app's settings reactions: the brief flash on a Save the
-// scene answers by refreshing its materials in place. There is no build behind
-// such a Save — nothing re-packs — so no city event reports it, and the readout
-// would otherwise show nothing at all for a change the reader just made.
-//
-// The city says WHICH route moved. Deriving that here, from the app's own
-// signals, was the same re-derivation the rebuild half used to do.
+// What is left of the app's settings reactions: the brief flash on a Save the scene answers by
+// refreshing its materials in place. There is no build behind such a Save — nothing re-packs —
+// so no city event reports it, and the readout would otherwise show nothing at all for a
+// change the reader just made. The city says WHICH route moved.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ChangeRoute } from '@codecity/city';

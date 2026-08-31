@@ -10,8 +10,8 @@ import {
   setRouteParams,
   hrefFor,
   attachRouteHistory,
+  ROUTES,
 } from '@/router/location';
-import { ROUTES } from '@/router/location';
 
 describe('router/location', () => {
   beforeEach(() => {

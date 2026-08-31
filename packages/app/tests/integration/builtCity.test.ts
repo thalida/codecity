@@ -3,14 +3,12 @@
 // of any one part — stubbing a world whose meshes already exist is how a city you
 // could only drag got shipped. jsdom has no WebGL, so only that is mocked.
 
-import { City, Manifest, NodeKind } from '@codecity/city';
+import { City, type Manifest, NodeKind, decodeSelection } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { EMPTY_MANIFEST } from '@codecity/city/testing';
-import { mkDir, mkFile } from '@codecity/city/testing';
+import { EMPTY_MANIFEST, mkDir, mkFile, nextBuild } from '@codecity/city/testing';
 import { CURRENT_SOURCE, commitSource } from '@/state/source';
-import { decodeSelection } from '@codecity/city';
-import { ROUTE_PARAMS } from '@/router/location';
+import { ROUTE_PARAMS, navigate, ROUTES } from '@/router/location';
 import { VIEW_PARAMS } from '@/router/params';
 
 /** What the URL is asking to look at, as a view state. */
@@ -18,14 +16,9 @@ const readViewStateFromUrl = () => ({
   selection: decodeSelection(ROUTE_PARAMS.peek().get(VIEW_PARAMS.SELECTION)),
   timeline: null,
 });
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
 
-// The two mocks below reach past the package's public surface on purpose, and
-// say so by path: they replace what jsdom has no implementation of (a WebGL
-// post pipeline, an icon atlas that waits on image onload). There is no export
-// for either, and there should not be — substituting a city's internals is a
-// test's business, not an API.
+// The two mocks below reach past the package's public surface on purpose, and say so by path:
+// they replace what jsdom has no implementation of (a WebGL post pipeline, an icon atlas that
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   const { fakeWebGLRenderer } = await import('@codecity/city/testing/three');
@@ -43,8 +36,6 @@ vi.mock('../../../city/src/components/buildings/atlas', async () => {
   >('../../../city/src/components/buildings/atlas');
   return { ...actual, buildIconAtlas: async () => null };
 });
-
-import { nextBuild } from '@codecity/city/testing';
 
 const W = 800;
 const H = 600;

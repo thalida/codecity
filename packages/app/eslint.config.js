@@ -53,7 +53,13 @@ export default tseslint.config(
       'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
       '@typescript-eslint/consistent-type-imports': [
         'error',
-        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+        {
+          prefer: 'type-imports',
+          fixStyle: 'inline-type-imports',
+          // `importOriginal<typeof import('…')>()` is vitest's own idiom for a
+          // partial mock; there is no import statement to prefer instead.
+          disallowTypeAnnotations: false,
+        },
       ],
       '@typescript-eslint/no-unused-vars': [
         'warn',

@@ -1,8 +1,8 @@
 import {
-  TimelineBundle,
-  TimelineProgress,
+  type TimelineBundle,
+  type TimelineProgress,
   TimelineStage,
-  PickTarget,
+  type PickTarget,
   createTimelineState,
 } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -10,11 +10,10 @@ import { signal } from '@preact/signals';
 
 import { loadTimelineScene, teardownTimelineMode } from '@/features/city/state/timeline';
 import { CURRENT_SOURCE } from '@/state/source';
-import { EXCLUDES, addExclude } from '@/state/excludes';
 import { HOST_WORK, REBUILD_DETAIL } from '@/features/city/state/readout';
 import { LOADING_OVERLAY, LOADING_CANCEL } from '@/features/city/state/overlay';
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/features/city/state/loading';
-import { createEmitter, EMPTY_MANIFEST } from '@codecity/city/testing';
+import { createEmitter } from '@codecity/city/testing';
 import { stubSceneCity, type StubSceneCity } from '../_helpers/sceneCity';
 import { flush } from '../_helpers/preact';
 
@@ -44,13 +43,11 @@ function fakeHandle() {
   const uninstallScrubController = vi.fn();
   const setStreetsTransparent = vi.fn();
   const setFootprintsTransparent = vi.fn();
-  // The load is the city's now: this records what it was ASKED for, which is
-  // the whole of what this app is still responsible for. The emitter is real,
-  // so a test can drive the progress the city would report during one.
+  // The load is the city's now: this records what it was ASKED for, which is the whole of what
+  // this app is still responsible for.
   const events = createEmitter();
-  // A real city INSTALLS what it loaded, as part of the load: the app never
-  // calls setBundle itself. A fake that only returns one would let a test pass
-  // against an app that had to install it by hand.
+  // A real city INSTALLS what it loaded, as part of the load: the app never calls setBundle
+  // itself.
   const loadTimeline = vi.fn(async () => {
     handle.timeline.setBundle(BUNDLE);
     return BUNDLE;
@@ -69,9 +66,7 @@ function fakeHandle() {
     // SELECTION_KEY reads through the handle's picker, so a handle without one
     // isn't a SceneHandle any consumer can hold.
     picker: { selection: signal<PickTarget | null>(null) },
-    // A real engine with the scrub-install surface bolted on. NOT a spread of
-    // one: its values are getters, and spreading copies what they read at that
-    // moment, which freezes the whole thing.
+    // A real engine with the scrub-install surface bolted on.
     timeline: Object.assign(createTimelineState(), {
       installScrubController,
       uninstallScrubController,
@@ -132,10 +127,8 @@ describe('loadTimelineScene', () => {
     f.handle.timeline.exit();
   });
 
-  // The load itself — the order of mode, pack, transparency and controller — is
-  // the CITY's, and is covered in packages/city/tests/loadTimeline.test.ts.
-  // What this app is responsible for is asking for the right thing, and what it
-  // does with the answer.
+  // The load itself — the order of mode, pack, transparency and controller — is the CITY's,
+  // and is covered in packages/city/tests/loadTimeline.test.ts.
   it('asks the city for the open source’s history, and shows what came back', async () => {
     await loadTimelineScene(f.handle as never);
 
@@ -331,9 +324,8 @@ describe('loadTimelineScene inPlace refetch', () => {
     expect(f.handle.timeline.bundle).toBe(NEXT);
   });
 
-  // A refetch is about the source already open; without one there is nothing
-  // to re-read, and waiting for a city that will never come would hang the
-  // readout it opened.
+  // A refetch is about the source already open; without one there is nothing to re-read, and
+  // waiting for a city that will never come would hang the readout it opened.
   it('no-ops with no source open', async () => {
     CURRENT_SOURCE.value = null;
     await loadTimelineScene(f.handle as never, { inPlace: true });

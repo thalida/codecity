@@ -28,8 +28,7 @@ import { AppearanceMenu } from '@/features/city/components/AppearanceMenu/Appear
 import { TreeTab } from '@/features/city/components/ExplorePane/tabs/TreeTab/TreeTab';
 import { CityHeader } from '@/features/city/components/CityHeader/CityHeader';
 import { CityFooter } from '@/features/city/components/CityFooter/CityFooter';
-import { navigate } from '@/router/location';
-import { ROUTES } from '@/router/location';
+import { navigate, ROUTES } from '@/router/location';
 import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/features/city/state/modals';
 import { CURRENT_SOURCE } from '@/state/source';
 import { renderWithServer } from '../_helpers/query';

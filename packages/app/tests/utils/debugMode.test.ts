@@ -1,10 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { isDebugMode } from '@/utils/debugMode';
 
-// isDebugMode() is a plain OR of three flags: DEV, VITE_DEBUG, and ?debug in
-// the URL. Each test pins DEV/VITE_DEBUG (vi.stubEnv types these as real
-// booleans, unlike arbitrary env vars) and drives the URL via history so
-// window.location.search reflects a real navigation rather than a mock.
+// isDebugMode() is a plain OR of three flags: DEV, VITE_DEBUG, and ?debug in the URL.
 
 afterEach(() => {
   vi.unstubAllEnvs();

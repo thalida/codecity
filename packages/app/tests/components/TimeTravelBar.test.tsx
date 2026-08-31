@@ -1,8 +1,7 @@
 // Native render/flush harness (mirrors the other component tests). The scrubber
 // is a custom role="slider" track over a TIME axis, not a native range input.
 
-import { parseDateMs } from '@codecity/city';
-import type { TimelineBundle } from '@codecity/city';
+import { parseDateMs, type TimelineBundle } from '@codecity/city';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimelineScrubber } from '@/features/city/components/TimelineScrubber/TimelineScrubber';

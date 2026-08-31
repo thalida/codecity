@@ -1,9 +1,9 @@
-import { Manifest, NodeKind } from '@codecity/city';
+import { type Manifest, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { signal } from '@preact/signals';
 import { render } from 'preact';
 import { flush } from '../../../../_helpers/preact';
-import { renderWithCity, type FakeCity } from '../../../../_helpers/cityChrome';
+import { renderWithCity } from '../../../../_helpers/cityChrome';
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewTab gates the Forest section on TREES.value.ENABLED).
@@ -20,8 +20,7 @@ vi.mock('@/features/settings/state/values/city', () => ({
 
 import { OverviewTab } from '@/features/city/components/InfoPane/tabs/OverviewTab/OverviewTab';
 import { InfoPane } from '@/features/city/components/InfoPane/InfoPane';
-import { commits as buildCommits } from '@codecity/city/testing';
-import { uniformFileStats } from '@codecity/city/testing';
+import { commits as buildCommits, uniformFileStats } from '@codecity/city/testing';
 
 const tree = {
   name: 'repo',
@@ -195,8 +194,7 @@ describe('OverviewTab', () => {
       ],
       stats: commitStats,
     };
-    const city = renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
-    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
+    renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Busiest')
@@ -215,8 +213,7 @@ describe('OverviewTab', () => {
       ],
       stats: commitStats,
     };
-    const city = renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
-    const focus = vi.spyOn(city as unknown as { focus: () => boolean }, 'focus');
+    renderWithCity(<OverviewTab manifest={withCommits as never} />, container);
     await flush();
     // Section header still shows, but canopy rows are replaced by a note.
     expect(container.textContent).toContain('Forest');
