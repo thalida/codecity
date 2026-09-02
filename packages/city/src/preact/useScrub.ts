@@ -1,17 +1,13 @@
-// features/city/hooks/useScrub.ts — one city's scrub, as the panes need it.
-// Re-renders exactly when the city says the mode, the bundle or the position
-// moved. The arithmetic is the package's; this is where it meets a city.
+// preact/useScrub.ts — one city's scrub, as a pane needs it: which paths exist,
+// the tree filtered to them, the numbers replayed at the position. Re-renders
+// when the city says the mode, the bundle or the position moved.
 
 import { useMemo } from 'preact/hooks';
-import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';
-import {
-  paneManifest,
-  presentPaths,
-  scrubbedDirFor,
-  type DirNode,
-  type Manifest,
-  type ScrubbedFileStats,
-} from '@codecity/city';
+import { useCity } from './context';
+import { useCityManifest, useCityTimeline } from './hooks';
+import { paneManifest, presentPaths, scrubbedDirFor } from '../timeline/scrubbed';
+import type { DirNode, Manifest } from '../types/manifest';
+import type { ScrubbedFileStats } from '../timeline/state';
 
 export interface Scrub {
   /** In Timeline, the paths that exist at the scrub. Empty in Live. */

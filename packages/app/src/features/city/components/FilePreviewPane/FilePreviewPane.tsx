@@ -30,7 +30,7 @@ export enum PreviewKind {
 }
 import { PaneStats } from '@/components/PaneStats/PaneStats';
 import { fileStatItems } from '@/components/PaneStats/statItems';
-import { useScrub, type Scrub } from '@/features/city/hooks/useScrub';
+import { useScrub, type Scrub } from '@codecity/city/preact';
 import {
   FileWarning,
   FileX,

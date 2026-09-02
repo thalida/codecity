@@ -17,7 +17,7 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { PaneEmpty } from '@/components/PaneEmpty/PaneEmpty';
-import { useScrub } from '@/features/city/hooks/useScrub';
+import { useScrub } from '@codecity/city/preact';
 import { API } from '@/api/client';
 
 /** Markdown → HTML, relative image refs routed through /api/file so they load

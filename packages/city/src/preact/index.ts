@@ -28,3 +28,9 @@ export {
   useCityTimeline,
 } from './hooks';
 export type { CityTimelineView } from './hooks';
+
+// A canvas cannot announce what is picked in it; drop this in and it does.
+export { SelectionAnnouncer } from './SelectionAnnouncer';
+// What a pane needs off the scrub: present paths, the filtered tree, the
+// numbers replayed at the position.
+export { useScrub, type Scrub } from './useScrub';

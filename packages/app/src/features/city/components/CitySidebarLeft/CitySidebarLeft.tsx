@@ -6,7 +6,7 @@ import { NodeKind, type TreeNode, type PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
 import { useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { useCity, useCityManifest } from '@codecity/city/preact';
+import { useCity, useCityManifest, useScrub } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import {
   ACTIVITY_BAR_TABS,
@@ -17,7 +17,6 @@ import {
 } from '@/features/city/state/sidebar';
 import { CHANGED_SETTINGS_COUNT } from '@/features/settings/state/indicators';
 import { useCityCommands } from '@/features/city/state/commands';
-import { useScrub } from '@/features/city/hooks/useScrub';
 import { CURRENT_SOURCE } from '@/state/source';
 import { ExplorePane } from '@/features/city/components/ExplorePane/ExplorePane';
 import { InfoPane } from '@/features/city/components/InfoPane/InfoPane';

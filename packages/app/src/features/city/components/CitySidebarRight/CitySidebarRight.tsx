@@ -18,9 +18,8 @@ import { useSourceInfo } from '@/features/city/hooks/useSourceInfo';
 import './CitySidebarRight.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { useCity, useCityManifest, useCityTimeline } from '@codecity/city/preact';
+import { useCity, useCityManifest, useCityTimeline, useScrub } from '@codecity/city/preact';
 import { useCityCommands } from '@/features/city/state/commands';
-import { useScrub } from '@/features/city/hooks/useScrub';
 import { addExclude } from '@/state/excludes';
 import { setUrlTimelineMode } from '@/router/cityUrl';
 import {

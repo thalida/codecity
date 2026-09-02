@@ -178,8 +178,10 @@ export function createOverlayDriver(
     const want = reading ? Showing.Timeline : Showing.Live;
     if (asked && showing !== want) {
       open(want, asked, reading ? TIMELINE_LOADING_STEPS : undefined);
-      if (reading) PENDING_SOURCE_LABEL.value = asked.label ?? null;
     }
+    // The overlay owns what it displays: one writer, so a label from the load
+    // before this one cannot be left standing over it.
+    if (showing !== Showing.Nothing && asked?.label) PENDING_SOURCE_LABEL.value = asked.label;
 
     // The phase IS the row. Inside a read the timeline stage is the finer one,
     // the way BuildStage is inside Building.

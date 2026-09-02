@@ -6,7 +6,7 @@
 import './CityView.css';
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { CityProvider } from '@codecity/city/preact';
+import { CityProvider, SelectionAnnouncer } from '@codecity/city/preact';
 import { CityChromeProvider } from '@/features/city/state/sidebar';
 import { LOADING_CANCEL } from '@/features/city/state/overlay';
 import type { City } from '@codecity/city';
@@ -19,7 +19,6 @@ import { CitySidebarLeft } from '@/features/city/components/CitySidebarLeft/City
 import { CitySidebarRight } from '@/features/city/components/CitySidebarRight/CitySidebarRight';
 import { LoadingOverlay } from '@/features/city/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/features/city/HljsThemeLink/HljsThemeLink';
-import { SelectionAnnouncer } from '@/features/city/SelectionAnnouncer/SelectionAnnouncer';
 import { useShortcutsKey } from '@/features/city/hooks/useShortcutsKey';
 import { useDocumentTitle } from '@/features/city/hooks/useDocumentTitle';
 import {

@@ -3,18 +3,14 @@
 // answers in place. All of it derived from what the city reports, rather than
 // copied onto module signals the way the attach* functions did.
 
-import { useEffect, useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { useCity, useCityStatus } from '@codecity/city/preact';
 import { srcKind } from '@codecity/city';
 
 import { attachSettingsReactions } from '@/features/settings/state/reactions';
 import { createBuildReport } from '@/features/city/state/readout';
 import { setUrlTimelineMode, clearSourceUrl, type UrlSource } from '@/router/cityUrl';
-import {
-  createOverlayDriver,
-  PENDING_SOURCE_LABEL,
-  type LoadingAbout,
-} from '@/features/city/state/overlay';
+import { createOverlayDriver, type LoadingAbout } from '@/features/city/state/overlay';
 
 export function useCityReport(source: UrlSource | null): void {
   const city = useCity();
@@ -40,10 +36,13 @@ export function useCityReport(source: UrlSource | null): void {
   );
   const report = useMemo(() => createBuildReport(status), [city]);
 
-  // The label arrives mid-scan, before the manifest the header reads.
+  // The server's name for the repo, mid-scan. Held, not written: the overlay
+  // owns what it displays, so this is handed over with everything else.
+  const label = useRef<string | null>(null);
   useEffect(() => {
     if (!city) return;
-    return city.on('scan:label', ({ label }) => void (PENDING_SOURCE_LABEL.value = label));
+    label.current = null;
+    return city.on('scan:label', (e) => void (label.current = e.label));
   }, [city]);
 
   // The flash for a Save the city answers by refreshing materials in place:
@@ -57,9 +56,9 @@ export function useCityReport(source: UrlSource | null): void {
       ? {
           kind: srcKind(source.src),
           branch: source.branch,
-          // Entering Timeline reads a repo already on screen, named the way
-          // the header names it.
-          label: city?.manifest?.tree?.name ?? null,
+          // Entering Timeline reads a repo already on screen; a live scan is
+          // named by the server, mid-stream.
+          label: city?.manifest?.tree?.name ?? label.current,
         }
       : null;
   drive(status, asked);

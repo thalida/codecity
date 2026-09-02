@@ -160,7 +160,9 @@ describe('loading a timeline', () => {
     const boom = new Error('no history');
     h.client.fetchTimelineBundle.mockRejectedValue(boom);
     const errors: unknown[] = [];
-    h.events.on('scan:error', ({ error }) => errors.push(error));
+    // A failed READ, said as one: a host showing what went wrong should not be
+    // told a scan failed when nothing was scanned.
+    h.events.on('timeline:error', ({ error }) => errors.push(error));
 
     await expect(createTimelineLoader(h.deps).load({ src: '/repo' })).rejects.toThrow(boom);
 

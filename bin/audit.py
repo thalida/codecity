@@ -52,6 +52,19 @@ SKIP_DIRS = {"node_modules", ".venv", "dist", "build", "__pycache__", ".git"}
 # A caller in one of these does not keep production code alive.
 NON_PRODUCTION = ("/tests/", "/test_", "/capture/", ".test.", ".bench.", "conftest")
 
+# Findings judged and kept, with the reason. A smell can be the right answer,
+# and writing down WHY stops the next run re-arguing it. Keyed by file name.
+JUDGED = {
+    "client.ts": "resolves the Vite deploy base; a package cannot read its consumer's bundler",
+    "params.ts": "the page URL is THIS app's contract; a host routing by path writes another",
+    "keyboard.ts": "composes the city's own bindings with the app's, so one panel lists both",
+    "dates.ts": "how a person READS a date is presentation; the parse rule is the package's",
+    "loading.ts": "which rows this app's overlay lists; another host would list its own",
+    "readout.ts": "what this app says about a city, which is not the city's to say",
+    "useDocumentTitle.ts": "names the browser tab, which no embedded city owns",
+    "NodeIcon.tsx": "this app's presentation of a node; the glyph mapping is the package's",
+}
+
 
 @dataclass
 class Finding:
@@ -86,7 +99,9 @@ EXPORT_RE = re.compile(
 IMPORT_RE = re.compile(r"from\s*['\"]([^'\"]+)['\"]")
 EMIT_RE = re.compile(r"""emit\(\s*['"]([\w:]+)['"]""")
 SUBSCRIBE_RE = re.compile(r"""\bon\(\s*['"]([\w:]+)['"]""")
-SIGNAL_DECL_RE = re.compile(r"^export const ([A-Z][A-Z_0-9]*)\s*(?::[^=]+)?=\s*\w*signal", re.M)
+SIGNAL_DECL_RE = re.compile(
+    r"^export const ([A-Z][A-Z_0-9]*)\s*(?::[^=]+)?=\s*\w*signal", re.M
+)
 
 
 def ts_symbol_uses(files: dict[Path, str], name: str, home: Path) -> list[Path]:
@@ -135,7 +150,9 @@ def check_dead_and_orphaned(
     return out
 
 
-def check_misplaced(files: dict[Path, str], pkg: str, siblings: set[str]) -> list[Finding]:
+def check_misplaced(
+    files: dict[Path, str], pkg: str, siblings: set[str]
+) -> list[Finding]:
     """A module whose every non-relative import is another package's. Whatever
     it knows, it knows about that package."""
     out: list[Finding] = []
@@ -147,12 +164,16 @@ def check_misplaced(files: dict[Path, str], pkg: str, siblings: set[str]) -> lis
             continue
         local = [s for s in specs if s.startswith((".", "@/"))]
         external = [s for s in specs if not s.startswith((".", "@/"))]
-        foreign = [s for s in external if any(s.startswith(f"@codecity/{o}") for o in siblings)]
+        foreign = [
+            s for s in external if any(s.startswith(f"@codecity/{o}") for o in siblings)
+        ]
         framework = [
             s
             for s in external
             if s.split("/")[0] in {"preact", "@preact", "vitest", "three", "@tanstack"}
         ]
+        if path.name in JUDGED:
+            continue
         if foreign and not local and len(external) == len(foreign) + len(framework):
             out.append(
                 Finding(
@@ -258,8 +279,14 @@ def check_composition(files: dict[Path, str], pkg: str) -> list[Finding]:
             if not name[0].isupper():
                 continue
             tag = re.compile(rf"<{re.escape(name)}[\s/>]")
-            composed = [p for p in files if p != path and is_production(p) and tag.search(files[p])]
-            rendered = [p for p in files if not is_production(p) and tag.search(files[p])]
+            composed = [
+                p
+                for p in files
+                if p != path and is_production(p) and tag.search(files[p])
+            ]
+            rendered = [
+                p for p in files if not is_production(p) and tag.search(files[p])
+            ]
             if composed and not rendered:
                 out.append(
                     Finding(
@@ -336,7 +363,9 @@ def role_of(pkg: Path) -> str:
     return "service"
 
 
-def score_library(pkg: Path, name: str, files: dict[Path, str], everywhere) -> list[Grade]:
+def score_library(
+    pkg: Path, name: str, files: dict[Path, str], everywhere
+) -> list[Grade]:
     prod = {p: t for p, t in files.items() if is_production(p)}
     blob = "\n".join(prod.values())
     grades: list[Grade] = []
@@ -355,17 +384,23 @@ def score_library(pkg: Path, name: str, files: dict[Path, str], everywhere) -> l
     grade(
         "two instances can coexist",
         not singletons,
-        "no module-scope instance state" if not singletons else f"{len(singletons)} module signals",
+        "no module-scope instance state"
+        if not singletons
+        else f"{len(singletons)} module signals",
     )
 
     # What to show should be a value, not a call: props and arguments, not an
     # instance a consumer has to fish out and drive.
     entry = pkg / "src" / "index.ts"
-    surface = entry.read_text(encoding="utf8", errors="replace") if entry.exists() else ""
+    surface = (
+        entry.read_text(encoding="utf8", errors="replace") if entry.exists() else ""
+    )
     grade(
         "has a declared public surface",
         bool(surface),
-        f"{surface.count('export')} exports from one entry" if surface else "no src/index.ts",
+        f"{surface.count('export')} exports from one entry"
+        if surface
+        else "no src/index.ts",
     )
 
     # It should say what it is doing in ONE vocabulary a consumer can render,
@@ -378,7 +413,11 @@ def score_library(pkg: Path, name: str, files: dict[Path, str], everywhere) -> l
 
     # A framework binding, if any, should be separable: the core is usable
     # without it, and a second framework is another folder rather than a fork.
-    bindings = [d.name for d in (pkg / "src").iterdir() if d.is_dir()] if (pkg / "src").is_dir() else []
+    bindings = (
+        [d.name for d in (pkg / "src").iterdir() if d.is_dir()]
+        if (pkg / "src").is_dir()
+        else []
+    )
     fw = [b for b in bindings if b in {"preact", "react", "vue", "svelte"}]
     grade(
         "framework binding is separable",
@@ -395,13 +434,17 @@ def score_library(pkg: Path, name: str, files: dict[Path, str], everywhere) -> l
     )
 
     # Nothing it exports should be reachable only from its own tests.
-    dead = [f for f in check_dead_and_orphaned(files, name, everywhere) if f.check == "dead"]
+    dead = [
+        f for f in check_dead_and_orphaned(files, name, everywhere) if f.check == "dead"
+    ]
     grade("no test-only exports", not dead, f"{len(dead)} exports only tests reach")
 
     return grades
 
 
-def score_application(pkg: Path, name: str, files: dict[Path, str], siblings: set[str]) -> list[Grade]:
+def score_application(
+    pkg: Path, name: str, files: dict[Path, str], siblings: set[str]
+) -> list[Grade]:
     """An application is graded on how it USES its libraries: whether it lets
     them own what they own, or keeps a second copy and drives them by hand."""
     prod = {p: t for p, t in files.items() if is_production(p)}
@@ -415,7 +458,9 @@ def score_application(pkg: Path, name: str, files: dict[Path, str], siblings: se
     grade(
         "keeps no library's logic",
         not misplaced,
-        f"{len(misplaced)} modules import only a library" if misplaced else "none found",
+        f"{len(misplaced)} modules import only a library"
+        if misplaced
+        else "none found",
     )
 
     inference = check_inference(files, name, own="")
@@ -429,7 +474,9 @@ def score_application(pkg: Path, name: str, files: dict[Path, str], siblings: se
     grade(
         "one writer per value",
         not owners,
-        f"{len(owners)} values written from several modules" if owners else "none found",
+        f"{len(owners)} values written from several modules"
+        if owners
+        else "none found",
     )
 
     reaching = len(re.findall(r"\bcity\.(three|world|rig|picker)\.", blob))
@@ -457,36 +504,62 @@ def score_service(pkg: Path, name: str) -> list[Grade]:
     def grade(title: str, ok: bool, note: str) -> None:
         grades.append(Grade(title, 1 if ok else 0, 1, note))
 
-    routers = list(pkg.rglob("routers/*.py"))
-    fat = [
-        r.name
-        for r in routers
-        if len(r.read_text(encoding="utf8", errors="replace").splitlines()) > 150
-    ]
+    # A long FILE of small handlers is fine; one long handler is the fat one,
+    # because everything it does is one thing nothing else can reach.
+    fat: list[tuple[str, int]] = []
+    for r in (r for r in sources(pkg, (".py",)) if r.parent.name == "routers"):
+        try:
+            tree = ast.parse(r.read_text(encoding="utf8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                lines = (node.end_lineno or node.lineno) - node.lineno
+                if lines > 60:
+                    fat.append((f"{r.stem}.{node.name}", lines))
     grade(
         "routes are thin",
         not fat,
-        "every route delegates" if not fat else f"{len(fat)} over 150 lines: {fat[0]}",
+        "every handler delegates"
+        if not fat
+        else f"{len(fat)} over 60 lines: {max(fat, key=lambda f: f[1])[0]}",
     )
 
-    generated = list(pkg.rglob("gen_openapi.py"))
+    generated = [p for p in sources(pkg, (".py",)) if p.name == "gen_openapi.py"]
     grade(
         "the wire contract is generated",
         bool(generated),
         "one schema, generated" if generated else "hand-kept types",
     )
 
-    models = list(pkg.rglob("models/*.py"))
+    models = [p for p in sources(pkg, (".py",)) if p.parent.name == "models"]
     grade("the wire shapes are declared", bool(models), f"{len(models)} model modules")
 
-    tests = list(pkg.rglob("tests/test_*.py"))
+    tests = [p for p in sources(pkg, (".py",)) if p.name.startswith("test_")]
     grade("has tests of its own", bool(tests), f"{len(tests)} test modules")
 
-    errors = any(
-        "class" in m.read_text(encoding="utf8", errors="replace") and "Error" in m.name
-        for m in pkg.rglob("*.py")
+    # Named classes and a code enum, not a filename: a caller can only branch on
+    # a failure it can name.
+    named = set()
+    for m in sources(pkg, (".py",)):
+        if not is_production(m):
+            continue
+        try:
+            tree = ast.parse(m.read_text(encoding="utf8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and (
+                node.name.endswith(("Error", "Exception")) or node.name.endswith("Code")
+            ):
+                named.add(node.name)
+    grade(
+        "failures are typed",
+        len(named) >= 2,
+        f"{len(named)} named: {', '.join(sorted(named)[:3])}"
+        if named
+        else "strings only",
     )
-    grade("failures are typed", errors, "named error types" if errors else "strings only")
     return grades
 
 
@@ -496,7 +569,9 @@ def report_scores(names: list[str], everywhere: dict[Path, str]) -> None:
     print("  is run, a service answers a wire.")
     for name in names:
         pkg = PACKAGES / name
-        files = {p: p.read_text(encoding="utf8", errors="replace") for p in sources(pkg, TS)}
+        files = {
+            p: p.read_text(encoding="utf8", errors="replace") for p in sources(pkg, TS)
+        }
         role = role_of(pkg)
         if role == "service" or not files:
             grades = score_service(pkg, name)
@@ -519,7 +594,15 @@ def report_scores(names: list[str], everywhere: dict[Path, str]) -> None:
 
 # ── Report ───────────────────────────────────────────────────────────
 
-ORDER = ["dead", "orphaned", "misplaced", "vocabulary", "inference", "owners", "composition"]
+ORDER = [
+    "dead",
+    "orphaned",
+    "misplaced",
+    "vocabulary",
+    "inference",
+    "owners",
+    "composition",
+]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -527,7 +610,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("packages", nargs="*", help="package names; default is all of them")
     ap.add_argument("--only", choices=ORDER, help="run one check")
     ap.add_argument("--quiet", action="store_true", help="counts only")
-    ap.add_argument("--score", action="store_true", help="grade each package, not its gaps")
+    ap.add_argument(
+        "--score", action="store_true", help="grade each package, not its gaps"
+    )
     args = ap.parse_args(argv)
 
     names = args.packages or sorted(p.name for p in PACKAGES.iterdir() if p.is_dir())
@@ -548,7 +633,9 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         siblings = {n for n in names if n != name}
 
-        ts_files = {p: p.read_text(encoding="utf8", errors="replace") for p in sources(pkg, TS)}
+        ts_files = {
+            p: p.read_text(encoding="utf8", errors="replace") for p in sources(pkg, TS)
+        }
         if ts_files:
             findings += check_dead_and_orphaned(ts_files, name, everywhere)
             findings += check_misplaced(ts_files, name, siblings)

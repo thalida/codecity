@@ -18,8 +18,7 @@ describe('refreshCurrentSource', () => {
   beforeEach(() => {
     asked = [];
     city = fakeCity();
-    (city as unknown as { refreshSource: (o: never) => void }).refreshSource = (o) =>
-      asked.push(o);
+    (city as unknown as { refreshSource: (o: never) => void }).refreshSource = (o) => asked.push(o);
     CURRENT_SOURCE.value = { src: 'https://github.com/o/r' };
   });
 
@@ -28,8 +27,7 @@ describe('refreshCurrentSource', () => {
     EXCLUDES.value = {};
   });
 
-  const refresh = (skipCache = false) =>
-    refreshCurrentSource(city as unknown as City, skipCache);
+  const refresh = (skipCache = false) => refreshCurrentSource(city as unknown as City, skipCache);
 
   it('asks the city to read what it is showing again', () => {
     refresh();

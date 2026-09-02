@@ -1,8 +1,10 @@
-// features/city/SelectionAnnouncer/SelectionAnnouncer.tsx — a visually-hidden
-// live region speaking the city selection to screen readers, since the canvas is
-// a graphic and cannot announce its own (WCAG 4.1.3).
-import { NodeKind, type PickTarget } from '@codecity/city';
-import { useCity, useCitySelection } from '@codecity/city/preact';
+// preact/SelectionAnnouncer.tsx — the city's selection, spoken. A canvas is a
+// graphic: it cannot announce what is picked in it (WCAG 4.1.3), and that is
+// true of every host that embeds one, not of any particular app.
+import { NodeKind } from '../types/manifest';
+import type { PickTarget } from '../types/picker';
+import { useCity } from './context';
+import { useCitySelection } from './hooks';
 
 function describe(sel: PickTarget | null): string {
   if (!sel) return '';
@@ -15,6 +17,8 @@ function describe(sel: PickTarget | null): string {
       return `Selected commit ${sel.commit.sha.slice(0, 7)}, ${sel.commit.subject}`;
     case NodeKind.Gem:
       return 'Selected the repository';
+    default:
+      return '';
   }
 }
 

@@ -1,6 +1,7 @@
-import { CITY_KEY_BINDINGS, type KeyBinding } from '@codecity/city';
 // constants/keyboard.ts — every shortcut this app documents: the city's own,
-// plus the ones the app adds around it. Centralized so the shortcuts panel and
+// plus the ones it adds around them, so the panel lists one set.
+
+import { CITY_KEY_BINDINGS, type KeyBinding } from '@codecity/city';
 
 export { TEXT_INPUT_TAGS, type KeyBinding } from '@codecity/city';
 

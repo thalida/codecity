@@ -246,7 +246,7 @@ class TestErrorCode:
         def _boom(*a, **kw):
             raise RepoNotFoundError("repository not found")
 
-        monkeypatch.setattr("api.routers.manifest.ensure_clone", _boom)
+        monkeypatch.setattr("api.scan.stream.ensure_clone", _boom)
         payload = self._error_payload(client, {"src": self.REMOTE})
         assert payload["code"] == "repo-not-found"
 
@@ -259,7 +259,7 @@ class TestErrorCode:
         def _boom(*a, **kw):
             raise exc("nope")
 
-        monkeypatch.setattr("api.routers.manifest.ensure_clone", _boom)
+        monkeypatch.setattr("api.scan.stream.ensure_clone", _boom)
         assert "code" not in self._error_payload(client, {"src": self.REMOTE})
 
     def test_missing_local_path_carries_no_code(
