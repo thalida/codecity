@@ -104,7 +104,7 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
         { signal: controller.signal, exclude: request.exclude, noCache: request.noCache }
       );
     } catch (error) {
-      if (!controller.signal.aborted) events.emit('scan:error', { error });
+      if (!controller.signal.aborted) events.emit('timeline:error', { error });
       throw error;
     }
     if (controller.signal.aborted) throw new Error('superseded');
@@ -140,7 +140,7 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
       } catch {
         /* teardown failed; surfacing the original error is what matters */
       }
-      events.emit('scan:error', { error });
+      events.emit('timeline:error', { error });
       throw error;
     } finally {
       if (inflight === controller) inflight = null;

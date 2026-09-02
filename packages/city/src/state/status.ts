@@ -221,6 +221,17 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     // The stream ending is not the city appearing: the union still has to be
     // packed, which build:done reports.
     on('timeline:done', () => set({})),
+    on('timeline:error', ({ error }) =>
+      set({
+        lifecycle: CityLifecycle.Error,
+        fetching: false,
+        phase: null,
+        stage: null,
+        timelineStage: null,
+        fraction: null,
+        error,
+      })
+    ),
     on('scan:start', () =>
       set({
         lifecycle: showing(),

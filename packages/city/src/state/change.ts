@@ -111,6 +111,7 @@ export const CHANGE_FOR_EVENT = {
   select: 'selectionChanged',
   'timeline:start': 'statusChanged',
   'timeline:done': 'statusChanged',
+  'timeline:error': 'statusChanged',
   'scan:start': 'statusChanged',
   'scan:progress': 'statusChanged',
   'scan:done': 'statusChanged',

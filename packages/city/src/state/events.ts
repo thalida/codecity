@@ -41,6 +41,9 @@ export interface CityEvents {
   /** The history stream ended. The union city still has to be packed, which
    *  build:done reports. */
   'timeline:done': Record<string, never>;
+  /** The read failed. Separate from scan:error for the same reason the start
+   *  is: a host showing what went wrong should know which it was. */
+  'timeline:error': { error: unknown };
   /** A build began, with the stages it will run through, in order. A consumer
    *  that knows the whole list can show a denominator from the first frame. */
   'build:start': { stages: readonly BuildStage[] };

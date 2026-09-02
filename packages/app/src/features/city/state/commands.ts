@@ -94,29 +94,10 @@ export function useCityCommands(): CityCommands {
 
 // ── Asking for it again ──────────────────────────────────────────────
 
-// Injected, not imported (importing the timeline loader back was a cycle); it
-// registers before Timeline can turn on.
-type TimelineRefresh = (
-  city: City,
-  opts?: { noCache?: boolean; overlay?: boolean }
-) => Promise<void>;
-
-let timelineRefresh: TimelineRefresh | null = null;
-
-export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
-  timelineRefresh = fn;
-}
-
-/** Re-read the source already open, in whichever mode it is being viewed:
- *  Timeline refetches its bundle in place rather than dropping to live HEAD. */
+/** Re-read the source already open. Which that MEANS is the city's: in Timeline
+ *  it re-reads the history holding the scrub, rather than dropping to HEAD. */
 export function refreshCurrentSource(city: City | null, skipCache = false): void {
   if (!city) return;
-  if (city.timeline.mode && timelineRefresh) {
-    // Asked for by hand, so it gets the same stepped overlay a Live refresh
-    // does: the history walk behind it runs for minutes on a big repo.
-    void timelineRefresh(city, { noCache: skipCache, overlay: true });
-    return;
-  }
   void city.refreshSource({
     noCache: skipCache,
     excludes: () => {

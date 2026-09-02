@@ -1,81 +1,61 @@
-// The header's Refresh re-reads whatever you are looking at. In Timeline that
-// is the history bundle: a live re-scan would answer it by leaving the mode.
+// The header's Refresh re-reads whatever you are looking at. WHAT that means is
+// the city's: in Timeline it re-reads the history holding the scrub, because a
+// live re-scan would answer "show me this again" by leaving the mode. This app
+// used to know that rule and route around it; the city owns it now.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { fakeCity, installEventSource, StubEventSource } from '@codecity/city/testing';
+import { fakeCity } from '@codecity/city/testing';
 import type { City } from '@codecity/city';
 
-import { refreshCurrentSource, setTimelineRefreshHandler } from '@/features/city/state/commands';
+import { refreshCurrentSource } from '@/features/city/state/commands';
 import { CURRENT_SOURCE } from '@/state/source';
+import { EXCLUDES } from '@/state/excludes';
 
 describe('refreshCurrentSource', () => {
-  let restoreEventSource: () => void;
-  let refreshes: Array<{ noCache?: boolean; overlay?: boolean } | undefined>;
   let city: ReturnType<typeof fakeCity>;
-  let liveRescans: Array<{ noCache?: boolean }>;
+  let asked: Array<{ noCache?: boolean; excludes?: () => string[] | undefined }>;
 
   beforeEach(() => {
-    restoreEventSource = installEventSource();
-    refreshes = [];
-    liveRescans = [];
-    setTimelineRefreshHandler((_city, opts) => {
-      refreshes.push(opts);
-      return Promise.resolve();
-    });
+    asked = [];
     city = fakeCity();
-    (city as unknown as { refreshSource: (o: { noCache?: boolean }) => void }).refreshSource = (
-      o
-    ) => liveRescans.push(o);
+    (city as unknown as { refreshSource: (o: never) => void }).refreshSource = (o) =>
+      asked.push(o);
     CURRENT_SOURCE.value = { src: 'https://github.com/o/r' };
   });
 
   afterEach(() => {
-    restoreEventSource();
-    setTimelineRefreshHandler(null);
     CURRENT_SOURCE.value = null;
+    EXCLUDES.value = {};
   });
 
-  const refresh = (skipCache: boolean) => refreshCurrentSource(city as unknown as City, skipCache);
+  const refresh = (skipCache = false) =>
+    refreshCurrentSource(city as unknown as City, skipCache);
 
-  it('re-reads the history bundle in place, staying in Timeline', () => {
-    city.timeline.enter();
-
-    refresh(false);
-
-    // overlay: asked for by hand, so it reports its stages like a Live refresh.
-    expect(refreshes).toEqual([{ noCache: false, overlay: true }]);
-    expect(city.timeline.mode).toBe(true);
-    expect(liveRescans, 'no live re-scan').toEqual([]);
+  it('asks the city to read what it is showing again', () => {
+    refresh();
+    expect(asked).toHaveLength(1);
   });
 
-  it('re-scans live when that is the mode', () => {
-    refresh(false);
-
-    expect(refreshes).toEqual([]);
-    expect(liveRescans).toHaveLength(1);
-  });
-
-  // Fresh scan is "ignore the cache", not "leave Timeline": the bundle caches
-  // per HEAD like the live scan does, so the flag rides the history read.
-  it('carries a fresh scan into the history read, staying in Timeline', () => {
-    city.timeline.enter();
-
+  it('carries a fresh scan through, so the server cannot answer from cache', () => {
     refresh(true);
-
-    expect(refreshes).toEqual([{ noCache: true, overlay: true }]);
-    expect(city.timeline.mode).toBe(true);
+    expect(asked[0]).toMatchObject({ noCache: true });
   });
 
-  it('sends no_cache on a live fresh scan', () => {
-    refresh(true);
+  // In Timeline too: one call, and the city decides what re-reading means.
+  it('asks the same way in Timeline, since that rule is the city’s', () => {
+    city.timeline.enter();
+    refresh();
+    expect(asked).toHaveLength(1);
+  });
 
-    expect(liveRescans[0]).toMatchObject({ noCache: true });
+  it('hands over the paths this reader has hidden, read per ask', () => {
+    EXCLUDES.value = { [Object.keys(EXCLUDES.value)[0] ?? 'k']: [] };
+    refresh();
+    expect(typeof asked[0].excludes).toBe('function');
   });
 
   it('does nothing without a city', () => {
     refreshCurrentSource(null, false);
-
-    expect(refreshes).toEqual([]);
-    expect(StubEventSource.instances).toHaveLength(0);
+    expect(asked).toHaveLength(0);
   });
 });

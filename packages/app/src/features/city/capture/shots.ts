@@ -4,7 +4,6 @@
 // in live before the numbers are baked in. Debug-only.
 
 import { BACKDROP_CAMERA, type DirNode, type Manifest, NodeKind, type City } from '@codecity/city';
-import { loadTimelineScene } from '@/features/city/state/timeline';
 
 /** Set the default-view angle (degrees); the rig re-frames the city to it.
  *  Elevation is height above the horizon, azimuth the swing around the gem. */
@@ -61,7 +60,7 @@ function mostColorfulDirPath(root: DirNode): string | null {
   return bestPath;
 }
 
-// Fire loadTimelineScene() exactly once across the timeline shot's pose retries
+// Ask for Timeline exactly once across the shot's pose retries
 // (it's async; the harness re-invokes the pose until it returns non-false).
 let _timelineKickedOff = false;
 
@@ -106,7 +105,7 @@ export const SHOTS: Record<string, ShotPose> = {
     if (!handle.timeline.mode) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
-        void loadTimelineScene(handle);
+        void handle.setViewState({ timeline: { mode: true } });
       }
       return false;
     }
