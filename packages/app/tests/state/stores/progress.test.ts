@@ -11,33 +11,35 @@ import {
   EMPTY_CITY_STATUS,
   type CityStatus,
   SourceKind,
+  TimelineStage,
 } from '@codecity/city';
 import {
   createOverlayDriver,
   LOADING_OVERLAY,
   PENDING_SOURCE_LABEL,
+  LOADING_CANCEL,
   type LoadingSource,
 } from '@/features/city/state/overlay';
 import { REBUILD_DETAIL } from '@/features/city/state/readout';
 
-import { type LoadingStep } from '@/features/city/state/loading';
+import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/features/city/state/loading';
 
 // The driver is a plain reduction now: it is handed the status the city reports
 // and what THIS app asked for, rather than reading either from a signal.
-let drive: (status: CityStatus, asked: LoadingSource | null) => void;
+let drive: ReturnType<typeof createOverlayDriver>;
 let status: CityStatus;
 let askedFor: LoadingSource | null;
 
 /** Put the city in a state, the way its own status would report it. */
 function say(next: Partial<CityStatus>): void {
   status = { ...EMPTY_CITY_STATUS, ...next };
-  drive(status, askedFor);
+  drive.status(status, askedFor);
 }
 
 /** A load this app asked for, before the city has reported anything. */
 const asked = (kind = SourceKind.Remote, branch?: string) => {
   askedFor = { kind, branch };
-  drive(status, askedFor);
+  drive.status(status, askedFor);
 };
 
 const visible = () => LOADING_OVERLAY.value.visible;
@@ -83,7 +85,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Ready, fetching: true });
       askedFor = null;
-      drive(status, askedFor); // the stream has ended
+      drive.status(status, askedFor); // the stream has ended
       expect(visible()).toBe(true);
     });
 
@@ -91,7 +93,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       askedFor = null;
-      drive(status, askedFor);
+      drive.status(status, askedFor);
       expect(visible()).toBe(true);
     });
   });
@@ -104,7 +106,7 @@ describe('the loading overlay', () => {
 
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
       askedFor = null;
-      drive(status, askedFor);
+      drive.status(status, askedFor);
       expect(visible()).toBe(false);
     });
 
@@ -112,7 +114,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Error, error: new Error('no such repo') });
       askedFor = null;
-      drive(status, askedFor);
+      drive.status(status, askedFor);
       expect(visible()).toBe(false);
     });
 
@@ -139,7 +141,7 @@ describe('the loading overlay', () => {
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
       askedFor = null;
-      drive(status, askedFor);
+      drive.status(status, askedFor);
       expect(visible()).toBe(false);
 
       say({});
@@ -228,5 +230,73 @@ describe('the loading overlay', () => {
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       expect(REBUILD_DETAIL.value).toBe('12,000 commits');
     });
+  });
+});
+
+// One overlay, two vocabularies. As two drivers the live rows opened over the
+// timeline ones: "Resolving source", unnamed, over a repo already on screen.
+describe('the same overlay, describing a timeline read', () => {
+  const reading = { kind: SourceKind.Remote, branch: 'main', label: 'o/r' };
+
+  beforeEach(() => {
+    status = EMPTY_CITY_STATUS;
+    askedFor = null;
+    PENDING_SOURCE_LABEL.value = null;
+    drive = createOverlayDriver();
+  });
+
+  afterEach(() => {
+    LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
+  });
+  const progress = (stage: TimelineStage, extra: Record<string, unknown> = {}) =>
+    drive.timeline({ stage, ...extra } as never, reading);
+
+  it('opens on the history rows, and names the repo already on screen', () => {
+    progress(TimelineStage.History, { commits: 12_000 });
+
+    expect(visible()).toBe(true);
+    expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
+    expect(step()).toBe(LoadingStep.TimelineHistory);
+    expect(tail(LoadingStep.TimelineHistory)).toBe('12,000 commits');
+    expect(PENDING_SOURCE_LABEL.value).toBe('o/r');
+  });
+
+  // The city reports `fetching` during the read like it does during a scan.
+  // Taken as a live load, that is what reopened the wrong rows.
+  it('does not fall back to the live rows when the city reports fetching', () => {
+    progress(TimelineStage.History);
+    asked();
+    say({ lifecycle: CityLifecycle.Loading, fetching: true });
+
+    expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
+    expect(step()).toBe(LoadingStep.TimelineHistory);
+  });
+
+  it('folds the server assembly and the pack into one Building row', () => {
+    progress(TimelineStage.History);
+    progress(TimelineStage.Assemble);
+    expect(step()).toBe(LoadingStep.Building);
+
+    say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+    expect(step()).toBe(LoadingStep.Building);
+  });
+
+  it('comes down once the union city is up', () => {
+    progress(TimelineStage.History);
+    say({ lifecycle: CityLifecycle.Ready, fetching: false });
+    expect(visible()).toBe(false);
+  });
+
+  it('cancels to where the reader was, not to where a live cancel goes', () => {
+    const went: string[] = [];
+    drive = createOverlayDriver({
+      live: () => went.push('live'),
+      timeline: () => went.push('timeline'),
+    });
+
+    progress(TimelineStage.History);
+    LOADING_CANCEL.value?.();
+
+    expect(went).toEqual(['timeline']);
   });
 });

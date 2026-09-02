@@ -4,6 +4,7 @@
 // inside the provider and reads it through hooks like any other chrome.
 
 import './CityView.css';
+import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { CityProvider } from '@codecity/city/preact';
 import { CityChromeProvider } from '@/features/city/state/sidebar';
@@ -43,17 +44,20 @@ export function CityView() {
   return (
     <CityProvider city={city}>
       <CityChromeProvider>
-        <CityChrome city={city} />
-        <main id="city-body" tabIndex={-1}>
-          <CitySidebarLeft />
-          <CityStage
-            city={city}
-            onReady={setCity}
-            viewState={viewState}
-            onViewStateChange={onViewStateChange}
-          />
-          <CitySidebarRight />
-        </main>
+        {/* The chrome WRAPS the stage: the header is above it and the footer
+            below, which is document order and not a detail of this layout. */}
+        <CityChrome city={city}>
+          <main id="city-body" tabIndex={-1}>
+            <CitySidebarLeft />
+            <CityStage
+              city={city}
+              onReady={setCity}
+              viewState={viewState}
+              onViewStateChange={onViewStateChange}
+            />
+            <CitySidebarRight />
+          </main>
+        </CityChrome>
         <HljsThemeLink />
         <SelectionAnnouncer />
       </CityChromeProvider>
@@ -63,7 +67,7 @@ export function CityView() {
 
 /** Everything around the stage. Inside the provider, so it asks the city the
  *  same way every other pane does. */
-function CityChrome({ city }: { city: City | null }) {
+function CityChrome({ city, children }: { city: City | null; children: ComponentChildren }) {
   const { clearSelection } = useCityCommands();
   // The panel it opens lives in this view's footer, so the key belongs here.
   useShortcutsKey();
@@ -104,6 +108,7 @@ function CityChrome({ city }: { city: City | null }) {
         onSwitchSource={() => navigate(ROUTES.HOME)}
         onRefresh={(skipCache) => refreshCurrentSource(city, skipCache)}
       />
+      {children}
       <CityFooter
         onRunCollisionCheck={() => runCollisionCheck(city)}
         onRunStemDiagnostic={() => runStemDiagnostic(city)}

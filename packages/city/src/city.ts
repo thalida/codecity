@@ -177,6 +177,13 @@ export class City {
     return this.parts.cityState.manifest;
   }
 
+  /** What this city was asked to show: the src and branch of the last load, or
+   *  null if it has only ever been handed a manifest. A host naming the repo in
+   *  its own chrome would otherwise have to remember what it asked for. */
+  get source(): SourceRequest | null {
+    return this.parts.sourceLoader.request();
+  }
+
   /** Hear that `status` changed. */
   onStatus(listener: (status: CityStatus) => void): () => void {
     return this.parts.status.on(listener);

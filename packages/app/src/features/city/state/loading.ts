@@ -2,7 +2,14 @@
 // the overlay advances through, and the sub-stages that run inside its last row
 // once the stream has handed over to the build.
 
-import { CityPhase, TimelineStage, BuildStage, type CityStatus, SourceKind } from '@codecity/city';
+import {
+  CityPhase,
+  TimelineStage,
+  BuildStage,
+  SourceKind,
+  type CityStatus,
+  type TimelineProgress,
+} from '@codecity/city';
 
 // ── The overlay's rows ───────────────────────────────────────────────
 
@@ -126,6 +133,19 @@ const TIMELINE_STAGE_STEPS: Record<TimelineStage, LoadingStep> = {
 };
 
 /** Timeline stream stage to step. stepForPhase's counterpart for the other stream. */
+/** How far a timeline stage has got, in that stage's own units. Beside its row
+ *  in the overlay, and standalone beside the freshness dot. */
+export function timelineStageTail(p: TimelineProgress): string | null {
+  if (p.stage === TimelineStage.Fetch) return transferTail(p);
+  if (p.stage === TimelineStage.History) {
+    return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
+  }
+  if (p.blobsDone !== undefined && p.blobsTotal !== undefined) {
+    return `${p.blobsDone}/${p.blobsTotal} files`;
+  }
+  return null;
+}
+
 export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
   return TIMELINE_STAGE_STEPS[stage];
 }
