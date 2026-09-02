@@ -61,6 +61,9 @@ export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [CityPhase.Cloning]: 'Cloning',
   [CityPhase.Scanning]: 'Scanning files',
   [CityPhase.Sketching]: 'Sketching layout',
+  // The coarse phase a history read reports; the three rows below are the
+  // finer ones this app lists for it.
+  [CityPhase.Reading]: 'Reading history',
   [CityPhase.Building]: 'Building city',
   [TimelineStep.TimelineFetch]: 'Fetching history',
   [TimelineStep.TimelineHistory]: 'Walking commits',

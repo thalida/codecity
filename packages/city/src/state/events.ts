@@ -33,7 +33,14 @@ export interface CityEvents {
    *  blobs, then the client replaying them. Timeline is a way of showing a
    *  city, not a feature of any one host, so its progress is reported like any
    *  other work a city does. */
+  /** A read of this repo's HISTORY has begun. Not a scan: it fetches the
+   *  commit graph and replays blobs, and a host drawing a readout needs to know
+   *  which of the two it is describing. */
+  'timeline:start': { src: string; branch?: string };
   'timeline:progress': { event: TimelineProgress };
+  /** The history stream ended. The union city still has to be packed, which
+   *  build:done reports. */
+  'timeline:done': Record<string, never>;
   /** A build began, with the stages it will run through, in order. A consumer
    *  that knows the whole list can show a denominator from the first frame. */
   'build:start': { stages: readonly BuildStage[] };

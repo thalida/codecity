@@ -33,13 +33,13 @@ let askedFor: LoadingSource | null;
 /** Put the city in a state, the way its own status would report it. */
 function say(next: Partial<CityStatus>): void {
   status = { ...EMPTY_CITY_STATUS, ...next };
-  drive.status(status, askedFor);
+  drive(status, askedFor);
 }
 
 /** A load this app asked for, before the city has reported anything. */
 const asked = (kind = SourceKind.Remote, branch?: string) => {
   askedFor = { kind, branch };
-  drive.status(status, askedFor);
+  drive(status, askedFor);
 };
 
 const visible = () => LOADING_OVERLAY.value.visible;
@@ -85,7 +85,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Ready, fetching: true });
       askedFor = null;
-      drive.status(status, askedFor); // the stream has ended
+      drive(status, askedFor); // the stream has ended
       expect(visible()).toBe(true);
     });
 
@@ -93,7 +93,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       askedFor = null;
-      drive.status(status, askedFor);
+      drive(status, askedFor);
       expect(visible()).toBe(true);
     });
   });
@@ -106,7 +106,7 @@ describe('the loading overlay', () => {
 
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
       askedFor = null;
-      drive.status(status, askedFor);
+      drive(status, askedFor);
       expect(visible()).toBe(false);
     });
 
@@ -114,7 +114,7 @@ describe('the loading overlay', () => {
       asked();
       say({ lifecycle: CityLifecycle.Error, error: new Error('no such repo') });
       askedFor = null;
-      drive.status(status, askedFor);
+      drive(status, askedFor);
       expect(visible()).toBe(false);
     });
 
@@ -141,7 +141,7 @@ describe('the loading overlay', () => {
       say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
       say({ lifecycle: CityLifecycle.Ready, fetching: false });
       askedFor = null;
-      drive.status(status, askedFor);
+      drive(status, askedFor);
       expect(visible()).toBe(false);
 
       say({});
@@ -248,34 +248,42 @@ describe('the same overlay, describing a timeline read', () => {
   afterEach(() => {
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
   });
-  const progress = (stage: TimelineStage, extra: Record<string, unknown> = {}) =>
-    drive.timeline({ stage, ...extra } as never, reading);
+  /** The city reporting a history read at `stage`, which is how it SAYS it. */
+  const progress = (stage: TimelineStage) => {
+    askedFor = reading;
+    status = {
+      ...EMPTY_CITY_STATUS,
+      lifecycle: CityLifecycle.Loading,
+      fetching: true,
+      phase: CityPhase.Reading,
+      timelineStage: stage,
+    };
+    drive(status, askedFor);
+  };
 
   it('opens on the history rows, and names the repo already on screen', () => {
-    progress(TimelineStage.History, { commits: 12_000 });
+    progress(TimelineStage.History);
 
     expect(visible()).toBe(true);
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
     expect(step()).toBe(LoadingStep.TimelineHistory);
-    expect(tail(LoadingStep.TimelineHistory)).toBe('12,000 commits');
+
     expect(PENDING_SOURCE_LABEL.value).toBe('o/r');
   });
 
-  // The city reports `fetching` during the read like it does during a scan.
-  // Taken as a live load, that is what reopened the wrong rows.
-  it('does not fall back to the live rows when the city reports fetching', () => {
+  // A read reports `fetching` exactly as a scan does, so inferring the kind
+  // rather than asking is what opened the live rows over these.
+  it('stays on the history rows for as long as the city says it is reading', () => {
+    progress(TimelineStage.Fetch);
     progress(TimelineStage.History);
-    asked();
-    say({ lifecycle: CityLifecycle.Loading, fetching: true });
+    progress(TimelineStage.Blobs);
 
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
-    expect(step()).toBe(LoadingStep.TimelineHistory);
+    expect(step()).toBe(LoadingStep.TimelineBlobs);
   });
 
-  it('folds the server assembly and the pack into one Building row', () => {
+  it('moves to Building when the read hands over to the pack', () => {
     progress(TimelineStage.History);
-    progress(TimelineStage.Assemble);
-    expect(step()).toBe(LoadingStep.Building);
 
     say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
     expect(step()).toBe(LoadingStep.Building);
@@ -283,7 +291,12 @@ describe('the same overlay, describing a timeline read', () => {
 
   it('comes down once the union city is up', () => {
     progress(TimelineStage.History);
+
+    // Nothing in flight, so this app asks for nothing: exactly what
+    // useCityReport passes once the city stops fetching.
+    askedFor = null;
     say({ lifecycle: CityLifecycle.Ready, fetching: false });
+
     expect(visible()).toBe(false);
   });
 

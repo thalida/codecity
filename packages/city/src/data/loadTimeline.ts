@@ -90,7 +90,7 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
 
     // The same two events a live load reports through, because it is the same
     // question for a host: is this city coming, and how far along.
-    events.emit('scan:start', { src, branch });
+    events.emit('timeline:start', { src, branch });
     // Entering is not cancellable past the pack, so a host wanting a cancel
     // affordance offers it while this is in flight.
     let bundle: TimelineBundle;
@@ -127,7 +127,7 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
       deps.setFootprintsTransparent(true);
       deps.installScrubController(replay, bundle.commitLineRanges);
       timeline.setPosition(scrubTarget(bundle, commit, keepPosition, timeline));
-      events.emit('scan:done', { manifest });
+      events.emit('timeline:done', {});
       return bundle;
     } catch (error) {
       // A failure can predate the controller install, so nothing else would

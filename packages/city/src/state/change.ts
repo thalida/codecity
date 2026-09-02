@@ -109,6 +109,8 @@ export function createChangeHub(read: () => CityChangeContext): CityChangeHub {
 export const CHANGE_FOR_EVENT = {
   hover: 'hoverChanged',
   select: 'selectionChanged',
+  'timeline:start': 'statusChanged',
+  'timeline:done': 'statusChanged',
   'scan:start': 'statusChanged',
   'scan:progress': 'statusChanged',
   'scan:done': 'statusChanged',

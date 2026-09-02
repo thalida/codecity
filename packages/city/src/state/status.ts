@@ -11,6 +11,7 @@
 // nothing has to have been listening. That is the difference between an
 // integration point and a transcript.
 
+import type { TimelineStage } from '../types/timeline';
 import { ScanPhase, type ScanProgressEvent } from '../client/manifest';
 import { BuildStage } from '../types/build';
 import type { CityEvents } from './events';
@@ -44,6 +45,10 @@ export enum CityPhase {
   /** A skeleton is up: real structure, placeholder heights, while the server
    *  resolves per-file metadata. */
   Sketching = 'sketching',
+  /** Reading this repo's HISTORY: the commit graph and the blobs behind it.
+   *  Not a scan — nothing is being walked on disk — and `timelineStage` says
+   *  which part of the read is running. */
+  Reading = 'reading',
   /** Packing and raising the city itself. */
   Building = 'building',
 }
@@ -77,6 +82,9 @@ export interface CityStatus {
    *  build. A host that does not care never reads it — which is the difference
    *  between detail and a second vocabulary. */
   readonly stage: BuildStage | null;
+  /** Which part of a history read is running, inside CityPhase.Reading. What
+   *  `stage` is to Building, this is to Reading. Null outside one. */
+  readonly timelineStage: TimelineStage | null;
   /** 0..1 through the whole of what is running, or null when it cannot be
    *  known. A phase that measures itself fills its own share. */
   readonly fraction: number | null;
@@ -91,6 +99,7 @@ export const EMPTY_CITY_STATUS: CityStatus = {
   fetching: false,
   phase: null,
   stage: null,
+  timelineStage: null,
   fraction: null,
   counts: {},
   error: null,
@@ -187,12 +196,38 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     value.lifecycle === CityLifecycle.Ready ? CityLifecycle.Ready : CityLifecycle.Loading;
 
   const offs = [
+    // A history read, said as itself: the rows a host draws for one are not the
+    // rows it draws for a scan, and it should not have to infer which from the
+    // traffic on some other event.
+    on('timeline:start', () =>
+      set({
+        lifecycle: showing(),
+        fetching: true,
+        phase: CityPhase.Reading,
+        stage: null,
+        timelineStage: null,
+        fraction: null,
+        counts: {},
+        error: null,
+      })
+    ),
+    on('timeline:progress', ({ event }) =>
+      set({
+        phase: CityPhase.Reading,
+        timelineStage: event.stage,
+        fraction: event.percent != null ? event.percent / 100 : null,
+      })
+    ),
+    // The stream ending is not the city appearing: the union still has to be
+    // packed, which build:done reports.
+    on('timeline:done', () => set({})),
     on('scan:start', () =>
       set({
         lifecycle: showing(),
         fetching: true,
         phase: CityPhase.Resolving,
         stage: null,
+        timelineStage: null,
         fraction: null,
         counts: {},
         error: null,

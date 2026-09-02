@@ -121,16 +121,17 @@ export interface OverlayCancels {
   timeline?(): void;
 }
 
-export interface OverlayDriver {
-  /** What the city says it is doing, plus what this app asked for. */
-  status(status: CityStatus, asked: LoadingSource | null): void;
-  /** A timeline read's own stages, and the repo it is reading. */
-  timeline(event: TimelineProgress, about: LoadingSource & { label?: string | null }): void;
+/** What this app knows before the city speaks: which kind of source, its
+ *  branch, and what to call it. */
+export interface LoadingAbout extends LoadingSource {
+  label?: string | null;
 }
 
 /** Drive the overlay. Presentation only: which rows this app lists, and how far
  *  down them the load has got. What is HAPPENING is the city's to say. */
-export function createOverlayDriver(cancels: OverlayCancels = {}): OverlayDriver {
+export function createOverlayDriver(
+  cancels: OverlayCancels = {}
+): (status: CityStatus, asked: LoadingAbout | null) => void {
   let showing = Showing.Nothing;
   // How far down the list this load has got. A row that lights up again after a
   // later one reads as the whole load starting over.
@@ -160,53 +161,48 @@ export function createOverlayDriver(cancels: OverlayCancels = {}): OverlayDriver
     reached = -1;
   };
 
-  return {
-    status(status, asked) {
-      // Nothing coming, nothing left to wait for. `fetching` is the second
-      // half: a city can be on screen and still not be the finished one.
-      if (!asked && !status.fetching && status.lifecycle !== CityLifecycle.Loading) {
-        close();
-        return;
-      }
+  return (status, asked) => {
+    // The CITY says which of the two it is doing: a history read is not a scan,
+    // and this asks rather than inferring it from what events are arriving.
+    const reading = status.phase === CityPhase.Reading;
 
-      // Only from nothing: a timeline read already showing is the SAME load,
-      // and a city reports `fetching` through one exactly as through a scan.
-      if (showing === Showing.Nothing && asked) open(Showing.Live, asked);
+    // Nothing coming, nothing left to wait for. `fetching` is the second
+    // half: a city can be on screen and still not be the finished one.
+    if (!asked && !status.fetching && status.lifecycle !== CityLifecycle.Loading) {
+      close();
+      return;
+    }
 
-      // The phase IS the row, measured against the rows this load runs:
-      // Building is the one both share, the pack at the end of either.
-      const step = status.phase ?? (asked ? firstStepFor(LOADING_STEPS, asked.kind) : null);
-      if (step) advance(step);
-      // The counts belong to the row producing them, and clear when it hands
-      // over: a stale "1,204 files" beside "Building city" reads as still running.
-      setLoadingStepTail(
-        LoadingStep.Cloning,
-        step === LoadingStep.Cloning ? countsTail(status) : null
-      );
-      setLoadingStepTail(
-        LoadingStep.Scanning,
-        step === LoadingStep.Scanning ? countsTail(status) : null
-      );
-      setLoadingStepTail(
-        LoadingStep.Building,
-        step === CityPhase.Building ? buildStageTail(status) : null
-      );
-    },
+    // The rows the load in flight runs, re-opened if it turns out to be the
+    // other kind: entering Timeline becomes a read on the city's first report.
+    const want = reading ? Showing.Timeline : Showing.Live;
+    if (asked && showing !== want) {
+      open(want, asked, reading ? TIMELINE_LOADING_STEPS : undefined);
+      if (reading) PENDING_SOURCE_LABEL.value = asked.label ?? null;
+    }
 
-    timeline(event, about) {
-      if (showing !== Showing.Timeline) {
-        PENDING_SOURCE_LABEL.value = about.label ?? null;
-        open(Showing.Timeline, about, TIMELINE_LOADING_STEPS);
-      }
-      // The server's assembly and the pack after it are the same wait: one row
-      // from here to the painted city.
-      if (event.stage === TimelineStage.Assemble) {
-        advance(LoadingStep.Building);
-        return;
-      }
-      const step = stepForTimelineStage(event.stage);
-      advance(step);
-      setLoadingStepTail(step, timelineStageTail(event));
-    },
+    // The phase IS the row. Inside a read the timeline stage is the finer one,
+    // the way BuildStage is inside Building.
+    const step = reading
+      ? status.timelineStage
+        ? stepForTimelineStage(status.timelineStage)
+        : null
+      : (status.phase ?? (asked ? firstStepFor(LOADING_STEPS, asked.kind) : null));
+    if (step) advance(step);
+
+    // The counts belong to the row producing them, and clear when it hands
+    // over: a stale "1,204 files" beside "Building city" reads as still running.
+    setLoadingStepTail(
+      LoadingStep.Cloning,
+      step === LoadingStep.Cloning ? countsTail(status) : null
+    );
+    setLoadingStepTail(
+      LoadingStep.Scanning,
+      step === LoadingStep.Scanning ? countsTail(status) : null
+    );
+    setLoadingStepTail(
+      LoadingStep.Building,
+      step === CityPhase.Building ? buildStageTail(status) : null
+    );
   };
 }

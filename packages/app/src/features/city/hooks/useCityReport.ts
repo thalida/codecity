@@ -13,7 +13,7 @@ import { setUrlTimelineMode, clearSourceUrl, type UrlSource } from '@/router/cit
 import {
   createOverlayDriver,
   PENDING_SOURCE_LABEL,
-  type LoadingSource,
+  type LoadingAbout,
 } from '@/features/city/state/overlay';
 
 export function useCityReport(source: UrlSource | null): void {
@@ -46,26 +46,22 @@ export function useCityReport(source: UrlSource | null): void {
     return city.on('scan:label', ({ label }) => void (PENDING_SOURCE_LABEL.value = label));
   }, [city]);
 
-  // Entering Timeline is a viewState the city follows, and it fetches the
-  // history itself. Its stages are the same overlay's rows.
-  useEffect(() => {
-    if (!city) return;
-    return city.on('timeline:progress', ({ event }) =>
-      drive.timeline(event, {
-        kind: srcKind(city.source?.src ?? ''),
-        branch: city.source?.branch,
-        // The repo already on screen, named the way the header names it.
-        label: city.manifest?.tree?.name ?? null,
-      })
-    );
-  }, [city, drive]);
-
   // The flash for a Save the city answers by refreshing materials in place:
   // nothing rebuilds, so nothing is reported, and the Save looks ignored.
   useEffect(() => (city ? attachSettingsReactions(city) : undefined), [city]);
 
-  const asked: LoadingSource | null =
-    source && status.fetching ? { kind: srcKind(source.src), branch: source.branch } : null;
-  drive.status(status, asked);
+  // What this app knows before the city speaks. Which of the two loads is
+  // running is the CITY's to say, and status says it.
+  const asked: LoadingAbout | null =
+    source && status.fetching
+      ? {
+          kind: srcKind(source.src),
+          branch: source.branch,
+          // Entering Timeline reads a repo already on screen, named the way
+          // the header names it.
+          label: city?.manifest?.tree?.name ?? null,
+        }
+      : null;
+  drive(status, asked);
   report(status);
 }
