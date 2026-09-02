@@ -396,3 +396,64 @@ describe('what a src prop loads', () => {
     expect(urls()[0]).toContain('no_cache=true');
   });
 });
+
+// Which pieces <City> mounts over the canvas. What each one DRAWS is
+// components.test.tsx; this is only about who is there.
+describe('the pieces it mounts over the canvas', () => {
+  let host: HTMLDivElement;
+  let rafSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    let calls = 0;
+    rafSpy = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        if (calls++ < 40) setTimeout(() => cb(performance.now()), 0);
+        return 0 as unknown as number;
+      });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', {
+      value: 1280,
+      configurable: true,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', {
+      value: 720,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    render(null, host);
+    host.remove();
+    rafSpy.mockRestore();
+  });
+
+  const overlay = () => host.querySelector('.codecity-overlay');
+
+  it('gives the host somewhere to draw, with no configuration at all', async () => {
+    render(<CityCanvas />, host);
+    await until('the city', () => host.querySelector('canvas') !== null);
+    await settle();
+    expect(overlay(), 'an overlay is mounted for the default tooltip').not.toBeNull();
+  });
+
+  it('puts the host’s own children in it, over the canvas', async () => {
+    render(
+      <CityCanvas>
+        <div class="mine" />
+      </CityCanvas>,
+      host
+    );
+    await until('the overlay', () => overlay() !== null);
+    expect(overlay()!.querySelector('.mine')).not.toBeNull();
+  });
+
+  // `null` is a host saying "none", which is not the same as not having said.
+  it('mounts nothing at all when every piece is removed and it has no children', async () => {
+    render(<CityCanvas components={{ Tooltip: null }} />, host);
+    await until('the city', () => host.querySelector('canvas') !== null);
+    await settle();
+    expect(overlay(), 'nothing to draw, so nothing to draw it in').toBeNull();
+  });
+});

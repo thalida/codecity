@@ -21,12 +21,13 @@ import {
   createChangeHub,
 } from './state/change';
 import { CityStatus, CityStatusTracker, createCityStatus } from './state/status';
-import type { CityViewState } from './state/viewState';
+import type { CityViewState, CitySnapshot } from './state/viewState';
 import { Picker, createPicker } from './interaction/picker';
 import { CameraRig, FocusMode, createCameraRig } from './render/cameraRig';
 import { NodeKind } from './types/manifest';
 import { CitySettingsStore, createSettingsStore } from './settings/store';
-import type { CitySettingsPatch } from './settings';
+import type { CitySettingsPatch, CityStore } from './settings';
+import { CITY_FIELDS } from './settings';
 import type { CodecityClient } from './client/index';
 import { CityEmitter, createEmitter } from './state/events';
 import type { BuildStage } from './types/build';
@@ -283,6 +284,32 @@ export class City {
    *  city's decision, off each field's declared route. */
   updateSettings(patch: CitySettingsPatch): void {
     this.parts.settings.update(patch);
+  }
+
+  /** Everything needed to put this city back: what it is showing, how it is
+   *  set up, and where the reader is in it. One value, so a host storing a
+   *  session stores one thing rather than remembering which three to ask for. */
+  getSnapshot(): CitySnapshot {
+    return {
+      source: this.source,
+      manifest: this.manifest,
+      // Every declared store's current values, which is what `updateSettings`
+      // takes back: the snapshot round-trips through the public surface.
+      settings: Object.fromEntries(
+        Object.keys(CITY_FIELDS).map((k) => [k, this.parts.settings[k as CityStore]])
+      ) as CitySettingsPatch,
+      view: this.getViewState(),
+    };
+  }
+
+  /** Put a snapshot back. The manifest is applied directly rather than
+   *  re-fetched: a host that saved one has the city it saw, not whatever the
+   *  repo looks like now. Pass only `source` to re-read it instead. */
+  async loadSnapshot(snap: CitySnapshot): Promise<void> {
+    if (snap.settings) this.updateSettings(snap.settings);
+    if (snap.manifest) await this.applyManifest(snap.manifest);
+    else if (snap.source) await this.loadSource(snap.source);
+    if (snap.view) await this.setViewState(snap.view);
   }
 
   /** Where you are in this city, as one plain value: what is selected, and

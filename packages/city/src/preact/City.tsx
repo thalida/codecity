@@ -11,11 +11,12 @@
 // rather than a wrapper over it.
 
 import './City.css';
-import type { ComponentChildren } from 'preact';
+import type { ComponentChildren, ComponentType } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { City as CityInstance } from '../city';
 import { CityProvider } from './context';
+import { DefaultCityTooltip, HoverTooltip, type CityTooltipProps } from './CityTooltip';
 import type { CityExtension } from '../types';
 import type { CitySettingsPatch } from '../settings';
 import type { CityStatus } from '../state/status';
@@ -65,6 +66,10 @@ export interface CityProps {
 
   /** What is selected changed — however it got selected: a click, a restored
    *  link, a host calling focus(). Null is nothing selected. */
+  /** The pieces this component draws over the city, each replaceable. A default
+   *  is used where one is not given; `null` removes that piece entirely. Batteries
+   *  included, nothing locked in. */
+  components?: CityComponents;
   /** Drawn over the city, inside its provider: a host's own tooltips, badges
    *  and controls. Inert by default; turn pointer events on per element. */
   children?: ComponentChildren;
@@ -110,7 +115,20 @@ const DEFAULT_LABEL =
   'A 3D city built from a code repository. Files are buildings, directories are streets, and commits are trees.';
 
 /** A city, as a component. */
+/** The pieces a host can swap. Undefined takes the default; `null` draws
+ *  nothing, for a host that wants the bare canvas. */
+export interface CityComponents {
+  /** The card that follows the cursor over what it is hovering. */
+  Tooltip?: ComponentType<CityTooltipProps> | null;
+}
+
 export function City(props: CityProps) {
+  // `in` rather than a truthiness check: a host passing `null` is asking for
+  // no tooltip, which is not the same as not having asked.
+  const Tooltip =
+    props.components && 'Tooltip' in props.components
+      ? props.components.Tooltip
+      : DefaultCityTooltip;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [city, setCity] = useState<CityInstance | null>(null);
 
@@ -267,13 +285,17 @@ export function City(props: CityProps) {
         role="img"
         aria-label={props['aria-label'] ?? DEFAULT_LABEL}
       />
-      {/* The host's own UI, over the city and inside its provider: a tooltip
-          drawn here can ask what is hovered without being handed anything. */}
-      {props.children ? (
+      {/* Everything drawn over the city, inside its provider: what this
+          component ships, then whatever the host adds. Both can ask the city
+          what is happening without being handed anything. */}
+      {(Tooltip || props.children) && (
         <div class="codecity-overlay">
-          <CityProvider city={city}>{props.children}</CityProvider>
+          <CityProvider city={city}>
+            {Tooltip ? <HoverTooltip Tooltip={Tooltip} /> : null}
+            {props.children}
+          </CityProvider>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

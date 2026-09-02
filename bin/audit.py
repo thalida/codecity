@@ -439,6 +439,35 @@ def score_library(
     ]
     grade("no test-only exports", not dead, f"{len(dead)} exports only tests reach")
 
+
+    # Every piece it draws should be replaceable, and the defaults exported so a
+    # host can wrap one rather than rebuild it.
+    slots = re.search(r"interface \w*Components \{(.*?)\n\}", blob, re.S)
+    members = len(re.findall(r"^\s+\w+\??:", slots.group(1), re.M)) if slots else 0
+    defaults = len(re.findall(r"export (?:function|const) Default\w+", blob))
+    grade(
+        "its UI pieces are replaceable",
+        members > 0 and defaults > 0,
+        f"{members} slots, {defaults} defaults exported" if members else "no components map",
+    )
+
+    # A host should be able to add a whole part of its own, not just style one.
+    grade(
+        "takes extensions of its own",
+        "Extension" in surface,
+        "an extension type on the surface" if "Extension" in surface else "closed to additions",
+    )
+
+    # Put it back exactly: what it shows, how it is set up, where the reader is.
+    grade(
+        "can be snapshotted whole",
+        "getSnapshot" in blob,
+        "one call restores it" if "getSnapshot" in blob else "reassembled from separate calls",
+    )
+
+    # The first thing a stranger opens.
+    readme = (pkg / "README.md").exists()
+    grade("has a README", readme, "an entry point for a reader" if readme else "none")
     return grades
 
 

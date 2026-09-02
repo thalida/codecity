@@ -11,8 +11,7 @@ import { City as CityCanvas } from '@codecity/city/preact';
 import { TimelineScrubber } from '@/features/city/components/TimelineScrubber/TimelineScrubber';
 import { TimelineToggle } from '@/features/city/components/TimelineToggle/TimelineToggle';
 import { SelectionChip } from '@/features/city/components/CityStage/SelectionChip/SelectionChip';
-import { createCityTooltip } from '@/features/city/components/CityTooltip/CityTooltip';
-import { hoverTooltipContent } from '@/features/city/components/CityTooltip/tooltipContent';
+import { CityTooltip } from '@/features/city/components/CityTooltip/CityTooltip';
 import { useCityReport } from '@/features/city/hooks/useCityReport';
 import { cityKeyboardEnabled } from '@/features/city/state/commands';
 import { useCityChrome } from '@/features/city/state/sidebar';
@@ -44,10 +43,6 @@ export function CityStage({
   const watchSeconds = useComputed(() =>
     LIVE_UPDATES_ACTIVE.value ? LIVE_UPDATES.value.POLL_SECONDS : undefined
   ).value;
-  // The card the cursor drags around. The city says what is under the pointer;
-  // drawing something about it is this view's decision.
-  const tooltip = useMemo(() => createCityTooltip(), []);
-  useEffect(() => () => tooltip.dispose(), [tooltip]);
 
   return (
     <div id="city-stage">
@@ -57,14 +52,14 @@ export function CityStage({
         noCache={source?.noCache}
         exclude={exclude}
         watchSeconds={watchSeconds}
+        // This app's hover card in place of the package's plain one: the
+        // panes' own numbers, so hovering and selecting cannot disagree.
+        components={{ Tooltip: CityTooltip }}
         settings={CITY_SETTINGS.value}
         keyboard={cityKeyboardEnabled}
         onReady={onReady}
         viewState={viewState}
         onViewStateChange={onViewStateChange}
-        onHover={(target) =>
-          tooltip.show(hoverTooltipContent(target, city?.manifest?.tree?.name ?? null))
-        }
         // Picking a node is asking what it is, so a pane put away for the last
         // one comes back for this one.
         onPick={() => chrome.openDetails()}

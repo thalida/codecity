@@ -1,3 +1,5 @@
+import type { Manifest } from '../types/manifest';
+import type { CitySettingsPatch } from '../settings';
 // city/viewState.ts — everything about WHERE you are in a city, as one value
 // you can write down and hand back.
 //
@@ -79,6 +81,19 @@ export function decodeSelection(raw: string | null): PickerSelectionKey | null {
   return kind === NodeKind.Commit
     ? { kind, sha: value }
     : ({ kind, path: value } as PickerSelectionKey);
+}
+
+/** A whole city, written down. Every field optional: a host restoring only a
+ *  view says only that, and one restoring a session says all of it. */
+export interface CitySnapshot {
+  /** The repo it was reading. Enough on its own to re-fetch. */
+  source?: { src: string; branch?: string } | null;
+  /** What it was showing. Present means "show exactly this", not "go get it". */
+  manifest?: Manifest | null;
+  /** How it was set up. */
+  settings?: CitySettingsPatch;
+  /** Where the reader was in it. */
+  view?: CityViewState;
 }
 
 /** Whether two view states put the reader in the same place. A controlled host

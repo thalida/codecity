@@ -5,7 +5,11 @@
 // OPTIONAL peer dependency rather than a dependency.
 
 export { City } from './City';
-export type { CityProps } from './City';
+export type { CityProps, CityComponents } from './City';
+// The default hover card, exported so a host can wrap it rather than rebuild
+// it — and its props, so a replacement is the same shape.
+export { DefaultCityTooltip } from './CityTooltip';
+export type { CityTooltipProps } from './CityTooltip';
 
 // Which city a subtree is about. The reason two can exist on one page with
 // chrome on both: a city is a value passed down, not a slot read up.

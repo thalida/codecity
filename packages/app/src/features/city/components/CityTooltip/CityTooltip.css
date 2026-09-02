@@ -1,9 +1,14 @@
-/* The hover tooltip's surface and its three lines. Built as DOM by tooltip.ts,
-   which rides directly on the canvas. */
+/* This app's hover card, passed to <City> as components.Tooltip. Positioned by
+   the component; the package's overlay is what it sits in. */
 
 /* Floating tooltip surface (the hover tooltip). Pair with .surface-glass: it
    rides directly on the canvas. */
 .card-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
   border: 1px solid var(--cc-border-tooltip);
   border-radius: var(--cc-radius-sm);
   padding: var(--cc-space-3) var(--cc-space-4);
