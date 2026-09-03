@@ -192,4 +192,40 @@ describe('a city’s status', () => {
     expect(status.value.phase).toBeNull();
     expect(status.value.error).toBeNull();
   });
+
+  // Entering Timeline packs a union city, and the pack finishing is NOT the
+  // read finishing: the scene still has to be dressed and put under the
+  // scrubber. A host told "ready" at the pack takes its overlay down and the
+  // reader watches the rest happen.
+  it('keeps a history read in flight through the pack it runs', () => {
+    const { events, status } = tracked();
+    events.emit('timeline:start', { src: '/repo' });
+    events.emit('build:start', { stages: [BuildStage.Assembling] });
+
+    events.emit('build:done', { pending: [] });
+
+    expect(status.value.fetching).toBe(true);
+  });
+
+  it('finishes the read when the read says so', () => {
+    const { events, status } = tracked();
+    events.emit('timeline:start', { src: '/repo' });
+    events.emit('build:done', { pending: [] });
+
+    events.emit('timeline:done', {});
+
+    expect(status.value.fetching).toBe(false);
+    expect(status.value.lifecycle).toBe(CityLifecycle.Ready);
+    expect(status.value.phase).toBeNull();
+  });
+
+  // A live scan's pack is the end of it: nothing follows the city appearing.
+  it('still finishes a scan at its pack', () => {
+    const { events, status } = tracked();
+    events.emit('scan:start', { src: '/repo' });
+
+    events.emit('build:done', { pending: [] });
+
+    expect(status.value.fetching).toBe(false);
+  });
 });

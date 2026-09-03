@@ -11,7 +11,7 @@
 // nothing has to have been listening. That is the difference between an
 // integration point and a transcript.
 
-import type { TimelineStage } from '../types/timeline';
+import type { TimelineProgress, TimelineStage } from '../types/timeline';
 import { ScanPhase, type ScanProgressEvent } from '../client/manifest';
 import { BuildStage } from '../types/build';
 import type { CityEvents } from './events';
@@ -66,6 +66,11 @@ export interface CityStatusCounts {
   /** Working-tree size on disk during the silent promisor blob fetch, which
    *  reports no percent at all. */
   mbOnDisk?: number;
+  /** Commits walked, while reading history. */
+  commits?: number;
+  /** Blobs resolved out of the total, while reading history. */
+  blobsDone?: number;
+  blobsTotal?: number;
 }
 
 /** Everything a host needs to draw a readout, in one object. */
@@ -120,6 +125,19 @@ const PHASE_FOR_SCAN: Partial<Record<ScanPhase, CityPhase>> = {
   [ScanPhase.PartialManifest]: CityPhase.Sketching,
   [ScanPhase.CompleteManifest]: CityPhase.Building,
 };
+
+/** The facts a history read reports, in the same shape a scan's arrive in: a
+ *  host says them, and should not need a second vocabulary to. */
+function timelineCountsOf(event: TimelineProgress): CityStatusCounts {
+  const out: CityStatusCounts = {};
+  if (event.objects != null) out.objects = event.objects;
+  if (event.objectsTotal != null) out.objectsTotal = event.objectsTotal;
+  if (event.mib != null) out.mib = event.mib;
+  if (event.commits != null) out.commits = event.commits;
+  if (event.blobsDone != null) out.blobsDone = event.blobsDone;
+  if (event.blobsTotal != null) out.blobsTotal = event.blobsTotal;
+  return out;
+}
 
 function countsOf(event: ScanProgressEvent): CityStatusCounts {
   // != null, not !== undefined: these cross the wire, where the type is a
@@ -195,6 +213,14 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
   const showing = (): CityLifecycle =>
     value.lifecycle === CityLifecycle.Ready ? CityLifecycle.Ready : CityLifecycle.Loading;
 
+  // A history read runs a pack of its own, and is not over when that pack is:
+  // the union city still has to be dressed and put under the scrubber. So the
+  // READ says when a read ends, and build:done does not.
+  let reading = false;
+  // What the last city on screen was still waiting on, so the read's end can
+  // answer the fetching question the same way its pack would have.
+  let pendingWork: readonly unknown[] = [];
+
   /** Nothing is coming any more. What a load's end has in common, whichever
    *  way it ended. */
   const ENDED = {
@@ -210,7 +236,8 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     // A history read, said as itself: the rows a host draws for one are not the
     // rows it draws for a scan, and it should not have to infer which from the
     // traffic on some other event.
-    on('timeline:start', () =>
+    on('timeline:start', () => {
+      reading = true;
       set({
         lifecycle: showing(),
         fetching: true,
@@ -220,22 +247,30 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         fraction: null,
         counts: {},
         error: null,
-      })
-    ),
+      });
+    }),
     on('timeline:progress', ({ event }) =>
       set({
         phase: CityPhase.Reading,
         timelineStage: event.stage,
         fraction: event.percent != null ? event.percent / 100 : null,
+        counts: timelineCountsOf(event),
       })
     ),
-    // The stream ending is not the city appearing: the union still has to be
-    // packed, which build:done reports.
-    on('timeline:done', () => set({})),
+    // The whole entry: the pack has run, the scene is dressed, the scrubber is
+    // in place. THIS is when a host may take its overlay down.
+    on('timeline:done', () => {
+      reading = false;
+      set({ ...ENDED, lifecycle: showing(), fetching: pendingWork.length > 0 });
+    }),
     // A load called off leaves the city that was already on screen: the read
     // ends, and nothing about it is an error to report.
-    on('timeline:cancel', () => set({ ...ENDED, lifecycle: showing() })),
-    on('timeline:error', ({ error }) =>
+    on('timeline:cancel', () => {
+      reading = false;
+      set({ ...ENDED, lifecycle: showing() });
+    }),
+    on('timeline:error', ({ error }) => {
+      reading = false;
       set({
         lifecycle: CityLifecycle.Error,
         fetching: false,
@@ -244,9 +279,10 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         timelineStage: null,
         fraction: null,
         error,
-      })
-    ),
-    on('scan:start', () =>
+      });
+    }),
+    on('scan:start', () => {
+      reading = false;
       set({
         lifecycle: showing(),
         fetching: true,
@@ -256,8 +292,8 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         fraction: null,
         counts: {},
         error: null,
-      })
-    ),
+      });
+    }),
     on('scan:progress', ({ event }) =>
       set({
         phase: PHASE_FOR_SCAN[event.phase] ?? value.phase,
@@ -308,16 +344,17 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     ),
     // The city is ON SCREEN. `pending` is what the manifest it drew was still
     // waiting on, which is the whole of the fetching question.
-    on('build:done', ({ pending }) =>
+    on('build:done', ({ pending }) => {
+      pendingWork = pending;
       set({
         lifecycle: CityLifecycle.Ready,
-        fetching: pending.length > 0,
+        fetching: pending.length > 0 || reading,
         phase: null,
         stage: null,
         fraction: null,
         counts: {},
-      })
-    ),
+      });
+    }),
     on('build:error', ({ error }) =>
       set({
         lifecycle: CityLifecycle.Error,

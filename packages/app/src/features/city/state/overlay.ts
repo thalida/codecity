@@ -1,14 +1,7 @@
 // features/city/state/overlay.ts — the full-screen progress the app shows over
 // a load: what it says, and how far down its rows the load has got.
 
-import {
-  type CityStatus,
-  type TimelineProgress,
-  CityLifecycle,
-  CityPhase,
-  TimelineStage,
-  type SourceKind,
-} from '@codecity/city';
+import { type CityStatus, CityLifecycle, CityPhase, type SourceKind } from '@codecity/city';
 import { signal } from '@preact/signals';
 
 import {
@@ -175,7 +168,9 @@ export function createOverlayDriver(
 
     // The rows the load in flight runs, re-opened if it turns out to be the
     // other kind: entering Timeline becomes a read on the city's first report.
-    const want = reading ? Showing.Timeline : Showing.Live;
+    // A read that has reached its pack reports Building like any other, so the
+    // rows stay the read's until the load ENDS: the pack is part of it.
+    const want = reading || showing === Showing.Timeline ? Showing.Timeline : Showing.Live;
     if (asked && showing !== want) {
       open(want, asked, reading ? TIMELINE_LOADING_STEPS : undefined);
     }
@@ -194,6 +189,19 @@ export function createOverlayDriver(
 
     // The counts belong to the row producing them, and clear when it hands
     // over: a stale "1,204 files" beside "Building city" reads as still running.
+    const readTail = reading ? timelineStageTail(status) : null;
+    setLoadingStepTail(
+      LoadingStep.TimelineFetch,
+      step === LoadingStep.TimelineFetch ? readTail : null
+    );
+    setLoadingStepTail(
+      LoadingStep.TimelineHistory,
+      step === LoadingStep.TimelineHistory ? readTail : null
+    );
+    setLoadingStepTail(
+      LoadingStep.TimelineBlobs,
+      step === LoadingStep.TimelineBlobs ? readTail : null
+    );
     setLoadingStepTail(
       LoadingStep.Cloning,
       step === LoadingStep.Cloning ? countsTail(status) : null

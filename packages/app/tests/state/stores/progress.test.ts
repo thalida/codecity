@@ -289,6 +289,16 @@ describe('the same overlay, describing a timeline read', () => {
     expect(step()).toBe(LoadingStep.Building);
   });
 
+  // The pack is part of the read, and the rows must not change under the
+  // reader when it starts: they would watch a history read turn into a scan.
+  it('keeps the history rows through the pack the read runs', () => {
+    progress(TimelineStage.Blobs);
+
+    say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+
+    expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
+  });
+
   it('comes down once the union city is up', () => {
     progress(TimelineStage.History);
 
@@ -298,6 +308,34 @@ describe('the same overlay, describing a timeline read', () => {
     say({ lifecycle: CityLifecycle.Ready, fetching: false });
 
     expect(visible()).toBe(false);
+  });
+
+  // The server counts commits and blobs as it goes, and a reader watching four
+  // still rows has no way to tell a slow read from a stuck one.
+  it('says how far the read has got, beside the row doing it', () => {
+    askedFor = reading;
+    say({
+      lifecycle: CityLifecycle.Loading,
+      fetching: true,
+      phase: CityPhase.Reading,
+      timelineStage: TimelineStage.History,
+      counts: { commits: 276 },
+    });
+
+    expect(tail(LoadingStep.TimelineHistory)).toBe('276 commits');
+
+    say({
+      lifecycle: CityLifecycle.Loading,
+      fetching: true,
+      phase: CityPhase.Reading,
+      timelineStage: TimelineStage.Blobs,
+      counts: { blobsDone: 6179, blobsTotal: 6179 },
+    });
+
+    expect(tail(LoadingStep.TimelineBlobs)).toBe('6,179/6,179 files');
+    // The row that handed over stops saying anything: a count left beside a
+    // finished row reads as still running.
+    expect(tail(LoadingStep.TimelineHistory)).toBeNull();
   });
 
   it('cancels to where the reader was, not to where a live cancel goes', () => {
