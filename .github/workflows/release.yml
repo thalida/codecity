@@ -69,6 +69,10 @@ jobs:
             VERSION=${{ steps.tag.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # A cached runtime layer pins its apt-get upgrade to the day it was
+          # first built, which would publish CVEs apt could already fix.
+          no-cache-filters: runtime
+          pull: true
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3

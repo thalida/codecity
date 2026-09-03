@@ -310,6 +310,28 @@ aren't set.
 just deploy
 ```
 
+### Staying patched between releases
+
+OS security fixes land on their own schedule, and a release only happens when
+there's code to ship. So `refresh.yml` runs every Monday at 04:00 UTC, two hours
+before the weekly Trivy scan. It:
+
+- rebuilds the newest release tag's source against a freshly pulled base, with
+  the `runtime` stage held out of the build cache so `apt-get upgrade` re-runs
+- pushes that as `refresh-<version>-<date>`, then scans, smoke-tests and signs it
+- retags it `:latest` only once all three pass
+
+So `:latest` means "the newest release, on today's packages". It tracks the
+newest `vX.Y.Z` tag's code but not its digest; version tags themselves never
+move, so pin one if you need a digest that stays put.
+
+If a rebuild doesn't clear the CVEs, the refresh fails before `:latest` moves and
+Monday's scan opens an issue — which is the signal that the fix needs a real
+dependency change rather than fresh packages.
+
+Publishing is as far as it goes: production stays on the image it has until you
+run `just deploy`.
+
 ### Verify signatures
 
 ```sh
