@@ -17,6 +17,9 @@ export const NON_TRANSFERABLE: SettingStore[] = [LIVE_UPDATES];
 function collectStores(children: SectionChild[], into: SettingStore[]): void {
   for (const child of children) {
     if ('store' in child) {
+      // Enforced where the groups are built, so a store added to a pane
+      // tomorrow does not start travelling because nobody checked.
+      if (NON_TRANSFERABLE.includes(child.store)) continue;
       if (!into.includes(child.store)) into.push(child.store);
     } else {
       collectStores(child.children, into);
@@ -24,7 +27,9 @@ function collectStores(children: SectionChild[], into: SettingStore[]): void {
   }
 }
 
-function fromSection(section: SectionNode): TransferGroup {
+/** One controls-pane section as a transfer group. Exported for the rule above:
+ *  what a section contributes is what a settings file carries. */
+export function groupForSection(section: SectionNode): TransferGroup {
   const stores: SettingStore[] = [];
   collectStores(section.children ?? [], stores);
   return {
@@ -38,7 +43,7 @@ function fromSection(section: SectionNode): TransferGroup {
 /** Every group a settings file can carry, in picker order. Render mirrors the
  *  controls pane's sections; Appearance mirrors the fields in its own menu. */
 export const TRANSFER_GROUPS: TransferGroup[] = [
-  ...CONTROLS_SECTIONS.map(fromSection),
+  ...CONTROLS_SECTIONS.map(groupForSection),
   {
     key: 'accent',
     label: 'Accent Color',

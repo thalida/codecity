@@ -68,18 +68,6 @@ export function shadeAndShiftHue(
 // Multiplicative darkening with an absolute floor. Used for side walls so that
 // contrast against the front face scales with the base lightness — dim files
 // still get visibly darker sides without crushing to black.
-export function shadeByRatio(
-  hslString: string,
-  ratio: number,
-  hueDelta: number,
-  floor: number
-): string {
-  const c = hslToComponents(hslString);
-  const newL = Math.max(floor, c.l * ratio);
-  const newH = (((c.h + hueDelta) % 360) + 360) % 360;
-  return componentsToHsl(newH, c.s, newL);
-}
-
 // ── OKLab / OKLCH conversion primitives ───────────────────────────────────
 
 /** Linear sRGB → OKLab (Cartesian). Out-parameter for allocation-free use

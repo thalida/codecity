@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import {
   settingSignal,
   markSettingStore,
-  _unregisterForTests,
+  unregisterSettingStore,
   FieldKind,
   ChangeRoute,
   type FieldMap,
@@ -20,11 +20,7 @@ import {
   TransferFamily,
   type TransferPart,
 } from '@/features/settings/state/transfer';
-import {
-  setDraft,
-  getEffective,
-  _resetForTests as resetDrafts,
-} from '@/features/settings/state/drafts';
+import { setDraft, getEffective, discard as resetDrafts } from '@/features/settings/state/drafts';
 import { ACTIVE_EXCLUDES, EXCLUDES, setExcludesFor } from '@/state/excludes';
 import { CURRENT_SOURCE } from '@/state/source';
 import { sourceKey } from '@codecity/city';
@@ -61,8 +57,8 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  _unregisterForTests(STORE);
-  _unregisterForTests(SCALAR);
+  unregisterSettingStore(STORE);
+  unregisterSettingStore(SCALAR);
 });
 
 const STORE_PART = storePart(STORE, TransferFamily.Render)!;

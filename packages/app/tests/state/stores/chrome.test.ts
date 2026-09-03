@@ -4,18 +4,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   OVERLAY_OPEN,
+  SHORTCUTS_OPEN,
+  DEBUG_OPEN,
   openShortcuts,
-  closeShortcuts,
-  openDebug,
-  closeDebug,
 } from '@/features/city/state/modals';
 import { navigate, ROUTES } from '@/router/location';
 
 describe('OVERLAY_OPEN', () => {
   beforeEach(() => navigate(ROUTES.CITY, { replace: true }));
   afterEach(() => {
-    closeShortcuts();
-    closeDebug();
+    SHORTCUTS_OPEN.value = false;
+    DEBUG_OPEN.value = false;
     navigate(ROUTES.HOME, { replace: true });
   });
 
@@ -26,9 +25,9 @@ describe('OVERLAY_OPEN', () => {
   it('is true while either panel is open', () => {
     openShortcuts();
     expect(OVERLAY_OPEN.value).toBe(true);
-    closeShortcuts();
+    SHORTCUTS_OPEN.value = false;
 
-    openDebug();
+    DEBUG_OPEN.value = true;
     expect(OVERLAY_OPEN.value).toBe(true);
   });
 

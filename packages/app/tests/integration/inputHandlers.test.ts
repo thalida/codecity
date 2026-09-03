@@ -4,7 +4,7 @@
 
 import { City, NodeKind } from '@codecity/city';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { closeShortcuts, openShortcuts } from '@/features/city/state/modals';
+import { openShortcuts, SHORTCUTS_OPEN } from '@/features/city/state/modals';
 import { cityKeyboardEnabled } from '@/features/city/state/commands';
 import { createCityChrome, type CityChromeState } from '@/features/city/state/sidebar';
 import { navigate, ROUTES } from '@/router/location';
@@ -44,7 +44,7 @@ describe('scene keydown handler — modal suppression', () => {
     cities = [];
     rafSpy.mockRestore();
     vi.clearAllMocks();
-    closeShortcuts();
+    SHORTCUTS_OPEN.value = false;
     navigate(ROUTES.HOME, { replace: true });
     chrome.detailsDismissed.value = false;
   });
@@ -89,7 +89,7 @@ describe('scene keydown handler — modal suppression', () => {
     expect(setSelectionSpy).not.toHaveBeenCalled();
 
     // Once it closes, the same key reaches the scene handler again.
-    closeShortcuts();
+    SHORTCUTS_OPEN.value = false;
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(setSelectionSpy).toHaveBeenCalledWith(null);
   });

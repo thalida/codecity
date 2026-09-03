@@ -10,10 +10,9 @@ import {
   discard,
   isDirty,
   DRAFTS_REV,
-  _resetForTests,
 } from '@/features/settings/state/drafts';
 import { persistedSignal } from '@/lib/persist';
-import { markSettingStore, _unregisterForTests } from '@/features/settings/state/schema';
+import { markSettingStore, unregisterSettingStore } from '@/features/settings/state/schema';
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/features/settings/state/values/syntaxTheme';
 import { LIVE_UPDATES } from '@/features/settings/state/values/updates';
 
@@ -30,7 +29,7 @@ describe('drafts', () => {
     // The default snapshot is taken here, before any setKey; reusing a name
     // overwrites the prior registration.
     localStorage.clear();
-    _resetForTests();
+    discard();
     FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
     BAR = persistedSignal<number>('TEST_BAR', 10);
     // Real settings stores are auto-marked by settingSignal; these raw
@@ -42,8 +41,8 @@ describe('drafts', () => {
   // These are registered settings stores until unregistered, and every
   // anyResettable()/stageResetAll() sweep in the file counts them.
   afterEach(() => {
-    if (FOO) _unregisterForTests(FOO);
-    if (BAR) _unregisterForTests(BAR);
+    if (FOO) unregisterSettingStore(FOO);
+    if (BAR) unregisterSettingStore(BAR);
   });
 
   describe('setDraft + getEffective + isDirty', () => {
@@ -242,7 +241,7 @@ describe('drafts', () => {
 describe('autosave (write-through) stores apply instantly', () => {
   beforeEach(() => {
     SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
-    _resetForTests();
+    discard();
   });
 
   it('setDraft on SYNTAX_THEME writes the signal immediately, no draft staged', () => {

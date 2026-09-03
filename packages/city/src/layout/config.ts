@@ -13,16 +13,6 @@ export type LayoutConfig = Pick<
   'STREET_LAYOUT' | 'BUILDING_DIMENSIONS' | 'GEM_SIZING' | 'STREET_TIERS'
 >;
 
-/** Just the packer's slice of a full settings object. */
-export function layoutConfigOf(settings: CitySettings): LayoutConfig {
-  return {
-    STREET_LAYOUT: settings.STREET_LAYOUT,
-    BUILDING_DIMENSIONS: settings.BUILDING_DIMENSIONS,
-    GEM_SIZING: settings.GEM_SIZING,
-    STREET_TIERS: settings.STREET_TIERS,
-  };
-}
-
 /** The packer's slice of a live city's settings, read untracked: the packer is
  *  called from an apply, not from a subscription. */
 export function layoutConfigFrom(settings: CitySettingsStore): LayoutConfig {

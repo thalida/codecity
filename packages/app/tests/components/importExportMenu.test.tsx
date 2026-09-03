@@ -4,7 +4,7 @@ import { act } from 'preact/test-utils';
 import { ImportExportMenu } from '@/features/city/components/ImportExportMenu/ImportExportMenu';
 import {
   settingSignal,
-  _unregisterForTests,
+  unregisterSettingStore,
   FieldKind,
   ChangeRoute,
   type FieldMap,
@@ -241,6 +241,6 @@ describe('ImportExportMenu', () => {
 // The disposable stores must not outlive this file, or they leak into every
 // other suite's view of the settings registry.
 afterAll(() => {
-  _unregisterForTests(LOOK);
-  _unregisterForTests(SCAN);
+  unregisterSettingStore(LOOK);
+  unregisterSettingStore(SCAN);
 });

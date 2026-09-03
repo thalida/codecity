@@ -33,15 +33,16 @@ const _FIELDS = new Map<object, FieldMap>();
 // recents or sidebar width. See README.md.
 const _SETTING_STORES = new Set<object>();
 
-/** Register a store as panel-owned. settingSignal does this automatically; a
- *  plain persistedSignal (SYNTAX_THEME) calls it explicitly. */
-export function markSettingStore(store: object): void {
+/** Register a store as panel-owned, and return its unregister. settingSignal
+ *  does this automatically; a plain persistedSignal calls it explicitly. */
+export function markSettingStore(store: object): () => void {
   _SETTING_STORES.add(store);
+  return () => unregisterSettingStore(store);
 }
 
-/** Test-only. A disposable per-test store must unregister before the next one
- *  is made, or it leaks into anyResettable()/HAS_ANY_NON_DEFAULT forever. */
-export function _unregisterForTests(store: object): void {
+/** Drop a store and forget its fields: a short-lived one left registered
+ *  leaks into anyResettable() and HAS_ANY_NON_DEFAULT forever. */
+export function unregisterSettingStore(store: object): void {
   _SETTING_STORES.delete(store);
   _FIELDS.delete(store);
 }

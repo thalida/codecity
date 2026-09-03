@@ -77,12 +77,6 @@ export function computeSizeRange(stats: RepoStats | null | undefined): SizeRange
   return { min, max, span: max - min };
 }
 
-export function ageT(commit: CommitEntry, range: AgeRange): number {
-  if (range.span <= 0) return 0.5;
-  const d = dateToDays(commit.date);
-  return clamp01((d - range.oldest) / range.span);
-}
-
 export function sizeT(commit: CommitEntry, range: SizeRange): number {
   if (range.span <= 0) return 0.5;
   return clamp01((commit.files - range.min) / range.span);

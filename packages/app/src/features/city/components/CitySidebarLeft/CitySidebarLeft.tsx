@@ -6,7 +6,7 @@ import { NodeKind, type TreeNode, type PickTarget } from '@codecity/city';
 import './CitySidebarLeft.css';
 import { useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { useCity, useCityManifest, useScrub } from '@codecity/city/preact';
+import { useCityHover, useCityManifest, useCitySelection, useScrub } from '@codecity/city/preact';
 import { useReplayAnimation } from '@/hooks/useReplayAnimation';
 import {
   ACTIVITY_BAR_TABS,
@@ -87,7 +87,6 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 export function CitySidebarLeft() {
   // The city this view is about. Nothing here reads a module slot: a second
   // city on the page gets a second sidebar, pointed at its own.
-  const city = useCity();
   const { goToPath, hoverPath, clearHover } = useCityCommands();
   // What the panes render: the live tree, or the union filtered to the scrub.
   const scrub = useScrub();
@@ -104,23 +103,13 @@ export function CitySidebarLeft() {
   const treeExpanded = useSignal<Set<string>>(new Set());
 
   // Signals because TreeTab subscribes per row: a hover repaints the row under
-  // the cursor, not the whole tree. The one reason to carry reports into one.
+  // the cursor, not the whole tree. This is the only reason to carry them.
+  const selection = useCitySelection();
+  const hover = useCityHover();
   useEffect(() => {
-    if (!city) {
-      selectedPath.value = null;
-      hoveredPath.value = null;
-      return;
-    }
-    const sync = () => {
-      selectedPath.value = _pathOf(city.picker.selection);
-      hoveredPath.value = _pathOf(city.picker.hover);
-    };
-    sync();
-    const offs = [city.on('select', sync), city.on('hover', sync)];
-    return () => {
-      for (const off of offs) off();
-    };
-  }, [city]);
+    selectedPath.value = _pathOf(selection);
+    hoveredPath.value = _pathOf(hover);
+  }, [selection, hover]);
 
   // Closed on every world commit, so a new city opens unobscured. Live reloads
   // don't write CURRENT_SOURCE, so this can't fight a manual change.

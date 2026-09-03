@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { DebugMenu } from '@/features/city/components/DebugMenu/DebugMenu';
-import { DEBUG_OPEN, openDebug } from '@/features/city/state/modals';
+import { DEBUG_OPEN } from '@/features/city/state/modals';
 import { flush, drainAsync } from '../_helpers/preact';
 import { popoverPanel } from '../_helpers/popover';
 
@@ -46,8 +46,8 @@ describe('DebugMenu', () => {
     expect(container.querySelector('.popover-trigger')).not.toBeNull();
   });
 
-  it('opens on openDebug(), showing both action buttons', async () => {
-    openDebug();
+  it('opens on DEBUG_OPEN.value = true, showing both action buttons', async () => {
+    DEBUG_OPEN.value = true;
     await flush();
     expect(panel()).not.toBeNull();
     // Non-modal: the city keeps working underneath, unlike the modal this
@@ -68,7 +68,7 @@ describe('DebugMenu', () => {
   });
 
   it('clicking "Run collision check" invokes the passed callback', async () => {
-    openDebug();
+    DEBUG_OPEN.value = true;
     await flush();
     act(() => button('Run collision check').click());
     expect(onRunCollisionCheck).toHaveBeenCalledTimes(1);
@@ -76,7 +76,7 @@ describe('DebugMenu', () => {
   });
 
   it('clicking "Diagnose stem placement" invokes the passed callback', async () => {
-    openDebug();
+    DEBUG_OPEN.value = true;
     await flush();
     act(() => button('Diagnose stem placement').click());
     expect(onRunStemDiagnostic).toHaveBeenCalledTimes(1);
@@ -85,7 +85,7 @@ describe('DebugMenu', () => {
 
   it('omits a button whose callback is not provided', async () => {
     render(<DebugMenu onRunCollisionCheck={onRunCollisionCheck} />, container);
-    openDebug();
+    DEBUG_OPEN.value = true;
     await flush();
     const labels = Array.from(panel()!.querySelectorAll('button')).map((b) =>
       b.textContent?.trim()
@@ -95,7 +95,7 @@ describe('DebugMenu', () => {
   });
 
   it('closes on Escape', async () => {
-    openDebug();
+    DEBUG_OPEN.value = true;
     await flush();
     // The dismiss listeners attach via a useEffect, which Preact schedules
     // through rAF/setTimeout (up to ~35ms), not a microtask.
@@ -109,7 +109,7 @@ describe('DebugMenu', () => {
   });
 
   it('closes on a press outside, and stays open for one inside', async () => {
-    openDebug();
+    DEBUG_OPEN.value = true;
     await flush();
     await drainAsync(3, 40);
 

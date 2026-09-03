@@ -178,8 +178,3 @@ export function dropDrafts(stores: readonly SettingStore[]): void {
   }
   if (touched) _emit();
 }
-
-// Test-only hook so each test starts with an empty draft map.
-export function _resetForTests(): void {
-  _drafts.clear();
-}

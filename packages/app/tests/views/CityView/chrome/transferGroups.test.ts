@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest';
 import {
   TRANSFER_GROUPS,
   NON_TRANSFERABLE,
+  groupForSection,
 } from '@/features/city/components/CityFooter/transferGroups';
+import type { SectionNode } from '@/features/city/components/ControlsPane/types';
 import { CONTROLS_SECTIONS } from '@/features/city/components/ControlsPane/ControlsPane';
 import { forEachSettingStore, type SettingStore } from '@/features/settings/state/schema';
 import { getStoreName } from '@/lib/persist';
@@ -75,4 +77,22 @@ describe('TRANSFER_GROUPS', () => {
     const appearance = TRANSFER_GROUPS.filter((g) => g.family === TransferFamily.Appearance);
     expect(appearance.map((g) => g.key)).toEqual(['accent', 'surface', 'syntax']);
   });
+});
+
+// The rule was documented and enforced by nothing: the groups excluded
+// LIVE_UPDATES because no pane listed it, not because anything checked.
+it('keeps a non-transferable setting out even when a pane lists it', () => {
+  const pane: SectionNode = {
+    key: 'updates',
+    label: 'Updates',
+    children: [
+      { store: LIVE_UPDATES, key: 'POLL_SECONDS' },
+      { store: SYNTAX_THEME, key: 'ACCENT' },
+    ] as never,
+  };
+
+  const group = groupForSection(pane);
+
+  expect(group.stores.includes(SYNTAX_THEME)).toBe(true);
+  expect(group.stores.includes(LIVE_UPDATES)).toBe(false);
 });

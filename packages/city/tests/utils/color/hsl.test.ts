@@ -4,7 +4,6 @@ import {
   componentsToHsl,
   shadeColor,
   shadeAndShiftHue,
-  shadeByRatio,
 } from '../../../src/utils/color/colors';
 
 describe('hslToComponents', () => {
@@ -91,27 +90,5 @@ describe('shadeAndShiftHue', () => {
   it('treats null minLightness as a floor of 0', () => {
     const out = shadeAndShiftHue('hsl(200, 50%, 30%)', -100, 0, undefined);
     expect(hslToComponents(out).l).toBe(0);
-  });
-});
-
-describe('shadeByRatio', () => {
-  it('multiplies lightness by the ratio', () => {
-    const out = shadeByRatio('hsl(200, 50%, 60%)', 0.5, 0, 0);
-    expect(hslToComponents(out).l).toBeCloseTo(30);
-  });
-
-  it('respects the absolute floor', () => {
-    const out = shadeByRatio('hsl(200, 50%, 20%)', 0.1, 0, 15);
-    expect(hslToComponents(out).l).toBe(15);
-  });
-
-  it('shifts the hue by hueDelta', () => {
-    const out = shadeByRatio('hsl(100, 50%, 50%)', 1.0, 10, 0);
-    expect(hslToComponents(out).h).toBe(110);
-  });
-
-  it('wraps hue through 360', () => {
-    const out = shadeByRatio('hsl(350, 50%, 50%)', 1.0, 20, 0);
-    expect(hslToComponents(out).h).toBe(10);
   });
 });

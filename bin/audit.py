@@ -123,6 +123,10 @@ def check_dead_and_orphaned(
         if not is_production(home):
             continue
         for name in EXPORT_RE.findall(text):
+            # A name its own module uses is alive: the declaration is one
+            # mention, so anything past that is a real use.
+            if len(re.findall(rf"\b{re.escape(name)}\b", text)) > 1:
+                continue
             users = ts_symbol_uses(scope, name, home)
             prod = [u for u in users if is_production(u)]
             if not users:
@@ -269,34 +273,58 @@ def check_owners(files: dict[Path, str], pkg: str) -> list[Finding]:
 
 
 def check_composition(files: dict[Path, str], pkg: str) -> list[Finding]:
-    """A component others compose but no test ever renders. Each part can be
-    covered and the assembly still be wrong — a footer above the city."""
-    out: list[Finding] = []
+    """A component no test ever renders, directly or through one it does. Each
+    part can be covered and the assembly still be wrong — a footer above the
+    city — so what matters is whether a test ever puts this on a screen, not
+    whether one names it."""
+
+    def tag(name: str) -> re.Pattern[str]:
+        return re.compile(rf"<{re.escape(name)}[\s/>]")
+
+    # Component name → the module that defines it. Types are excluded: a
+    # generic like ComponentType<FooProps> reads as a tag to a regex.
+    defined: dict[str, Path] = {}
     for path, text in files.items():
         if not is_production(path) or path.suffix != ".tsx":
             continue
         for name in EXPORT_RE.findall(text):
-            if not name[0].isupper():
-                continue
-            tag = re.compile(rf"<{re.escape(name)}[\s/>]")
-            composed = [
-                p
-                for p in files
-                if p != path and is_production(p) and tag.search(files[p])
-            ]
-            rendered = [
-                p for p in files if not is_production(p) and tag.search(files[p])
-            ]
-            if composed and not rendered:
-                out.append(
-                    Finding(
-                        "composition",
-                        f"{pkg}/{path.name}",
-                        name,
-                        f"composed by {len(composed)} modules, rendered by no test",
-                        [p.name for p in composed[:3]],
-                    )
+            if name[0].isupper() and not re.search(
+                rf"export\s+(?:interface|type)\s+{re.escape(name)}\b", text
+            ):
+                defined[name] = path
+
+    renders = {p: {n for n in defined if tag(n).search(t)} for p, t in files.items()}
+
+    # Everything a test renders, plus everything those components render in
+    # turn: a field exercised through the pane that holds it IS rendered.
+    reached: set[str] = set()
+    queue = [n for p, names in renders.items() if not is_production(p) for n in names]
+    while queue:
+        name = queue.pop()
+        if name in reached:
+            continue
+        reached.add(name)
+        queue.extend(renders.get(defined[name], set()) if name in defined else ())
+
+    out: list[Finding] = []
+    for name, path in sorted(defined.items()):
+        if name in reached:
+            continue
+        composed = [
+            p
+            for p in files
+            if p != path and is_production(p) and tag(name).search(files[p])
+        ]
+        if composed:
+            out.append(
+                Finding(
+                    "composition",
+                    f"{pkg}/{path.name}",
+                    name,
+                    f"composed by {len(composed)} modules, no test renders it",
+                    [p.name for p in composed[:3]],
                 )
+            )
     return out
 
 
@@ -439,7 +467,6 @@ def score_library(
     ]
     grade("no test-only exports", not dead, f"{len(dead)} exports only tests reach")
 
-
     # Every piece it draws should be replaceable, and the defaults exported so a
     # host can wrap one rather than rebuild it.
     slots = re.search(r"interface \w*Components \{(.*?)\n\}", blob, re.S)
@@ -448,21 +475,27 @@ def score_library(
     grade(
         "its UI pieces are replaceable",
         members > 0 and defaults > 0,
-        f"{members} slots, {defaults} defaults exported" if members else "no components map",
+        f"{members} slots, {defaults} defaults exported"
+        if members
+        else "no components map",
     )
 
     # A host should be able to add a whole part of its own, not just style one.
     grade(
         "takes extensions of its own",
         "Extension" in surface,
-        "an extension type on the surface" if "Extension" in surface else "closed to additions",
+        "an extension type on the surface"
+        if "Extension" in surface
+        else "closed to additions",
     )
 
     # Put it back exactly: what it shows, how it is set up, where the reader is.
     grade(
         "can be snapshotted whole",
         "getSnapshot" in blob,
-        "one call restores it" if "getSnapshot" in blob else "reassembled from separate calls",
+        "one call restores it"
+        if "getSnapshot" in blob
+        else "reassembled from separate calls",
     )
 
     # The first thing a stranger opens.
@@ -477,7 +510,6 @@ def score_application(
     """An application is graded on how it USES its libraries: whether it lets
     them own what they own, or keeps a second copy and drives them by hand."""
     prod = {p: t for p, t in files.items() if is_production(p)}
-    blob = "\n".join(prod.values())
     grades: list[Grade] = []
 
     def grade(title: str, ok: bool, note: str) -> None:
@@ -508,18 +540,29 @@ def score_application(
         else "none found",
     )
 
-    reaching = len(re.findall(r"\bcity\.(three|world|rig|picker)\.", blob))
+    # Reaching into a city's parts is fine for a one-off command; doing it
+    # where you also subscribe is a hand-rolled copy of the hooks.
+    innards = re.compile(r"\bcity\.(three|world|rig|picker)\.")
+    bridges = [
+        n
+        for n, t in prod.items()
+        if innards.search(t) and re.search(r"\bcity\.on\(", t)
+    ]
     grade(
-        "uses the surface, not the innards",
-        reaching < 12,
-        f"{reaching} reaches past the public API",
+        "reads the city through its hooks",
+        not bridges,
+        f"{len(bridges)} hand-rolled bridges: {', '.join(sorted(Path(n).name for n in bridges)[:3])}"
+        if bridges
+        else "no module both subscribes and reaches inside",
     )
 
     comp = check_composition(files, name)
     grade(
         "renders its compositions in tests",
-        len(comp) < 8,
-        f"{len(comp)} components no test assembles",
+        not comp,
+        f"{len(comp)} components no test reaches"
+        if comp
+        else "every component is on screen in some test",
     )
     return grades
 

@@ -7,7 +7,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeAgeRange,
   computeSizeRange,
-  ageT,
   sizeT,
   dailyCountT,
   dailyCountTByIndex,
@@ -102,34 +101,6 @@ describe('computeSizeRange()', () => {
   it('span = 0 when all commits have equal file counts', () => {
     const same = buildCommits({ date: '2026-01-01', files: 4 }, { date: '2026-01-02', files: 4 });
     expect(computeSizeRange(commitStats(same)).span).toBe(0);
-  });
-});
-
-describe('ageT()', () => {
-  it('returns 0 for the oldest commit', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[0], range)).toBe(0);
-  });
-
-  it('returns 1 for the newest commit', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[2], range)).toBe(1);
-  });
-
-  it('returns 0.5 for the middle commit (commits are 10 days apart)', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(commits[1], range)).toBeCloseTo(0.5, 5);
-  });
-
-  it('returns 0.5 when the range has zero span', () => {
-    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, scanned: 0 };
-    expect(ageT(buildCommits({ date: '2026-01-01', files: 1 })[0], zero)).toBe(0.5);
-  });
-
-  it('clamps out-of-range dates to [0,1]', () => {
-    const range = computeAgeRange(commitStats(commits));
-    expect(ageT(buildCommits({ date: '2025-01-01', files: 1 })[0], range)).toBe(0);
-    expect(ageT(buildCommits({ date: '2027-01-01', files: 1 })[0], range)).toBe(1);
   });
 });
 

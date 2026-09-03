@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeAge, humanSpan } from '@/utils/dates';
+import { formatRelativeAge } from '@/utils/dates';
 
 // Local, like the dates it is measured against: from a UTC instant, these
 // answers would depend on the runner's timezone.
@@ -49,18 +49,5 @@ describe('formatRelativeAge', () => {
 
   it('handles future dates as "just now"', () => {
     expect(formatRelativeAge('2026-05-25T00:00:00Z', NOW)).toBe('just now');
-  });
-});
-
-describe('humanSpan', () => {
-  it('renders up to two calendar-accurate units', () => {
-    expect(humanSpan('2024-01-10', '2026-05-24')).toBe('2 years 4 months');
-    expect(humanSpan('2026-03-12', '2026-05-24')).toBe('2 months 12 days');
-    expect(humanSpan('2026-05-20', '2026-05-24')).toBe('4 days');
-  });
-  it('order-independent, min one day, empty on bad input', () => {
-    expect(humanSpan('2026-05-24', '2026-03-12')).toBe('2 months 12 days');
-    expect(humanSpan('2026-05-24', '2026-05-24')).toBe('1 day');
-    expect(humanSpan('nope', '2026-05-24')).toBe('');
   });
 });

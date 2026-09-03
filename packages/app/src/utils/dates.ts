@@ -111,13 +111,3 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   if (diff < MS_YEAR) return `${Math.floor(diff / MS_MONTH)}mo ago`;
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
-
-/** A duration between two dates, to two units. Takes no "now", so it is safe
- *  in a pure view-model; '' if either date won't parse. */
-export function humanSpan(fromISO: string, toISO: string): string {
-  const a = parseLocalDate(fromISO);
-  const b = parseLocalDate(toISO);
-  if (!a || !b) return '';
-  const [from, to] = a.getTime() <= b.getTime() ? [a, b] : [b, a];
-  return _joinSpan(_calendarSpan(from, to), 2) || '1 day';
-}

@@ -29,7 +29,7 @@ import { TreeTab } from '@/features/city/components/ExplorePane/tabs/TreeTab/Tre
 import { CityHeader } from '@/features/city/components/CityHeader/CityHeader';
 import { CityFooter } from '@/features/city/components/CityFooter/CityFooter';
 import { navigate, ROUTES } from '@/router/location';
-import { openDebug, openShortcuts, closeDebug, closeShortcuts } from '@/features/city/state/modals';
+import { openShortcuts, SHORTCUTS_OPEN, DEBUG_OPEN } from '@/features/city/state/modals';
 import { CURRENT_SOURCE } from '@/state/source';
 import { renderWithServer } from '../_helpers/query';
 import { renderWithCity } from '../_helpers/cityChrome';
@@ -128,7 +128,7 @@ const SURFACES: Surface[] = [
   {
     name: 'DebugMenu',
     mount: (c) => {
-      openDebug();
+      DEBUG_OPEN.value = true;
       render(<DebugMenu onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />, c);
     },
   },
@@ -170,8 +170,8 @@ describe('accessibility audit (issue #79)', () => {
       mounted.remove();
       mounted = null;
     }
-    closeDebug();
-    closeShortcuts();
+    DEBUG_OPEN.value = false;
+    SHORTCUTS_OPEN.value = false;
     CURRENT_SOURCE.value = null;
     resetAxe();
   });

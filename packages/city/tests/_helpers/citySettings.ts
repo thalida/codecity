@@ -9,7 +9,7 @@ import {
   type CitySettingsPatch,
 } from '../../src/settings';
 import { createSettingsStore, type CitySettingsStore } from '../../src/settings/store';
-import { layoutConfigOf, type LayoutConfig } from '../../src/layout/config';
+import { layoutConfigFrom, type LayoutConfig } from '../../src/layout/config';
 import type { TreePlacementConfig } from '../../src/components/trees/treePlacement';
 
 /** Stock settings, or stock with `over` merged in store by store. */
@@ -24,7 +24,7 @@ export function settingsStore(over: CitySettingsPatch = {}): CitySettingsStore {
 
 /** The packer's slice. */
 export function layoutCfg(over: CitySettingsPatch = {}): LayoutConfig {
-  return layoutConfigOf(citySettings(over));
+  return layoutConfigFrom(settingsStore(over));
 }
 
 /** What placeTrees reads. */

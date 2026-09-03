@@ -4,7 +4,7 @@ import { act } from 'preact/test-utils';
 import { ControlsPane } from '@/features/city/components/ControlsPane/ControlsPane';
 import { SyntaxThemeField } from '@/features/settings/components/SyntaxThemeField/SyntaxThemeField';
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/features/settings/state/values/syntaxTheme';
-import { _resetForTests } from '@/features/settings/state/drafts';
+import { discard } from '@/features/settings/state/drafts';
 // Load every settings store for its registration side-effect (settingSignal registers each
 // store at module-load) so every field renders.
 import '@/features/settings/state/values/city';
@@ -143,7 +143,7 @@ describe('SyntaxThemeField', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
-    _resetForTests();
+    discard();
   });
 
   afterEach(() => {

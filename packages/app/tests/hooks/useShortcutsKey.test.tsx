@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { useShortcutsKey } from '@/features/city/hooks/useShortcutsKey';
-import { SHORTCUTS_OPEN, closeShortcuts } from '@/features/city/state/modals';
+import { SHORTCUTS_OPEN } from '@/features/city/state/modals';
 import { navigate, ROUTES } from '@/router/location';
 import { drainAsync } from '../_helpers/preact';
 
@@ -18,13 +18,13 @@ describe('useShortcutsKey', () => {
     document.body.appendChild(container);
     // Over a city: home IS the switcher, and a modal owns the keyboard there.
     navigate(ROUTES.CITY, { replace: true });
-    closeShortcuts();
+    SHORTCUTS_OPEN.value = false;
   });
 
   afterEach(() => {
     render(null, container);
     container.remove();
-    closeShortcuts();
+    SHORTCUTS_OPEN.value = false;
     navigate(ROUTES.HOME, { replace: true });
   });
 

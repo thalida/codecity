@@ -12,23 +12,8 @@ export function openShortcuts(): void {
   SHORTCUTS_OPEN.value = true;
 }
 
-/** Close the shortcuts modal. */
-export function closeShortcuts(): void {
-  SHORTCUTS_OPEN.value = false;
-}
-
 /** Whether the developer-diagnostics modal is open. */
 export const DEBUG_OPEN = signal(false);
-
-/** Open the debug modal (header bug icon, flag-gated). */
-export function openDebug(): void {
-  DEBUG_OPEN.value = true;
-}
-
-/** Close the debug modal. */
-export function closeDebug(): void {
-  DEBUG_OPEN.value = false;
-}
 
 /** True when something else owns the keyboard: a modal, or the landing, whose
  *  backdrop canvas would otherwise answer keystrokes meant for its form. */

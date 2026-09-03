@@ -42,11 +42,6 @@ export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(nu
  *  reacts by opening the picker, and clears it when the user acts. */
 export const SOURCE_ERROR = signal<SourceError | null>(null);
 
-/** The loaded source's stable hash, or null. Namespaces per-source storage. */
-export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
-  CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
-);
-
 /** A working tree on disk rather than a clone. Only a working tree can change
  *  under the app, so anything watching for change keys off this. */
 export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
