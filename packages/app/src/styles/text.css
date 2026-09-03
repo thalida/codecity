@@ -1,17 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Text
-   ═══════════════════════════════════════════════════════════════════════════
-   One class per text role. Components compose 1–2 of these instead of
-   each rolling its own color + font-size + font-weight + family triplet.
-
-   Atomic (color-only):    .text-{strong,primary,secondary,muted,faint,
-                                  inverse,accent,success,warning,error}
-   Atomic (family-only):   .text-mono
-   Utility:                .text-truncate  (nowrap + ellipsis)
-   Composite roles:        .text-label     (uppercase section labels)
-                           .text-pane-title (pane header titles)
-                           .text-card-title / .text-card-sub (state cards)
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* One class per text role, composed, so no component rolls its own
+   color + size + weight + family triplet. */
 
 /* Atomic color classes — drop into a selector list as an alias. */
 .text-strong {
@@ -50,14 +42,13 @@
   font-family: var(--cc-font-mono);
 }
 
-/* ── Links ────────────────────────────────────────────────────────────────
-   Two roles, one accent token. reset.css strips all <a> affordance, so any
-   link must opt into one of these.
-     .link         — prose/markdown: ALWAYS underlined (not color-only, AA-safe).
-     .link--chrome — standalone chrome (repo URL, SHA): underline on hover only,
-                     where surrounding context already signals a link.
-   .info-markdown a joins this selector list: those anchors come from
-   dangerouslySetInnerHTML'd markdown, so a `link` class can't be added in TSX. */
+/* ── Links ────────────────────────────────────────────────────────────── */
+
+/* reset.css strips every <a> affordance, so a link opts back into one of
+   these. .link is always underlined: color alone is not AA-safe. */
+
+/* info-markdown's anchors join the list because they come from
+   dangerouslySetInnerHTML, where no class can be added in TSX. */
 .link,
 .info-markdown a {
   color: var(--cc-accent-light);

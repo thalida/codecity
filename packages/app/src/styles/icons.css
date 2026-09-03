@@ -1,11 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — inline icon
-   ═══════════════════════════════════════════════════════════════════════════
-   Library-neutral sizing hook for inline SVG icons: whatever icon set is in use
-   renders with stroke=currentColor, so icons inherit the parent's text color (no
-   mask needed). Keep this class name free of the icon library so swapping the
-   library never means touching every call site's markup.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Named for the role, not the icon library: swapping the library must not
+   mean touching every call site. */
 
 .icon {
   display: inline-block;

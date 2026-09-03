@@ -1,24 +1,9 @@
-/* =============================================================================
-   CodeCity — dark theme, element resets.
-   Matches the isometric city aesthetic: deep space background, cool neutrals,
-   crisp monospace for code metadata, subtle transitions.
-   ============================================================================= */
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   RESET — opinionated normalize for this dark internal app.
-
-   - Box-sizing + zeroed margins/padding on every element.
-   - Form elements inherit font + color (no browser default chrome).
-   - Buttons are unstyled by default — components opt back into appearance.
-   - Anchors inherit color and have no underline.
-   - Media elements are block-level (no inline-baseline gap below imgs/svg).
-   - Tables collapse borders.
-   - Headings inherit size + weight so .text-* composites have full control.
-
-   Lists are NOT reset (list-style stays browser-default) — info-markdown
-   relies on default bullets/numbers and the few unstyled lists in the app
-   already declare `list-style: none` per-rule.
+   RESET — opinionated normalize for this app
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Lists are deliberately NOT reset: info-markdown relies on the default
+   bullets, and the unstyled lists declare list-style: none themselves. */
 
 *,
 *::before,

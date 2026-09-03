@@ -1,20 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    GLOBAL FOCUS RING
-   ═══════════════════════════════════════════════════════════════════════════
-   One keyboard-affordance floor for every interactive element (button, link,
-   tab, row, input). :focus-visible only fires for keyboard focus, so mouse
-   clicks stay ring-free. Components may still add a richer focus state on top;
-   this guarantees nobody is left with no signal.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The floor every interactive element gets. :focus-visible only fires for
+   keyboard focus, so mouse clicks stay ring-free. */
 
 :focus-visible {
   outline: 2px solid var(--cc-accent);
   outline-offset: 2px;
 }
 
-/* Edge-to-edge icon clusters (footer chrome, header) where the default offset
-   would collide with neighbors. outline never reflows layout, so this is purely a
-   visual-spacing override — opt in per cluster. */
+/* Edge-to-edge icon clusters, where the default offset collides with
+   neighbors. Opt in per cluster. */
 .focus-inset:focus-visible {
   outline-offset: -2px;
 }

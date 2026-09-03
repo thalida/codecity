@@ -374,9 +374,8 @@ describe('the same overlay, describing a timeline read', () => {
     expect(went).toEqual(['timeline']);
   });
 
-  // Running the handler is half of it. The overlay comes down when the CITY
-  // says the read ended, and a cancel that reports nothing leaves it up over a
-  // read that already stopped.
+  // Running the handler is half of it: the overlay comes down when the CITY
+  // says the read ended, and a silent cancel leaves it up over a stopped read.
   it('comes down once the city says the read was called off', () => {
     drive = createOverlayDriver({ timeline: () => {} });
     progress(TimelineStage.History);

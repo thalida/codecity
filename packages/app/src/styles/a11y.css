@@ -17,9 +17,8 @@
   border: 0;
 }
 
-/* Skip-to-content link: off-screen until keyboard-focused, then it drops into
-   the top-left so the first Tab can bypass the header chrome and jump to the
-   main region. */
+/* Off-screen until keyboard-focused, so the first Tab can bypass the header
+   chrome and jump to the main region. */
 .skip-link {
   position: fixed;
   top: var(--cc-space-2);

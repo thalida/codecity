@@ -13,30 +13,21 @@ export default defineConfig({
   // Mirrors vite.config.js — must stay in sync so tests resolve `@/`
   // imports the same way the dev server does.
   resolve: {
-    // One identity each, or an effect on one side never sees a write from the
-    // other — and for preact itself, two copies means two hook dispatchers and
-    // every component in the package's adapter renders against a null one.
-    // The package declares preact as an OPTIONAL PEER and keeps a dev copy for
-    // its own typecheck; this is what makes the app's the one that runs.
+    // One identity each: two preacts means two hook dispatchers, and the
+    // package's adapter renders against a null one.
     dedupe: ['preact', 'preact/hooks', '@preact/signals', '@preact/signals-core', 'three'],
     // Array form: order matters, and the /testing subpath has to win over the
     // bare package name.
     alias: [
       { find: /^@\//, replacement: `${resolve(appDir, 'src')}/` },
-      // React-facing libraries (TanStack Query) onto preact/compat. The build
-      // gets this from @preact/preset-vite; vitest resolves modules itself, so
-      // without it a query provider reaches the real react and finds no hooks.
+      // React-facing libraries onto preact/compat: vitest resolves modules
+      // itself, so without this a query provider finds no hooks.
       { find: /^react-dom\/test-utils$/, replacement: 'preact/test-utils' },
       { find: /^react-dom$/, replacement: 'preact/compat' },
       { find: /^react\/jsx-runtime$/, replacement: 'preact/jsx-runtime' },
       { find: /^react$/, replacement: 'preact/compat' },
-      // @codecity/city ships TypeScript source, not a build, for as long as the
-      // extraction is in flight (#208). Vite will not process TS inside
-      // node_modules, so resolve the workspace link to the source directly.
-      // Anchored: a bare string find is a prefix match, and would rewrite the
-      // /testing subpath into a path under index.ts.
-      // The renderer stubs resolve on their own, ahead of the barrel: a
-      // vi.mock('three') factory awaiting the barrel would wait on three.
+      // The package ships TS source, not a build, and vite will not process TS
+      // inside node_modules: resolve the workspace link to the source itself.
       {
         find: /^@codecity\/city\/preact$/,
         replacement: resolve(appDir, '../city/src/preact/index.ts'),
@@ -50,10 +41,8 @@ export default defineConfig({
         replacement: resolve(appDir, '../city/tests/index.ts'),
       },
       { find: /^@codecity\/city$/, replacement: resolve(appDir, '../city/src/index.ts') },
-      // three lives in the package now. The app's own tests still import it, so
-      // point them at that one copy rather than installing a second.
-      // `three/addons/*` is an exports-map alias for examples/jsm; aliasing the
-      // package path directly bypasses that map, so make the hop explicit.
+      // three lives in the package; the app's tests import that one copy.
+      // addons/* is an exports-map alias, which a path alias bypasses.
       {
         find: /^three\/addons\/(.*)/,
         replacement: `${resolve(appDir, '../city/node_modules/three/examples/jsm')}/$1`,
@@ -75,9 +64,8 @@ export default defineConfig({
     },
   },
   test: {
-    // TanStack Query ships React imports. The alias above rewrites them onto
-    // preact/compat, but an aliased dependency has to be transformed by vite to
-    // see it — externalised, it resolves the real react and finds no hooks.
+    // An aliased dependency has to be transformed by vite to see the alias:
+    // externalised, TanStack Query resolves the real react and finds no hooks.
     server: { deps: { inline: [/@tanstack\/react-query/] } },
     projects: [
       {

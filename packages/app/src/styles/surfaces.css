@@ -1,10 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Surfaces
-   ═══════════════════════════════════════════════════════════════════════════
-   Background-only utilities naming the app's base fills. The consuming
-   element keeps its own borders + layout; this just gives the chrome/backdrop
-   fill a single source so it's set once per role, not per selector.
    ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Background only, so a fill is set once per role rather than per selector. */
 
 .surface-app {
   background: var(--cc-bg-app);
@@ -16,10 +14,8 @@
   background: var(--cc-bg-sidebar);
 }
 
-/* The fourth role: a panel with the scene behind it. Only for surfaces that
-   float over the canvas or the landing backdrop, never for chrome laid out in
-   the app body, where a blur would have nothing to sample and the translucency
-   would reveal the page background. */
+/* Only for panels floating over the canvas: in the app body a blur has
+   nothing to sample and the translucency reveals the page background. */
 .surface-glass {
   background: var(--cc-glass-fill);
   backdrop-filter: blur(var(--cc-glass-blur));

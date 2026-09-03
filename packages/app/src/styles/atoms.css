@@ -1,9 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Small atoms (dots, inline code)
-   ═══════════════════════════════════════════════════════════════════════════
-   .dot          — 6×6 status indicator. Pair with a .dot--success /
-                   --warning / --error modifier for semantic color.
-   .code-inline  — accent-tinted mono pill for inline code / kbd keys.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .dot {

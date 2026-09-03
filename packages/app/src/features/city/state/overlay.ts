@@ -155,9 +155,8 @@ export function createOverlayDriver(
   };
 
   return (status, asked) => {
-    // The CITY says which of the two it is doing, for the whole load: a read's
-    // own pack reports as Building, and asking `phase` would read that as a
-    // scan and swap the rows out from under the reader mid-entry.
+    // Asked, not inferred: a read's own pack reports as Building, so `phase`
+    // would read it as a scan and swap the rows out mid-entry.
     const reading = status.reading;
 
     // Nothing coming, nothing left to wait for. `fetching` is the second
@@ -177,11 +176,8 @@ export function createOverlayDriver(
     // before this one cannot be left standing over it.
     if (showing !== Showing.Nothing && asked?.label) PENDING_SOURCE_LABEL.value = asked.label;
 
-    // The phase IS the row. Inside a read the timeline stage is the finer one,
-    // the way BuildStage is inside Building.
-    // Inside a read the timeline stage is the finer row, the way BuildStage is
-    // inside Building. Past the stream there is no stage left to report and the
-    // phase is the row: the read's own pack is Building.
+    // The phase IS the row; inside a read the stage is the finer one, the way
+    // BuildStage is inside Building. Past the stream the phase is the row again.
     const step = reading
       ? (stepForTimelineStage(status.timelineStage) ?? status.phase)
       : (status.phase ?? (asked ? firstStepFor(LOADING_STEPS, asked.kind) : null));
