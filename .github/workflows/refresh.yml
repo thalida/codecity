@@ -1,0 +1,183 @@
+name: Refresh published image
+
+on:
+  schedule:
+    # Mondays at 04:00 UTC, two hours ahead of the Trivy scan — so the scan
+    # grades a freshly-rebuilt `:latest` instead of last release's packages.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+# A release only happens when there's code to ship, but OS CVEs land on their
+# own schedule. This rebuilds the newest release's *source* against today's
+# base image and republishes `:latest`, so the published image stays patched
+# between releases without inventing a version nobody wrote code for.
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # Same actor gate as release.yml, since this publishes and deploys — but
+    # only on the manual path. On a schedule event `github.actor` is whoever
+    # last edited the workflow, so gating cron too would let an edit silently
+    # stop the weekly patch.
+    if: github.event_name == 'schedule' || github.actor == github.repository_owner
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # for cosign keyless signing via OIDC
+    steps:
+      - name: Resolve the newest release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "Refreshing $TAG"
+
+      # The tag, not main: `:latest` must keep pointing at released code. Only
+      # the OS packages underneath it are allowed to move.
+      - name: Checkout the release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Record the tag's commit
+        id: src
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Name this refresh
+        id: name
+        run: |
+          echo "tag=refresh-${{ steps.release.outputs.version }}-$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      # Pushed under the dated tag alone. `:latest` moves only after this image
+      # has been scanned clean and smoke-tested, further down.
+      - name: Build + push the refreshed image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          sbom: true
+          provenance: true
+          tags: ghcr.io/${{ github.repository_owner }}/codecity:${{ steps.name.outputs.tag }}
+          build-args: |
+            GIT_SHA=${{ steps.src.outputs.sha }}
+            VERSION=${{ steps.release.outputs.version }}
+          # The whole point of the run is a fresh base and a fresh apt upgrade;
+          # a cached runtime layer would republish the same packages.
+          pull: true
+          no-cache-filters: runtime
+          # Import only. A weekly multi-arch `mode=max` export would evict the
+          # entries PR builds actually read out of the 10GB cache.
+          cache-from: type=gha
+
+      # If a rebuild doesn't clear the CVEs, they need a real dependency change
+      # — so fail here, leave `:latest` where it is, and let Monday's scan file
+      # the issue with an accurate "a rebuild won't fix this" premise.
+      - name: Trivy scan the rebuild
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/codecity:${{ steps.name.outputs.tag }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Smoke test the refreshed image
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/codecity:${{ steps.name.outputs.tag }}
+          docker run --rm -d --name smoke --init -p 18080:8080 "$IMAGE"
+          trap 'docker rm -f smoke >/dev/null 2>&1 || true' EXIT
+          waited=0
+          while [ "$waited" -lt 30 ]; do
+            status=$(docker inspect --format '{{ .State.Health.Status }}' smoke 2>/dev/null)
+            if [ "$status" = "healthy" ]; then break; fi
+            waited=$((waited + 1))
+            sleep 1
+          done
+          curl -sf http://localhost:18080/api/health
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with cosign (keyless via OIDC)
+        run: |
+          cosign sign --yes \
+            ghcr.io/${{ github.repository_owner }}/codecity@${{ steps.build.outputs.digest }}
+
+      # Retags the manifest list already in the registry rather than building
+      # again, so `:latest` resolves to the digest that was just scanned,
+      # smoke-tested and signed.
+      - name: Promote to :latest
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/${{ github.repository_owner }}/codecity:latest \
+            ghcr.io/${{ github.repository_owner }}/codecity@${{ steps.build.outputs.digest }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Refreshed \`:latest\`"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Source | ${{ steps.release.outputs.tag }} (\`${{ steps.src.outputs.sha }}\`) |"
+            echo "| Refresh tag | \`${{ steps.name.outputs.tag }}\` |"
+            echo "| Digest | \`${{ steps.build.outputs.digest }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to production
+    needs: [refresh]
+    runs-on: ubuntu-latest
+    # Curls Forgejo with its own token and never touches the GitHub API, so it
+    # needs no GITHUB_TOKEN scopes at all.
+    permissions: {}
+    # A patched image nobody pulls patches nothing, so the refresh moves
+    # production too. Waits on `refresh` because `:latest` isn't promoted until
+    # the rebuild has passed its scan, smoke test and signature.
+    #
+    # Host and repo are secrets, not variables: this repo is public, so its
+    # Actions logs are too, and only secrets are masked in them. Nothing here
+    # echoes either one.
+    steps:
+      - name: Dispatch the Forgejo deploy workflow
+        env:
+          FORGEJO_HOST: ${{ secrets.FORGEJO_HOST }}
+          FORGEJO_REPO: ${{ secrets.FORGEJO_REPO }}
+          FORGEJO_DEPLOY_APP: ${{ vars.FORGEJO_DEPLOY_APP }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          if [ -z "$FORGEJO_HOST" ] || [ -z "$FORGEJO_REPO" ] || [ -z "$FORGEJO_TOKEN" ]; then
+            echo "::notice::Forgejo deploy not configured (FORGEJO_HOST/FORGEJO_REPO/FORGEJO_TOKEN secrets) — skipping"
+            exit 0
+          fi
+          APP="${FORGEJO_DEPLOY_APP:-app-codecity}"
+          echo "Dispatching $APP"
+          CODE=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST \
+            "$FORGEJO_HOST/api/v1/repos/$FORGEJO_REPO/actions/workflows/deploy.yml/dispatches" \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"app\":\"$APP\"}}")
+          if [ "$CODE" != "204" ] && [ "$CODE" != "201" ] && [ "$CODE" != "200" ]; then
+            echo "::error::Forgejo returned $CODE"; cat /tmp/resp; exit 1
+          fi
+          echo "Deploy queued on the Forgejo instance"

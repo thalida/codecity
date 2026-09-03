@@ -310,6 +310,14 @@ aren't set.
 just deploy
 ```
 
+### Staying patched between releases
+
+OS fixes don't wait for a release, so `refresh.yml` runs every Monday at 04:00 UTC:
+
+- rebuilds the newest release tag against a fresh base, no cached `apt-get upgrade`
+- pushes it as `refresh-<version>-<date>`, then scans, smoke-tests and signs it
+- retags it `:latest` and deploys production, but only if all of that passed
+
 ### Verify signatures
 
 ```sh

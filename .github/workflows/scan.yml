@@ -53,10 +53,14 @@ jobs:
             const summary = vulns
               .map(v => `- **${v.Severity}** ${v.VulnerabilityID} in ${v.PkgName}@${v.InstalledVersion}: ${v.Title}`)
               .join('\n');
+            // One CVE usually lands in several packages, so count the distinct
+            // ids: `3 CVEs` for one openssl advisory sends you looking for three.
+            const ids = new Set(vulns.map(v => v.VulnerabilityID));
+            const n = `${ids.size} HIGH/CRITICAL ${ids.size === 1 ? 'CVE' : 'CVEs'}`;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Trivy scan: ${vulns.length} HIGH/CRITICAL CVEs in codecity:latest (${new Date().toISOString().split('T')[0]})`,
-              body: `Weekly scan found ${vulns.length} HIGH/CRITICAL CVEs in the published image. Time to rebuild against a fresh base.\n\n${summary}`,
+              title: `Trivy scan: ${n} in codecity:latest (${new Date().toISOString().split('T')[0]})`,
+              body: `Weekly scan found ${n} across ${vulns.length} package(s) in the published image.\n\nrefresh.yml rebuilds \`:latest\` against a fresh base two hours before this scan, so these survived a rebuild: either that run failed, or they need a real dependency change rather than fresher OS packages.\n\n${summary}`,
               labels: ['security', 'dependencies'],
             });
