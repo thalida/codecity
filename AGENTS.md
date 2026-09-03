@@ -13,9 +13,11 @@ gh issue list --label P1               # highest priority
 gh issue view <n>                      # full context for one item
 ```
 
-Labels are namespaced. **Category:** `cat:bug`, `cat:enhancement`, `cat:documentation`,
-`cat:security`. **Priority:** `P1`–`P4` (P1 highest). **Status:** `status:in-progress`,
-`status:duplicate`, `status:wontfix`, `status:abandoned`. Plus `question`.
+Most labels are namespaced. **Category:** `cat:bug`, `cat:enhancement`,
+`cat:documentation`. **Priority:** `P1`–`P4` (P1 highest). **Status:**
+`status:in-progress`, `status:duplicate`, `status:wontfix`, `status:abandoned`.
+Plus `question` and `idea`, and the un-namespaced `security` + `dependencies`
+that the weekly Trivy scan puts on the issues it files.
 
 If you discover new work, file an issue rather than leaving an inline `TODO`.
 
