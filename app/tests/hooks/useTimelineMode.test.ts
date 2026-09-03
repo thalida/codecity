@@ -18,7 +18,7 @@ import {
 import { LoadingStep, TIMELINE_LOADING_STEPS, BuildStage } from '@/constants/progress';
 import { LIVE_UPDATES } from '@/state/settings/fields/updates';
 import { EMPTY_MANIFEST } from '../_helpers/manifestFixtures';
-import { setupLiveUpdates } from '@/hooks/useManifestSource';
+import { setupLiveUpdates, cancelLoad } from '@/hooks/useManifestSource';
 import { TimelineStage } from '@/types';
 import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
@@ -286,7 +286,12 @@ describe('exitTimelineMode', () => {
     setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
   });
-  afterEach(() => {
+  afterEach(async () => {
+    // The live-HEAD reload this suite starts parks on a stub stream that never
+    // emits; uncancelled it outlives the test, holding SCAN_PROGRESS non-null.
+    cancelLoad();
+    await flush();
+    expect(SCAN_PROGRESS.value).toBeNull();
     restoreEventSource();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
