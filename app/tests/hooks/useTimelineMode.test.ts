@@ -288,8 +288,7 @@ describe('exitTimelineMode', () => {
   });
   afterEach(async () => {
     // The live-HEAD reload this suite starts parks on a stub stream that never
-    // emits, so without a cancel it outlives the test holding SCAN_PROGRESS set
-    // — which silently gates the poll in whichever test shuffle runs next.
+    // emits; uncancelled it outlives the test, holding SCAN_PROGRESS non-null.
     cancelLoad();
     await flush();
     expect(SCAN_PROGRESS.value).toBeNull();
