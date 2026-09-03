@@ -169,4 +169,54 @@ describe('loading a timeline', () => {
     expect(errors).toEqual([boom]);
     expect(h.timeline.mode).toBe(false);
   });
+
+  // Calling a read off is an OUTCOME, and the host that offered the Cancel is
+  // waiting to hear one: silence leaves its overlay describing a read that
+  // stopped.
+  it('reports a read that was called off', async () => {
+    const h = harness();
+    const seen: string[] = [];
+    h.events.on('timeline:cancel', () => void seen.push('cancel'));
+    h.events.on('timeline:error', () => void seen.push('error'));
+
+    let release!: () => void;
+    h.client.fetchTimelineBundle.mockImplementation(
+      () => new Promise<TimelineBundle>((resolve) => (release = () => resolve(h.bundle)))
+    );
+
+    const loader = createTimelineLoader(h.deps);
+    const load = loader.load({ src: '/repo' }).catch(() => 'stopped');
+    loader.cancel();
+    release();
+
+    expect(await load).toBe('stopped');
+    // Not an error: nothing went wrong, the reader changed their mind.
+    expect(seen).toEqual(['cancel']);
+  });
+
+  // load() calls off whatever came before it. That is a supersede, not a
+  // reader backing out, and a host told otherwise would close its overlay on
+  // the load that just replaced it.
+  it('says nothing when one read supersedes another', async () => {
+    const h = harness();
+    const seen: string[] = [];
+    h.events.on('timeline:cancel', () => void seen.push('cancel'));
+
+    const loader = createTimelineLoader(h.deps);
+    await loader.load({ src: '/repo' });
+    await loader.load({ src: '/repo' });
+
+    expect(seen).toEqual([]);
+  });
+
+  // Nothing in flight, nothing to call off.
+  it('says nothing when cancelled idle', () => {
+    const h = harness();
+    const seen: string[] = [];
+    h.events.on('timeline:cancel', () => void seen.push('cancel'));
+
+    createTimelineLoader(h.deps).cancel();
+
+    expect(seen).toEqual([]);
+  });
 });

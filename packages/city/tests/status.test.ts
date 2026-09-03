@@ -163,4 +163,33 @@ describe('a city’s status', () => {
     events.emit('build:done', { pending: [] });
     expect(told).toBe(0);
   });
+
+  // A load called off is an END, and a host reading the status is how it knows
+  // to take its overlay down. Not an error: nothing went wrong.
+  it('ends the read when it is called off, without claiming a failure', () => {
+    const { events, status } = tracked();
+    events.emit('build:done', { pending: [] });
+    events.emit('timeline:start', { src: '/repo' });
+    expect(status.value.fetching).toBe(true);
+
+    events.emit('timeline:cancel', {});
+
+    expect(status.value.fetching).toBe(false);
+    expect(status.value.phase).toBeNull();
+    expect(status.value.timelineStage).toBeNull();
+    expect(status.value.error).toBeNull();
+    // The city that was on screen is still on screen: only the read went.
+    expect(status.value.lifecycle).toBe(CityLifecycle.Ready);
+  });
+
+  it('ends a scan the same way when it is called off', () => {
+    const { events, status } = tracked();
+    events.emit('scan:start', { src: '/repo' });
+
+    events.emit('scan:cancel', {});
+
+    expect(status.value.fetching).toBe(false);
+    expect(status.value.phase).toBeNull();
+    expect(status.value.error).toBeNull();
+  });
 });

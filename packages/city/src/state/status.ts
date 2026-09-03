@@ -195,6 +195,17 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
   const showing = (): CityLifecycle =>
     value.lifecycle === CityLifecycle.Ready ? CityLifecycle.Ready : CityLifecycle.Loading;
 
+  /** Nothing is coming any more. What a load's end has in common, whichever
+   *  way it ended. */
+  const ENDED = {
+    fetching: false,
+    phase: null,
+    stage: null,
+    timelineStage: null,
+    fraction: null,
+    error: null,
+  } as const;
+
   const offs = [
     // A history read, said as itself: the rows a host draws for one are not the
     // rows it draws for a scan, and it should not have to infer which from the
@@ -221,6 +232,9 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     // The stream ending is not the city appearing: the union still has to be
     // packed, which build:done reports.
     on('timeline:done', () => set({})),
+    // A load called off leaves the city that was already on screen: the read
+    // ends, and nothing about it is an error to report.
+    on('timeline:cancel', () => set({ ...ENDED, lifecycle: showing() })),
     on('timeline:error', ({ error }) =>
       set({
         lifecycle: CityLifecycle.Error,
@@ -258,6 +272,7 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     // The stream ending is not the city appearing: the last manifest still has
     // to be packed and presented, which build:done reports.
     on('scan:done', () => set({})),
+    on('scan:cancel', () => set({ ...ENDED, lifecycle: showing() })),
     on('scan:error', ({ error }) =>
       set({
         lifecycle: CityLifecycle.Error,

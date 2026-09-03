@@ -68,14 +68,22 @@ export function createSourceLoader({
   let generation = 0;
   let disposed = false;
 
-  function cancel(): void {
+  /** Stop the load in flight without saying so: what a NEW load does to the
+   *  one it replaces, which no host asked for and none should be told about. */
+  function abort(): void {
     inflight?.abort();
     inflight = null;
   }
 
+  function cancel(): void {
+    if (!inflight) return;
+    abort();
+    events.emit('scan:cancel', {});
+  }
+
   async function load(request: SourceRequest): Promise<Manifest> {
     if (disposed) throw new Error('city disposed');
-    cancel();
+    abort();
     const controller = new AbortController();
     inflight = controller;
     const { src, branch } = request;
@@ -152,7 +160,7 @@ export function createSourceLoader({
     cancel,
     dispose(): void {
       disposed = true;
-      cancel();
+      abort();
     },
   };
 }

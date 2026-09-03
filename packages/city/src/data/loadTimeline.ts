@@ -76,14 +76,22 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
   let inflight: AbortController | null = null;
   let disposed = false;
 
-  function cancel(): void {
+  /** Stop the read in flight without saying so: what a NEW read does to the
+   *  one it replaces, which no host asked for and none should be told about. */
+  function abort(): void {
     inflight?.abort();
     inflight = null;
   }
 
+  function cancel(): void {
+    if (!inflight) return;
+    abort();
+    events.emit('timeline:cancel', {});
+  }
+
   async function load(request: TimelineRequest): Promise<TimelineBundle> {
     if (disposed) throw new Error('city disposed');
-    cancel();
+    abort();
     const controller = new AbortController();
     inflight = controller;
     const { src, branch, commit, keepPosition = false } = request;
@@ -152,7 +160,7 @@ export function createTimelineLoader(deps: TimelineLoaderDeps): TimelineLoader {
     cancel,
     dispose(): void {
       disposed = true;
-      cancel();
+      abort();
     },
   };
 }

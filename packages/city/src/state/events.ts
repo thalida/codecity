@@ -29,6 +29,9 @@ export interface CityEvents {
   /** The load finished, carrying the manifest the city settled on. */
   'scan:done': { manifest: Manifest };
   'scan:error': { error: unknown };
+  /** The reader called the load off. Not an error, and not silence: a host
+   *  that offered the Cancel is waiting to hear the load end. */
+  'scan:cancel': Record<string, never>;
   /** Assembling this repo's history: the server walking commits and resolving
    *  blobs, then the client replaying them. Timeline is a way of showing a
    *  city, not a feature of any one host, so its progress is reported like any
@@ -44,6 +47,9 @@ export interface CityEvents {
   /** The read failed. Separate from scan:error for the same reason the start
    *  is: a host showing what went wrong should know which it was. */
   'timeline:error': { error: unknown };
+  /** The reader called the read off. Not an error: nothing went wrong, so a
+   *  host hears the read end without being told to show a failure. */
+  'timeline:cancel': Record<string, never>;
   /** A build began, with the stages it will run through, in order. A consumer
    *  that knows the whole list can show a denominator from the first frame. */
   'build:start': { stages: readonly BuildStage[] };
