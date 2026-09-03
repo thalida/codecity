@@ -140,3 +140,38 @@ jobs:
             echo "| Refresh tag | \`${{ steps.name.outputs.tag }}\` |"
             echo "| Digest | \`${{ steps.build.outputs.digest }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to production
+    needs: [refresh]
+    runs-on: ubuntu-latest
+    # A patched image nobody pulls patches nothing, so the refresh moves
+    # production too. Waits on `refresh` because `:latest` isn't promoted until
+    # the rebuild has passed its scan, smoke test and signature.
+    #
+    # Host and repo are secrets, not variables: this repo is public, so its
+    # Actions logs are too, and only secrets are masked in them. Nothing here
+    # echoes either one.
+    steps:
+      - name: Dispatch the Forgejo deploy workflow
+        env:
+          FORGEJO_HOST: ${{ secrets.FORGEJO_HOST }}
+          FORGEJO_REPO: ${{ secrets.FORGEJO_REPO }}
+          FORGEJO_DEPLOY_APP: ${{ vars.FORGEJO_DEPLOY_APP }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          if [ -z "$FORGEJO_HOST" ] || [ -z "$FORGEJO_REPO" ] || [ -z "$FORGEJO_TOKEN" ]; then
+            echo "::notice::Forgejo deploy not configured (FORGEJO_HOST/FORGEJO_REPO/FORGEJO_TOKEN secrets) — skipping"
+            exit 0
+          fi
+          APP="${FORGEJO_DEPLOY_APP:-app-codecity}"
+          echo "Dispatching $APP"
+          CODE=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST \
+            "$FORGEJO_HOST/api/v1/repos/$FORGEJO_REPO/actions/workflows/deploy.yml/dispatches" \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"app\":\"$APP\"}}")
+          if [ "$CODE" != "204" ] && [ "$CODE" != "201" ] && [ "$CODE" != "200" ]; then
+            echo "::error::Forgejo returned $CODE"; cat /tmp/resp; exit 1
+          fi
+          echo "Deploy queued on the Forgejo instance"
