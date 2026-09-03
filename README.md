@@ -318,12 +318,6 @@ OS fixes don't wait for a release, so `refresh.yml` runs every Monday at 04:00 U
 - pushes it as `refresh-<version>-<date>`, then scans, smoke-tests and signs it
 - retags it `:latest` and deploys production, but only if all of that passed
 
-`:latest` is therefore the newest release's code on today's packages. Its digest
-moves; version tags never do, so pin `vX.Y.Z` if you need one that doesn't.
-
-A refresh that fails its scan leaves `:latest` alone — that CVE wants a real
-dependency bump, not fresher packages, and Monday's scan files it as an issue.
-
 ### Verify signatures
 
 ```sh
