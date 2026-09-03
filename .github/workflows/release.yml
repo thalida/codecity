@@ -115,6 +115,9 @@ jobs:
     name: Deploy to production
     needs: [release]
     runs-on: ubuntu-latest
+    # Curls Forgejo with its own token and never touches the GitHub API, so it
+    # needs no GITHUB_TOKEN scopes at all.
+    permissions: {}
     # The image has to exist before the deploy pulls it, so this waits on the
     # release job rather than running alongside it. Skipped when the Forgejo
     # target isn't configured, so a fork's release still succeeds.

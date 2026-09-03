@@ -148,6 +148,9 @@ jobs:
     name: Deploy to production
     needs: [refresh]
     runs-on: ubuntu-latest
+    # Curls Forgejo with its own token and never touches the GitHub API, so it
+    # needs no GITHUB_TOKEN scopes at all.
+    permissions: {}
     # A patched image nobody pulls patches nothing, so the refresh moves
     # production too. Waits on `refresh` because `:latest` isn't promoted until
     # the rebuild has passed its scan, smoke test and signature.
