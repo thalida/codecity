@@ -22,7 +22,7 @@ import {
 } from '@/features/city/state/overlay';
 import { REBUILD_DETAIL } from '@/features/city/state/readout';
 
-import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/features/city/state/loading';
+import { LoadingStep, LOADING_STEPS, TIMELINE_LOADING_STEPS } from '@/features/city/state/loading';
 
 // The driver is a plain reduction now: it is handed the status the city reports
 // and what THIS app asked for, rather than reading either from a signal.
@@ -255,6 +255,7 @@ describe('the same overlay, describing a timeline read', () => {
       ...EMPTY_CITY_STATUS,
       lifecycle: CityLifecycle.Loading,
       fetching: true,
+      reading: true,
       phase: CityPhase.Reading,
       timelineStage: stage,
     };
@@ -285,7 +286,12 @@ describe('the same overlay, describing a timeline read', () => {
   it('moves to Building when the read hands over to the pack', () => {
     progress(TimelineStage.History);
 
-    say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+    say({
+      lifecycle: CityLifecycle.Loading,
+      phase: CityPhase.Building,
+      fetching: true,
+      reading: true,
+    });
     expect(step()).toBe(LoadingStep.Building);
   });
 
@@ -294,7 +300,12 @@ describe('the same overlay, describing a timeline read', () => {
   it('keeps the history rows through the pack the read runs', () => {
     progress(TimelineStage.Blobs);
 
-    say({ lifecycle: CityLifecycle.Loading, phase: CityPhase.Building, fetching: true });
+    say({
+      lifecycle: CityLifecycle.Loading,
+      phase: CityPhase.Building,
+      fetching: true,
+      reading: true,
+    });
 
     expect(LOADING_OVERLAY.value.showOpts?.steps).toEqual(TIMELINE_LOADING_STEPS);
   });
@@ -317,6 +328,7 @@ describe('the same overlay, describing a timeline read', () => {
     say({
       lifecycle: CityLifecycle.Loading,
       fetching: true,
+      reading: true,
       phase: CityPhase.Reading,
       timelineStage: TimelineStage.History,
       counts: { commits: 276 },
@@ -327,6 +339,7 @@ describe('the same overlay, describing a timeline read', () => {
     say({
       lifecycle: CityLifecycle.Loading,
       fetching: true,
+      reading: true,
       phase: CityPhase.Reading,
       timelineStage: TimelineStage.Blobs,
       counts: { blobsDone: 6179, blobsTotal: 6179 },
@@ -336,6 +349,16 @@ describe('the same overlay, describing a timeline read', () => {
     // The row that handed over stops saying anything: a count left beside a
     // finished row reads as still running.
     expect(tail(LoadingStep.TimelineHistory)).toBeNull();
+  });
+
+  // Leaving Timeline re-loads HEAD, which is a SCAN. The rows must go back to
+  // the scan's: a read's are the read's, not the overlay's from then on.
+  it('goes back to the scan rows for the live load that follows', () => {
+    progress(TimelineStage.History);
+
+    say({ lifecycle: CityLifecycle.Loading, fetching: true, phase: CityPhase.Cloning });
+
+    expect(LOADING_OVERLAY.value.showOpts?.steps ?? LOADING_STEPS).toEqual(LOADING_STEPS);
   });
 
   it('cancels to where the reader was, not to where a live cancel goes', () => {

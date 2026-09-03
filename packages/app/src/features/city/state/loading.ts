@@ -150,8 +150,8 @@ export function timelineStageTail(status: CityStatus): string | null {
   return null;
 }
 
-export function stepForTimelineStage(stage: TimelineStage): LoadingStep {
-  return TIMELINE_STAGE_STEPS[stage];
+export function stepForTimelineStage(stage: TimelineStage | null): LoadingStep | null {
+  return stage ? TIMELINE_STAGE_STEPS[stage] : null;
 }
 
 // ── Inside "Building city" ───────────────────────────────────────────

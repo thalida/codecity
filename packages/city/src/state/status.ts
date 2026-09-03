@@ -90,6 +90,10 @@ export interface CityStatus {
   /** Which part of a history read is running, inside CityPhase.Reading. What
    *  `stage` is to Building, this is to Reading. Null outside one. */
   readonly timelineStage: TimelineStage | null;
+  /** A history read is in flight: true from the moment one starts until it has
+   *  finished, the pack it runs included. That pack reports as Building like
+   *  any other, which is not something a host can tell apart on its own. */
+  readonly reading: boolean;
   /** 0..1 through the whole of what is running, or null when it cannot be
    *  known. A phase that measures itself fills its own share. */
   readonly fraction: number | null;
@@ -105,6 +109,7 @@ export const EMPTY_CITY_STATUS: CityStatus = {
   phase: null,
   stage: null,
   timelineStage: null,
+  reading: false,
   fraction: null,
   counts: {},
   error: null,
@@ -213,10 +218,6 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
   const showing = (): CityLifecycle =>
     value.lifecycle === CityLifecycle.Ready ? CityLifecycle.Ready : CityLifecycle.Loading;
 
-  // A history read runs a pack of its own, and is not over when that pack is:
-  // the union city still has to be dressed and put under the scrubber. So the
-  // READ says when a read ends, and build:done does not.
-  let reading = false;
   // What the last city on screen was still waiting on, so the read's end can
   // answer the fetching question the same way its pack would have.
   let pendingWork: readonly unknown[] = [];
@@ -225,6 +226,7 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
    *  way it ended. */
   const ENDED = {
     fetching: false,
+    reading: false,
     phase: null,
     stage: null,
     timelineStage: null,
@@ -236,9 +238,11 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     // A history read, said as itself: the rows a host draws for one are not the
     // rows it draws for a scan, and it should not have to infer which from the
     // traffic on some other event.
-    on('timeline:start', () => {
-      reading = true;
+    on('timeline:start', () =>
       set({
+        // A read runs a pack of its own and is not over when that pack is: the
+        // union city still has to be dressed and put under the scrubber.
+        reading: true,
         lifecycle: showing(),
         fetching: true,
         phase: CityPhase.Reading,
@@ -247,8 +251,8 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         fraction: null,
         counts: {},
         error: null,
-      });
-    }),
+      })
+    ),
     on('timeline:progress', ({ event }) =>
       set({
         phase: CityPhase.Reading,
@@ -259,18 +263,13 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
     ),
     // The whole entry: the pack has run, the scene is dressed, the scrubber is
     // in place. THIS is when a host may take its overlay down.
-    on('timeline:done', () => {
-      reading = false;
-      set({ ...ENDED, lifecycle: showing(), fetching: pendingWork.length > 0 });
-    }),
+    on('timeline:done', () =>
+      set({ ...ENDED, lifecycle: showing(), fetching: pendingWork.length > 0 })
+    ),
     // A load called off leaves the city that was already on screen: the read
     // ends, and nothing about it is an error to report.
-    on('timeline:cancel', () => {
-      reading = false;
-      set({ ...ENDED, lifecycle: showing() });
-    }),
-    on('timeline:error', ({ error }) => {
-      reading = false;
+    on('timeline:cancel', () => set({ ...ENDED, lifecycle: showing() })),
+    on('timeline:error', ({ error }) =>
       set({
         lifecycle: CityLifecycle.Error,
         fetching: false,
@@ -279,10 +278,9 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         timelineStage: null,
         fraction: null,
         error,
-      });
-    }),
-    on('scan:start', () => {
-      reading = false;
+      })
+    ),
+    on('scan:start', () =>
       set({
         lifecycle: showing(),
         fetching: true,
@@ -292,8 +290,8 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
         fraction: null,
         counts: {},
         error: null,
-      });
-    }),
+      })
+    ),
     on('scan:progress', ({ event }) =>
       set({
         phase: PHASE_FOR_SCAN[event.phase] ?? value.phase,
@@ -348,7 +346,7 @@ export function createCityStatus(on: Subscribe): CityStatusTracker {
       pendingWork = pending;
       set({
         lifecycle: CityLifecycle.Ready,
-        fetching: pending.length > 0 || reading,
+        fetching: pending.length > 0 || value.reading,
         phase: null,
         stage: null,
         fraction: null,

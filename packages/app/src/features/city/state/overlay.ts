@@ -155,9 +155,10 @@ export function createOverlayDriver(
   };
 
   return (status, asked) => {
-    // The CITY says which of the two it is doing: a history read is not a scan,
-    // and this asks rather than inferring it from what events are arriving.
-    const reading = status.phase === CityPhase.Reading;
+    // The CITY says which of the two it is doing, for the whole load: a read's
+    // own pack reports as Building, and asking `phase` would read that as a
+    // scan and swap the rows out from under the reader mid-entry.
+    const reading = status.reading;
 
     // Nothing coming, nothing left to wait for. `fetching` is the second
     // half: a city can be on screen and still not be the finished one.
@@ -168,9 +169,7 @@ export function createOverlayDriver(
 
     // The rows the load in flight runs, re-opened if it turns out to be the
     // other kind: entering Timeline becomes a read on the city's first report.
-    // A read that has reached its pack reports Building like any other, so the
-    // rows stay the read's until the load ENDS: the pack is part of it.
-    const want = reading || showing === Showing.Timeline ? Showing.Timeline : Showing.Live;
+    const want = reading ? Showing.Timeline : Showing.Live;
     if (asked && showing !== want) {
       open(want, asked, reading ? TIMELINE_LOADING_STEPS : undefined);
     }
@@ -180,10 +179,11 @@ export function createOverlayDriver(
 
     // The phase IS the row. Inside a read the timeline stage is the finer one,
     // the way BuildStage is inside Building.
+    // Inside a read the timeline stage is the finer row, the way BuildStage is
+    // inside Building. Past the stream there is no stage left to report and the
+    // phase is the row: the read's own pack is Building.
     const step = reading
-      ? status.timelineStage
-        ? stepForTimelineStage(status.timelineStage)
-        : null
+      ? (stepForTimelineStage(status.timelineStage) ?? status.phase)
       : (status.phase ?? (asked ? firstStepFor(LOADING_STEPS, asked.kind) : null));
     if (step) advance(step);
 
