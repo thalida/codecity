@@ -1,0 +1,28 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Small atoms (dots, inline code)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cc-radius-circle);
+  flex: 0 0 auto;
+}
+.dot--success {
+  background: var(--cc-success);
+}
+.dot--warning {
+  background: var(--cc-warning);
+}
+.dot--error {
+  background: var(--cc-error);
+}
+
+.code-inline {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}

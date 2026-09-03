@@ -1,0 +1,79 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    "jsx": "preserve",
+    "jsxImportSource": "preact",
+
+    // Flipped one at a time, each in its own reviewable change. strictNullChecks
+    // came on with the nullable FileNode.size (#186): with it off, making a hot
+    // wire field nullable produced zero errors, so the compiler was blind to the
+    // exact bug being fixed. noImplicitAny is still pending.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Path alias mirrored in vite.config.js + vitest.config.js. `@/` maps to
+    // packages/app/src and nowhere else: the renderer is reached through
+    // @codecity/city, the same entry an installed consumer gets. Editor + tsc
+    // resolve through `paths`; bundler + tests resolve through `resolve.alias`.
+    "paths": {
+      // Mapped explicitly rather than left to node_modules: the workspace link
+      // makes tsc reach the same files by a second realpath, and two identities
+      // for one declaration stop a discriminated union narrowing.
+      "@codecity/city": ["../city/src/index.ts"],
+      "@codecity/city/preact": ["../city/src/preact/index.ts"],
+      // The package's test kit: fixtures for its wire types, and stand-ins for
+      // what jsdom has no implementation of. Test-only, like its contents.
+      "@codecity/city/testing": ["../city/tests/index.ts"],
+      "@codecity/city/testing/three": ["../city/tests/_helpers/threeMock.ts"],
+      // One copy of three's declarations, or the app's Mesh stops being
+      // assignable to the package's.
+      "three": ["../city/node_modules/@types/three"],
+      "three/addons/*": ["../city/node_modules/@types/three/examples/jsm/*"],
+      "three/*": ["../city/node_modules/@types/three/*"],
+      "three-mesh-bvh": ["../city/node_modules/three-mesh-bvh"],
+      // The package declares signals as a peer, so it has no copy of its own;
+      // its files resolve against this one.
+      "@preact/signals": ["./node_modules/@preact/signals"],
+      "@preact/signals-core": ["./node_modules/@preact/signals-core"],
+      "@/*": ["./src/*"]
+    },
+
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default). Without this, @types/node
+    // bleeds into browser source after it was installed for tests/visual.
+    // Empty: @types/three lives with the renderer now, and the tests that
+    // import three reach it through the "three" path mapping above, not
+    // through this allowlist.
+    "types": []
+  },
+  "include": ["**/*.js", "**/*.ts", "**/*.tsx", "tests/**/*"],
+  "exclude": [
+    "node_modules",
+    // Node-side scripts — checked by tsconfig.node.json which adds @types/node.
+    // Excluding them here prevents @types/node from bleeding into browser source
+    // via `import 'node:path'` etc. in these files.
+    "vite.config.js",
+    "vitest.config.js",
+    "tests/visual/**/*",
+    // Use Node built-ins (fs/path/url) to read files at test time — checked by
+    // tsconfig.node.json which adds @types/node.
+    "tests/styles/themePresets.test.ts",
+    "tests/styles/tokens.test.ts"
+  ]
+}

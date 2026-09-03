@@ -1,0 +1,107 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Text
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* One class per text role, composed, so no component rolls its own
+   color + size + weight + family triplet. */
+
+/* Atomic color classes — drop into a selector list as an alias. */
+.text-strong {
+  color: var(--cc-text-strong);
+}
+.text-primary {
+  color: var(--cc-text-primary);
+}
+.text-secondary {
+  color: var(--cc-text-secondary);
+}
+.text-muted {
+  color: var(--cc-text-muted);
+}
+.text-faint {
+  color: var(--cc-text-faint);
+}
+.text-inverse {
+  color: var(--cc-text-inverse);
+}
+.text-accent {
+  color: var(--cc-accent);
+}
+.text-success {
+  color: var(--cc-success);
+}
+.text-warning {
+  color: var(--cc-warning);
+}
+.text-error {
+  color: var(--cc-error);
+}
+
+/* Atomic family class. */
+.text-mono {
+  font-family: var(--cc-font-mono);
+}
+
+/* ── Links ────────────────────────────────────────────────────────────── */
+
+/* reset.css strips every <a> affordance, so a link opts back into one of
+   these. .link is always underlined: color alone is not AA-safe. */
+
+/* info-markdown's anchors join the list because they come from
+   dangerouslySetInnerHTML, where no class can be added in TSX. */
+.link,
+.info-markdown a {
+  color: var(--cc-accent-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--cc-accent-light-border);
+}
+.link:hover,
+.info-markdown a:hover {
+  text-decoration-color: var(--cc-accent-light);
+}
+.link--chrome {
+  color: var(--cc-accent-light);
+  text-decoration: none;
+}
+.link--chrome:hover,
+.link--chrome:focus-visible {
+  text-decoration: underline;
+}
+
+/* Truncation utility — collapses 3 declarations used 6+ times in the file. */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Composite: uppercase section label. */
+.text-label {
+  font-size: var(--cc-font-2xs);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: var(--cc-track-label);
+  text-transform: uppercase;
+  color: var(--cc-text-secondary);
+}
+
+/* Composite: pane header title. Sized to match the left pane tabs (chrome,
+   not a content title); weight + color carry the header emphasis. */
+.text-pane-title {
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-strong);
+}
+
+/* Composite: state-card title (loading, empty preview, empty search). */
+.text-card-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-strong);
+}
+
+/* Composite: state-card subtitle. */
+.text-card-sub {
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
+}

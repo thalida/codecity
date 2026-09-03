@@ -1,0 +1,23 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Surfaces
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Background only, so a fill is set once per role rather than per selector. */
+
+.surface-app {
+  background: var(--cc-bg-app);
+}
+.surface-chrome {
+  background: var(--cc-bg-chrome);
+}
+.surface-sidebar {
+  background: var(--cc-bg-sidebar);
+}
+
+/* Only for panels floating over the canvas: in the app body a blur has
+   nothing to sample and the translucency reveals the page background. */
+.surface-glass {
+  background: var(--cc-glass-fill);
+  backdrop-filter: blur(var(--cc-glass-blur));
+  -webkit-backdrop-filter: blur(var(--cc-glass-blur));
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Cap how long a Python comment block may run — the `#` half of the rule
-app/eslint-rules/comment-length.js enforces on JS and CSS.
+packages/app/eslint-rules/comment-length.js enforces on JS and CSS.
 
 Density is the point: a long block buries the one non-obvious fact in it.
 

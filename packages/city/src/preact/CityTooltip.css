@@ -1,0 +1,33 @@
+/* The default hover card. Deliberately plain: a host replacing it through
+   `components.Tooltip` should not have to undo opinions it did not ask for. */
+.codecity-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+  max-width: 22rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.35rem;
+  background: var(--codecity-tooltip-bg, rgb(16 17 26 / 0.94));
+  color: var(--codecity-tooltip-fg, #e8e9f0);
+  font:
+    0.8rem/1.35 ui-sans-serif,
+    system-ui,
+    sans-serif;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.4);
+}
+
+/* Each line clips on its own, so one long value cannot widen the card. */
+.codecity-tooltip-title,
+.codecity-tooltip-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codecity-tooltip-path {
+  opacity: 0.65;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+}

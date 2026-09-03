@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codecity"
+dynamic = ["version"]
+description = "Visualize any codebase as an isometric 3D city"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "Pillow>=12.3.0",
+    "hachoir>=3.3",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sse-starlette>=2.1",
+    "pydantic-settings>=2.15",
+]
+
+[project.scripts]
+codecity = "api.__main__:main"
+
+[tool.hatch.version]
+source = "vcs"
+# The tags this version comes from are on the repo, two levels up from this
+# project. The search still terminates correctly if this directory is ever
+# lifted into a repo of its own, which a hardcoded `root = "../.."` would not.
+raw-options = { search_parent_directories = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+exclude = ["api/tests", "scripts"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-xdist>=3",
+    "pytest-cov>=4",
+    # Shuffles test order, matching vitest's `sequence: { shuffle: true }`. A
+    # suite that only passes in file order is sharing state between tests.
+    "pytest-randomly>=3",
+    "pyright>=1.1",
+    "ruff>=0.8",
+    # Starlette 1.2.x's TestClient prefers httpx2 (`import httpx2 as httpx`);
+    # plain httpx is deprecated for testclient and warns. httpx2 is the
+    # maintainer-recommended successor — keep it to stay warning-free.
+    "httpx2>=2.3",
+]
+
+[tool.ruff]
+# `ruff format` is the Python equivalent of the frontend's prettier — Black-
+# compatible defaults (88 cols, double quotes, magic trailing commas, etc.).
+target-version = "py311"
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["api/tests"]
+addopts = "-ra --strict-markers -n auto --cov=api --cov-report=term --cov-fail-under=80"
+
+[tool.pyright]
+include = ["api"]
+exclude = ["api/tests", "scripts"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+# Without this pyright resolves imports against whatever `python` is first on
+# PATH. That happens to be the uv venv locally, but in the test container it is
+# the system interpreter, where fastapi and pydantic don't exist — 253 phantom
+# "could not be resolved" errors. uv puts the venv at <root>/.venv in both
+# places, so naming it here makes the two runs agree.
+venvPath = "."
+venv = ".venv"
+
+[tool.coverage.run]
+source = ["api"]
+omit = ["api/tests/*", "api/__main__.py"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

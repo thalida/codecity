@@ -1,0 +1,36 @@
+/* The root fills whatever box the host gives it, and positions the overlay the
+   host's own UI is drawn into. */
+.codecity-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Over the canvas, and inert: a slot for a host's own tooltips and controls,
+   each of which turns pointer events back on for itself. */
+.codecity-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The canvas fills whatever box the host gives it. Scoped to the class, not a
+   bare `canvas` selector, which would reach every canvas on the page. */
+.codecity-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Opaque by default, so a sub-frame gap during a resize blends into the page
+   instead of flashing through. `background` is a variable a host can set; the
+   fallback keeps a bare integration from flashing white. */
+.codecity-canvas--opaque {
+  background: var(--codecity-canvas-bg, #0a0b10);
+}
+
+/* Transparent: whatever the host puts behind it shows until the city has
+   something to paint. */
+.codecity-canvas--transparent {
+  background: transparent;
+}

@@ -1,0 +1,418 @@
+import { type FileNode, NodeKind, type TimelineBundle } from '@codecity/city';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render } from 'preact';
+import { act } from 'preact/test-utils';
+import { type Signal } from '@preact/signals';
+import {
+  FilePreviewPane,
+  PreviewKind,
+  _previewKind,
+  type FilePreviewPaneState,
+} from '@/features/city/components/FilePreviewPane/FilePreviewPane';
+// A text preview settles across an effect, a fetch chain and a rAF, and jsdom's
+// rAF is a ~16ms timer: drainAsync yields macrotasks too, or it races that.
+import { drainAsync } from '../../../_helpers/preact';
+import { TEST_SOURCE, makeBundle } from '@codecity/city/testing';
+import { renderWithCity, type FakeCity } from '../../../_helpers/cityChrome';
+
+const FILE_NODE: FileNode = {
+  name: 'index.ts',
+  type: NodeKind.File,
+  path: 'src/index.ts',
+  extension: '.ts',
+  size: 1536,
+  lines: 50,
+  binary: false,
+  dirty: false,
+  created: '2024-01-10T09:00:00Z',
+  modified: '2024-03-20T10:00:00Z',
+};
+
+describe('FilePreviewPane', () => {
+  let container: HTMLDivElement;
+  let show: (state: FilePreviewPaneState) => void;
+
+  function mount(opts: { onClose?: () => void; onFocus?: (f: FileNode) => void } = {}): void {
+    show = (state) =>
+      render(
+        <FilePreviewPane state={state} onClose={opts.onClose} onFocus={opts.onFocus} />,
+        container
+      );
+    show({ file: null });
+  }
+
+  // Showing a file is a re-render, then the body useEffect + fetch + rAF settle.
+  async function setFile(file: FileNode | null): Promise<void> {
+    await act(async () => {
+      show({ file, source: TEST_SOURCE });
+    });
+    await drainAsync();
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    // A small text body by default, so the editor renders without a server;
+    // individual tests override globalThis.fetch.
+    globalThis.fetch = (async () =>
+      new Response('export const x = 1;\nconst y = 2;\n', {
+        status: 200,
+      })) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    // Unmount so the body useEffect cleanup runs and any in-flight fetch /
+    // rAF callback lands on a detached host instead of the live tree.
+    render(null, container);
+    container.remove();
+  });
+
+  it('returns a .pane wrapper containing a .editor-body', () => {
+    mount();
+    const pane = container.querySelector('.pane') as HTMLElement;
+    expect(pane.classList.contains('pane')).toBe(true);
+    // .editor-body is the marker the assertion targets, whichever wrapper
+    // class the pane puts around it.
+    expect(pane.querySelector('.editor-body')).not.toBeNull();
+  });
+
+  it('renders a pane header with a title element', () => {
+    mount();
+    expect(container.querySelector('.pane-header')).not.toBeNull();
+    expect(container.querySelector('.text-pane-title')).not.toBeNull();
+  });
+
+  it('starts in the empty state (no file) with "No file" title', async () => {
+    mount();
+    // The empty state is mounted from an effect, so it lands one commit
+    // later: drain before asserting on the body.
+    await drainAsync();
+    expect(container.querySelector('.empty-state')).not.toBeNull();
+    expect(container.querySelector('.text-pane-title')!.textContent).toBe('No file');
+  });
+
+  it('setFile(file) replaces the empty state with preview content and shows the filename', async () => {
+    mount();
+    await setFile(FILE_NODE);
+    // An .empty-state can reappear inside the shell after a failure, but the
+    // body must no longer be ONLY a state message.
+    expect(container.querySelector('.preview-shell')).not.toBeNull();
+    // The title is a path breadcrumb; its leaf segment is the filename.
+    expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('index.ts');
+  });
+
+  it('setFile(null) returns to the empty state and the "No file" title', async () => {
+    mount();
+    await setFile(FILE_NODE);
+    await setFile(null);
+    expect(container.querySelector('.empty-state')).not.toBeNull();
+    expect(container.querySelector('.preview-shell')).toBeNull();
+    expect(container.querySelector('.text-pane-title')!.textContent).toBe('No file');
+  });
+
+  it('successive setFile calls leave a single body content tree', async () => {
+    mount();
+    await setFile(FILE_NODE);
+    await setFile({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
+    // exactly one preview-shell, no leftover from the first call
+    expect(container.querySelectorAll('.preview-shell').length).toBe(1);
+    expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('utils.ts');
+  });
+
+  const BINARY_NODE: FileNode = {
+    name: 'data.db',
+    type: NodeKind.File,
+    path: 'data/data.db',
+    extension: '.db',
+    size: 50000,
+    lines: 0,
+    binary: true,
+    binaryType: 'SQLite database',
+    dirty: false,
+    created: '2024-01-10T09:00:00Z',
+    modified: '2024-03-20T10:00:00Z',
+  };
+
+  it('renders a data card (type + size + dates) for a binary file, not garbled text', async () => {
+    mount();
+    await setFile(BINARY_NODE);
+    // The data card, not the syntax-highlighted text dump: only the card shows
+    // the detected type + formatted size.
+    const card = container.querySelector('.binary-card');
+    expect(card).not.toBeNull();
+    expect(card!.textContent).toContain('SQLite database'); // detected type
+    expect(card!.textContent).toContain('48.8 KB'); // formatted size
+    expect(container.querySelector('.binary-fingerprint-frame')).not.toBeNull();
+  });
+
+  it('shows the fetched fingerprint image', async () => {
+    const requested: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      requested.push(String(url));
+      return new Response(new Blob([new Uint8Array([0x89, 0x50])], { type: 'image/png' }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
+    mount();
+    await setFile(BINARY_NODE);
+    await act(async () => {
+      await drainAsync(40, 1);
+    });
+    const img = container.querySelector('.binary-fingerprint') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    // The PNG arrives as a PNG: an object URL over the fetched blob, no base64
+    // round trip through JSON.
+    expect(img!.getAttribute('src')).toMatch(/^blob:/);
+    // Versioned by mtime, so an unedited file is served from the browser cache.
+    expect(requested.some((u) => u.includes('/api/fingerprint?') && u.includes('mtime='))).toBe(
+      true
+    );
+  });
+
+  it('says an undownloaded binary is waiting, not that it failed', async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+        status: 202,
+      })) as unknown as typeof fetch;
+
+    mount();
+    await setFile(BINARY_NODE);
+    await act(async () => {
+      await drainAsync(40, 1);
+    });
+    // No fingerprint to show, and the frame must not imply a broken file.
+    expect(container.querySelector('.binary-fingerprint')).toBeNull();
+    const fallback = container.querySelector('.binary-fingerprint-fallback');
+    expect(fallback!.getAttribute('aria-label')).toBe('Not downloaded yet');
+  });
+
+  it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {
+    // A live-update poll re-derives the selected FileNode with the same path
+    // but a newer mtime; the preview must re-fetch, not wait for a re-select.
+    const urls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response('body\n', { status: 200 });
+    }) as unknown as typeof fetch;
+    mount();
+    await setFile(FILE_NODE);
+    const afterFirst = urls.length;
+    expect(afterFirst).toBeGreaterThan(0);
+    // Same path, newer mtime + size — what an edit-then-poll yields.
+    await setFile({ ...FILE_NODE, modified: '2026-07-19T12:00:00Z', size: 1600 });
+    expect(urls.length).toBeGreaterThan(afterFirst);
+    // The refetch URL carries the mtime cache-buster so the browser can't serve
+    // the stale body for the unchanged path.
+    expect(urls[urls.length - 1]).toContain('mtime=');
+  });
+
+  it('falls through to preview (no "too large" state) for a 10 MB file', async () => {
+    mount();
+    await setFile({ ...FILE_NODE, size: 10 * 1024 * 1024 });
+    // Below the cap, so no "too large" gate: the shell mounts while the fetch
+    // flies, and the tier is picked once it answers.
+    expect(container.querySelector('.preview-shell')).not.toBeNull();
+    const stateTitle = container.querySelector('.text-card-title');
+    if (stateTitle) expect(stateTitle.textContent).not.toContain('too large');
+  });
+
+  it('shows the "too large" state for files above the 100 MB API cap', async () => {
+    mount();
+    await setFile({ ...FILE_NODE, size: 200 * 1024 * 1024 });
+    expect(container.querySelector('.preview-shell')).toBeNull();
+    expect(container.querySelector('.empty-state')).not.toBeNull();
+    expect(container.querySelector('.text-card-title')!.textContent).toContain('too large');
+  });
+
+  describe('font specimen', () => {
+    const FONT_NODE: FileNode = {
+      ...FILE_NODE,
+      name: 'Inter.woff2',
+      path: 'fonts/Inter.woff2',
+      extension: '.woff2',
+      binary: true,
+    };
+
+    // A minimal valid TrueType signature (0x00010000) padded to a few bytes.
+    const TTF_BYTES = new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+    // jsdom ships no FontFace, so this stubs one plus a byte-returning fetch;
+    // `loads` decides whether FontFace.load() resolves.
+    let origFontFace: unknown;
+    let origFonts: unknown;
+    let loadCalls = 0;
+    function installFont(bytes: Uint8Array, loads = true): void {
+      loadCalls = 0;
+      class FakeFontFace {
+        family: string;
+        constructor(family: string) {
+          this.family = family;
+        }
+        load(): Promise<FakeFontFace> {
+          loadCalls += 1;
+          return loads ? Promise.resolve(this) : Promise.reject(new Error('bad font table'));
+        }
+      }
+      origFontFace = (globalThis as Record<string, unknown>).FontFace;
+      origFonts = (document as unknown as Record<string, unknown>).fonts;
+      (globalThis as Record<string, unknown>).FontFace = FakeFontFace;
+      (document as unknown as Record<string, unknown>).fonts = { add() {}, delete() {} };
+      globalThis.fetch = (async () =>
+        new Response(bytes.buffer as ArrayBuffer, { status: 200 })) as unknown as typeof fetch;
+    }
+
+    /** The endpoint's answer for a font whose LFS object was never pulled. */
+    function installPendingFont(): void {
+      installFont(TTF_BYTES);
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ status: 'pending', message: 'Stored in Git LFS.' }), {
+          status: 202,
+        })) as unknown as typeof fetch;
+    }
+    afterEach(() => {
+      (globalThis as Record<string, unknown>).FontFace = origFontFace;
+      (document as unknown as Record<string, unknown>).fonts = origFonts;
+    });
+
+    it('_previewKind maps font extensions to Font', () => {
+      expect(_previewKind({ extension: '.woff2' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.WOFF' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.ttf' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.otf' })).toBe(PreviewKind.Font);
+      // Non-fonts still fall through to text.
+      expect(_previewKind({ extension: '.ts' })).toBe(PreviewKind.Text);
+    });
+
+    it('renders a specimen (alphabet + pangram + glyph grid) once the face loads', async () => {
+      installFont(TTF_BYTES);
+      mount();
+      await setFile(FONT_NODE);
+      const specimen = container.querySelector('.font-specimen') as HTMLElement;
+      expect(specimen).not.toBeNull();
+      expect(specimen.textContent).toContain('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      expect(specimen.textContent).toContain('The quick brown fox jumps over the lazy dog');
+      // Repertoire grid renders a cell per glyph (well past the 26-letter alphabet).
+      expect(container.querySelectorAll('.font-specimen-glyph').length).toBeGreaterThan(26);
+    });
+
+    it('reads an undownloaded font as waiting, not as a broken font', async () => {
+      installPendingFont();
+      mount();
+      await setFile(FONT_NODE);
+      expect(container.querySelector('.font-specimen')).toBeNull();
+      expect(container.querySelector('.text-card-title')!.textContent).toContain(
+        'Not downloaded yet'
+      );
+      expect(container.querySelector('.text-card-sub')!.textContent).toContain('Git LFS');
+      // The pointer stub never reaches the browser's decoder: the server keeps
+      // it, and 202 carries the reason instead.
+      expect(loadCalls).toBe(0);
+    });
+
+    it('falls back to a graceful notice when a real font fails to parse', async () => {
+      installFont(TTF_BYTES, false);
+      mount();
+      await setFile(FONT_NODE);
+      expect(container.querySelector('.font-specimen')).toBeNull();
+      expect(container.querySelector('.empty-state')).not.toBeNull();
+      expect(container.querySelector('.text-card-title')!.textContent).toContain('font');
+      expect(loadCalls).toBe(1);
+    });
+  });
+
+  it('renders the × close button only when onClose is provided', () => {
+    // No onClose (and no onFocus) → header renders no trailing icon button.
+    mount();
+    expect(container.querySelector('.pane-header .btn-icon:last-child')).toBeNull();
+
+    // Tear down the no-close mount before remounting into the same container.
+    render(null, container);
+
+    let closed = false;
+    mount({
+      onClose: () => {
+        closed = true;
+      },
+    });
+    const btn = container.querySelector(
+      '.pane-header .btn-icon:last-child'
+    ) as HTMLButtonElement | null;
+    expect(btn).not.toBeNull();
+    btn!.click();
+    expect(closed).toBe(true);
+  });
+});
+
+describe('FilePreviewPane in Timeline', () => {
+  let container: HTMLDivElement;
+  let state: Signal<FilePreviewPaneState>;
+
+  // media.png: no blob at commit 0, added at 1.
+  const BUNDLE = makeBundle({
+    commits: [{ sha: 'a' }, { sha: 'b' }],
+    deltas: [
+      { sha: 'a', changes: [] },
+      { sha: 'b', changes: [{ path: 'media.png', sha: 'blob1' }] },
+    ],
+    blobLines: { blob1: 0 },
+  } as unknown as Partial<TimelineBundle>);
+
+  const IMAGE_NODE: FileNode = {
+    name: 'media.png',
+    type: NodeKind.File,
+    path: 'media.png',
+    extension: '.png',
+    mediaKind: 'image',
+    size: 2048,
+    lines: 0,
+    binary: true,
+    dirty: false,
+    created: '2024-01-10T09:00:00Z',
+    modified: '2024-03-20T10:00:00Z',
+  } as unknown as FileNode;
+
+  let city: FakeCity;
+
+  async function showAt(commit: number): Promise<void> {
+    await act(async () => {
+      city.timeline.setPosition(commit);
+      renderWithCity(
+        <FilePreviewPane state={{ file: IMAGE_NODE, source: TEST_SOURCE }} />,
+        container,
+        city
+      );
+    });
+    await drainAsync();
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    // The preview reads the scrub off the city it is inside, so the history
+    // being scrubbed has to be that city's.
+    city = renderWithCity(<FilePreviewPane state={{ file: null }} />, container);
+    city.timeline.setBundle(BUNDLE);
+    city.timeline.enter();
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
+  it('asks for the blob at this commit, not for whatever HEAD has', async () => {
+    await showAt(1);
+    const img = container.querySelector('.preview-image') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    // Reading by path alone answers with HEAD's bytes, or 404s for a file HEAD
+    // no longer carries — which is what the city's own facades never do.
+    expect(new URL(img!.src).searchParams.get('sha')).toBe('blob1');
+  });
+
+  it('says the file is unavailable where it holds no blob, instead of fetching', async () => {
+    await showAt(0);
+    expect(container.querySelector('.preview-image')).toBeNull();
+    expect(container.querySelector('.empty-state--absent')).not.toBeNull();
+  });
+});

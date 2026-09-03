@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // strictNullChecks only, matching packages/app — the other two are pending there
+    // (#186) and the packages are not going to be stricter than the code moving
+    // into them.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default) — @types/node in particular, which
+    // belongs to tsconfig.node.json alone. three ships no bundled .d.ts; webxr
+    // is @types/three's own dependency.
+    "types": ["three", "webxr"],
+
+    // For src/preact/ alone — the framework adapter. Nothing under src/ else
+    // has JSX in it, and the core entry pulls none of this.
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": [
+    "node_modules",
+    "vite.config.js",
+    "vitest.config.js",
+    // Read their GLSL source off disk with node built-ins — checked by
+    // tsconfig.node.json, which is the only config that has @types/node.
+    "tests/utils/shaders/hslShader.test.ts",
+    "tests/utils/shaders/hashShader.test.ts",
+    "tests/components/buildings/building-shader.test.ts",
+    "tests/components/sky/skyShader.test.ts"
+  ]
+}

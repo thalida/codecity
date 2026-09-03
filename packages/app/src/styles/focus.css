@@ -1,0 +1,17 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL FOCUS RING
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The floor every interactive element gets. :focus-visible only fires for
+   keyboard focus, so mouse clicks stay ring-free. */
+
+:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+}
+
+/* Edge-to-edge icon clusters, where the default offset collides with
+   neighbors. Opt in per cluster. */
+.focus-inset:focus-visible {
+  outline-offset: -2px;
+}

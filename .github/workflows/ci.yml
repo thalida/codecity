@@ -49,8 +49,8 @@ jobs:
         # pyproject.toml's pytest addopts already include
         # `--cov=api --cov-report=term --cov-fail-under=80`. The extra
         # `--cov-report=xml:/srv/api/coverage.xml` lands the XML report
-        # inside the mounted `./api` dir so it's visible on the host for
-        # artifact upload (the compose service only mounts ./api, uv.lock,
+        # inside the mounted `./packages/api/api` dir so it's visible on the host for
+        # artifact upload (the compose service only mounts ./packages/api/api, uv.lock,
         # and pyproject.toml — not the repo root).
         run: |
           docker compose -f docker-compose.test.yml run --rm pytest \
@@ -61,7 +61,7 @@ jobs:
 
       # Stdlib-only, so it runs on the runner rather than paying for a container.
       - name: Python comment cap
-        run: python3 bin/check-comments.py api bin scripts
+        run: python3 bin/check-comments.py packages/api/api packages/api/scripts bin
 
       # Reads PYRIGHT_VERSION from the repo-root .env, which compose loads
       # automatically — no `env:` mirror needed here, unlike NPM_VERSION
@@ -72,10 +72,15 @@ jobs:
       - name: Run vitest with coverage
         # Override the default compose command (which runs `npm test`) to
         # run `npm run coverage` instead. Same apt-get / npm bootstrap as
-        # the compose service. Output lands in app/coverage/ on the host
-        # via the ./app:/app bind mount.
+        # the compose service. Output lands in packages/app/coverage/ on the host
+        # via the ./packages/app:/app bind mount.
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run coverage"
+
+      - name: Run the city's vitest with coverage
+        run: |
+          docker compose -f docker-compose.test.yml run --rm city-vitest \
             sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
 
       - name: Upload pytest coverage report
@@ -83,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pytest-coverage
-          path: api/coverage.xml
+          path: packages/api/api/coverage.xml
           if-no-files-found: warn
 
       - name: Upload vitest coverage report
@@ -91,17 +96,27 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
-          path: app/coverage/
+          path: packages/app/coverage/
+          if-no-files-found: warn
+
+      - name: Upload city vitest coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: city-vitest-coverage
+          path: packages/city/coverage/
           if-no-files-found: warn
 
       - name: Lint + typecheck
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && (cd /city && npm ci) && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
-      # Its own service: the app-scoped vitest service can't see the root config.
-      - name: Format check (prettier)
-        run: docker compose -f docker-compose.test.yml run --rm prettier
+      # Prettier lives inside each package, so there is no repo-wide format
+      # check — README, AGENTS.md, compose and these workflows belong to no
+      # package and are hand-formatted.
+      - name: city/ typecheck + format check
+        run: docker compose -f docker-compose.test.yml run --rm packages
 
       # Only the schema is written out here; the container owns everything node.
       # npm on the runner cannot work: compose mounts anonymous volumes over
@@ -110,7 +125,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           mkdir -p .local
-          "$HOME/.local/bin/uv" run python scripts/gen_openapi.py > .local/openapi.generated.json
+          "$HOME/.local/bin/uv" run --project packages/api python packages/api/scripts/gen_openapi.py > .local/openapi.generated.json
           docker compose -f docker-compose.test.yml run --rm gentypes
 
       - name: Trivy scan

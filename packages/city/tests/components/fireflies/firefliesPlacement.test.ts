@@ -1,0 +1,243 @@
+import { describe, it, expect } from 'vitest';
+import { placeFireflies } from '../../../src/components/fireflies/firefliesPlacement';
+import { colorForAuthor } from '../../../src/components/fireflies/authorColor';
+import { commits as buildCommits } from '../../_helpers/commits';
+import { commitStats } from '../../_helpers/statsFixtures';
+import { treePlacement } from '../../_helpers/cityFixtures';
+import { settingsStore } from '../../_helpers/citySettings';
+
+const SETTINGS = settingsStore();
+
+const COMMITS = buildCommits(
+  { date: '2026-01-01', files: 1, authors: ['Alice'] },
+  { date: '2026-01-02', files: 2, authors: ['Bob'] }
+);
+
+// TreePlacement carries no height or radius; placeFireflies derives both from
+// the commits plus TREES config.
+const placement = (commitIndex: number, x: number, z: number) => treePlacement(commitIndex, x, z);
+
+describe('placeFireflies', () => {
+  it('single-author commits emit exactly 1 orb per tree (regression)', () => {
+    const placements = [placement(0, 10, 5), placement(1, -3, 8)];
+    const orbs = placeFireflies(SETTINGS, placements, COMMITS, commitStats(COMMITS));
+    expect(orbs.length).toBe(placements.length);
+  });
+
+  it('is deterministic for the same input', () => {
+    const placements = [placement(0, 10, 5)];
+    const a = placeFireflies(SETTINGS, placements, COMMITS, commitStats(COMMITS));
+    const b = placeFireflies(SETTINGS, placements, COMMITS, commitStats(COMMITS));
+    expect(a).toEqual(b);
+  });
+
+  it('returns different orbital params for different commit SHAs', () => {
+    const a = placeFireflies(SETTINGS, [placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
+    const altCommits = [{ ...COMMITS[0], sha: 'c'.repeat(40) }, COMMITS[1]];
+    const b = placeFireflies(SETTINGS, [placement(0, 0, 0)], altCommits, commitStats(altCommits));
+    let anyDifferent = false;
+    for (let i = 0; i < a.length; i++) {
+      if (
+        a[i].orbitStartAngle !== b[i].orbitStartAngle ||
+        a[i].orbitRadius !== b[i].orbitRadius ||
+        a[i].height !== b[i].height
+      ) {
+        anyDifferent = true;
+        break;
+      }
+    }
+    expect(anyDifferent).toBe(true);
+  });
+
+  it('orbs cluster around the tree trunk within a reasonable spatial envelope', () => {
+    // TreePlacement carries no height or radius: placeFireflies derives both
+    // from the commits and TREES, so assert loose bounds rather than values.
+    const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
+    const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
+    const p = placement(0, 100, 200);
+    const orbs = placeFireflies(SETTINGS, [p], COMMITS, commitStats(COMMITS));
+    for (const o of orbs) {
+      // Tree center must equal the tree placement coordinates.
+      expect(o.treeX).toBe(p.x);
+      expect(o.treeZ).toBe(p.y);
+      // Orbital radius bounds the XZ spread around the tree center.
+      expect(o.orbitRadius).toBeGreaterThanOrEqual(0);
+      expect(o.orbitRadius).toBeLessThanOrEqual(MAX_RADIUS_BOUND);
+      expect(o.height).toBeGreaterThanOrEqual(0);
+      expect(o.height).toBeLessThanOrEqual(MAX_HEIGHT_BOUND);
+    }
+  });
+
+  it('emits authorColor per-orb from the commit author', () => {
+    const stats = commitStats(COMMITS);
+    const orbs = placeFireflies(SETTINGS, [placement(0, 0, 0)], COMMITS, stats);
+    const hue = stats.authors.find((a) => a.name === COMMITS[0].authors[0])!.hue;
+    const expected = colorForAuthor(hue).rgb;
+    for (const o of orbs) {
+      expect(o.rgb).toEqual(expected);
+    }
+  });
+
+  it('skips placements with invalid commitIndex', () => {
+    const orbs = placeFireflies(SETTINGS, [placement(99, 0, 0)], COMMITS, commitStats(COMMITS));
+    expect(orbs.length).toBe(0);
+  });
+
+  it.each([
+    ['phase', 0, Math.PI * 2],
+    ['orbitStartAngle', 0, Math.PI * 2],
+    ['pulsePhase', 0, Math.PI * 2],
+    ['orbitTilt', -Math.PI / 6, Math.PI / 6],
+  ] as const)('assigns %s within its range per orb', (field, lo, hi) => {
+    const orbs = placeFireflies(SETTINGS, [placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
+    expect(orbs.length).toBeGreaterThan(0);
+    for (const o of orbs) {
+      expect(o[field]).toBeGreaterThanOrEqual(lo);
+      expect(o[field]).toBeLessThanOrEqual(hi);
+    }
+  });
+
+  it('draws pulse phase from a stream independent of bob phase', () => {
+    const orbs = placeFireflies(SETTINGS, [placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
+    for (const o of orbs) expect(o.pulsePhase).not.toBe(o.phase);
+  });
+
+  it('scale-by-commits assigns larger scale to authors with more commits', () => {
+    // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
+    const commits = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice'] },
+      { date: '2026-01-02', files: 1, authors: ['Bob'] },
+      { date: '2026-01-03', files: 1, authors: ['Bob'] }
+    );
+    // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
+      commits,
+      commitStats(commits)
+    );
+    // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
+    const aliceOrb = orbs[0];
+    const bobOrb = orbs[1];
+    expect(bobOrb.scale).toBeGreaterThan(aliceOrb.scale);
+  });
+
+  it('emits the source commitIndex on each FireflyPlacement', () => {
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      COMMITS,
+      commitStats(COMMITS)
+    );
+    expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
+    expect(orbs[0].commitIndex).toBe(0);
+    expect(orbs[1].commitIndex).toBe(1);
+  });
+
+  it('all orbs from the same author share the same scale', () => {
+    // Use a fixture with 2 commits from the same author.
+    const sameAuthor = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice'] },
+      { date: '2026-01-02', files: 1, authors: ['Alice'] }
+    );
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      sameAuthor,
+      commitStats(sameAuthor)
+    );
+    expect(orbs[0].scale).toBe(orbs[1].scale);
+  });
+
+  it('single-author repo: all orbs scale to SCALE_MAX (degenerate distribution)', () => {
+    // A tie has no meaningful ranking, so everyone renders at SCALE_MAX rather
+    // than collapsing to SCALE_MIN.
+    const soloAuthor = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Solo'] },
+      { date: '2026-01-02', files: 1, authors: ['Solo'] }
+    );
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      soloAuthor,
+      commitStats(soloAuthor)
+    );
+    const scaleMax = SETTINGS.FIREFLIES.SCALE_MAX;
+    expect(orbs[0].scale).toBe(scaleMax);
+    expect(orbs[1].scale).toBe(scaleMax);
+  });
+
+  it('emits one orb per distinct author on a multi-author commit', () => {
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0)],
+      multiAuthor,
+      commitStats(multiAuthor)
+    );
+    expect(orbs.length).toBe(3);
+  });
+
+  it("colors each per-author orb with that author's color", () => {
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
+    const stats = commitStats(multiAuthor);
+    const orbs = placeFireflies(SETTINGS, [placement(0, 0, 0)], multiAuthor, stats);
+    const hueOf = (n: string) => stats.authors.find((a) => a.name === n)!.hue;
+    expect(orbs[0].rgb).toEqual(colorForAuthor(hueOf('Alice')).rgb);
+    expect(orbs[1].rgb).toEqual(colorForAuthor(hueOf('Bob')).rgb);
+    expect(orbs[2].rgb).toEqual(colorForAuthor(hueOf('Carol')).rgb);
+  });
+
+  it('per-author orbs share orbit center but have distinct angles', () => {
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 100, 200)],
+      multiAuthor,
+      commitStats(multiAuthor)
+    );
+    // Same orbit center (tree position).
+    expect(orbs[0].treeX).toBe(100);
+    expect(orbs[1].treeX).toBe(100);
+    expect(orbs[2].treeX).toBe(100);
+    expect(orbs[0].treeZ).toBe(200);
+    // Distinct seeds → distinct orbit start angles (probability of any
+    // two coinciding under Mulberry32 is ~2^-32; effectively zero).
+    expect(orbs[0].orbitStartAngle).not.toBe(orbs[1].orbitStartAngle);
+    expect(orbs[1].orbitStartAngle).not.toBe(orbs[2].orbitStartAngle);
+    expect(orbs[0].orbitStartAngle).not.toBe(orbs[2].orbitStartAngle);
+  });
+
+  it("counts co-authorship toward each author's tally", () => {
+    // Alice 1, Bob 2 (commit 0 is co-authored, commit 1 is Bob solo), so Bob's
+    // orbs scale larger.
+    const commits = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice', 'Bob'] },
+      { date: '2026-01-02', files: 1, authors: ['Bob'] }
+    );
+    const orbs = placeFireflies(
+      SETTINGS,
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      commits,
+      commitStats(commits)
+    );
+    // orbs[0] = Alice from commit 0, orbs[1] = Bob from commit 0,
+    // orbs[2] = Bob from commit 1.
+    const aliceOrb = orbs[0];
+    const bobOrbs = [orbs[1], orbs[2]];
+    expect(bobOrbs[0].scale).toBeGreaterThan(aliceOrb.scale);
+    expect(bobOrbs[0].scale).toBe(bobOrbs[1].scale); // same author, same scale
+  });
+});

@@ -2,7 +2,7 @@
 
 <div align="center">
   <h1>
-    <img src="app/public/gem.svg" alt="" width="32" align="center" /> codecity
+    <img src="packages/app/public/gem.svg" alt="" width="32" align="center" /> codecity
   </h1>
   <p><a href="https://codecity.io">codecity.io</a></p>
 </div>
@@ -221,7 +221,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 | `just setup`     | one-time: pre-push hooks, npm packages, `.env.local`            |
 | `just dev`       | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
 | `just url`       | print this worktree's dev URL (`open $(just url)`)              |
-| `just test`      | pytest + vitest in containers                                   |
+| `just test`      | pytest and both vitest suites, in containers                    |
 | `just lint`      | ruff, pyright, eslint, prettier, and typecheck                  |
 | `just gen-types` | regenerate the frontend wire types from the OpenAPI schema      |
 | `just clean`     | tear down this worktree's containers and volumes                |

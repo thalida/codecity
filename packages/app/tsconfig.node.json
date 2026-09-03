@@ -1,0 +1,25 @@
+{
+  // Covers Node-side scripts: vite.config.js, vitest.config.js, and the
+  // visual-regression test harness (tests/visual/**). Extends the root
+  // tsconfig but overrides "types" so that Node built-ins (fs, path, url,
+  // child_process, Buffer) are available here without bleeding into browser
+  // source. DOM lib is kept because page.evaluate() callbacks are typed with
+  // browser globals (window, document) even though the outer script runs in
+  // Node. The root tsconfig explicitly excludes these files so only this
+  // config checks them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    // @codecity/city declares its own `?url` / `?raw` asset modules; this
+    // config's own `include` means it would not otherwise see them.
+    "../city/src/assets.d.ts",
+    "vite.config.js",
+    "vitest.config.js",
+    "tests/visual/**/*",
+    "tests/styles/themePresets.test.ts",
+    "tests/styles/tokens.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

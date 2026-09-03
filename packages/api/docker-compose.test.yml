@@ -1,0 +1,77 @@
+# The api's test services; paths are relative to this file. All three run as
+# root and re-sync: the venv predates `USER codecity` and lacks the dev group.
+services:
+  pytest:
+    image: codecity:test
+    build:
+      context: ../..
+    user: 'root'
+    init: true
+    # The trailing "--" becomes $0, so `compose run pytest <args>` reaches pytest
+    # through "$@" instead of being silently dropped by sh -c.
+    entrypoint:
+      ['sh', '-c', 'uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v "$@"', '--']
+    environment:
+      # test_scan.py shells out to `git commit`; a fresh container has no identity.
+      - GIT_AUTHOR_NAME=Test Runner
+      - GIT_AUTHOR_EMAIL=test@codecity.local
+      - GIT_COMMITTER_NAME=Test Runner
+      - GIT_COMMITTER_EMAIL=test@codecity.local
+    volumes:
+      # Not :ro — test_scan.py mutates tests/fixtures/sample-repo/ to exercise
+      # stat-cache invalidation, then cleans up.
+      - './api:/srv/api'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
+
+  # Lint before format-check, so a real error isn't hidden behind a diff.
+  ruff:
+    image: codecity:test
+    build:
+      context: ../..
+    user: 'root'
+    init: true
+    entrypoint:
+      [
+        'sh',
+        '-c',
+        'uv sync --frozen && /srv/.venv/bin/ruff check api scripts && /srv/.venv/bin/ruff check --isolated /work/bin && /srv/.venv/bin/ruff format --check api scripts && exec /srv/.venv/bin/ruff format --isolated --check /work/bin "$@"',
+        '--',
+      ]
+    volumes:
+      - './api:/srv/api:ro'
+      - './scripts:/srv/scripts:ro'
+      # bin/ sits above this project, so it gets stock ruff (--isolated) and is
+      # mounted outside /srv, where no pyproject can reach it — as on the host.
+      - '../../bin:/work/bin:ro'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
+
+  # libatomic1: pyright fetches its own node, which links against it and
+  # python:3.13-slim doesn't ship it. Not in the image — only the gate needs it.
+  pyright:
+    image: codecity:test
+    build:
+      context: ../..
+    user: 'root'
+    init: true
+    entrypoint:
+      [
+        'sh',
+        '-c',
+        'apt-get update >/dev/null && apt-get install -y --no-install-recommends libatomic1 >/dev/null && uv sync --frozen && exec /srv/.venv/bin/python -m pyright "$@"',
+        '--',
+      ]
+    environment:
+      # The pip package is a launcher that downloads whatever is newest; pin the
+      # BINARY or the gate can turn red on a day nobody pushed.
+      - PYRIGHT_PYTHON_FORCE_VERSION=${PYRIGHT_VERSION:-1.1.409}
+    volumes:
+      - './api:/srv/api:ro'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
+      # Named, so pyright's node download happens once and not per push.
+      - 'codecity-test-pyright-cache:/root/.cache/pyright-python'
+
+volumes:
+  codecity-test-pyright-cache:

@@ -1,0 +1,47 @@
+# The city's checks. Paths are relative to this file.
+services:
+  # Named for the package, not the tool: the app defines a `vitest` service too,
+  # and compose merges these files into one namespace.
+  city-vitest:
+    image: node:24-bookworm-slim
+    working_dir: /city
+    init: true
+    # libexpat1 + fonts: jsdom delegates getContext('2d') to node-canvas, and
+    # the label atlas asserts on real text widths. npm ci retries because
+    # canvas's prebuilt download flakes into a gyp build this image can't do.
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
+    volumes:
+      # Not :ro — Docker can't mkdir the node_modules mountpoint under a
+      # read-only parent on a fresh checkout. The tests never write to source.
+      - '.:/city'
+      - '/city/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+      - 'codecity-test-node-cache:/root/.cache'
+
+  # Regenerates the types from the schema `just gen-types` wrote to .local/ and
+  # diffs. Here because openapi-typescript lives with the file it writes.
+  gentypes:
+    image: node:24-bookworm-slim
+    working_dir: /repo/packages/city
+    init: true
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx openapi-typescript ../../.local/openapi.generated.json -o /tmp/fresh.ts && diff -u src/types/manifest.generated.ts /tmp/fresh.ts"
+    volumes:
+      - '../..:/repo'
+      - '/repo/packages/city/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+
+  # Typecheck + format check. Named for the package it covers, not the tool.
+  packages:
+    image: node:24-bookworm-slim
+    working_dir: /repo
+    init: true
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && cd /repo/packages/city && npm ci && npm run typecheck && npm run format:check"
+    volumes:
+      # Not :ro — same fresh-clone mountpoint problem as vitest. Never writes.
+      - '../..:/repo'
+      - '/repo/packages/city/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+
+volumes:
+  codecity-test-npm-cache:
+  codecity-test-node-cache:

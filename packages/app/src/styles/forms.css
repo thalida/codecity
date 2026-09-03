@@ -1,0 +1,58 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Form inputs
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* One text-input style for every context. background-color, not the
+   shorthand, so --select can layer its chevron in. */
+
+/* Reads as a "depressed" element against any of the four surfaces. */
+.form-input {
+  background-color: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-text-strong);
+  font: inherit;
+  font-size: var(--cc-font-md);
+  padding: var(--cc-space-2) var(--cc-space-4);
+  outline: none;
+}
+.form-input::placeholder {
+  color: var(--cc-text-muted);
+}
+.form-input:focus {
+  border-color: var(--cc-accent-border);
+}
+
+/* .form-input--error — invalid-value state (pairs with an inline error
+   message + aria-invalid on the input). */
+.form-input--error {
+  border-color: var(--cc-error-border);
+}
+.form-input--error:focus {
+  border-color: var(--cc-error);
+}
+
+/* The narrow numeric variant, for the Controls pane's per-row inputs. */
+.form-input--mono {
+  width: 70px;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  padding: var(--cc-space-1) var(--cc-space-3);
+  text-align: right;
+}
+
+/* Native <select>: OS chrome dropped, chevron painted, room left for it. */
+.form-input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* A form control's min-content width is its longest option, which beats a
+     flex parent's shrink unless it's told otherwise. */
+  min-width: 0;
+  max-width: 100%;
+  padding-right: var(--cc-space-8); /* room for the chevron */
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right var(--cc-space-3) center;
+  background-size: 14px 14px;
+}

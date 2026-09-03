@@ -1,0 +1,9 @@
+node_modules
+package-lock.json
+dist
+
+# Auto-generated from the OpenAPI schema by `just gen-types` (openapi-typescript).
+# Edit packages/api/api/models/*.py and regenerate; never hand-format this file:
+# check-types-fresh diffs it byte for byte, so formatting it makes the check
+# report the formatting rather than the models (#182).
+src/types/manifest.generated.ts

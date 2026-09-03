@@ -1,0 +1,11 @@
+node_modules
+package-lock.json
+coverage
+dist
+
+# Auto-generated from the OpenAPI schema by `just gen-types` (openapi-typescript).
+# Edit packages/api/api/models/*.py and regenerate; never hand-format this file.
+src/types/manifest.generated.ts
+
+# Written by the visual-regression harness, not by hand.
+tests/visual/references-diff

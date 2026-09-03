@@ -1,0 +1,20 @@
+{
+  // Covers the Node-side files: the vite and vitest configs, and the tests that
+  // read shader source off disk. Extends the main config but overrides "types"
+  // so Node built-ins (fs, path, url) are available here without bleeding into
+  // the renderer. The main config excludes exactly these files, so each one is
+  // checked once.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "three", "webxr"]
+  },
+  "include": [
+    "vite.config.js",
+    "vitest.config.js",
+    "tests/utils/shaders/hslShader.test.ts",
+    "tests/utils/shaders/hashShader.test.ts",
+    "tests/components/buildings/building-shader.test.ts",
+    "tests/components/sky/skyShader.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

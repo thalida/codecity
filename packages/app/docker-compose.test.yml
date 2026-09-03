@@ -1,0 +1,25 @@
+# The app's test service. Paths are relative to this file.
+services:
+  vitest:
+    image: node:24-bookworm-slim
+    working_dir: /app
+    init: true
+    # libexpat1 + fonts: jsdom delegates getContext('2d') to node-canvas, and
+    # labelAtlas pagination asserts on real text widths. npm ci retries because
+    # canvas's prebuilt download flakes into a gyp build this image can't do.
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (cd /city && npm ci) && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
+    volumes:
+      # Not :ro — Docker can't mkdir the node_modules mountpoint under a
+      # read-only parent on a fresh checkout. The tests never write to source.
+      - '.:/app'
+      # @codecity/city resolves to /app/../city through both the workspace link
+      # and the vite alias, so it has to be mounted as a sibling.
+      - '../city:/city'
+      - '/city/node_modules'
+      - '/app/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
+      - 'codecity-test-node-cache:/root/.cache'
+
+volumes:
+  codecity-test-npm-cache:
+  codecity-test-node-cache:
