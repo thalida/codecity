@@ -14,8 +14,11 @@ on:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # Publishing and signing an image, but with none of release.yml's actor
-    # gate: this can only rebuild already-released source, never new code.
+    # Same actor gate as release.yml, since this publishes and deploys — but
+    # only on the manual path. On a schedule event `github.actor` is whoever
+    # last edited the workflow, so gating cron too would let an edit silently
+    # stop the weekly patch.
+    if: github.event_name == 'schedule' || github.actor == github.repository_owner
     permissions:
       contents: read
       packages: write
