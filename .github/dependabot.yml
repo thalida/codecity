@@ -1,0 +1,41 @@
+# Grouped update PRs: ungrouped, Dependabot opens one per package and nobody
+# reviews thirty of them.
+#
+# No Python stanza. Dependabot has no `uv` ecosystem, and its `pip` one reads
+# only pip/pipenv/pip-compile/poetry files, so it would leave uv.lock stale and
+# every `uv sync --frozen` build would fail. Python deps stay manual.
+#
+# Security-only would miss the routine bumps that keep an advisory from landing
+# on a version too old to move, so these run on the full dependency set. Each PR
+# goes through the same CI gate as any other.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    open-pull-requests-limit: 5
+    groups:
+      # Runtime and build/test tooling move for different reasons and carry
+      # different risk, so they land as separate PRs.
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: chore
