@@ -37,7 +37,7 @@ jobs:
       # The tag, not main: `:latest` must keep pointing at released code. Only
       # the OS packages underneath it are allowed to move.
       - name: Checkout the release tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.release.outputs.tag }}
 
